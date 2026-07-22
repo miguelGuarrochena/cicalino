@@ -17,7 +17,7 @@ type Step = {
 const STEPS: Step[] = [
   { key: "scan", img: "bell", float: true, accent: "brand" },
   { key: "espera", img: "chef", float: true, accent: "amber" },
-  { key: "aviso", img: "chef", float: true, accent: "amber" },
+  { key: "aviso", img: "bell", float: true, accent: "amber" },
   { key: "listo", img: "ok", accent: "green" },
 ];
 
