@@ -1,0 +1,64 @@
+# ===========================================================================
+# Cicalino — .gitignore
+# ===========================================================================
+
+# --- Dependencias ---
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+.pnpm-store/
+
+# --- Next.js / build ---
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# ---------------------------------------------------------------------------
+# VARIABLES DE ENTORNO / SECRETOS  (NUNCA commitear info sensible)
+#   - DATABASE_URL (Neon), claves VAPID de Web Push, tokens de Mercado Pago, etc.
+#   - Se versiona SOLO .env.example (plantilla sin valores reales).
+# ---------------------------------------------------------------------------
+.env
+.env.*
+.env.local
+.env.development
+.env.development.local
+.env.production
+.env.production.local
+.env.test
+.env.test.local
+!.env.example
+
+# Otros archivos con credenciales / secretos
+*.pem
+*.key
+*.p8
+*.p12
+*.keystore
+*.cert
+secrets.*
+credentials.*
+service-account*.json
+
+# --- Drizzle (las migraciones generadas SÍ se commitean; journal temporal no) ---
+/drizzle/meta/_journal.json.tmp
+
+# --- Logs / debug ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# --- Editores / OS ---
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# --- TypeScript / cachés ---
+*.tsbuildinfo
+.eslintcache

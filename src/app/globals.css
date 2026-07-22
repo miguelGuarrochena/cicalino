@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   Cicalino — sistema de marca (azul cobalto sobre crema)
+   Tema claro por defecto; oscuro segun sistema o forzado con data-theme.
+   =========================================================================== */
+
+:root {
+  --bg: #f4f1da;
+  --surface: #fbf9ec;
+  --text: #20264f;
+  --brand: #2536d4;
+  --brand-strong: #1b29b0;
+  --line: #e4dfc2;
+  --mascota: #2536d4;
+  color-scheme: light;
+}
+
+/* Oscuro segun sistema (si el usuario no forzo claro) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10142f;
+    --surface: #1a1f45;
+    --text: #ede9ce;
+    --brand: #7d8bff;
+    --brand-strong: #9aa4ff;
+    --line: #2a2f5c;
+    --mascota: #ede9ce;
+    color-scheme: dark;
+  }
+}
+
+/* Oscuro forzado por el toggle */
+:root[data-theme="dark"] {
+  --bg: #10142f;
+  --surface: #1a1f45;
+  --text: #ede9ce;
+  --brand: #7d8bff;
+  --brand-strong: #9aa4ff;
+  --line: #2a2f5c;
+  --mascota: #ede9ce;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-crema: var(--bg);
+  --color-surface: var(--surface);
+  --color-carbon: var(--text);
+  --color-marca: var(--brand);
+  --color-marca-fuerte: var(--brand-strong);
+  --color-linea: var(--line);
+  --color-listo: #16a34a;
+  --color-prep: #f59e0b;
+
+  --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --font-display: "Archivo Black", "Archivo", ui-sans-serif, system-ui,
+    sans-serif;
+
+  --animate-float: float 4s ease-in-out infinite;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Manito en todo lo clickeable */
+:where(
+  a[href],
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  label[for],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="reset"]:not(:disabled)
+) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* Transicion fluida de tema */
+@media (prefers-reduced-motion: no-preference) {
+  :where(body, header, main, section, article, a, button, span, p, h1, h2, h3, div) {
+    transition:
+      background-color 0.35s ease,
+      border-color 0.35s ease,
+      color 0.3s ease;
+  }
+}
+
+/* ---- Animaciones ---- */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  60% {
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.u-in {
+  opacity: 0;
+  animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.u-pop {
+  animation: popIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.u-float {
+  animation: var(--animate-float);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-in,
+  .u-pop,
+  .u-float {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ---- Swap de imagenes por tema (azul en claro, crema en oscuro) ---- */
+.on-dark {
+  display: none;
+}
+:root[data-theme="dark"] .on-light {
+  display: none;
+}
+:root[data-theme="dark"] .on-dark {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .on-light {
+    display: none;
+  }
+  :root:not([data-theme="light"]) .on-dark {
+    display: block;
+  }
+}
