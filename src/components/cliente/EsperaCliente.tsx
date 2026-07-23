@@ -14,6 +14,7 @@ import {
   pedirPermisoNotificaciones,
   registrarServiceWorker,
 } from "@/lib/notificaciones";
+import { lanzarConfetiListo } from "@/lib/confeti";
 
 interface Props {
   token: string;
@@ -81,7 +82,7 @@ export const EsperaCliente = ({ token }: Props) => {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [esperando]);
 
-  // Vibrar + notificación al pasar a listo
+  // Vibrar + confeti + notificación al pasar a listo
   useEffect(() => {
     if (!pedido) return;
     const prev = prevEstado.current;
@@ -89,6 +90,7 @@ export const EsperaCliente = ({ token }: Props) => {
     if (prev == null || prev === pedido.estado) return;
     if (pedido.estado !== "listo") return;
     if ("vibrate" in navigator) navigator.vibrate?.([200, 100, 200]);
+    void lanzarConfetiListo();
     if (pushActivo) {
       void mostrarAvisoListo({
         referencia: pedido.referencia,
