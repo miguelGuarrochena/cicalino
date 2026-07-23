@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export interface EmpleadoActivo {
+export interface ActiveEmployee {
   id: string;
   nombre: string;
 }
@@ -14,18 +14,18 @@ export interface Impersonacion {
 }
 
 // Roles: dueño = org; supervisor/empleado = una sucursal; SA = Cicalino.
-export type RolActual = "superadmin" | "admin" | "supervisor" | "empleado";
+export type CurrentRole = "superadmin" | "admin" | "supervisor" | "empleado";
 
 interface SessionState {
-  rol: RolActual;
+  rol: CurrentRole;
   organizacionId: string | null;
   sucursalId: string | null;
-  setRol: (rol: RolActual) => void;
+  setRol: (role: CurrentRole) => void;
   /** Dueño / supervisor: fijar contexto de empresa y sucursal activa. */
-  setContexto: (orgId: string | null, sucursalId: string | null) => void;
-  setSucursalId: (sucursalId: string | null) => void;
-  empleadoActivo: EmpleadoActivo | null;
-  fichar: (emp: EmpleadoActivo) => void;
+  setContexto: (orgId: string | null, branchId: string | null) => void;
+  setSucursalId: (branchId: string | null) => void;
+  empleadoActivo: ActiveEmployee | null;
+  fichar: (emp: ActiveEmployee) => void;
   salir: () => void;
   impersonando: Impersonacion | null;
   entrarComoDueño: (data: Impersonacion) => void;
@@ -39,23 +39,23 @@ export const useSessionStore = create<SessionState>()(
       // Demo: dueño de La Esquina, sucursal Centro
       organizacionId: "org-esquina",
       sucursalId: "suc-centro",
-      setRol: (rol) =>
+      setRol: (role) =>
         set({
-          rol,
+          rol: role,
           impersonando: null,
           // Defaults demo al cambiar rol
           organizacionId:
-            rol === "superadmin" ? null : "org-esquina",
+            role === "superadmin" ? null : "org-esquina",
           sucursalId:
-            rol === "superadmin"
+            role === "superadmin"
               ? null
-              : rol === "admin"
+              : role === "admin"
                 ? "suc-centro"
                 : "suc-centro",
         }),
-      setContexto: (organizacionId, sucursalId) =>
-        set({ organizacionId, sucursalId }),
-      setSucursalId: (sucursalId) => set({ sucursalId }),
+      setContexto: (organizationId, branchId) =>
+        set({ organizacionId: organizationId, sucursalId: branchId }),
+      setSucursalId: (branchId) => set({ sucursalId: branchId }),
       empleadoActivo: null,
       fichar: (emp) => set({ empleadoActivo: emp }),
       salir: () => set({ empleadoActivo: null }),

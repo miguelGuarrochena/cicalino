@@ -93,13 +93,13 @@ previsualizar cada vista; en producción el rol viene del login.
 | Ruta | Qué es |
 | --- | --- |
 | `/` | Landing (hero con la mascota) |
-| `/precios` | Planes (Prueba / Base / Pro) y contacto |
+| `/pricing` | Planes (Prueba / Base / Pro) y contacto |
 | `/panel` | Pedidos del local (crear, cambiar estado, QR) |
-| `/panel/metricas` | Métricas por período (día / semana / mes / año) — solo admin |
+| `/panel/metrics` | Métricas por período (día / semana / mes / año) — solo admin |
 | `/panel/config` | Configuración del local, modo de identificación y empleados |
 | `/p/[token]` | Vista pública del cliente tras escanear el QR |
 | `/admin` | Panel de superadmin (locales, planes, pagos) |
-| `/entrar`, `/faq`, `/precios`, `/terminos`, `/privacidad` | Marketing / auxiliares |
+| `/login`, `/faq`, `/pricing`, `/terms`, `/privacy` | Marketing / auxiliares |
 
 ---
 
@@ -110,20 +110,20 @@ src/
 ├── app/
 │   ├── layout.tsx            # providers (tema + i18n), fuentes, anti-flash
 │   ├── page.tsx              # landing
-│   ├── (local)/panel/        # panel del local (pedidos, métricas, config)
+│   ├── (app)/panel/        # panel del local (pedidos, métricas, config)
 │   ├── (cliente)/p/[token]/  # vista del cliente (QR)
 │   ├── admin/                # área de superadmin
-│   ├── precios/ · faq/ · entrar/ · terminos/ · privacidad/
+│   ├── pricing/ · faq/ · login/ · terms/ · privacy/
 │   └── api/                  # route handlers (stubs hasta conectar Neon)
 ├── components/
-│   ├── local/                # panel: PedidoCard, Fichaje, QrModal, PanelNav...
-│   ├── cliente/              # EsperaCliente
+│   ├── panel/                # panel: OrderCard, TimeClock, QrModal, PanelNav...
+│   ├── customer/             # CustomerWaiting
 │   ├── admin/                # LocalModal
-│   ├── ui/                   # Controls, Logo, ThemedImg, ModalShell, Paginacion...
+│   ├── ui/                   # Controls, Logo, ThemedImg, ModalShell, Pagination...
 │   └── providers/            # Providers (tema + idioma, rehidratación de stores)
 └── lib/
     ├── db/                   # schema (Drizzle) + conexión Neon
-    ├── store/                # Zustand: pedidos, config, session, superadmin
+    ├── store/                # Zustand: orders, config, session, superadmin
     ├── i18n.ts               # diccionario ES/EN + translate()
     ├── validations.ts        # helpers de validación de formularios
     ├── types.ts · mock.ts · utils/token.ts

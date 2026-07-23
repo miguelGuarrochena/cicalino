@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
-  cobroMensual,
-  type OrganizacionRow,
+  monthlyCharge,
+  type OrganizationRow,
 } from "@/lib/store/superadmin-store";
 import { OrgModal } from "@/components/admin/OrgModal";
-import { Paginacion, slicePage } from "@/components/ui/Paginacion";
+import { Pagination, slicePage } from "@/components/ui/Pagination";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
 const MULT: Record<Periodo, number> = { dia: 1, semana: 6.5, mes: 28, ano: 330 };
@@ -48,35 +48,35 @@ const Metric = ({
 
 const SuperadminPage = () => {
   const { t } = useApp();
-  const organizaciones = useSuperadminStore((s) => s.organizaciones);
+  const organizations = useSuperadminStore((s) => s.organizaciones);
 
   const [periodo, setPeriodo] = useState<Periodo>("dia");
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState<
-    { mode: "crear" } | { mode: "ver"; org: OrganizacionRow } | null
+    { mode: "crear" } | { mode: "ver"; org: OrganizationRow } | null
   >(null);
 
   const orgAbierta =
     modal?.mode === "ver"
-      ? organizaciones.find((o) => o.id === modal.org.id) ?? modal.org
+      ? organizations.find((o) => o.id === modal.org.id) ?? modal.org
       : null;
 
-  const activas = organizaciones.filter((o) => o.activo);
+  const activas = organizations.filter((o) => o.activo);
   const mrr = activas
     .filter((o) => o.pagado)
-    .reduce((a, o) => a + cobroMensual(o), 0);
+    .reduce((a, o) => a + monthlyCharge(o), 0);
   const morosos = activas.filter((o) => !o.pagado).length;
-  const sucursalesActivas = organizaciones.reduce(
+  const activeBranches = organizations.reduce(
     (a, o) => a + o.sucursales.filter((s) => s.activo).length,
     0,
   );
-  const pedidos = Math.round(
-    organizaciones.reduce(
+  const orders = Math.round(
+    organizations.reduce(
       (a, o) => a + o.sucursales.reduce((b, s) => b + s.pedidosHoy, 0),
       0,
     ) * MULT[periodo],
   );
-  const pageItems = slicePage(organizaciones, page, PAGE_SIZE);
+  const pageItems = slicePage(organizations, page, PAGE_SIZE);
   const periodos: Periodo[] = ["dia", "semana", "mes", "ano"];
 
   return (
@@ -120,7 +120,7 @@ const SuperadminPage = () => {
         />
         <Metric
           label={t("super.sucursalesActivas")}
-          value={String(sucursalesActivas)}
+          value={String(activeBranches)}
           delay={0.08}
         />
         <Metric label={t("super.mrr")} value={money.format(mrr)} delay={0.12} />
@@ -134,12 +134,12 @@ const SuperadminPage = () => {
 
       <p className="text-center text-xs text-carbon/45 sm:text-left">
         {t("super.pedidosPeriodo", {
-          n: pedidos.toLocaleString("es-AR"),
+          n: orders.toLocaleString("es-AR"),
         })}
       </p>
 
       <div className="flex flex-col gap-3">
-        {organizaciones.length === 0 && (
+        {organizations.length === 0 && (
           <p className="rounded-[24px] border border-linea bg-surface px-6 py-12 text-center text-sm text-carbon/45">
             {t("super.sinOrgs")}
           </p>
@@ -168,7 +168,7 @@ const SuperadminPage = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <div className="text-left sm:text-right">
                   <p className="font-display text-lg text-marca">
-                    {money.format(cobroMensual(o))}
+                    {money.format(monthlyCharge(o))}
                   </p>
                   <p className="text-[10px] text-carbon/45">{t("super.cobro")}</p>
                 </div>
@@ -186,10 +186,10 @@ const SuperadminPage = () => {
             </button>
           );
         })}
-        <Paginacion
+        <Pagination
           page={page}
           pageSize={PAGE_SIZE}
-          total={organizaciones.length}
+          total={organizations.length}
           onChange={setPage}
         />
       </div>

@@ -1,7 +1,7 @@
-import type { PedidoVista } from "@/lib/types";
+import type { OrderView } from "@/lib/types";
 
 // Datos de ejemplo para los prototipos, mientras no hay base conectada.
-export const pedidosDemo = (): PedidoVista[] => {
+export const ordersDemo = (): OrderView[] => {
   const ahora = Date.now();
   const iso = (msAtras: number) => new Date(ahora - msAtras).toISOString();
   const min = 60_000;

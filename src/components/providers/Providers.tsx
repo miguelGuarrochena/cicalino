@@ -11,7 +11,7 @@ import { translate, type Locale } from "@/lib/i18n";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useSuperadminStore } from "@/lib/store/superadmin-store";
-import { usePedidosStore } from "@/lib/store/pedidos-store";
+import { useOrdersStore } from "@/lib/store/orders-store";
 
 type ThemePref = "light" | "dark" | "system";
 
@@ -46,7 +46,7 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
     useConfigStore.persist.rehydrate();
     useSessionStore.persist.rehydrate();
     useSuperadminStore.persist.rehydrate();
-    usePedidosStore.persist.rehydrate();
+    useOrdersStore.persist.rehydrate();
     // PWA: registrar el service worker (solo en producción).
     if (
       process.env.NODE_ENV === "production" &&

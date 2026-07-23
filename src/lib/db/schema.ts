@@ -40,7 +40,7 @@ export const orderStatusEnum = pgEnum("order_status", [
 //  - pedido: numero de turno correlativo (take away)
 //  - nombre: nombre del cliente (take away)
 //  - mesa:   numero de mesa (para organizar al personal)
-export const modoIdentificacionEnum = pgEnum("modo_identificacion", [
+export const identificationModeEnum = pgEnum("modo_identificacion", [
   "pedido",
   "nombre",
   "mesa",
@@ -51,7 +51,7 @@ export const modoIdentificacionEnum = pgEnum("modo_identificacion", [
 //  - admin: dueño de la EMPRESA (organización). Ve sucursales y métricas globales.
 //  - supervisor: una SUCURSAL. Pedidos, personal y modo. Sin métricas globales.
 // Los empleados NO son usuarios: son perfiles con PIN dentro de la sucursal.
-export const rolUsuarioEnum = pgEnum("rol_usuario", [
+export const userRoleEnum = pgEnum("rol_usuario", [
   "superadmin",
   "admin",
   "supervisor",
@@ -61,7 +61,7 @@ export const rolUsuarioEnum = pgEnum("rol_usuario", [
 // Organizaciones (empresas / unidad de cobro)
 // ---------------------------------------------------------------------------
 
-export const organizaciones = pgTable("organizaciones", {
+export const organizations = pgTable("organizaciones", {
   id: uuid("id").primaryKey().defaultRandom(),
   nombre: text("nombre").notNull(),
   responsable: text("responsable"),
@@ -85,7 +85,7 @@ export const locales = pgTable("locales", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizacionId: uuid("organizacion_id")
     .notNull()
-    .references(() => organizaciones.id, { onDelete: "cascade" }),
+    .references(() => organizations.id, { onDelete: "cascade" }),
   nombre: text("nombre").notNull(),
   tipoNegocio: businessTypeEnum("tipo_negocio").notNull().default("otro"),
   whatsapp: text("whatsapp"),
@@ -93,7 +93,7 @@ export const locales = pgTable("locales", {
   // slug corto para URLs amigables del local (ej: cicalino.ar/l/mi-cafe)
   slug: text("slug").notNull(),
   // Como se identifica cada pedido (lo elige el local en la config).
-  modoIdentificacion: modoIdentificacionEnum("modo_identificacion")
+  modoIdentificacion: identificationModeEnum("modo_identificacion")
     .notNull()
     .default("pedido"),
   // Cantidad de mesas (solo aplica si modoIdentificacion = "mesa").
@@ -110,7 +110,7 @@ export const locales = pgTable("locales", {
 // Empleados (personal del local, para atender pedidos y metricas por persona)
 // ---------------------------------------------------------------------------
 
-export const empleados = pgTable(
+export const employees = pgTable(
   "empleados",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -133,15 +133,15 @@ export const empleados = pgTable(
 // Usuarios con login real (superadmin / admin del local)
 // ---------------------------------------------------------------------------
 
-export const usuarios = pgTable(
+export const users = pgTable(
   "usuarios",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
     nombre: text("nombre"),
-    rol: rolUsuarioEnum("rol").notNull().default("admin"),
+    rol: userRoleEnum("rol").notNull().default("admin"),
     // Dueño (admin) apunta a la organización; supervisor a una sucursal (localId).
-    organizacionId: uuid("organizacion_id").references(() => organizaciones.id, {
+    organizacionId: uuid("organizacion_id").references(() => organizations.id, {
       onDelete: "cascade",
     }),
     localId: uuid("local_id").references(() => locales.id, {
@@ -158,7 +158,7 @@ export const usuarios = pgTable(
 // Pedidos
 // ---------------------------------------------------------------------------
 
-export const pedidos = pgTable(
+export const orders = pgTable(
   "pedidos",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -172,7 +172,7 @@ export const pedidos = pgTable(
     estado: orderStatusEnum("estado").notNull().default("creado"),
 
     // Empleado que tomo / atiende el pedido (para metricas por persona).
-    empleadoId: uuid("empleado_id").references(() => empleados.id, {
+    empleadoId: uuid("empleado_id").references(() => employees.id, {
       onDelete: "set null",
     }),
 
@@ -210,7 +210,7 @@ export const pushSubscriptions = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     pedidoId: uuid("pedido_id")
       .notNull()
-      .references(() => pedidos.id, { onDelete: "cascade" }),
+      .references(() => orders.id, { onDelete: "cascade" }),
     endpoint: text("endpoint").notNull(),
     p256dh: text("p256dh").notNull(),
     auth: text("auth").notNull(),
@@ -225,46 +225,46 @@ export const pushSubscriptions = pgTable(
 // Relaciones
 // ---------------------------------------------------------------------------
 
-export const organizacionesRelations = relations(organizaciones, ({ many }) => ({
+export const organizationsRelations = relations(organizations, ({ many }) => ({
   locales: many(locales),
-  usuarios: many(usuarios),
+  usuarios: many(users),
 }));
 
 export const localesRelations = relations(locales, ({ one, many }) => ({
-  organizacion: one(organizaciones, {
+  organizacion: one(organizations, {
     fields: [locales.organizacionId],
-    references: [organizaciones.id],
+    references: [organizations.id],
   }),
-  pedidos: many(pedidos),
-  empleados: many(empleados),
+  pedidos: many(orders),
+  empleados: many(employees),
 }));
 
-export const empleadosRelations = relations(empleados, ({ one }) => ({
+export const employeesRelations = relations(employees, ({ one }) => ({
   local: one(locales, {
-    fields: [empleados.localId],
+    fields: [employees.localId],
     references: [locales.id],
   }),
 }));
 
-export const pedidosRelations = relations(pedidos, ({ one, many }) => ({
+export const ordersRelations = relations(orders, ({ one, many }) => ({
   local: one(locales, {
-    fields: [pedidos.localId],
+    fields: [orders.localId],
     references: [locales.id],
   }),
-  empleado: one(empleados, {
-    fields: [pedidos.empleadoId],
-    references: [empleados.id],
+  empleado: one(employees, {
+    fields: [orders.empleadoId],
+    references: [employees.id],
   }),
   pushSubscriptions: many(pushSubscriptions),
 }));
 
-export const usuariosRelations = relations(usuarios, ({ one }) => ({
-  organizacion: one(organizaciones, {
-    fields: [usuarios.organizacionId],
-    references: [organizaciones.id],
+export const usersRelations = relations(users, ({ one }) => ({
+  organizacion: one(organizations, {
+    fields: [users.organizacionId],
+    references: [organizations.id],
   }),
   local: one(locales, {
-    fields: [usuarios.localId],
+    fields: [users.localId],
     references: [locales.id],
   }),
 }));
@@ -272,9 +272,9 @@ export const usuariosRelations = relations(usuarios, ({ one }) => ({
 export const pushSubscriptionsRelations = relations(
   pushSubscriptions,
   ({ one }) => ({
-    pedido: one(pedidos, {
+    pedido: one(orders, {
       fields: [pushSubscriptions.pedidoId],
-      references: [pedidos.id],
+      references: [orders.id],
     }),
   }),
 );
@@ -283,16 +283,16 @@ export const pushSubscriptionsRelations = relations(
 // Tipos inferidos (para usar en toda la app)
 // ---------------------------------------------------------------------------
 
-export type Organizacion = typeof organizaciones.$inferSelect;
-export type NuevaOrganizacion = typeof organizaciones.$inferInsert;
+export type Organization = typeof organizations.$inferSelect;
+export type NewOrganization = typeof organizations.$inferInsert;
 export type Local = typeof locales.$inferSelect;
 export type NuevoLocal = typeof locales.$inferInsert;
-export type Pedido = typeof pedidos.$inferSelect;
-export type NuevoPedido = typeof pedidos.$inferInsert;
+export type Order = typeof orders.$inferSelect;
+export type NewOrder = typeof orders.$inferInsert;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
-export type Empleado = typeof empleados.$inferSelect;
-export type NuevoEmpleado = typeof empleados.$inferInsert;
-export type Usuario = typeof usuarios.$inferSelect;
-export type NuevoUsuario = typeof usuarios.$inferInsert;
-export type ModoIdentificacion = (typeof modoIdentificacionEnum.enumValues)[number];
-export type RolUsuario = (typeof rolUsuarioEnum.enumValues)[number];
+export type Employee = typeof employees.$inferSelect;
+export type NewEmployee = typeof employees.$inferInsert;
+export type Usuario = typeof users.$inferSelect;
+export type NuevoUsuario = typeof users.$inferInsert;
+export type IdentificationMode = (typeof identificationModeEnum.enumValues)[number];
+export type UserRole = (typeof userRoleEnum.enumValues)[number];

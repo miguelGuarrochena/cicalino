@@ -27,10 +27,10 @@ export const isPin4 = (v: string): boolean => {
   return /^\d{4}$/.test(v.trim());
 };
 
-export const pinEnUso = (pin: string, empleados: { id: string; pin: string }[], exceptoId?: string): boolean => {
+export const pinEnUso = (pin: string, employees: { id: string; pin: string }[], exceptoId?: string): boolean => {
   const p = pin.trim();
   if (!p) return false;
-  return empleados.some(
+  return employees.some(
     (e) => e.pin === p && (!exceptoId || e.id !== exceptoId),
   );
 };

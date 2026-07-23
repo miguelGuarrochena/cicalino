@@ -73,7 +73,7 @@ update public.usuarios set rol = 'superadmin' where email = 'TU_EMAIL';
 
 - `src/lib/supabase/{client,server,admin}.ts` — clientes (browser / server / service_role).
 - `src/lib/auth/actions.ts` — `signIn`, `signOut`, `invitarAdmin`.
-- `src/lib/auth/perfil.ts` — `getPerfilActual()` (rol + org + sucursal del logueado).
+- `src/lib/auth/profile.ts` — `getPerfilActual()` (rol + org + sucursal del logueado).
 - `src/middleware.ts` — refresca sesión y protege `/panel` y `/admin`.
 - `supabase/setup.sql` — RLS, trigger y realtime.
 

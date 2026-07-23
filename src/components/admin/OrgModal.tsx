@@ -7,10 +7,10 @@ import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
   PRECIO_POR_SUCURSAL,
-  cobroMensual,
-  type OrganizacionRow,
+  monthlyCharge,
+  type OrganizationRow,
   type OrgInput,
-  type SucursalInput,
+  type BranchInput,
 } from "@/lib/store/superadmin-store";
 import type { TipoNegocio } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -61,48 +61,48 @@ export const OrgModal = ({
   onClose,
 }: {
   mode: Mode;
-  org?: OrganizacionRow;
+  org?: OrganizationRow;
   onClose: () => void;
 }) => {
   const { t } = useApp();
   const router = useRouter();
   const {
-    altaOrg,
+    altaOrg: createOrg,
     actualizarOrg,
     toggleOrgActivo,
     toggleOrgPagado,
     quitarOrg,
-    altaSucursal,
-    toggleSucursalActivo,
-    quitarSucursal,
+    altaSucursal: createBranch,
+    toggleSucursalActivo: toggleBranchActive,
+    quitarSucursal: removeBranch,
   } = useSuperadminStore();
-  const entrarComoDueño = useSessionStore((s) => s.entrarComoDueño);
+  const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const editing = mode === "crear" || mode === "editar";
 
-  const [nombre, setNombre] = useState(org?.nombre ?? "");
-  const [responsable, setResponsable] = useState(org?.responsable ?? "");
+  const [name, setName] = useState(org?.nombre ?? "");
+  const [manager, setResponsable] = useState(org?.responsable ?? "");
   const [cuil, setCuil] = useState(org?.cuil ?? "");
-  const [direccion, setDireccion] = useState(org?.direccion ?? "");
-  const [duenoEmail, setDuenoEmail] = useState(org?.duenoEmail ?? "");
-  const [cupo, setCupo] = useState(org?.cupo ?? 1);
+  const [address, setDireccion] = useState(org?.direccion ?? "");
+  const [ownerEmail, setOwnerEmail] = useState(org?.duenoEmail ?? "");
+  const [quota, setCupo] = useState(org?.cupo ?? 1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmDel, setConfirmDel] = useState(false);
-  const [cupoError, setCupoError] = useState(false);
+  const [quotaError, setCupoError] = useState(false);
 
   // Alta sucursal rápida
-  const [nuevaSuc, setNuevaSuc] = useState("");
+  const [newBranch, setNuevaSuc] = useState("");
   const [nuevaTipo, setNuevaTipo] = useState<TipoNegocio>("cafeteria");
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-    if (!required(nombre)) e.nombre = t("super.errNombre");
-    if (!required(responsable)) e.responsable = t("super.errResponsable");
-    if (!emailOk(duenoEmail)) e.duenoEmail = t("super.errEmail");
+    if (!required(name)) e.nombre = t("super.errNombre");
+    if (!required(manager)) e.responsable = t("super.errResponsable");
+    if (!emailOk(ownerEmail)) e.duenoEmail = t("super.errEmail");
     if (cuil && !cuilOk(cuil)) e.cuil = t("super.errCuil");
-    if (cupo < 1) e.cupo = t("super.errCupo");
-    if (org && cupo < org.sucursales.length) e.cupo = t("super.errCupoBajo");
+    if (quota < 1) e.cupo = t("super.errCupo");
+    if (org && quota < org.sucursales.length) e.cupo = t("super.errCupoBajo");
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -110,15 +110,15 @@ export const OrgModal = ({
   const guardar = () => {
     if (!validate()) return;
     const data: OrgInput = {
-      nombre,
-      responsable,
+      nombre: name,
+      responsable: manager,
       cuil,
-      direccion,
-      duenoEmail,
-      cupo,
+      direccion: address,
+      duenoEmail: ownerEmail,
+      cupo: quota,
     };
     if (mode === "crear") {
-      altaOrg(data);
+      createOrg(data);
       onClose();
       return;
     }
@@ -129,13 +129,13 @@ export const OrgModal = ({
   };
 
   const agregarSuc = () => {
-    if (!org || !nuevaSuc.trim()) return;
-    const data: SucursalInput = {
-      nombre: nuevaSuc.trim(),
+    if (!org || !newBranch.trim()) return;
+    const data: BranchInput = {
+      nombre: newBranch.trim(),
       tipo: nuevaTipo,
       direccion: org.direccion,
     };
-    const res = altaSucursal(org.id, data);
+    const res = createBranch(org.id, data);
     if (!res.ok) {
       setCupoError(true);
       return;
@@ -144,13 +144,13 @@ export const OrgModal = ({
     setNuevaSuc("");
   };
 
-  const entrarDueño = (sucursalId: string, sucursalNombre: string) => {
+  const enterOwner = (branchId: string, branchNameLabel: string) => {
     if (!org) return;
-    entrarComoDueño({
+    enterAsOwner({
       organizacionId: org.id,
       organizacionNombre: org.nombre,
-      sucursalId,
-      sucursalNombre,
+      sucursalId: branchId,
+      sucursalNombre: branchNameLabel,
     });
     onClose();
     router.push("/panel");
@@ -196,14 +196,14 @@ export const OrgModal = ({
           <Campo label={t("super.nombreOrg")} error={errors.nombre}>
             <input
               className={INPUT}
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
           </Campo>
           <Campo label={t("super.responsable")} error={errors.responsable}>
             <input
               className={INPUT}
-              value={responsable}
+              value={manager}
               onChange={(e) => setResponsable(e.target.value)}
             />
           </Campo>
@@ -211,8 +211,8 @@ export const OrgModal = ({
             <input
               className={INPUT}
               type="email"
-              value={duenoEmail}
-              onChange={(e) => setDuenoEmail(e.target.value)}
+              value={ownerEmail}
+              onChange={(e) => setOwnerEmail(e.target.value)}
             />
           </Campo>
           <div className="grid grid-cols-2 gap-3">
@@ -228,7 +228,7 @@ export const OrgModal = ({
                 className={INPUT}
                 type="number"
                 min={1}
-                value={cupo}
+                value={quota}
                 onChange={(e) => setCupo(parseInt(e.target.value, 10) || 1)}
               />
             </Campo>
@@ -236,13 +236,13 @@ export const OrgModal = ({
           <Campo label={t("super.direccion")}>
             <input
               className={INPUT}
-              value={direccion}
+              value={address}
               onChange={(e) => setDireccion(e.target.value)}
             />
           </Campo>
           <p className="text-xs text-carbon/50">
             {t("super.cobroEstimado", {
-              n: money.format(cupo * PRECIO_POR_SUCURSAL),
+              n: money.format(quota * PRECIO_POR_SUCURSAL),
             })}
           </p>
           <div className="mt-2 flex gap-2">
@@ -276,7 +276,7 @@ export const OrgModal = ({
             />
             <Dato
               label={t("super.cobro")}
-              value={money.format(cobroMensual(vista))}
+              value={money.format(monthlyCharge(vista))}
             />
             <Dato
               label={t("super.direccion")}
@@ -331,21 +331,21 @@ export const OrgModal = ({
                   <div className="flex flex-wrap gap-1.5">
                     <button
                       type="button"
-                      onClick={() => entrarDueño(suc.id, suc.nombre)}
+                      onClick={() => enterOwner(suc.id, suc.nombre)}
                       className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema"
                     >
                       {t("super.entrarComo")}
                     </button>
                     <button
                       type="button"
-                      onClick={() => toggleSucursalActivo(vista.id, suc.id)}
+                      onClick={() => toggleBranchActive(vista.id, suc.id)}
                       className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60"
                     >
                       {suc.activo ? t("super.pausar") : t("super.activar")}
                     </button>
                     <button
                       type="button"
-                      onClick={() => quitarSucursal(vista.id, suc.id)}
+                      onClick={() => removeBranch(vista.id, suc.id)}
                       className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600/80"
                     >
                       {t("super.eliminar")}
@@ -362,14 +362,14 @@ export const OrgModal = ({
               <p className="text-xs font-semibold text-carbon/55">
                 {t("super.agregarSucursal")}
               </p>
-              {cupoError && (
+              {quotaError && (
                 <p className="text-xs text-red-500">{t("super.cupoLleno")}</p>
               )}
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   className={INPUT}
                   placeholder={t("super.nombreSucursal")}
-                  value={nuevaSuc}
+                  value={newBranch}
                   onChange={(e) => setNuevaSuc(e.target.value)}
                 />
                 <select

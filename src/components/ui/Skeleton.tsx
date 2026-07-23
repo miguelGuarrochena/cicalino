@@ -4,7 +4,7 @@ export const Skeleton = ({ className = "" }: { className?: string }) => (
 );
 
 // Tarjeta de pedido en estado de carga (misma silueta que PedidoCard).
-export const PedidoCardSkeleton = () => (
+export const OrderCardSkeleton = () => (
   <div className="flex flex-col gap-4 rounded-[28px] border border-linea bg-surface p-5">
     <div className="flex items-start justify-between gap-2">
       <div className="flex flex-col gap-2">

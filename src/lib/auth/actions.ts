@@ -21,7 +21,7 @@ export const signIn = async (
 export const signOut = async () => {
   const supabase = await createServerSupabase();
   if (supabase) await supabase.auth.signOut();
-  redirect("/entrar");
+  redirect("/login");
 };
 
 // Invitación de un dueño (admin) por email al dar de alta una organización.
@@ -29,12 +29,12 @@ export const signOut = async () => {
 // definir su contraseña. No hay registro público.
 export const invitarAdmin = async (
   email: string,
-  organizacionId: string,
+  organizationId: string,
 ): Promise<Resultado> => {
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SERVICE_ROLE_KEY" };
   const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { rol: "admin", organizacion_id: organizacionId },
+    data: { rol: "admin", organizacion_id: organizationId },
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true };

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type ModoIdentificacion = "pedido" | "nombre" | "mesa";
+export type IdentificationMode = "pedido" | "nombre" | "mesa";
 export type TipoNegocio =
   | "cafeteria"
   | "panaderia"
@@ -9,14 +9,14 @@ export type TipoNegocio =
   | "heladeria"
   | "otro";
 
-export interface EmpleadoUI {
+export interface EmployeeUI {
   id: string;
   nombre: string;
   rol: string;
   pin: string;
 }
 
-export type NuevoEmpleadoInput = {
+export type NewEmployeeInput = {
   nombre: string;
   rol?: string;
   pin?: string;
@@ -27,17 +27,17 @@ interface ConfigState {
   tipo: TipoNegocio;
   whatsapp: string;
   direccion: string;
-  modo: ModoIdentificacion;
+  modo: IdentificationMode;
   cantidadMesas: number;
-  empleados: EmpleadoUI[];
+  empleados: EmployeeUI[];
 
   setCampo: (
     campo: "nombre" | "tipo" | "whatsapp" | "direccion",
     valor: string,
   ) => void;
-  setModo: (modo: ModoIdentificacion) => void;
+  setModo: (mode: IdentificationMode) => void;
   setCantidadMesas: (n: number) => void;
-  agregarEmpleado: (data: NuevoEmpleadoInput) => void;
+  agregarEmpleado: (data: NewEmployeeInput) => void;
   actualizarEmpleado: (
     id: string,
     campo: "nombre" | "rol" | "pin",
@@ -65,7 +65,7 @@ export const useConfigStore = create<ConfigState>()(
       ],
 
       setCampo: (campo, valor) => set({ [campo]: valor } as Partial<ConfigState>),
-      setModo: (modo) => set({ modo }),
+      setModo: (mode) => set({ modo: mode }),
       setCantidadMesas: (n) => set({ cantidadMesas: Math.max(1, n || 1) }),
 
       agregarEmpleado: (data) =>
@@ -94,6 +94,6 @@ export const useConfigStore = create<ConfigState>()(
 );
 
 // Etiqueta de la referencia segun el modo (para mostrar en panel / cliente).
-export const etiquetaModo = (modo: ModoIdentificacion): string => {
-  return modo === "mesa" ? "Mesa" : modo === "pedido" ? "Pedido" : "Cliente";
+export const modeLabel = (mode: IdentificationMode): string => {
+  return mode === "mesa" ? "Mesa" : mode === "pedido" ? "Pedido" : "Cliente";
 };

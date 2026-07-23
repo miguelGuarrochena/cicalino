@@ -1,12 +1,21 @@
+import { redirect } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
-import { RoleSwitcher } from "@/components/local/RoleSwitcher";
+import { RoleSwitcher } from "@/components/panel/RoleSwitcher";
 import { SiteFooter } from "@/components/ui/SiteFooter";
+import { supabaseConfigurado } from "@/lib/supabase/config";
+import { getPerfilActual } from "@/lib/auth/profile";
 
 // Layout del area de superadmin (Cicalino) — separada del panel del local.
-const AdminLayout = ({
+// Gate server-side: con Supabase activo, solo entra rol="superadmin".
+// En modo demo (sin Supabase) se deja pasar para poder navegar el prototipo.
+const AdminLayout = async ({
   children,
 }: Readonly<{ children: React.ReactNode }>) => {
+  if (supabaseConfigurado) {
+    const perfil = await getPerfilActual();
+    if (!perfil || perfil.rol !== "superadmin") redirect("/login");
+  }
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
       <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md">

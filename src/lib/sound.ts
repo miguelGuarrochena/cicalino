@@ -60,7 +60,7 @@ export const dingNuevo = () => {
 };
 
 // Pedido listo (aviso al cliente): dos notas ascendentes + vibración.
-export const avisoListo = () => {
+export const notifyReady = () => {
   tono(988, 150);
   tono(1319, 190, 0.13);
   vibrate([120, 60, 120]);

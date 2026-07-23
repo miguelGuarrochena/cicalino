@@ -5,7 +5,7 @@ import type { TipoNegocio } from "@/lib/store/config-store";
 /** Precio mensual por sucursal activa (ARS). */
 export const PRECIO_POR_SUCURSAL = 20000;
 
-export interface SucursalRow {
+export interface BranchRow {
   id: string;
   organizacionId: string;
   nombre: string;
@@ -15,7 +15,7 @@ export interface SucursalRow {
   pedidosHoy: number;
 }
 
-export interface OrganizacionRow {
+export interface OrganizationRow {
   id: string;
   nombre: string;
   responsable: string;
@@ -27,7 +27,7 @@ export interface OrganizacionRow {
   pagado: boolean;
   activo: boolean;
   altaEn: string;
-  sucursales: SucursalRow[];
+  sucursales: BranchRow[];
 }
 
 export type OrgInput = {
@@ -39,36 +39,36 @@ export type OrgInput = {
   cupo: number;
 };
 
-export type SucursalInput = {
+export type BranchInput = {
   nombre: string;
   tipo: TipoNegocio;
   direccion: string;
 };
 
 interface SuperadminState {
-  organizaciones: OrganizacionRow[];
+  organizaciones: OrganizationRow[];
   altaOrg: (data: OrgInput) => string; // id
   actualizarOrg: (id: string, data: Partial<OrgInput>) => void;
   toggleOrgActivo: (id: string) => void;
   toggleOrgPagado: (id: string) => void;
   quitarOrg: (id: string) => void;
   altaSucursal: (
-    organizacionId: string,
-    data: SucursalInput,
+    organizationId: string,
+    data: BranchInput,
   ) => { ok: true; id: string } | { ok: false; error: "cupo" };
   actualizarSucursal: (
-    organizacionId: string,
-    sucursalId: string,
-    data: Partial<SucursalInput>,
+    organizationId: string,
+    branchId: string,
+    data: Partial<BranchInput>,
   ) => void;
-  toggleSucursalActivo: (organizacionId: string, sucursalId: string) => void;
-  quitarSucursal: (organizacionId: string, sucursalId: string) => void;
+  toggleSucursalActivo: (organizationId: string, branchId: string) => void;
+  quitarSucursal: (organizationId: string, branchId: string) => void;
 }
 
 const dia = (n: number) =>
   new Date(Date.now() - n * 86400000).toISOString();
 
-const seed = (): OrganizacionRow[] => {
+const seed = (): OrganizationRow[] => {
   const org1 = "org-esquina";
   const org2 = "org-buen";
   return [
@@ -130,7 +130,7 @@ const seed = (): OrganizacionRow[] => {
   ];
 };
 
-export const cobroMensual = (org: OrganizacionRow): number => {
+export const monthlyCharge = (org: OrganizationRow): number => {
   if (!org.pagado || !org.activo) return 0;
   const activas = org.sucursales.filter((s) => s.activo).length;
   // Cobramos el cupo contratado (plazas), no solo las activas hoy.
@@ -201,8 +201,8 @@ export const useSuperadminStore = create<SuperadminState>()(
           organizaciones: s.organizaciones.filter((o) => o.id !== id),
         })),
 
-      altaSucursal: (organizacionId, data) => {
-        const org = get().organizaciones.find((o) => o.id === organizacionId);
+      altaSucursal: (organizationId, data) => {
+        const org = get().organizaciones.find((o) => o.id === organizationId);
         if (!org) return { ok: false as const, error: "cupo" as const };
         if (org.sucursales.length >= org.cupo) {
           return { ok: false as const, error: "cupo" as const };
@@ -210,14 +210,14 @@ export const useSuperadminStore = create<SuperadminState>()(
         const id = crypto.randomUUID();
         set((s) => ({
           organizaciones: s.organizaciones.map((o) =>
-            o.id === organizacionId
+            o.id === organizationId
               ? {
                   ...o,
                   sucursales: [
                     ...o.sucursales,
                     {
                       id,
-                      organizacionId,
+                      organizacionId: organizationId,
                       nombre: data.nombre.trim(),
                       tipo: data.tipo,
                       direccion: data.direccion.trim(),
@@ -232,14 +232,14 @@ export const useSuperadminStore = create<SuperadminState>()(
         return { ok: true as const, id };
       },
 
-      actualizarSucursal: (organizacionId, sucursalId, data) =>
+      actualizarSucursal: (organizationId, branchId, data) =>
         set((s) => ({
           organizaciones: s.organizaciones.map((o) => {
-            if (o.id !== organizacionId) return o;
+            if (o.id !== organizationId) return o;
             return {
               ...o,
               sucursales: o.sucursales.map((suc) => {
-                if (suc.id !== sucursalId) return suc;
+                if (suc.id !== branchId) return suc;
                 return {
                   ...suc,
                   ...(data.nombre != null
@@ -255,14 +255,14 @@ export const useSuperadminStore = create<SuperadminState>()(
           }),
         })),
 
-      toggleSucursalActivo: (organizacionId, sucursalId) =>
+      toggleSucursalActivo: (organizationId, branchId) =>
         set((s) => ({
           organizaciones: s.organizaciones.map((o) =>
-            o.id === organizacionId
+            o.id === organizationId
               ? {
                   ...o,
                   sucursales: o.sucursales.map((suc) =>
-                    suc.id === sucursalId
+                    suc.id === branchId
                       ? { ...suc, activo: !suc.activo }
                       : suc,
                   ),
@@ -271,13 +271,13 @@ export const useSuperadminStore = create<SuperadminState>()(
           ),
         })),
 
-      quitarSucursal: (organizacionId, sucursalId) =>
+      quitarSucursal: (organizationId, branchId) =>
         set((s) => ({
           organizaciones: s.organizaciones.map((o) =>
-            o.id === organizacionId
+            o.id === organizationId
               ? {
                   ...o,
-                  sucursales: o.sucursales.filter((suc) => suc.id !== sucursalId),
+                  sucursales: o.sucursales.filter((suc) => suc.id !== branchId),
                 }
               : o,
           ),
@@ -291,18 +291,18 @@ export const useSuperadminStore = create<SuperadminState>()(
 );
 
 /** Helpers para UI. */
-export const orgPorId = (
-  orgs: OrganizacionRow[],
+export const orgById = (
+  orgs: OrganizationRow[],
   id: string | null | undefined,
 ) => orgs.find((o) => o.id === id);
 
-export const sucursalPorId = (
-  orgs: OrganizacionRow[],
-  sucursalId: string | null | undefined,
-): SucursalRow | undefined => {
-  if (!sucursalId) return undefined;
+export const branchById = (
+  orgs: OrganizationRow[],
+  branchId: string | null | undefined,
+): BranchRow | undefined => {
+  if (!branchId) return undefined;
   for (const o of orgs) {
-    const s = o.sucursales.find((x) => x.id === sucursalId);
+    const s = o.sucursales.find((x) => x.id === branchId);
     if (s) return s;
   }
   return undefined;

@@ -6,14 +6,14 @@ import { ThemedImg } from "@/components/ui/ThemedImg";
 import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
 import { SiteFooter } from "@/components/ui/SiteFooter";
-import { ClienteWalkthrough } from "@/components/landing/ClienteWalkthrough";
+import { CustomerWalkthrough } from "@/components/landing/CustomerWalkthrough";
 import { useApp } from "@/components/providers/Providers";
 
 const Home = () => {
   const { t } = useApp();
   const [walkOpen, setWalkOpen] = useState(false);
 
-  const pasosLocal = [
+  const shopSteps = [
     { key: "1", img: "bell" as const },
     { key: "2", img: "chef" as const },
     { key: "3", img: "ok" as const },
@@ -23,14 +23,14 @@ const Home = () => {
     <div className="flex min-h-dvh flex-col bg-crema">
       <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
         <Link
-          href="/precios"
+          href="/pricing"
           className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca backdrop-blur transition hover:bg-marca hover:text-crema sm:text-sm"
         >
           {t("nav.precios")}
         </Link>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
-            href="/entrar"
+            href="/login"
             className="rounded-full bg-marca px-4 py-2 text-xs font-semibold text-crema transition hover:bg-marca-fuerte sm:px-5 sm:text-sm"
           >
             {t("nav.entrar")}
@@ -77,7 +77,7 @@ const Home = () => {
             style={{ animationDelay: "0.38s" }}
           >
             <Link
-              href="/entrar"
+              href="/login"
               className="rounded-full bg-marca px-8 py-3.5 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
             >
               {t("home.cta1")}
@@ -117,7 +117,7 @@ const Home = () => {
           </div>
 
           <ol className="mt-12 flex flex-col gap-14">
-            {pasosLocal.map((p, idx) => (
+            {shopSteps.map((p, idx) => (
               <li
                 key={p.key}
                 className={`u-in flex flex-col items-center gap-6 sm:flex-row sm:gap-10 ${
@@ -183,7 +183,7 @@ const Home = () => {
           </h2>
           <p className="mt-3 text-carbon/60">{t("home.cierreSub")}</p>
           <Link
-            href="/entrar"
+            href="/login"
             className="mt-8 inline-flex rounded-full bg-marca px-8 py-3.5 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
           >
             {t("home.cta1")}
@@ -192,7 +192,7 @@ const Home = () => {
       </main>
 
       <SiteFooter />
-      <ClienteWalkthrough open={walkOpen} onClose={() => setWalkOpen(false)} />
+      <CustomerWalkthrough open={walkOpen} onClose={() => setWalkOpen(false)} />
     </div>
   );
 };

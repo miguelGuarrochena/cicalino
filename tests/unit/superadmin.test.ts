@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
-  cobroMensual,
-  orgPorId,
-  sucursalPorId,
+  monthlyCharge,
+  orgById,
+  branchById,
   PRECIO_POR_SUCURSAL,
-  type OrganizacionRow,
+  type OrganizationRow,
 } from "@/lib/store/superadmin-store";
 
-const mkOrg = (over: Partial<OrganizacionRow> = {}): OrganizacionRow => ({
+const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
   id: "o1",
   nombre: "Org",
   responsable: "R",
@@ -32,27 +32,27 @@ const mkOrg = (over: Partial<OrganizacionRow> = {}): OrganizacionRow => ({
   ...over,
 });
 
-describe("cobroMensual", () => {
+describe("monthlyCharge", () => {
   it("cobra cupo × precio si está paga y activa", () => {
-    expect(cobroMensual(mkOrg({ cupo: 2 }))).toBe(2 * PRECIO_POR_SUCURSAL);
-    expect(cobroMensual(mkOrg({ cupo: 3 }))).toBe(3 * PRECIO_POR_SUCURSAL);
+    expect(monthlyCharge(mkOrg({ cupo: 2 }))).toBe(2 * PRECIO_POR_SUCURSAL);
+    expect(monthlyCharge(mkOrg({ cupo: 3 }))).toBe(3 * PRECIO_POR_SUCURSAL);
   });
   it("no cobra si está impaga o inactiva", () => {
-    expect(cobroMensual(mkOrg({ pagado: false }))).toBe(0);
-    expect(cobroMensual(mkOrg({ activo: false }))).toBe(0);
+    expect(monthlyCharge(mkOrg({ pagado: false }))).toBe(0);
+    expect(monthlyCharge(mkOrg({ activo: false }))).toBe(0);
   });
 });
 
-describe("orgPorId / sucursalPorId", () => {
+describe("orgById / branchById", () => {
   const orgs = [mkOrg({ id: "o1" })];
   it("encuentra la organización", () => {
-    expect(orgPorId(orgs, "o1")?.id).toBe("o1");
-    expect(orgPorId(orgs, "inexistente")).toBeUndefined();
-    expect(orgPorId(orgs, null)).toBeUndefined();
+    expect(orgById(orgs, "o1")?.id).toBe("o1");
+    expect(orgById(orgs, "inexistente")).toBeUndefined();
+    expect(orgById(orgs, null)).toBeUndefined();
   });
   it("encuentra la sucursal por id", () => {
-    expect(sucursalPorId(orgs, "s1")?.nombre).toBe("Centro");
-    expect(sucursalPorId(orgs, null)).toBeUndefined();
-    expect(sucursalPorId(orgs, "nope")).toBeUndefined();
+    expect(branchById(orgs, "s1")?.nombre).toBe("Centro");
+    expect(branchById(orgs, null)).toBeUndefined();
+    expect(branchById(orgs, "nope")).toBeUndefined();
   });
 });

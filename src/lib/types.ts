@@ -2,7 +2,7 @@
 // Los tipos de fila de la base viven en lib/db/schema.ts; aca van los tipos
 // de la capa de UI / API (lo que viaja al cliente, sin datos sensibles).
 
-export type EstadoPedido =
+export type OrderStatus =
   | "creado"
   | "en_preparacion"
   | "listo"
@@ -17,10 +17,10 @@ export type TipoNegocio =
   | "otro";
 
 // Lo que ve el panel del local por cada pedido.
-export interface PedidoVista {
+export interface OrderView {
   id: string;
   referencia: string;
-  estado: EstadoPedido;
+  estado: OrderStatus;
   creadoEn: string; // ISO
   enPreparacionEn: string | null;
   listoEn: string | null;
@@ -31,9 +31,9 @@ export interface PedidoVista {
 }
 
 // Lo minimo que necesita la pantalla del cliente (sin exponer datos internos).
-export interface EstadoClienteVista {
+export interface CustomerStatusView {
   referencia: string;
-  estado: EstadoPedido;
+  estado: OrderStatus;
   nombreLocal: string;
   listo: boolean;
 }
@@ -47,7 +47,7 @@ export interface MetricasDia {
   pedidosPorHora: { hora: number; cantidad: number }[];
 }
 
-export const ETIQUETA_ESTADO: Record<EstadoPedido, string> = {
+export const ETIQUETA_ESTADO: Record<OrderStatus, string> = {
   creado: "En curso",
   en_preparacion: "En curso",
   listo: "Listo",
@@ -55,6 +55,6 @@ export const ETIQUETA_ESTADO: Record<EstadoPedido, string> = {
   cancelado: "Cancelado",
 };
 
-export const pedidoCerrado = (estado: EstadoPedido): boolean => {
-  return estado === "retirado" || estado === "cancelado";
+export const orderClosed = (status: OrderStatus): boolean => {
+  return status === "retirado" || status === "cancelado";
 };

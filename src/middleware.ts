@@ -36,7 +36,7 @@ export const middleware = async (req: NextRequest) => {
 
   if (protegido && !user) {
     const login = req.nextUrl.clone();
-    login.pathname = "/entrar";
+    login.pathname = "/login";
     login.searchParams.set("next", path);
     return NextResponse.redirect(login);
   }

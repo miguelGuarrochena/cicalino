@@ -31,13 +31,13 @@ export const SiteFooter = ({ className = "" }: { className?: string }) => {
 
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-medium text-carbon/55 sm:justify-self-end">
           <Link
-            href="/privacidad"
+            href="/privacy"
             className="underline-offset-2 transition hover:text-carbon hover:underline"
           >
             {t("nav.privacidad")}
           </Link>
           <Link
-            href="/terminos"
+            href="/terms"
             className="underline-offset-2 transition hover:text-carbon hover:underline"
           >
             {t("nav.terminos")}
