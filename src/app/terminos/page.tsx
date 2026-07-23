@@ -12,11 +12,9 @@ const TerminosPage = () => {
 
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
-      <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-3">
-          <Logo className="h-10" />
-          <Controls />
-        </div>
+      <header className="flex items-center justify-between px-5 py-4 sm:px-8">
+        <Logo className="h-10 sm:h-12" />
+        <Controls />
       </header>
       <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10">
         <Link href="/" className="text-xs font-semibold text-marca hover:underline">
@@ -38,9 +36,9 @@ const TerminosPage = () => {
                 Argentina.
               </p>
               <p>
-                Los planes y precios pueden actualizarse; te avisamos con
-                anticipación razonable. La prueba gratis no garantiza
-                disponibilidad indefinida de features en beta.
+                El precio puede actualizarse; te avisamos con anticipación
+                razonable. El servicio se presta “tal cual”, sujeto a
+                disponibilidad.
               </p>
             </>
           ) : (
@@ -54,8 +52,8 @@ const TerminosPage = () => {
                 tax details) and for complying with applicable law.
               </p>
               <p>
-                Plans and pricing may change with reasonable notice. Free trials
-                don’t guarantee indefinite availability of beta features.
+                Pricing may change with reasonable notice. The service is
+                provided as-is, subject to availability.
               </p>
             </>
           )}

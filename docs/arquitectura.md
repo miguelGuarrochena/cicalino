@@ -110,28 +110,47 @@ Ver `src/lib/db/schema.ts`:
 - **Tailwind v4**: configuración por CSS (`@theme` en `globals.css`), sin
   `tailwind.config.js`.
 
+## Modelo: organización → sucursales
+
+Cicalino se organiza en tres niveles:
+
+- **Organización (empresa)** — la unidad de cobro. Tiene un dueño (admin) y un
+  `cupo` de sucursales contratadas (cobro = cupo × precio por sucursal).
+- **Sucursal (local operativo)** — cada punto de venta. Tiene sus propios datos
+  (nombre, tipo, dirección), su **modo de identificación** (pedido/nombre/mesa),
+  su **cantidad de mesas** y sus **empleados** (con PIN). En el schema es la
+  tabla `locales` (con `organizacion_id`).
+- **Pedidos y empleados** cuelgan de la **sucursal** (`local_id`). Cada pedido
+  guarda además el `empleado_id` de quien lo atendió.
+
+Una empresa con varias sucursales comparte facturación y dueño, pero cada
+sucursal opera y mide por separado.
+
 ## Roles y permisos
 
-Tres niveles de acceso:
+- **Superadmin (Cicalino)** — da de alta organizaciones, define el cupo y
+  controla los cobros (pagado/impago, MRR). No carga los datos internos. Puede
+  "entrar como dueño" para dar soporte. Área: `/admin`.
+- **Admin (dueño de la empresa)** — gestiona su organización: crea sucursales
+  (hasta el cupo), configura cada una, carga empleados y ve métricas por
+  sucursal o consolidadas. Área: `/panel` + `/panel/config`.
+- **Supervisor** — opera **una sucursal**: pedidos, personal y modo. Sin
+  métricas globales.
+- **Empleado** — perfil con **PIN** dentro de la sucursal (no es un usuario con
+  contraseña). Ficha en el dispositivo del mostrador; el pedido registra quién
+  atendió. El fichaje es **por dispositivo**, así cada caja/terminal lleva su
+  propio turno.
 
-- **Superadmin (Cicalino / nosotros)** — cuenta con login real. Da de alta cada
-  local y crea su usuario admin; ve métricas globales (locales activos, pedidos,
-  ingresos) y a futuro la facturación con Mercado Pago. **No** carga los datos
-  del local. Área: `/admin`.
-- **Admin (dueño del local)** — cuenta con login real. Completa los datos del
-  local, elige el modo de identificación, carga a sus empleados (con PIN),
-  gestiona la suscripción y ve todas las métricas, incluidas las de empleados y
-  mesas. Área: `/panel` + `/panel/config`.
-- **Empleado** — no es un usuario con contraseña: es un **perfil con PIN** dentro
-  del local. En el dispositivo compartido del mostrador (logueado como admin),
-  cada empleado **ficha** con su PIN para registrar quién atiende. Toma pedidos,
-  genera el QR y cambia estados.
+### Configuración (por sucursal)
 
-Cada pedido guarda el `empleadoId` de quien lo atendió (para métricas por
-persona y trazabilidad, sobre todo en modo mesa).
+Nombre, tipo, dirección, modo de identificación, cantidad de mesas y empleados
+son **de cada sucursal** — viven en la fila `locales` de esa sucursal y en la
+tabla `empleados` (con `local_id`).
 
-Modelo de datos asociado: `usuarios` (rol superadmin/admin), `empleados`
-(nombre, rol, pin), y `pedidos.empleado_id`.
+> **Nota de prototipo:** el front demo simplifica esto a **una sola sucursal
+> activa**: `config-store` y `pedidos-store` son planos (sin `sucursal_id`). Al
+> conectar Neon, cada consulta se scopea por `local_id` y la config/empleados
+> pasan a leerse de la sucursal activa — el schema ya está modelado así.
 
 ### Identificación del pedido y ciclo de vida
 

@@ -62,12 +62,12 @@ const PreciosPage = () => {
       <main className="mx-auto w-full max-w-xl flex-1 px-5 py-10 sm:py-14">
         <div className="u-in text-center">
           <h1 className="font-display text-4xl uppercase tracking-tight text-marca sm:text-5xl">
-            {es ? "Un precio, el producto" : "One price, the product"}
+            {es ? "Sin vueltas" : "No tricks"}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-carbon/60">
             {es
-              ? "Gratis para tu cliente, siempre. Escribinos y lo activamos a mano."
-              : "Free for your customers, always. Message us and we activate it by hand."}
+              ? "Una tarifa fija por sucursal. Tu cliente no paga nunca. Escribinos y lo activamos."
+              : "A flat monthly fee per branch. Free for your customers. Message us and we turn it on."}
           </p>
         </div>
 
@@ -126,8 +126,8 @@ const PreciosPage = () => {
 
         <p className="mx-auto mt-8 max-w-lg text-center text-sm text-carbon/55">
           {es
-            ? "Te respondemos, coordinamos la transferencia y activamos. Sin Mercado Pago en el medio."
-            : "We reply, arrange a bank transfer and activate. No Mercado Pago in between."}
+            ? "Te respondemos, coordinamos la transferencia y activamos."
+            : "We reply, arrange a bank transfer and activate."}
         </p>
 
         <p className="mt-8 text-center text-xs text-carbon/50">

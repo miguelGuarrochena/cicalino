@@ -10,6 +10,10 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
+import {
+  useSuperadminStore,
+  sucursalPorId,
+} from "@/lib/store/superadmin-store";
 import { Paginacion, slicePage } from "@/components/ui/Paginacion";
 import { useToast } from "@/components/ui/Toast";
 import { dingNuevo, avisoListo } from "@/lib/sound";
@@ -54,6 +58,9 @@ const PanelPedidosPage = () => {
   const modo = useConfigStore((s) => s.modo);
   const cantidadMesas = useConfigStore((s) => s.cantidadMesas);
   const empleadoActivo = useSessionStore((s) => s.empleadoActivo);
+  const sucursalId = useSessionStore((s) => s.sucursalId);
+  const orgs = useSuperadminStore((s) => s.organizaciones);
+  const sucursalNombre = sucursalPorId(orgs, sucursalId)?.nombre;
   const { pedidos, seedSiVacio, cambiarEstado, agregarPedido } =
     usePedidosStore();
 
@@ -177,6 +184,14 @@ const PanelPedidosPage = () => {
     <div className="flex flex-col gap-5 sm:gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
+          {sucursalNombre && (
+            <p className="mb-0.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca/70">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 21h18M6 21V8l6-4 6 4v13M10 21v-4h4v4" />
+              </svg>
+              {sucursalNombre}
+            </p>
+          )}
           <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
             {t("panel.titulo")}
           </h1>

@@ -51,10 +51,12 @@ interface ConfigState {
 export const useConfigStore = create<ConfigState>()(
   persist(
     (set) => ({
-      nombre: "Café Demo",
-      tipo: "cafeteria",
-      whatsapp: "",
-      direccion: "",
+      // Demo: config de la sucursal activa (La Esquina — Centro).
+      // En producción la config vive en la tabla `locales` (una por sucursal).
+      nombre: "La Esquina — Centro",
+      tipo: "panaderia",
+      whatsapp: "+54 9 341 555 1234",
+      direccion: "Calle Falsa 742, Rosario",
       modo: "pedido",
       cantidadMesas: 10,
       empleados: [

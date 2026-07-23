@@ -12,11 +12,9 @@ const PrivacidadPage = () => {
 
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
-      <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-3">
-          <Logo className="h-10" />
-          <Controls />
-        </div>
+      <header className="flex items-center justify-between px-5 py-4 sm:px-8">
+        <Logo className="h-10 sm:h-12" />
+        <Controls />
       </header>
       <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10 prose-like">
         <Link href="/" className="text-xs font-semibold text-marca hover:underline">
