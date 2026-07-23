@@ -1,19 +1,30 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "Cicalino — avisamos el momento justo",
   description:
     "El avisador de pedidos por QR para tu negocio gastronomico. Sin buzzers, sin apps: el cliente escanea un QR y le avisas cuando esta listo.",
   applicationName: "Cicalino",
-  icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon.png", type: "image/png", sizes: "256x256" },
-    ],
-    apple: "/apple-touch-icon.png",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Cicalino",
+    statusBarStyle: "default",
   },
+  formatDetection: { telephone: false },
+  openGraph: {
+    type: "website",
+    siteName: "Cicalino",
+    title: "Cicalino — avisamos el momento justo",
+    description:
+      "El avisador de pedidos por QR para tu negocio gastronomico. Sin buzzers, sin apps.",
+    locale: "es_AR",
+  },
+  // Los iconos se resuelven solos desde app/favicon.ico, app/icon.png y
+  // app/apple-icon.png (convencion de Next).
 };
 
 export const viewport: Viewport = {
@@ -47,7 +58,14 @@ const RootLayout = ({
         />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <a href="#contenido" className="skip-link">
+          Saltar al contenido
+        </a>
+        <Providers>
+          <ToastProvider>
+            <div id="contenido">{children}</div>
+          </ToastProvider>
+        </Providers>
       </body>
     </html>
   );

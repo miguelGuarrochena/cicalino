@@ -11,6 +11,7 @@ import { translate, type Locale } from "@/lib/i18n";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useSuperadminStore } from "@/lib/store/superadmin-store";
+import { usePedidosStore } from "@/lib/store/pedidos-store";
 
 type ThemePref = "light" | "dark" | "system";
 
@@ -45,6 +46,14 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
     useConfigStore.persist.rehydrate();
     useSessionStore.persist.rehydrate();
     useSuperadminStore.persist.rehydrate();
+    usePedidosStore.persist.rehydrate();
+    // PWA: registrar el service worker (solo en producción).
+    if (
+      process.env.NODE_ENV === "production" &&
+      "serviceWorker" in navigator
+    ) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
   }, []);
 
   const setTheme = useCallback((t: ThemePref) => {

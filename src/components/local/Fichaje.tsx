@@ -77,7 +77,7 @@ export const Fichaje = () => {
             <span className="flex size-6 items-center justify-center rounded-full bg-marca text-xs text-crema">
               {inicial(empleadoActivo.nombre)}
             </span>
-            <span className="hidden max-w-[6rem] truncate sm:inline">
+            <span className="max-w-[6rem] truncate">
               {empleadoActivo.nombre}
             </span>
           </>
@@ -86,7 +86,7 @@ export const Fichaje = () => {
             <span className="flex size-6 items-center justify-center rounded-full bg-carbon/10 text-xs text-carbon/50">
               +
             </span>
-            <span className="hidden sm:inline">{t("fichaje.fichar")}</span>
+            <span>{t("fichaje.fichar")}</span>
           </>
         )}
       </button>
@@ -154,13 +154,40 @@ export const Fichaje = () => {
             </div>
           ) : (
             <div>
+              {empleadoActivo && (
+                <div className="mb-3 flex items-center justify-between gap-2 rounded-2xl border border-linea bg-crema/40 px-3 py-2.5">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marca text-xs font-semibold text-crema">
+                      {inicial(empleadoActivo.nombre)}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs text-carbon/50">
+                        {t("fichaje.atiende")}
+                      </span>
+                      <span className="block truncate font-semibold text-carbon">
+                        {empleadoActivo.nombre}
+                      </span>
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      salir();
+                      cerrar();
+                    }}
+                    className="shrink-0 rounded-full bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                  >
+                    {t("fichaje.salir")}
+                  </button>
+                </div>
+              )}
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div>
                   <h3
                     id="fichaje-title"
                     className="font-display text-2xl uppercase tracking-tight text-carbon"
                   >
-                    {t("fichaje.elegi")}
+                    {empleadoActivo ? t("fichaje.cambiar") : t("fichaje.elegi")}
                   </h3>
                   <p className="mt-1 text-xs text-carbon/45">
                     {t("fichaje.elegiSub")}
@@ -207,18 +234,6 @@ export const Fichaje = () => {
                 total={conNombre.length}
                 onChange={setPage}
               />
-              {empleadoActivo && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    salir();
-                    cerrar();
-                  }}
-                  className="mt-3 w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-500 transition hover:bg-red-50"
-                >
-                  {t("fichaje.salir")}
-                </button>
-              )}
             </div>
           )}
         </ModalShell>

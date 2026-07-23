@@ -60,17 +60,18 @@ cicalino/
 
 ## Modelo de datos
 
-Tres tablas (ver `src/lib/db/schema.ts`):
+Ver `src/lib/db/schema.ts`:
 
-- **locales** (tenant): `id`, `nombre`, `tipo_negocio` (enum), `dueno`,
-  `whatsapp`, `direccion`, `slug`, timestamps.
-- **pedidos**: `id`, `local_id`, `referencia` (número/nombre), `estado`
-  (creado → en_preparacion → listo → retirado), `qr_token` + `qr_expira_en`
-  (expira a fin del día, se invalida solo), y un timestamp por cada cambio de
-  estado (`creado_en`, `en_preparacion_en`, `listo_en`, `retirado_en`) para
-  poder calcular las métricas.
-- **push_subscriptions**: suscripción Web Push por pedido/navegador
-  (`endpoint`, `p256dh`, `auth`) para empujar el aviso al pasar a "listo".
+- **organizaciones** (empresa / cobro): `nombre`, `dueno_email`, `cupo`,
+  `pagado`, datos fiscales. Cobro = `cupo × $20.000`.
+- **locales** (sucursales): `organizacion_id`, `nombre`, `slug`,
+  `tipo_negocio`, `modo_identificacion`, etc. Unidad operativa del panel.
+- **pedidos**: `local_id`, `referencia`, `estado`
+  (`creado → listo → retirado`, + `cancelado`), `qr_token` + expiración, y
+  timestamps por cambio de estado.
+- **empleados**: PIN por sucursal.
+- **usuarios**: login real — dueño → `organizacion_id`; supervisor → `local_id`.
+- **push_subscriptions**: Web Push por pedido/navegador.
 
 ### Métricas (derivadas de los timestamps)
 
@@ -78,6 +79,8 @@ Tres tablas (ver `src/lib/db/schema.ts`):
 - **Tiempo de retiro**: `retirado_en − listo_en` (cuánto tarda el cliente en
   retirar después del aviso).
 - **Volumen por día/hora**: agregación sobre `creado_en`.
+- **Alcance:** el dueño puede ver métricas de la sucursal activa o globales
+  (todas las sucursales de la org).
 
 ## Flujo del aviso al cliente
 

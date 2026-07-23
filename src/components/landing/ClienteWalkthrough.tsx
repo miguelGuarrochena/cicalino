@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { useApp } from "@/components/providers/Providers";
 
-const AUTO_MS = 3800;
+const AUTO_MS = 4200;
+const SWIPE_MIN = 48;
 
 type Step = {
   key: string;
@@ -30,6 +31,7 @@ export const ClienteWalkthrough = ({
 }) => {
   const { t } = useApp();
   const [i, setI] = useState(0);
+  const touchX = useRef<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -42,7 +44,7 @@ export const ClienteWalkthrough = ({
       setI((prev) => (prev + 1) % STEPS.length);
     }, AUTO_MS);
     return () => window.clearInterval(id);
-  }, [open, i]); // reinicia el timer al cambiar de paso (auto o manual)
+  }, [open, i]);
 
   if (!open) return null;
 
@@ -54,16 +56,33 @@ export const ClienteWalkthrough = ({
         ? "bg-amber-400/15"
         : "bg-marca/12";
 
+  const go = (dir: -1 | 1) => {
+    setI((p) => (p + dir + STEPS.length) % STEPS.length);
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchX.current = e.changedTouches[0]?.clientX ?? null;
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchX.current == null) return;
+    const x = e.changedTouches[0]?.clientX ?? touchX.current;
+    const dx = x - touchX.current;
+    touchX.current = null;
+    if (Math.abs(dx) < SWIPE_MIN) return;
+    go(dx < 0 ? 1 : -1);
+  };
+
   return (
     <ModalShell onClose={onClose} labelledBy="walk-title">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-marca">
             {t("home.walk.kicker")}
           </p>
           <h2
             id="walk-title"
-            className="mt-1 font-display text-2xl uppercase tracking-tight text-carbon"
+            className="mt-1 font-display text-xl uppercase leading-tight tracking-tight text-carbon sm:text-2xl"
           >
             {t("home.walk.titulo")}
           </h2>
@@ -71,18 +90,50 @@ export const ClienteWalkthrough = ({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60 hover:bg-carbon/5"
+          className="shrink-0 rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60 hover:bg-carbon/5"
         >
           {t("home.walk.cerrar")}
         </button>
       </div>
 
-      {/* Teléfono mock */}
-      <div className="mx-auto mt-5 w-full max-w-[260px]">
-        <div className="rounded-[2rem] border-2 border-carbon/15 bg-crema p-3 shadow-inner">
-          <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-carbon/15" />
-          <div className="flex flex-col items-center rounded-[1.4rem] bg-surface px-4 pb-6 pt-5 text-center">
-            <span className="text-[11px] font-semibold text-carbon/45">
+      <div
+        className="mx-auto mt-4 w-full max-w-[280px] touch-pan-y select-none"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        <div className="overflow-hidden rounded-[2.1rem] border-2 border-carbon/15 bg-crema p-2.5 shadow-inner sm:p-3">
+          <div className="mx-auto mb-2 h-1.5 w-14 rounded-full bg-carbon/15" />
+          <div className="relative flex h-[min(320px,42dvh)] flex-col items-center overflow-hidden rounded-[1.6rem] bg-surface px-4 pt-4 text-center sm:h-[360px]">
+            {/* Banner de sistema (siempre claro, como push real de iOS/Android) */}
+            {step.key === "aviso" && (
+              <div className="u-pop absolute inset-x-2 top-2 z-20 rounded-[14px] bg-[#f2f2f7] px-3 py-2.5 text-left shadow-lg ring-1 ring-black/10">
+                <div className="flex items-start gap-2.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/icon-192.png"
+                    alt=""
+                    className="mt-0.5 size-8 shrink-0 rounded-[8px] bg-[#2536d4] object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-[#1c1c1e]">
+                        Cicalino
+                      </p>
+                      <span className="text-[10px] text-[#8e8e93]">ahora</span>
+                    </div>
+                    <p className="mt-0.5 text-xs font-medium leading-snug text-[#3a3a3c]">
+                      {t("home.walk.push")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <span
+              className={`text-[11px] font-semibold text-carbon/45 ${
+                step.key === "aviso" ? "mt-16" : ""
+              }`}
+            >
               La Esquina
             </span>
             <span className="mt-0.5 text-[10px] uppercase tracking-widest text-carbon/35">
@@ -92,12 +143,12 @@ export const ClienteWalkthrough = ({
               42
             </span>
 
-            <div className="relative my-4 flex size-36 items-center justify-center">
+            <div className="relative my-3 flex size-28 shrink-0 items-center justify-center sm:my-5 sm:size-36">
               <span
-                className={`pointer-events-none absolute inset-0 m-auto size-28 rounded-full transition-colors duration-500 ${accentBg}`}
+                className={`pointer-events-none absolute inset-0 m-auto size-24 rounded-full transition-colors duration-500 sm:size-28 ${accentBg}`}
               />
               {step.accent === "amber" && (
-                <span className="pointer-events-none absolute inset-0 m-auto size-28 animate-ping rounded-full bg-amber-400/10" />
+                <span className="pointer-events-none absolute inset-0 m-auto size-24 animate-ping rounded-full bg-amber-400/10 sm:size-28" />
               )}
               <div
                 key={`${step.key}-${i}`}
@@ -108,33 +159,31 @@ export const ClienteWalkthrough = ({
                 <ThemedImg
                   name={step.img}
                   alt=""
-                  className="h-28 w-auto object-contain"
+                  className="h-24 w-auto object-contain sm:h-28"
                 />
               </div>
             </div>
 
-            {step.key === "aviso" && (
-              <div className="u-pop mb-3 w-full rounded-2xl border border-marca/20 bg-marca/10 px-3 py-2 text-left">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-marca">
-                  Cicalino
-                </p>
-                <p className="text-xs font-medium text-carbon">
-                  {t("home.walk.push")}
-                </p>
-              </div>
+            {step.key === "listo" && (
+              <p className="mt-1 px-2 text-sm font-semibold text-emerald-600">
+                {t("cliente.listoTitulo")}
+              </p>
             )}
-
-            <p
-              key={`txt-${i}`}
-              className="u-in min-h-[2.75rem] text-sm font-medium text-carbon/75"
-            >
-              {t(`home.walk.${step.key}`)}
-            </p>
           </div>
         </div>
+
+        <p
+          key={`txt-${i}`}
+          className="u-in mt-4 min-h-[2.5rem] text-center text-sm font-medium leading-snug text-carbon/75"
+        >
+          {t(`home.walk.${step.key}`)}
+        </p>
+        <p className="mt-1 text-center text-[11px] text-carbon/40">
+          {t("home.walk.swipe")}
+        </p>
       </div>
 
-      <div className="mt-5 flex items-center justify-center gap-2">
+      <div className="mt-4 flex items-center justify-center gap-2">
         {STEPS.map((s, idx) => (
           <button
             key={s.key}
@@ -152,14 +201,14 @@ export const ClienteWalkthrough = ({
       <div className="mt-4 flex gap-2">
         <button
           type="button"
-          onClick={() => setI((p) => (p - 1 + STEPS.length) % STEPS.length)}
+          onClick={() => go(-1)}
           className="flex-1 rounded-full border border-linea py-2.5 text-sm font-semibold text-carbon/70 hover:bg-carbon/5"
         >
           {t("home.walk.prev")}
         </button>
         <button
           type="button"
-          onClick={() => setI((p) => (p + 1) % STEPS.length)}
+          onClick={() => go(1)}
           className="flex-1 rounded-full bg-marca py-2.5 text-sm font-semibold text-crema hover:bg-marca-fuerte"
         >
           {t("home.walk.next")}

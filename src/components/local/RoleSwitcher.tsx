@@ -53,7 +53,7 @@ export const RoleSwitcher = () => {
         title={t("super.volverAdmin")}
       >
         <span className="hidden max-w-[9rem] truncate sm:inline">
-          {impersonando.localNombre}
+          {impersonando.sucursalNombre}
         </span>
         <span className="sm:hidden">SA</span>
         <span className="opacity-50">·</span>

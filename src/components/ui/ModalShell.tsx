@@ -31,7 +31,7 @@ export const ModalShell = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4"
       role="presentation"
     >
       <button
@@ -44,10 +44,12 @@ export const ModalShell = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className="u-pop relative z-10 max-h-[min(90dvh,720px)] w-full max-w-md overflow-y-auto overscroll-contain rounded-[28px] border border-linea bg-surface p-5 shadow-2xl sm:max-w-lg sm:p-6"
+        className="u-pop relative z-10 flex max-h-[min(92dvh,760px)] w-full max-w-md flex-col overflow-hidden rounded-[28px] border border-linea bg-surface shadow-2xl sm:max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        {children}
+        <div className="u-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6">
+          {children}
+        </div>
       </div>
     </div>,
     document.body,

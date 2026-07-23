@@ -29,6 +29,7 @@ export const QrModal = ({ referencia, token, etiqueta, onClose }: Props) => {
     QRCode.toDataURL(url, {
       margin: 1,
       width: 320,
+      errorCorrectionLevel: "H",
       color: { dark: "#2536d4", light: "#ffffff" },
     })
       .then(setDataUrl)
@@ -81,10 +82,19 @@ export const QrModal = ({ referencia, token, etiqueta, onClose }: Props) => {
         </div>
 
         <div className="flex flex-col items-center">
-          <div className="rounded-2xl bg-white p-3 shadow-sm">
+          <div className="relative rounded-2xl bg-white p-3 shadow-sm">
             {dataUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={dataUrl} alt="QR" className="size-52" />
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={dataUrl} alt="QR" className="size-52" />
+                <span className="absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white shadow-sm ring-2 ring-white">
+                  <svg viewBox="0 0 512 512" className="size-8 text-marca" fill="currentColor" aria-hidden="true">
+                    <circle cx="256" cy="118" r="22" />
+                    <path d="M256 134 C184 134 150 196 150 264 C150 336 132 356 106 384 C95 396 104 414 120 414 L392 414 C408 414 417 396 406 384 C380 356 362 336 362 264 C362 196 328 134 256 134 Z" />
+                    <path d="M304 436 a48 44 0 0 1 -96 0 z" />
+                  </svg>
+                </span>
+              </>
             ) : (
               <div className="size-52 animate-pulse rounded-lg bg-carbon/5" />
             )}

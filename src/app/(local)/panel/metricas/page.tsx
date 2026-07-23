@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
+import {
+  orgPorId,
+  useSuperadminStore,
+} from "@/lib/store/superadmin-store";
 import { SinAcceso } from "@/components/ui/SinAcceso";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
@@ -58,12 +62,27 @@ const Tarjeta = ({ titulo, valor, detalle, delay, acento }: {
 const MetricasPage = () => {
   const { t } = useApp();
   const rol = useSessionStore((s) => s.rol);
+  const sucursalId = useSessionStore((s) => s.sucursalId);
+  const orgs = useSuperadminStore((s) => s.organizaciones);
   const [periodo, setPeriodo] = useState<Periodo>("dia");
+  const [alcance, setAlcance] = useState<"sucursal" | "global">("sucursal");
 
   if (rol !== "admin") return <SinAcceso />;
 
+  const org = orgPorId(orgs, useSessionStore.getState().organizacionId);
+  const suc = org?.sucursales.find((s) => s.id === sucursalId);
+  const multi = (org?.sucursales.filter((s) => s.activo).length ?? 0) > 1;
+
   const d = DATA[periodo];
-  const max = Math.max(...d.valores);
+  const factor = alcance === "global" && multi ? 1.7 : 1;
+  const pedidosNum = Math.round(
+    Number(d.pedidos.replace(/\./g, "").replace(",", ".")) * factor,
+  );
+  const pedidosDisplay = Number.isFinite(pedidosNum)
+    ? pedidosNum.toLocaleString("es-AR")
+    : d.pedidos;
+  const max = Math.max(...d.valores.map((v) => Math.round(v * factor)));
+  const valores = d.valores.map((v) => Math.round(v * factor));
   const tiempos = [
     { rango: "0-5", pct: 34 },
     { rango: "5-10", pct: 41 },
@@ -75,26 +94,66 @@ const MetricasPage = () => {
   return (
     <div className="flex flex-col gap-6">
       <div className="u-in flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-          {t("metricas.titulo")}
-        </h1>
-        <div className="flex rounded-full border border-linea bg-surface p-1">
-          {periodos.map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriodo(p)}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition sm:px-4 ${
-                periodo === p ? "bg-marca text-crema" : "text-carbon/55 hover:text-carbon"
-              }`}
-            >
-              {t(`metricas.periodo.${p}`)}
-            </button>
-          ))}
+        <div>
+          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+            {t("metricas.titulo")}
+          </h1>
+          <p className="mt-1 text-sm text-carbon/50">
+            {alcance === "global"
+              ? t("metricas.alcanceGlobal")
+              : `${t("metricas.alcanceSucursal")}${suc ? ` · ${suc.nombre}` : ""}`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {multi && (
+            <div className="flex rounded-full border border-linea bg-surface p-1">
+              {(
+                [
+                  ["sucursal", "metricas.alcanceSucursal"],
+                  ["global", "metricas.alcanceGlobal"],
+                ] as const
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setAlcance(k)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    alcance === k
+                      ? "bg-marca text-crema"
+                      : "text-carbon/55 hover:text-carbon"
+                  }`}
+                >
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex rounded-full border border-linea bg-surface p-1">
+            {periodos.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPeriodo(p)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition sm:px-4 ${
+                  periodo === p
+                    ? "bg-marca text-crema"
+                    : "text-carbon/55 hover:text-carbon"
+                }`}
+              >
+                {t(`metricas.periodo.${p}`)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-        <Tarjeta titulo={t("metricas.pedidos")} valor={d.pedidos} detalle={t("metricas.pedidosDet")} delay={0.05} />
+        <Tarjeta
+          titulo={t("metricas.pedidos")}
+          valor={pedidosDisplay}
+          detalle={t("metricas.pedidosDet")}
+          delay={0.05}
+        />
         <Tarjeta titulo={t("metricas.prep")} valor={d.prep} detalle={t("metricas.prepDet")} delay={0.1} />
         <Tarjeta titulo={t("metricas.retiro")} valor={d.retiro} detalle={t("metricas.retiroDet")} delay={0.15} />
         <Tarjeta titulo={t("metricas.cola")} valor={d.cola} detalle={t("metricas.colaDet")} delay={0.2} />
@@ -106,7 +165,7 @@ const MetricasPage = () => {
         <div className="u-in rounded-[24px] border border-linea bg-surface p-6 shadow-sm lg:col-span-3" style={{ animationDelay: "0.35s" }}>
           <p className="mb-5 text-sm font-medium text-carbon/70">{t("metricas.volumen")}</p>
           <div className="flex items-end gap-1.5 sm:gap-2" style={{ height: 180 }}>
-            {d.valores.map((v, i) => (
+            {valores.map((v, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-2">
                 <div className="w-full rounded-t-lg bg-marca/85 transition-all duration-500 hover:bg-marca" style={{ height: `${(v / max) * 140}px` }} title={`${v}`} />
                 <span className="text-[10px] text-carbon/45 sm:text-xs">{d.labels[i]}</span>

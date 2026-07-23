@@ -23,11 +23,14 @@ el celular que el cliente ya tiene.
 
 ## Modelo de cobro
 
-- **Suscripción mensual chica en pesos**, cobrada **al local** vía
-  **Mercado Pago**.
+- **Un producto:** $20.000 ARS / mes / sucursal.
+- **Unidad de cobro:** la **organización (empresa)**. Paga `cupo × $20.000`
+  (cupo = sucursales contratadas).
+- **Unidad operativa:** la **sucursal** (mostrador, pedidos, personal).
+- **Cobro actual:** contacto (email / WhatsApp). Sin pasarela por ahora —
+  evita comisiones y fricción de onboarding.
 - **Gratis para el cliente final** (nunca paga ni se registra).
-- La integración de Mercado Pago es de una etapa posterior; no es prioridad en
-  esta primera fase.
+- Mercado Pago queda como opción futura, no prioridad.
 
 ## Competencia (ya investigado)
 
@@ -47,12 +50,23 @@ hardware y sin obligar al local a migrar todo su sistema de gestión.
 
 - **cicalino.ar** (ya registrado).
 
+## Roles
+
+- **Dueño (admin):** ve toda la empresa — sucursales, métricas globales y de
+  sucursal.
+- **Supervisor:** una sola sucursal — pedidos, personal y modo. Sin métricas
+  globales.
+- **Empleado:** PIN en el dispositivo compartido; solo pedidos.
+- **Superadmin (Cicalino):** alta de organizaciones, cupo, cobros e
+  impersonación.
+
 ## Roadmap (alto nivel)
 
-1. **Fase actual:** setup, arquitectura, prototipos de las dos pantallas.
+1. **Fase actual:** prototipo front-first (Zustand + localStorage) con modelo
+   org → sucursales, panel, cliente y landing.
 2. Conexión real a Neon + API (crear pedidos, cambiar estado, vista del cliente).
 3. Web Push real (VAPID + service worker) con fallback a polling.
 4. Métricas del local (tiempos, volumen por hora, historial).
-5. Onboarding de locales (alta, slug, generación de QR).
-6. Suscripción mensual con Mercado Pago.
+5. Onboarding de organizaciones (alta, cupo, sucursales, slug, QR).
+6. Evaluar pasarela de pago (Mercado Pago) si el volumen lo justifica.
 7. Evaluar expansión a España.

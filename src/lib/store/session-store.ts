@@ -7,48 +7,76 @@ export interface EmpleadoActivo {
 }
 
 export interface Impersonacion {
-  localId: string;
-  localNombre: string;
+  organizacionId: string;
+  organizacionNombre: string;
+  sucursalId: string;
+  sucursalNombre: string;
 }
 
-// Roles operativos. superadmin vive en /admin; admin/supervisor/empleado en /panel.
+// Roles: dueño = org; supervisor/empleado = una sucursal; SA = Cicalino.
 export type RolActual = "superadmin" | "admin" | "supervisor" | "empleado";
 
 interface SessionState {
   rol: RolActual;
+  organizacionId: string | null;
+  sucursalId: string | null;
   setRol: (rol: RolActual) => void;
+  /** Dueño / supervisor: fijar contexto de empresa y sucursal activa. */
+  setContexto: (orgId: string | null, sucursalId: string | null) => void;
+  setSucursalId: (sucursalId: string | null) => void;
   empleadoActivo: EmpleadoActivo | null;
   fichar: (emp: EmpleadoActivo) => void;
   salir: () => void;
   impersonando: Impersonacion | null;
-  entrarComoDueño: (local: Impersonacion) => void;
+  entrarComoDueño: (data: Impersonacion) => void;
   salirImpersonacion: () => void;
 }
 
-// Sesión del dispositivo del local. Mozo/caja opera los estados del pedido;
-// el empleado ficha con PIN para registrar quién atendió.
 export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
       rol: "admin",
-      setRol: (rol) => set({ rol, impersonando: null }),
+      // Demo: dueño de La Esquina, sucursal Centro
+      organizacionId: "org-esquina",
+      sucursalId: "suc-centro",
+      setRol: (rol) =>
+        set({
+          rol,
+          impersonando: null,
+          // Defaults demo al cambiar rol
+          organizacionId:
+            rol === "superadmin" ? null : "org-esquina",
+          sucursalId:
+            rol === "superadmin"
+              ? null
+              : rol === "admin"
+                ? "suc-centro"
+                : "suc-centro",
+        }),
+      setContexto: (organizacionId, sucursalId) =>
+        set({ organizacionId, sucursalId }),
+      setSucursalId: (sucursalId) => set({ sucursalId }),
       empleadoActivo: null,
       fichar: (emp) => set({ empleadoActivo: emp }),
       salir: () => set({ empleadoActivo: null }),
       impersonando: null,
-      entrarComoDueño: (local) =>
+      entrarComoDueño: (data) =>
         set({
           rol: "admin",
-          impersonando: local,
+          organizacionId: data.organizacionId,
+          sucursalId: data.sucursalId,
+          impersonando: data,
           empleadoActivo: null,
         }),
       salirImpersonacion: () =>
         set({
           rol: "superadmin",
+          organizacionId: null,
+          sucursalId: null,
           impersonando: null,
           empleadoActivo: null,
         }),
     }),
-    { name: "cicalino-session", skipHydration: true },
+    { name: "cicalino-session-v2", skipHydration: true },
   ),
 );

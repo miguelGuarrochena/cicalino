@@ -4,12 +4,10 @@ import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
-  PLAN_PRECIO,
-  type LocalRow,
-  type PlanId,
+  cobroMensual,
+  type OrganizacionRow,
 } from "@/lib/store/superadmin-store";
-import type { TipoNegocio } from "@/lib/store/config-store";
-import { LocalModal } from "@/components/admin/LocalModal";
+import { OrgModal } from "@/components/admin/OrgModal";
 import { Paginacion, slicePage } from "@/components/ui/Paginacion";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
@@ -22,20 +20,6 @@ const money = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-const TIPO_LABEL: Record<TipoNegocio, string> = {
-  cafeteria: "Cafetería",
-  panaderia: "Panadería",
-  rotiseria: "Rotisería",
-  heladeria: "Heladería",
-  otro: "Otro",
-};
-
-const PLAN_BADGE: Record<PlanId, string> = {
-  prueba: "bg-carbon/8 text-carbon/60",
-  base: "bg-marca/12 text-marca",
-  pro: "bg-amber-100 text-amber-700",
-};
-
 const Metric = ({
   label,
   value,
@@ -46,52 +30,53 @@ const Metric = ({
   value: string;
   delay: number;
   alerta?: boolean;
-}) => {
-  return (
-    <div
-      className="u-in rounded-[24px] border border-linea bg-surface p-5 shadow-sm"
-      style={{ animationDelay: `${delay}s` }}
+}) => (
+  <div
+    className="u-in rounded-[24px] border border-linea bg-surface p-5 shadow-sm"
+    style={{ animationDelay: `${delay}s` }}
+  >
+    <p className="text-sm text-carbon/55">{label}</p>
+    <p
+      className={`mt-2 font-display text-3xl uppercase tracking-tight sm:text-4xl ${
+        alerta ? "text-red-500" : "text-marca"
+      }`}
     >
-      <p className="text-sm text-carbon/55">{label}</p>
-      <p
-        className={`mt-2 font-display text-3xl uppercase tracking-tight sm:text-4xl ${
-          alerta ? "text-red-500" : "text-marca"
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-};
+      {value}
+    </p>
+  </div>
+);
 
 const SuperadminPage = () => {
   const { t } = useApp();
-  const locales = useSuperadminStore((s) => s.locales);
+  const organizaciones = useSuperadminStore((s) => s.organizaciones);
 
   const [periodo, setPeriodo] = useState<Periodo>("dia");
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState<
-    | { mode: "crear" }
-    | { mode: "ver"; local: LocalRow }
-    | null
+    { mode: "crear" } | { mode: "ver"; org: OrganizacionRow } | null
   >(null);
 
-  // Releer local fresco del store cuando el modal está abierto (tras editar).
-  const localAbierto =
+  const orgAbierta =
     modal?.mode === "ver"
-      ? locales.find((l) => l.id === modal.local.id) ?? modal.local
+      ? organizaciones.find((o) => o.id === modal.org.id) ?? modal.org
       : null;
 
-  const activos = locales.filter((l) => l.activo);
-  const mrr = activos
-    .filter((l) => l.pagado)
-    .reduce((a, l) => a + PLAN_PRECIO[l.plan], 0);
-  const morosos = activos.filter((l) => !l.pagado).length;
-  const pedidos = Math.round(
-    locales.reduce((a, l) => a + l.pedidosHoy, 0) * MULT[periodo],
+  const activas = organizaciones.filter((o) => o.activo);
+  const mrr = activas
+    .filter((o) => o.pagado)
+    .reduce((a, o) => a + cobroMensual(o), 0);
+  const morosos = activas.filter((o) => !o.pagado).length;
+  const sucursalesActivas = organizaciones.reduce(
+    (a, o) => a + o.sucursales.filter((s) => s.activo).length,
+    0,
   );
-  const pageItems = slicePage(locales, page, PAGE_SIZE);
-
+  const pedidos = Math.round(
+    organizaciones.reduce(
+      (a, o) => a + o.sucursales.reduce((b, s) => b + s.pedidosHoy, 0),
+      0,
+    ) * MULT[periodo],
+  );
+  const pageItems = slicePage(organizaciones, page, PAGE_SIZE);
   const periodos: Periodo[] = ["dia", "semana", "mes", "ano"];
 
   return (
@@ -129,103 +114,98 @@ const SuperadminPage = () => {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <Metric
-          label={t("super.localesActivos")}
-          value={String(activos.length)}
+          label={t("super.orgsActivas")}
+          value={String(activas.length)}
           delay={0.05}
         />
-        <Metric label={t("super.mrr")} value={money.format(mrr)} delay={0.1} />
         <Metric
-          label={t("super.totalPedidos")}
-          value={pedidos.toLocaleString("es-AR")}
-          delay={0.15}
+          label={t("super.sucursalesActivas")}
+          value={String(sucursalesActivas)}
+          delay={0.08}
         />
+        <Metric label={t("super.mrr")} value={money.format(mrr)} delay={0.12} />
         <Metric
           label={t("super.morosos")}
           value={String(morosos)}
-          delay={0.2}
+          delay={0.16}
           alerta={morosos > 0}
         />
       </div>
 
-      {/* Lista de locales */}
+      <p className="text-center text-xs text-carbon/45 sm:text-left">
+        {t("super.pedidosPeriodo", {
+          n: pedidos.toLocaleString("es-AR"),
+        })}
+      </p>
+
       <div className="flex flex-col gap-3">
-        {locales.length === 0 && (
+        {organizaciones.length === 0 && (
           <p className="rounded-[24px] border border-linea bg-surface px-6 py-12 text-center text-sm text-carbon/45">
-            {t("super.sinLocales")}
+            {t("super.sinOrgs")}
           </p>
         )}
-        {pageItems.map((l) => (
-          <button
-            key={l.id}
-            type="button"
-            onClick={() => setModal({ mode: "ver", local: l })}
-            className="flex w-full flex-col gap-3 rounded-2xl border border-linea bg-surface p-4 text-left shadow-sm transition hover:border-marca/40 hover:bg-marca/5 sm:flex-row sm:flex-wrap sm:items-center"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate font-semibold text-carbon">{l.nombre}</p>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${PLAN_BADGE[l.plan]}`}
-                >
-                  {l.plan}
-                </span>
-              </div>
-              <p className="truncate text-xs text-carbon/50">
-                {l.responsable || "—"}
-                {l.cuil ? ` · CUIL ${l.cuil}` : ""}
-              </p>
-              <p className="truncate text-xs text-carbon/40">
-                {TIPO_LABEL[l.tipo]} · {l.adminEmail}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <div className="text-left sm:text-right">
-                <p className="font-display text-lg text-marca">{l.pedidosHoy}</p>
-                <p className="text-[10px] text-carbon/45">
-                  {t("super.totalPedidos")}
+        {pageItems.map((o) => {
+          const nSuc = o.sucursales.filter((s) => s.activo).length;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => setModal({ mode: "ver", org: o })}
+              className="flex w-full flex-col gap-3 rounded-2xl border border-linea bg-surface p-4 text-left shadow-sm transition hover:border-marca/40 hover:bg-marca/5 sm:flex-row sm:items-center"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-carbon">{o.nombre}</p>
+                <p className="truncate text-xs text-carbon/50">
+                  {o.responsable} · {o.duenoEmail}
+                </p>
+                <p className="text-xs text-carbon/40">
+                  {t("super.cupoResumen", {
+                    usadas: nSuc,
+                    cupo: o.cupo,
+                  })}
                 </p>
               </div>
-              <span
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  l.pagado
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-red-100 text-red-600"
-                }`}
-              >
-                {l.pagado ? t("super.pagado") : t("super.impago")}
-              </span>
-              <span
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  l.activo
-                    ? "bg-carbon/8 text-carbon/60"
-                    : "bg-carbon/5 text-carbon/40"
-                }`}
-              >
-                {l.activo ? t("super.activo") : t("super.pausado")}
-              </span>
-              <span className="ml-auto text-carbon/30 sm:ml-0">→</span>
-            </div>
-          </button>
-        ))}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-left sm:text-right">
+                  <p className="font-display text-lg text-marca">
+                    {money.format(cobroMensual(o))}
+                  </p>
+                  <p className="text-[10px] text-carbon/45">{t("super.cobro")}</p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    o.pagado
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-red-100 text-red-600"
+                  }`}
+                >
+                  {o.pagado ? t("super.pagado") : t("super.impago")}
+                </span>
+                <span className="text-carbon/30">→</span>
+              </div>
+            </button>
+          );
+        })}
         <Paginacion
           page={page}
           pageSize={PAGE_SIZE}
-          total={locales.length}
+          total={organizaciones.length}
           onChange={setPage}
         />
       </div>
 
       {modal?.mode === "crear" && (
-        <LocalModal mode="crear" onClose={() => setModal(null)} />
+        <OrgModal mode="crear" onClose={() => setModal(null)} />
       )}
-      {modal?.mode === "ver" && localAbierto && (
-        <LocalModal
+      {modal?.mode === "ver" && orgAbierta && (
+        <OrgModal
           mode="ver"
-          local={localAbierto}
+          org={orgAbierta}
           onClose={() => setModal(null)}
         />
       )}
     </div>
   );
 };
+
 export default SuperadminPage;

@@ -47,10 +47,10 @@ export const modoIdentificacionEnum = pgEnum("modo_identificacion", [
 ]);
 
 // Roles de cuenta con login real (email + contraseña):
-//  - superadmin: Cicalino (nosotros). Da de alta locales y sus admins.
-//  - admin: dueño del local. Gestiona su local, empleados y metricas.
-//  - supervisor: gestiona mesas/empleados del local, SIN acceso a metricas.
-// Los empleados NO son usuarios: son perfiles con PIN dentro del local.
+//  - superadmin: Cicalino. Alta de organizaciones, cupo y cobros.
+//  - admin: dueño de la EMPRESA (organización). Ve sucursales y métricas globales.
+//  - supervisor: una SUCURSAL. Pedidos, personal y modo. Sin métricas globales.
+// Los empleados NO son usuarios: son perfiles con PIN dentro de la sucursal.
 export const rolUsuarioEnum = pgEnum("rol_usuario", [
   "superadmin",
   "admin",
@@ -58,16 +58,36 @@ export const rolUsuarioEnum = pgEnum("rol_usuario", [
 ]);
 
 // ---------------------------------------------------------------------------
-// Locales (tenants)
+// Organizaciones (empresas / unidad de cobro)
+// ---------------------------------------------------------------------------
+
+export const organizaciones = pgTable("organizaciones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  nombre: text("nombre").notNull(),
+  responsable: text("responsable"),
+  cuil: text("cuil"),
+  direccion: text("direccion"),
+  duenoEmail: text("dueno_email").notNull(),
+  // Sucursales contratadas (cobro = cupo × PRECIO_POR_SUCURSAL).
+  cupo: integer("cupo").notNull().default(1),
+  pagado: boolean("pagado").notNull().default(true),
+  activo: boolean("activo").notNull().default(true),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// Sucursales (locales operativos — antes "tenants" planos)
 // ---------------------------------------------------------------------------
 
 export const locales = pgTable("locales", {
   id: uuid("id").primaryKey().defaultRandom(),
+  organizacionId: uuid("organizacion_id")
+    .notNull()
+    .references(() => organizaciones.id, { onDelete: "cascade" }),
   nombre: text("nombre").notNull(),
   tipoNegocio: businessTypeEnum("tipo_negocio").notNull().default("otro"),
-  // Responsable fiscal / dueño del negocio.
-  responsable: text("responsable"),
-  cuil: text("cuil"),
   whatsapp: text("whatsapp"),
   direccion: text("direccion"),
   // slug corto para URLs amigables del local (ej: cicalino.ar/l/mi-cafe)
@@ -120,7 +140,10 @@ export const usuarios = pgTable(
     email: text("email").notNull(),
     nombre: text("nombre"),
     rol: rolUsuarioEnum("rol").notNull().default("admin"),
-    // El superadmin no tiene local; el admin apunta a su local.
+    // Dueño (admin) apunta a la organización; supervisor a una sucursal (localId).
+    organizacionId: uuid("organizacion_id").references(() => organizaciones.id, {
+      onDelete: "cascade",
+    }),
     localId: uuid("local_id").references(() => locales.id, {
       onDelete: "cascade",
     }),
@@ -202,7 +225,16 @@ export const pushSubscriptions = pgTable(
 // Relaciones
 // ---------------------------------------------------------------------------
 
-export const localesRelations = relations(locales, ({ many }) => ({
+export const organizacionesRelations = relations(organizaciones, ({ many }) => ({
+  locales: many(locales),
+  usuarios: many(usuarios),
+}));
+
+export const localesRelations = relations(locales, ({ one, many }) => ({
+  organizacion: one(organizaciones, {
+    fields: [locales.organizacionId],
+    references: [organizaciones.id],
+  }),
   pedidos: many(pedidos),
   empleados: many(empleados),
 }));
@@ -227,6 +259,10 @@ export const pedidosRelations = relations(pedidos, ({ one, many }) => ({
 }));
 
 export const usuariosRelations = relations(usuarios, ({ one }) => ({
+  organizacion: one(organizaciones, {
+    fields: [usuarios.organizacionId],
+    references: [organizaciones.id],
+  }),
   local: one(locales, {
     fields: [usuarios.localId],
     references: [locales.id],
@@ -247,6 +283,8 @@ export const pushSubscriptionsRelations = relations(
 // Tipos inferidos (para usar en toda la app)
 // ---------------------------------------------------------------------------
 
+export type Organizacion = typeof organizaciones.$inferSelect;
+export type NuevaOrganizacion = typeof organizaciones.$inferInsert;
 export type Local = typeof locales.$inferSelect;
 export type NuevoLocal = typeof locales.$inferInsert;
 export type Pedido = typeof pedidos.$inferSelect;

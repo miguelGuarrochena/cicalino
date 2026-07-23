@@ -1,0 +1,20 @@
+{
+  "name": "Cicalino — avisador de pedidos",
+  "short_name": "Cicalino",
+  "description": "El avisador de pedidos por QR para tu negocio. El cliente escanea un QR y le avisás cuando su pedido está listo.",
+  "lang": "es-AR",
+  "dir": "ltr",
+  "start_url": "/panel",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f1da",
+  "theme_color": "#2536d4",
+  "categories": ["business", "food", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

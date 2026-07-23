@@ -180,3 +180,93 @@ button:disabled,
     display: block;
   }
 }
+
+/* Scroll interno de modales: sin barra visible (sigue scrolleable) */
+.u-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.u-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Accesibilidad
+   --------------------------------------------------------------------------- */
+
+/* Foco visible para teclado en todo lo interactivo */
+:where(a[href], button, [role="button"], input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Solo lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Saltar al contenido (aparece al tabular) */
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  margin: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #f4f1da;
+  font-weight: 600;
+  font-size: 14px;
+  transform: translateY(-150%);
+  transition: transform 0.2s ease;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* ---------------------------------------------------------------------------
+   Skeletons (estados de carga)
+   --------------------------------------------------------------------------- */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  border-radius: 12px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--surface) 60%, transparent),
+    transparent
+  );
+  animation: shimmer 1.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}

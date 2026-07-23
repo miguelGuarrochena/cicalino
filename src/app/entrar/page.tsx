@@ -55,6 +55,7 @@ const EntrarPage = () => {
   const { t } = useApp();
   const router = useRouter();
   const setRol = useSessionStore((s) => s.setRol);
+  const setContexto = useSessionStore((s) => s.setContexto);
 
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
@@ -62,9 +63,15 @@ const EntrarPage = () => {
   const [errors, setErrors] = useState<{ email?: string; pass?: string }>({});
 
   const entrarComo = (d: Destino) => {
-        setRol(d.rol);
-        router.push(d.href);
-      };
+    setRol(d.rol);
+    if (d.rol === "superadmin") {
+      setContexto(null, null);
+    } else {
+      // Demo: La Esquina · Centro
+      setContexto("org-esquina", "suc-centro");
+    }
+    router.push(d.href);
+  };
 
   const submitLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -77,10 +84,12 @@ const EntrarPage = () => {
         setAviso(true);
         if (email.toLowerCase().includes("super")) {
           setRol("superadmin");
+          setContexto(null, null);
           router.push("/admin");
           return;
         }
         setRol("admin");
+        setContexto("org-esquina", "suc-centro");
         router.push("/panel");
       };
 

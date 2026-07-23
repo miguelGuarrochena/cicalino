@@ -2,184 +2,308 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { TipoNegocio } from "@/lib/store/config-store";
 
-export type PlanId = "prueba" | "base" | "pro";
+/** Precio mensual por sucursal activa (ARS). */
+export const PRECIO_POR_SUCURSAL = 20000;
 
-// Precio mensual por plan (ARS). "prueba" es gratis (14 días).
-export const PLAN_PRECIO: Record<PlanId, number> = {
-  prueba: 0,
-  base: 8000,
-  pro: 15000,
-};
-
-export interface LocalRow {
+export interface SucursalRow {
   id: string;
+  organizacionId: string;
   nombre: string;
   tipo: TipoNegocio;
-  adminEmail: string;
-  // Datos fiscales / contacto del responsable
-  responsable: string;
-  cuil: string;
   direccion: string;
   activo: boolean;
-  plan: PlanId;
-  pagado: boolean;
   pedidosHoy: number;
-  altaEn: string; // ISO
 }
 
-export type LocalInput = {
+export interface OrganizacionRow {
+  id: string;
   nombre: string;
-  tipo: TipoNegocio;
-  adminEmail: string;
   responsable: string;
   cuil: string;
   direccion: string;
-  plan: PlanId;
+  duenoEmail: string;
+  /** Sucursales que puede tener activas (cobro = cupo × precio). */
+  cupo: number;
+  pagado: boolean;
+  activo: boolean;
+  altaEn: string;
+  sucursales: SucursalRow[];
+}
+
+export type OrgInput = {
+  nombre: string;
+  responsable: string;
+  cuil: string;
+  direccion: string;
+  duenoEmail: string;
+  cupo: number;
+};
+
+export type SucursalInput = {
+  nombre: string;
+  tipo: TipoNegocio;
+  direccion: string;
 };
 
 interface SuperadminState {
-  locales: LocalRow[];
-  altaLocal: (data: LocalInput) => void;
-  actualizarLocal: (id: string, data: Partial<LocalInput>) => void;
-  toggleActivo: (id: string) => void;
-  togglePagado: (id: string) => void;
-  quitarLocal: (id: string) => void;
+  organizaciones: OrganizacionRow[];
+  altaOrg: (data: OrgInput) => string; // id
+  actualizarOrg: (id: string, data: Partial<OrgInput>) => void;
+  toggleOrgActivo: (id: string) => void;
+  toggleOrgPagado: (id: string) => void;
+  quitarOrg: (id: string) => void;
+  altaSucursal: (
+    organizacionId: string,
+    data: SucursalInput,
+  ) => { ok: true; id: string } | { ok: false; error: "cupo" };
+  actualizarSucursal: (
+    organizacionId: string,
+    sucursalId: string,
+    data: Partial<SucursalInput>,
+  ) => void;
+  toggleSucursalActivo: (organizacionId: string, sucursalId: string) => void;
+  quitarSucursal: (organizacionId: string, sucursalId: string) => void;
 }
 
-const seed = (): LocalRow[] => {
-  const dia = (n: number) =>
-    new Date(Date.now() - n * 86400000).toISOString();
+const dia = (n: number) =>
+  new Date(Date.now() - n * 86400000).toISOString();
+
+const seed = (): OrganizacionRow[] => {
+  const org1 = "org-esquina";
+  const org2 = "org-buen";
   return [
     {
-      id: "1",
-      nombre: "Café Demo",
-      tipo: "cafeteria",
-      adminEmail: "dueno@cafedemo.com",
-      responsable: "Ana Pérez",
-      cuil: "27-30111222-3",
-      direccion: "Av. Corrientes 1234, CABA",
-      activo: true,
-      plan: "pro",
-      pagado: true,
-      pedidosHoy: 65,
-      altaEn: dia(40),
-    },
-    {
-      id: "2",
-      nombre: "Panadería La Esquina",
-      tipo: "panaderia",
-      adminEmail: "hola@laesquina.com",
+      id: org1,
+      nombre: "La Esquina SA",
       responsable: "Carlos Ruiz",
-      cuil: "20-28444555-6",
+      cuil: "30-71234567-8",
       direccion: "Calle Falsa 742, Rosario",
-      activo: true,
-      plan: "base",
+      duenoEmail: "hola@laesquina.com",
+      cupo: 2,
       pagado: true,
-      pedidosHoy: 38,
-      altaEn: dia(21),
+      activo: true,
+      altaEn: dia(40),
+      sucursales: [
+        {
+          id: "suc-centro",
+          organizacionId: org1,
+          nombre: "Centro",
+          tipo: "panaderia",
+          direccion: "Calle Falsa 742, Rosario",
+          activo: true,
+          pedidosHoy: 38,
+        },
+        {
+          id: "suc-norte",
+          organizacionId: org1,
+          nombre: "Norte",
+          tipo: "panaderia",
+          direccion: "Av. Pellegrini 1200, Rosario",
+          activo: true,
+          pedidosHoy: 27,
+        },
+      ],
     },
     {
-      id: "3",
-      nombre: "Rotisería El Buen Sabor",
-      tipo: "rotiseria",
-      adminEmail: "pedidos@buensabor.com",
+      id: org2,
+      nombre: "El Buen Sabor",
       responsable: "María Gómez",
       cuil: "27-25999888-1",
       direccion: "San Martín 500, Córdoba",
-      activo: true,
-      plan: "base",
+      duenoEmail: "pedidos@buensabor.com",
+      cupo: 1,
       pagado: false,
-      pedidosHoy: 22,
+      activo: true,
       altaEn: dia(7),
+      sucursales: [
+        {
+          id: "suc-buen",
+          organizacionId: org2,
+          nombre: "Córdoba",
+          tipo: "rotiseria",
+          direccion: "San Martín 500, Córdoba",
+          activo: true,
+          pedidosHoy: 22,
+        },
+      ],
     },
   ];
 };
 
-// Store del superadmin (Cicalino). Demo persistido; en produccion vive en la
-// tabla `locales` + `usuarios` (rol admin).
+export const cobroMensual = (org: OrganizacionRow): number => {
+  if (!org.pagado || !org.activo) return 0;
+  const activas = org.sucursales.filter((s) => s.activo).length;
+  // Cobramos el cupo contratado (plazas), no solo las activas hoy.
+  return org.cupo * PRECIO_POR_SUCURSAL;
+};
+
 export const useSuperadminStore = create<SuperadminState>()(
   persist(
-    (set) => ({
-      locales: seed(),
-      altaLocal: (data) =>
+    (set, get) => ({
+      organizaciones: seed(),
+
+      altaOrg: (data) => {
+        const id = crypto.randomUUID();
         set((s) => ({
-          locales: [
+          organizaciones: [
             {
-              id: crypto.randomUUID(),
+              id,
               nombre: data.nombre.trim(),
-              tipo: data.tipo,
-              adminEmail: data.adminEmail.trim(),
               responsable: data.responsable.trim(),
               cuil: data.cuil.trim(),
               direccion: data.direccion.trim(),
+              duenoEmail: data.duenoEmail.trim(),
+              cupo: Math.max(1, data.cupo || 1),
+              pagado: true,
               activo: true,
-              plan: data.plan,
-              pagado: data.plan === "prueba",
-              pedidosHoy: 0,
               altaEn: new Date().toISOString(),
+              sucursales: [],
             },
-            ...s.locales,
+            ...s.organizaciones,
           ],
-        })),
-      actualizarLocal: (id, data) =>
+        }));
+        return id;
+      },
+
+      actualizarOrg: (id, data) =>
         set((s) => ({
-          locales: s.locales.map((l) =>
-            l.id === id
+          organizaciones: s.organizaciones.map((o) => {
+            if (o.id !== id) return o;
+            const next = { ...o };
+            if (data.nombre != null) next.nombre = data.nombre.trim();
+            if (data.responsable != null)
+              next.responsable = data.responsable.trim();
+            if (data.cuil != null) next.cuil = data.cuil.trim();
+            if (data.direccion != null) next.direccion = data.direccion.trim();
+            if (data.duenoEmail != null)
+              next.duenoEmail = data.duenoEmail.trim();
+            if (data.cupo != null) next.cupo = Math.max(1, data.cupo);
+            return next;
+          }),
+        })),
+
+      toggleOrgActivo: (id) =>
+        set((s) => ({
+          organizaciones: s.organizaciones.map((o) =>
+            o.id === id ? { ...o, activo: !o.activo } : o,
+          ),
+        })),
+
+      toggleOrgPagado: (id) =>
+        set((s) => ({
+          organizaciones: s.organizaciones.map((o) =>
+            o.id === id ? { ...o, pagado: !o.pagado } : o,
+          ),
+        })),
+
+      quitarOrg: (id) =>
+        set((s) => ({
+          organizaciones: s.organizaciones.filter((o) => o.id !== id),
+        })),
+
+      altaSucursal: (organizacionId, data) => {
+        const org = get().organizaciones.find((o) => o.id === organizacionId);
+        if (!org) return { ok: false as const, error: "cupo" as const };
+        if (org.sucursales.length >= org.cupo) {
+          return { ok: false as const, error: "cupo" as const };
+        }
+        const id = crypto.randomUUID();
+        set((s) => ({
+          organizaciones: s.organizaciones.map((o) =>
+            o.id === organizacionId
               ? {
-                  ...l,
-                  ...Object.fromEntries(
-                    Object.entries(data).map(([k, v]) => [
-                      k,
-                      typeof v === "string" ? v.trim() : v,
-                    ]),
+                  ...o,
+                  sucursales: [
+                    ...o.sucursales,
+                    {
+                      id,
+                      organizacionId,
+                      nombre: data.nombre.trim(),
+                      tipo: data.tipo,
+                      direccion: data.direccion.trim(),
+                      activo: true,
+                      pedidosHoy: 0,
+                    },
+                  ],
+                }
+              : o,
+          ),
+        }));
+        return { ok: true as const, id };
+      },
+
+      actualizarSucursal: (organizacionId, sucursalId, data) =>
+        set((s) => ({
+          organizaciones: s.organizaciones.map((o) => {
+            if (o.id !== organizacionId) return o;
+            return {
+              ...o,
+              sucursales: o.sucursales.map((suc) => {
+                if (suc.id !== sucursalId) return suc;
+                return {
+                  ...suc,
+                  ...(data.nombre != null
+                    ? { nombre: data.nombre.trim() }
+                    : {}),
+                  ...(data.tipo != null ? { tipo: data.tipo } : {}),
+                  ...(data.direccion != null
+                    ? { direccion: data.direccion.trim() }
+                    : {}),
+                };
+              }),
+            };
+          }),
+        })),
+
+      toggleSucursalActivo: (organizacionId, sucursalId) =>
+        set((s) => ({
+          organizaciones: s.organizaciones.map((o) =>
+            o.id === organizacionId
+              ? {
+                  ...o,
+                  sucursales: o.sucursales.map((suc) =>
+                    suc.id === sucursalId
+                      ? { ...suc, activo: !suc.activo }
+                      : suc,
                   ),
                 }
-              : l,
+              : o,
           ),
         })),
-      toggleActivo: (id) =>
+
+      quitarSucursal: (organizacionId, sucursalId) =>
         set((s) => ({
-          locales: s.locales.map((l) =>
-            l.id === id ? { ...l, activo: !l.activo } : l,
+          organizaciones: s.organizaciones.map((o) =>
+            o.id === organizacionId
+              ? {
+                  ...o,
+                  sucursales: o.sucursales.filter((suc) => suc.id !== sucursalId),
+                }
+              : o,
           ),
         })),
-      togglePagado: (id) =>
-        set((s) => ({
-          locales: s.locales.map((l) =>
-            l.id === id ? { ...l, pagado: !l.pagado } : l,
-          ),
-        })),
-      quitarLocal: (id) =>
-        set((s) => ({ locales: s.locales.filter((l) => l.id !== id) })),
     }),
     {
-      name: "cicalino-superadmin",
+      name: "cicalino-superadmin-v2",
       skipHydration: true,
-      // Migra locales viejos del localStorage sin los campos nuevos.
-      merge: (persisted, current) => {
-        const p = persisted as Partial<SuperadminState> | undefined;
-        if (!p?.locales) return current;
-        return {
-          ...current,
-          ...p,
-          locales: p.locales.map((l) => {
-            const row = l as Partial<LocalRow> & { id: string; nombre: string };
-            return {
-              ...row,
-              responsable: row.responsable ?? "",
-              cuil: row.cuil ?? "",
-              direccion: row.direccion ?? "",
-              tipo: row.tipo ?? "otro",
-              adminEmail: row.adminEmail ?? "",
-              activo: row.activo ?? true,
-              plan: row.plan ?? "base",
-              pagado: row.pagado ?? false,
-              pedidosHoy: row.pedidosHoy ?? 0,
-              altaEn: row.altaEn ?? new Date().toISOString(),
-            } as LocalRow;
-          }),
-        };
-      },
     },
   ),
 );
+
+/** Helpers para UI. */
+export const orgPorId = (
+  orgs: OrganizacionRow[],
+  id: string | null | undefined,
+) => orgs.find((o) => o.id === id);
+
+export const sucursalPorId = (
+  orgs: OrganizacionRow[],
+  sucursalId: string | null | undefined,
+): SucursalRow | undefined => {
+  if (!sucursalId) return undefined;
+  for (const o of orgs) {
+    const s = o.sucursales.find((x) => x.id === sucursalId);
+    if (s) return s;
+  }
+  return undefined;
+};

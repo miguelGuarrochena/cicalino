@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePedidosStore } from "@/lib/store/pedidos-store";
-import { pedidosDemo } from "@/lib/mock";
 import { PedidoCard } from "@/components/local/PedidoCard";
 import { QrModal } from "@/components/local/QrModal";
 import { ThemedImg } from "@/components/ui/ThemedImg";
@@ -12,6 +11,8 @@ import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { Paginacion, slicePage } from "@/components/ui/Paginacion";
+import { useToast } from "@/components/ui/Toast";
+import { dingNuevo, avisoListo } from "@/lib/sound";
 import type { EstadoPedido, PedidoVista } from "@/lib/types";
 import { pedidoCerrado } from "@/lib/types";
 
@@ -49,10 +50,11 @@ const matchFiltro = (estado: EstadoPedido, filtro: FiltroEstado): boolean => {
 
 const PanelPedidosPage = () => {
   const { t } = useApp();
+  const toast = useToast();
   const modo = useConfigStore((s) => s.modo);
   const cantidadMesas = useConfigStore((s) => s.cantidadMesas);
   const empleadoActivo = useSessionStore((s) => s.empleadoActivo);
-  const { pedidos, setPedidos, cambiarEstado, agregarPedido } =
+  const { pedidos, seedSiVacio, cambiarEstado, agregarPedido } =
     usePedidosStore();
 
   const [contador, setContador] = useState(43);
@@ -65,8 +67,8 @@ const PanelPedidosPage = () => {
   const [refError, setRefError] = useState(false);
 
   useEffect(() => {
-    setPedidos(pedidosDemo());
-  }, [setPedidos]);
+    seedSiVacio();
+  }, [seedSiVacio]);
 
   useEffect(() => {
     setPage(1);
@@ -86,6 +88,9 @@ const PanelPedidosPage = () => {
   }, [pedidos, filtro, q]);
 
   const activos = pedidos.filter((p) => !pedidoCerrado(p.estado));
+  const enCurso = activos.filter(
+    (p) => p.estado === "creado" || p.estado === "en_preparacion",
+  ).length;
   const listos = activos.filter((p) => p.estado === "listo").length;
   const pageItems = slicePage(filtrados, page, PAGE_SIZE);
 
@@ -124,6 +129,20 @@ const PanelPedidosPage = () => {
         setQrPedido(nuevo);
         setFiltro("todos");
         setQ("");
+        dingNuevo();
+        toast(t("toast.creado", { n: referencia }), "success");
+      };
+
+  const cambiarEstadoUX = (id: string, estado: EstadoPedido) => {
+        cambiarEstado(id, estado);
+        if (estado === "listo") {
+          avisoListo();
+          toast(t("toast.listo"), "success");
+        } else if (estado === "retirado") {
+          toast(t("toast.retirado"), "info");
+        } else if (estado === "cancelado") {
+          toast(t("toast.cancelado"), "error");
+        }
       };
 
   const confirmarCrear = () => {
@@ -163,14 +182,6 @@ const PanelPedidosPage = () => {
           </h1>
           <p className="mt-1 text-sm text-carbon/55">
             {t("panel.activos", { n: activos.length })}
-            {listos > 0 && (
-              <>
-                {" · "}
-                <span className="font-semibold text-emerald-600">
-                  {t("panel.listos", { n: listos })}
-                </span>
-              </>
-            )}
           </p>
         </div>
         <button
@@ -179,6 +190,52 @@ const PanelPedidosPage = () => {
           className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 sm:w-auto"
         >
           + {t("panel.nuevo")}
+        </button>
+      </div>
+
+      {/* Resumen rápido (tablet/celular del mostrador) */}
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          type="button"
+          onClick={() => setFiltro("todos")}
+          className={`rounded-2xl border px-3 py-3 text-left transition ${
+            filtro === "todos"
+              ? "border-marca bg-marca/10"
+              : "border-linea bg-surface hover:bg-carbon/5"
+          }`}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-carbon/45">
+            {t("panel.resumenActivos")}
+          </p>
+          <p className="mt-0.5 font-display text-2xl text-carbon">{activos.length}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setFiltro("creado")}
+          className={`rounded-2xl border px-3 py-3 text-left transition ${
+            filtro === "creado"
+              ? "border-amber-400 bg-amber-50 dark:bg-amber-500/10"
+              : "border-linea bg-surface hover:bg-carbon/5"
+          }`}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700/80">
+            {t("estado.creado")}
+          </p>
+          <p className="mt-0.5 font-display text-2xl text-amber-700">{enCurso}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setFiltro("listo")}
+          className={`rounded-2xl border px-3 py-3 text-left transition ${
+            filtro === "listo"
+              ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10"
+              : "border-linea bg-surface hover:bg-carbon/5"
+          }`}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700/80">
+            {t("estado.listo")}
+          </p>
+          <p className="mt-0.5 font-display text-2xl text-emerald-700">{listos}</p>
         </button>
       </div>
 
@@ -252,7 +309,7 @@ const PanelPedidosPage = () => {
                 key={p.id}
                 pedido={p}
                 index={i}
-                onCambiarEstado={cambiarEstado}
+                onCambiarEstado={cambiarEstadoUX}
                 onMostrarQr={setQrPedido}
               />
             ))}

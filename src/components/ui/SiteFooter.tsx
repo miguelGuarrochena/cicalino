@@ -12,7 +12,7 @@ export const SiteFooter = ({ className = "" }: { className?: string }) => {
 
   return (
     <footer className={`w-full border-t border-linea/70 bg-crema ${className}`}>
-      <div className="mx-auto grid w-full max-w-5xl grid-cols-1 items-center gap-4 px-5 py-6 text-xs text-carbon/50 sm:grid-cols-3 sm:gap-6 sm:px-8 sm:py-7">
+      <div className="mx-auto grid w-full max-w-5xl grid-cols-1 items-center justify-items-center gap-4 px-5 py-6 text-center text-xs text-carbon/50 sm:grid-cols-3 sm:justify-items-stretch sm:gap-6 sm:px-8 sm:py-7 sm:text-left">
         <p className="text-carbon/40 sm:justify-self-start">
           © {year} Cicalino
         </p>
@@ -29,7 +29,7 @@ export const SiteFooter = ({ className = "" }: { className?: string }) => {
           </a>
         </p>
 
-        <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 font-medium text-carbon/55 sm:justify-self-end">
+        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-medium text-carbon/55 sm:justify-self-end">
           <Link
             href="/privacidad"
             className="underline-offset-2 transition hover:text-carbon hover:underline"

@@ -32,10 +32,10 @@ const FaqPage = () => {
           <Logo className="h-10 sm:h-12" />
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
-              href="/entrar"
-              className="rounded-full bg-marca px-4 py-2 text-xs font-semibold text-crema transition hover:bg-marca-fuerte sm:text-sm"
+              href="/panel"
+              className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca transition hover:bg-marca hover:text-crema sm:text-sm"
             >
-              {t("nav.entrar")}
+              {t("faq.volver")}
             </Link>
             <Controls />
           </div>

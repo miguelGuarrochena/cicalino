@@ -5,56 +5,137 @@ import { ThemedImg } from "@/components/ui/ThemedImg";
 import { Controls } from "@/components/ui/Controls";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
-import type { EstadoPedido } from "@/lib/types";
-
-const POLL_MS = 4000;
+import {
+  pedidoPorToken,
+  usePedidosStore,
+} from "@/lib/store/pedidos-store";
+import {
+  mostrarAvisoListo,
+  pedirPermisoNotificaciones,
+  registrarServiceWorker,
+} from "@/lib/notificaciones";
 
 interface Props {
   token: string;
 }
 
-// Pantalla que ve el cliente tras escanear el QR. Espera el aviso de "listo".
-// Prototipo: simula el avance; en produccion hace polling a /api/p/[token]
-// y ademas intenta suscribirse a Web Push.
+// Pantalla del cliente tras escanear el QR.
+// Lee el pedido por token del store (mismo browser que el panel en el demo).
+// En producción: polling / Web Push contra /api/p/[token].
 export const EsperaCliente = ({ token }: Props) => {
   const { t } = useApp();
   const cfg = useConfigStore();
-  const [estado, setEstado] = useState<EstadoPedido>("creado");
+  const seedSiVacio = usePedidosStore((s) => s.seedSiVacio);
+  const pedidos = usePedidosStore((s) => s.pedidos);
   const [pushActivo, setPushActivo] = useState(false);
-  const inicio = useRef(Date.now());
+  const [hydrated, setHydrated] = useState(false);
+  const prevEstado = useRef<string | null>(null);
+
+  useEffect(() => {
+    const done = () => {
+      seedSiVacio();
+      setHydrated(true);
+    };
+    const result = usePedidosStore.persist.rehydrate();
+    if (result && typeof (result as Promise<void>).then === "function") {
+      void (result as Promise<void>).then(done);
+    } else {
+      done();
+    }
+  }, [seedSiVacio]);
+
+  // Registrar SW temprano (habilita avisos con pestaña en segundo plano)
+  useEffect(() => {
+    void registrarServiceWorker();
+    if ("Notification" in window && Notification.permission === "granted") {
+      setPushActivo(true);
+    }
+  }, []);
+
+  // Sync entre pestañas (panel marca listo → cliente se actualiza)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "cicalino-pedidos") {
+        void usePedidosStore.persist.rehydrate();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const pedido = pedidoPorToken(pedidos, token);
+  const estado = pedido?.estado ?? "creado";
   const listo = estado === "listo" || estado === "retirado";
   const cancelado = estado === "cancelado";
   const cerrado = listo || cancelado;
+  const esperando = hydrated && !!pedido && !cerrado;
 
+  // Aviso al intentar cerrar/recargar mientras espera
   useEffect(() => {
-    if (cerrado) return;
-    const id = setInterval(() => {
-      if (Date.now() - inicio.current > 8000) {
-        setEstado("listo");
-        clearInterval(id);
-      }
-    }, POLL_MS);
-    return () => clearInterval(id);
-  }, [token, cerrado]);
+    if (!esperando) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [esperando]);
 
+  // Vibrar + notificación al pasar a listo
   useEffect(() => {
-    if (listo && pushActivo && "vibrate" in navigator) {
-      navigator.vibrate?.([200, 100, 200]);
+    if (!pedido) return;
+    const prev = prevEstado.current;
+    prevEstado.current = pedido.estado;
+    if (prev == null || prev === pedido.estado) return;
+    if (pedido.estado !== "listo") return;
+    if ("vibrate" in navigator) navigator.vibrate?.([200, 100, 200]);
+    if (pushActivo) {
+      void mostrarAvisoListo({
+        referencia: pedido.referencia,
+        url: `/p/${token}`,
+        body: t("cliente.notifListo", { n: pedido.referencia }),
+      });
     }
-  }, [listo, pushActivo]);
+  }, [pedido, pushActivo, t, token]);
 
   const activarAvisos = async () => {
-        if (!("Notification" in window)) {
-          setPushActivo(true);
-          return;
-        }
-        const permiso = await Notification.requestPermission();
-        setPushActivo(permiso === "granted");
-      };
+    await registrarServiceWorker();
+    const ok = await pedirPermisoNotificaciones();
+    setPushActivo(ok);
+  };
+
+  if (!hydrated) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center px-6">
+        <p className="text-sm text-carbon/45">…</p>
+      </main>
+    );
+  }
+
+  if (!pedido) {
+    return (
+      <main className="relative flex min-h-dvh flex-col items-center justify-center px-6 py-14 text-center">
+        <Controls className="absolute right-4 top-4" />
+        <ThemedImg name="bell" alt="" className="h-28 opacity-50" />
+        <p className="mt-6 font-display text-2xl uppercase text-carbon">
+          {t("cliente.noEncontradoTitulo")}
+        </p>
+        <p className="mt-2 max-w-sm text-carbon/60">
+          {t("cliente.noEncontradoSub")}
+        </p>
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 py-14 text-center">
       <Controls className="absolute right-4 top-4" />
+
+      {esperando && (
+        <p className="u-in absolute inset-x-4 top-14 mx-auto max-w-sm rounded-2xl border border-amber-300/50 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900/80 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100/90">
+          {pushActivo ? t("cliente.noCerrarPush") : t("cliente.noCerrar")}
+        </p>
+      )}
 
       <div className="u-in flex flex-col items-center gap-1">
         <span className="text-sm font-semibold text-carbon/50">
@@ -63,7 +144,9 @@ export const EsperaCliente = ({ token }: Props) => {
         <span className="text-xs uppercase tracking-widest text-carbon/40">
           {t(`modo.${cfg.modo}`)}
         </span>
-        <span className="font-display text-6xl leading-none text-marca">42</span>
+        <span className="font-display text-6xl leading-none text-marca">
+          {pedido.referencia}
+        </span>
       </div>
 
       <div className="relative my-8 flex size-60 max-w-full items-center justify-center sm:size-64">
@@ -122,6 +205,7 @@ export const EsperaCliente = ({ token }: Props) => {
 
       {!cerrado && (
         <button
+          type="button"
           onClick={activarAvisos}
           disabled={pushActivo}
           className="u-in mt-8 w-full max-w-sm rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
