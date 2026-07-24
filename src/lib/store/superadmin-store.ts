@@ -15,6 +15,8 @@ export interface BranchRow {
   pedidosHoy: number;
 }
 
+export type PlanTipo = "mensual" | "anual" | "gratis";
+
 export interface OrganizationRow {
   id: string;
   nombre: string;
@@ -26,6 +28,10 @@ export interface OrganizationRow {
   cupo: number;
   pagado: boolean;
   activo: boolean;
+  /** Ciclo de cobro: mensual, anual o cortesía (gratis). */
+  plan: PlanTipo;
+  /** Fecha hasta la cual no se cobra (mes gratis / prueba). ISO o null. */
+  mesGratisHasta: string | null;
   altaEn: string;
   sucursales: BranchRow[];
 }
@@ -37,6 +43,7 @@ export type OrgInput = {
   direccion: string;
   duenoEmail: string;
   cupo: number;
+  plan: PlanTipo;
 };
 
 export type BranchInput = {
@@ -53,6 +60,8 @@ interface SuperadminState {
   actualizarOrg: (id: string, data: Partial<OrgInput>) => void;
   toggleOrgActivo: (id: string) => void;
   toggleOrgPagado: (id: string) => void;
+  /** Da N meses de cortesía (por defecto 1) desde hoy. */
+  darMesGratis: (id: string, meses?: number) => void;
   quitarOrg: (id: string) => void;
   altaSucursal: (
     organizationId: string,
@@ -84,6 +93,8 @@ const seed = (): OrganizationRow[] => {
       cupo: 2,
       pagado: true,
       activo: true,
+      plan: "mensual",
+      mesGratisHasta: null,
       altaEn: dia(40),
       sucursales: [
         {
@@ -116,6 +127,8 @@ const seed = (): OrganizationRow[] => {
       cupo: 1,
       pagado: false,
       activo: true,
+      plan: "mensual",
+      mesGratisHasta: null,
       altaEn: dia(7),
       sucursales: [
         {
@@ -132,11 +145,24 @@ const seed = (): OrganizationRow[] => {
   ];
 };
 
+/** ¿La organización está en período de cortesía (mes gratis / prueba)? */
+export const enGracia = (org: OrganizationRow): boolean =>
+  !!org.mesGratisHasta && new Date(org.mesGratisHasta).getTime() > Date.now();
+
+/** Monto mensual recurrente (cupo × precio); 0 si el plan es gratis. */
+export const montoMensual = (org: OrganizationRow): number =>
+  org.plan === "gratis" ? 0 : org.cupo * PRECIO_POR_SUCURSAL;
+
+// Cobro mensual efectivo: 0 si está pausada, es gratis o está en cortesía.
 export const monthlyCharge = (org: OrganizationRow): number => {
-  if (!org.pagado || !org.activo) return 0;
-  const activas = org.sucursales.filter((s) => s.activo).length;
-  // Cobramos el cupo contratado (plazas), no solo las activas hoy.
-  return org.cupo * PRECIO_POR_SUCURSAL;
+  if (!org.activo || org.plan === "gratis" || enGracia(org)) return 0;
+  return montoMensual(org);
+};
+
+// Total del próximo cobro según el ciclo. Anual = 10 meses (2 de regalo).
+export const cobroProximo = (org: OrganizationRow): number => {
+  const base = monthlyCharge(org);
+  return org.plan === "anual" ? base * 10 : base;
 };
 
 export const useSuperadminStore = create<SuperadminState>()(
@@ -160,6 +186,8 @@ export const useSuperadminStore = create<SuperadminState>()(
               cupo: Math.max(1, data.cupo || 1),
               pagado: true,
               activo: true,
+              plan: data.plan ?? "mensual",
+              mesGratisHasta: null,
               altaEn: new Date().toISOString(),
               sucursales: [],
             },
@@ -182,6 +210,7 @@ export const useSuperadminStore = create<SuperadminState>()(
             if (data.duenoEmail != null)
               next.duenoEmail = data.duenoEmail.trim();
             if (data.cupo != null) next.cupo = Math.max(1, data.cupo);
+            if (data.plan != null) next.plan = data.plan;
             return next;
           }),
         })),
@@ -198,6 +227,18 @@ export const useSuperadminStore = create<SuperadminState>()(
           organizaciones: s.organizaciones.map((o) =>
             o.id === id ? { ...o, pagado: !o.pagado } : o,
           ),
+        })),
+
+      darMesGratis: (id, meses = 1) =>
+        set((s) => ({
+          organizaciones: s.organizaciones.map((o) => {
+            if (o.id !== id) return o;
+            const base = enGracia(o)
+              ? new Date(o.mesGratisHasta as string)
+              : new Date();
+            base.setMonth(base.getMonth() + meses);
+            return { ...o, mesGratisHasta: base.toISOString() };
+          }),
         })),
 
       quitarOrg: (id) =>

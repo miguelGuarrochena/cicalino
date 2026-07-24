@@ -8,9 +8,12 @@ import {
   useSuperadminStore,
   PRECIO_POR_SUCURSAL,
   monthlyCharge,
+  cobroProximo,
+  enGracia,
   type OrganizationRow,
   type OrgInput,
   type BranchInput,
+  type PlanTipo,
 } from "@/lib/store/superadmin-store";
 import type { TipoNegocio } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -44,6 +47,19 @@ const TIPO_LABEL: Record<TipoNegocio, string> = {
   heladeria: "Heladería",
   otro: "Otro",
 };
+
+const PLAN_LABEL: Record<PlanTipo, string> = {
+  mensual: "Mensual",
+  anual: "Anual",
+  gratis: "Gratis",
+};
+
+const fechaCorta = (iso: string): string =>
+  new Date(iso).toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-3 py-2.5 text-sm text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20";
@@ -86,6 +102,7 @@ export const OrgModal = ({
     altaSucursal: createBranch,
     toggleSucursalActivo: toggleBranchActive,
     quitarSucursal: removeBranch,
+    darMesGratis: giveFreeMonth,
   } = useSuperadminStore();
   const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
   const live = supabaseConfigurado;
@@ -100,6 +117,7 @@ export const OrgModal = ({
   const [address, setDireccion] = useState(org?.direccion ?? "");
   const [ownerEmail, setOwnerEmail] = useState(org?.duenoEmail ?? "");
   const [quota, setCupo] = useState(org?.cupo ?? 1);
+  const [plan, setPlan] = useState<PlanTipo>(org?.plan ?? "mensual");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmDel, setConfirmDel] = useState(false);
   const [quotaError, setCupoError] = useState(false);
@@ -129,6 +147,7 @@ export const OrgModal = ({
       direccion: address,
       duenoEmail: ownerEmail,
       cupo: quota,
+      plan,
     };
     if (mode === "crear") {
       if (live) {
@@ -227,6 +246,20 @@ export const OrgModal = ({
     onClose();
   };
 
+  const darMes = async () => {
+    if (!vista) return;
+    if (live) {
+      const base = enGracia(vista)
+        ? new Date(vista.mesGratisHasta as string)
+        : new Date();
+      base.setMonth(base.getMonth() + 1);
+      await updateOrgDb(vista.id, { mesGratisHasta: base.toISOString() });
+      await refreshOrganizations();
+    } else {
+      giveFreeMonth(vista.id, 1);
+    }
+  };
+
   const enterOwner = (branchId: string, branchNameLabel: string) => {
     if (!org) return;
     enterAsOwner({
@@ -316,6 +349,17 @@ export const OrgModal = ({
               />
             </Campo>
           </div>
+          <Campo label="Plan / ciclo de cobro">
+            <select
+              className={INPUT}
+              value={plan}
+              onChange={(e) => setPlan(e.target.value as PlanTipo)}
+            >
+              <option value="mensual">Mensual</option>
+              <option value="anual">Anual (2 meses gratis)</option>
+              <option value="gratis">Gratis (cortesía)</option>
+            </select>
+          </Campo>
           <Campo label={t("super.direccion")}>
             <input
               className={INPUT}
@@ -325,8 +369,15 @@ export const OrgModal = ({
           </Campo>
           <p className="text-xs text-carbon/50">
             {t("super.cobroEstimado", {
-              n: money.format(quota * PRECIO_POR_SUCURSAL),
+              n: money.format(
+                plan === "gratis"
+                  ? 0
+                  : plan === "anual"
+                    ? quota * PRECIO_POR_SUCURSAL * 10
+                    : quota * PRECIO_POR_SUCURSAL,
+              ),
             })}
+            {plan === "anual" ? " /año" : plan === "mensual" ? " /mes" : ""}
           </p>
           <div className="mt-2 flex gap-2">
             {mode === "editar" && (
@@ -358,9 +409,10 @@ export const OrgModal = ({
               label={t("super.cupo")}
               value={`${vista.sucursales.length} / ${vista.cupo}`}
             />
+            <Dato label="Plan" value={PLAN_LABEL[vista.plan]} />
             <Dato
-              label={t("super.cobro")}
-              value={money.format(monthlyCharge(vista))}
+              label={vista.plan === "anual" ? "Cobro / año" : "Cobro / mes"}
+              value={money.format(cobroProximo(vista))}
             />
             <Dato
               label={t("super.direccion")}
@@ -389,12 +441,25 @@ export const OrgModal = ({
             </button>
             <button
               type="button"
+              onClick={darMes}
+              className="rounded-full bg-marca/10 px-3 py-1.5 text-xs font-semibold text-marca"
+            >
+              + Mes gratis
+            </button>
+            <button
+              type="button"
               onClick={() => setMode("editar")}
               className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70"
             >
               {t("super.editar")}
             </button>
           </div>
+
+          {enGracia(vista) && vista.mesGratisHasta && (
+            <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+              En cortesía (sin cobro) hasta el {fechaCorta(vista.mesGratisHasta)}.
+            </p>
+          )}
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">

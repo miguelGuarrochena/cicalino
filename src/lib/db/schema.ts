@@ -72,6 +72,11 @@ export const organizations = pgTable("organizaciones", {
   cupo: integer("cupo").notNull().default(1),
   pagado: boolean("pagado").notNull().default(true),
   activo: boolean("activo").notNull().default(true),
+  // Facturación manual (sin pasarela): ciclo de cobro y cortesía.
+  //   plan: "mensual" | "anual" | "gratis"
+  plan: text("plan").notNull().default("mensual"),
+  // Si está en el futuro, no se cobra (mes gratis / prueba).
+  mesGratisHasta: timestamp("mes_gratis_hasta", { withTimezone: true }),
   creadoEn: timestamp("creado_en", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -220,6 +225,25 @@ export const pushSubscriptions = pgTable(
   },
   (t) => [index("idx_push_pedido").on(t.pedidoId)],
 );
+
+// ---------------------------------------------------------------------------
+// Solicitudes de prueba (leads del formulario "Probá gratis" de la web)
+// ---------------------------------------------------------------------------
+
+export const solicitudes = pgTable("solicitudes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  nombre: text("nombre").notNull(),
+  email: text("email").notNull(),
+  local: text("local"),
+  ciudad: text("ciudad"),
+  // nueva | atendida | descartada
+  estado: text("estado").notNull().default("nueva"),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type Solicitud = typeof solicitudes.$inferSelect;
 
 // ---------------------------------------------------------------------------
 // Relaciones

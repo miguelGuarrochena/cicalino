@@ -4,6 +4,7 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 import {
   useSuperadminStore,
   type OrganizationRow,
+  type PlanTipo,
 } from "@/lib/store/superadmin-store";
 import type { TipoNegocio } from "@/lib/store/config-store";
 
@@ -29,6 +30,8 @@ type OrgDb = {
   cupo: number;
   pagado: boolean;
   activo: boolean;
+  plan: string | null;
+  mes_gratis_hasta: string | null;
   creado_en: string;
   locales: BranchDb[] | null;
 };
@@ -43,6 +46,8 @@ const mapOrg = (o: OrgDb): OrganizationRow => ({
   cupo: o.cupo,
   pagado: o.pagado,
   activo: o.activo,
+  plan: (o.plan as PlanTipo) ?? "mensual",
+  mesGratisHasta: o.mes_gratis_hasta ?? null,
   altaEn: o.creado_en,
   sucursales: (o.locales ?? []).map((l) => ({
     id: l.id,
@@ -61,7 +66,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, cuil, direccion, dueno_email, cupo, pagado, activo, creado_en, locales(id, nombre, tipo_negocio, direccion)",
+      "id, nombre, responsable, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, creado_en, locales(id, nombre, tipo_negocio, direccion)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
@@ -88,6 +93,8 @@ export const updateOrgDb = async (
     cupo: number;
     pagado: boolean;
     activo: boolean;
+    plan: PlanTipo;
+    mesGratisHasta: string | null;
   }>,
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
@@ -101,6 +108,8 @@ export const updateOrgDb = async (
   if (patch.cupo != null) db.cupo = Math.max(1, patch.cupo);
   if (patch.pagado != null) db.pagado = patch.pagado;
   if (patch.activo != null) db.activo = patch.activo;
+  if (patch.plan != null) db.plan = patch.plan;
+  if (patch.mesGratisHasta !== undefined) db.mes_gratis_hasta = patch.mesGratisHasta;
   const { error } = await supabase
     .from("organizaciones")
     .update(db)

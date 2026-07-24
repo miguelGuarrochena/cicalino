@@ -8,6 +8,7 @@ import {
   type OrganizationRow,
 } from "@/lib/store/superadmin-store";
 import { OrgModal } from "@/components/admin/OrgModal";
+import { SolicitudesPanel } from "@/components/admin/SolicitudesPanel";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useSuperadminSync } from "@/lib/hooks/useSuperadminSync";
 
@@ -139,6 +140,8 @@ const SuperadminPage = () => {
           n: orders.toLocaleString("es-AR"),
         })}
       </p>
+
+      <SolicitudesPanel />
 
       <div className="flex flex-col gap-3">
         {organizations.length === 0 && (

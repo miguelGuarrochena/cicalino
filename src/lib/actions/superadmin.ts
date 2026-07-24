@@ -2,6 +2,7 @@
 
 import { getPerfilActual } from "@/lib/auth/profile";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import type { Solicitud } from "@/lib/db/schema";
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 type SimpleResult = { ok: true } | { ok: false; error: string };
@@ -26,6 +27,8 @@ export const crearOrganizacion = async (input: {
   direccion: string;
   duenoEmail: string;
   cupo: number;
+  plan?: string;
+  mesGratis?: boolean;
   sucursales: SucursalInput[];
 }): Promise<Resultado> => {
   const perfil = await getPerfilActual();
@@ -34,6 +37,13 @@ export const crearOrganizacion = async (input: {
   }
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  let mesGratisHasta: string | null = null;
+  if (input.mesGratis) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    mesGratisHasta = d.toISOString();
+  }
 
   const { data: org, error } = await admin
     .from("organizaciones")
@@ -44,6 +54,8 @@ export const crearOrganizacion = async (input: {
       direccion: input.direccion.trim() || null,
       dueno_email: input.duenoEmail.trim(),
       cupo: Math.max(1, input.cupo || 1),
+      plan: input.plan ?? "mensual",
+      mes_gratis_hasta: mesGratisHasta,
     })
     .select("id")
     .single();
@@ -82,5 +94,68 @@ export const eliminarOrganizacion = async (
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
   const { error } = await admin.from("organizaciones").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+  return { ok: true };
+};
+
+// --- Solicitudes de prueba (leads) — solo superadmin --------------------------
+
+export const listarSolicitudes = async (): Promise<Solicitud[]> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") return [];
+  const admin = createAdminSupabase();
+  if (!admin) return [];
+  const { data } = await admin
+    .from("solicitudes")
+    .select("*")
+    .order("creado_en", { ascending: false });
+  return (data ?? []) as Solicitud[];
+};
+
+// Activa una solicitud: crea la organización con 1 mes gratis + invita al dueño,
+// y marca la solicitud como atendida.
+export const activarSolicitud = async (id: string): Promise<Resultado> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: sol } = await admin
+    .from("solicitudes")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (!sol) return { ok: false, error: "Solicitud no encontrada" };
+
+  const res = await crearOrganizacion({
+    nombre: sol.local || sol.nombre,
+    responsable: sol.nombre,
+    cuil: "",
+    direccion: sol.ciudad || "",
+    duenoEmail: sol.email,
+    cupo: 1,
+    plan: "mensual",
+    mesGratis: true,
+    sucursales: [
+      { nombre: sol.local || "Principal", tipo: "otro", direccion: sol.ciudad || "" },
+    ],
+  });
+  if (!res.ok) return res;
+
+  await admin.from("solicitudes").update({ estado: "atendida" }).eq("id", id);
+  return res;
+};
+
+export const descartarSolicitud = async (
+  id: string,
+): Promise<SimpleResult> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+  await admin.from("solicitudes").update({ estado: "descartada" }).eq("id", id);
   return { ok: true };
 };

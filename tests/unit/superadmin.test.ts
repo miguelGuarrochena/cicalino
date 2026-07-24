@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   monthlyCharge,
+  cobroProximo,
   orgById,
   branchById,
   PRECIO_POR_SUCURSAL,
@@ -17,6 +18,8 @@ const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
   cupo: 2,
   pagado: true,
   activo: true,
+  plan: "mensual",
+  mesGratisHasta: null,
   altaEn: "2026-01-01T00:00:00Z",
   sucursales: [
     {
@@ -37,9 +40,24 @@ describe("monthlyCharge", () => {
     expect(monthlyCharge(mkOrg({ cupo: 2 }))).toBe(2 * PRECIO_POR_SUCURSAL);
     expect(monthlyCharge(mkOrg({ cupo: 3 }))).toBe(3 * PRECIO_POR_SUCURSAL);
   });
-  it("no cobra si está impaga o inactiva", () => {
-    expect(monthlyCharge(mkOrg({ pagado: false }))).toBe(0);
+  it("no cobra si está pausada, es gratis o en cortesía", () => {
     expect(monthlyCharge(mkOrg({ activo: false }))).toBe(0);
+    expect(monthlyCharge(mkOrg({ plan: "gratis" }))).toBe(0);
+    const futuro = new Date(Date.now() + 5 * 86400000).toISOString();
+    expect(monthlyCharge(mkOrg({ mesGratisHasta: futuro }))).toBe(0);
+  });
+});
+
+describe("cobroProximo", () => {
+  it("anual cobra 10 meses (2 de regalo)", () => {
+    expect(cobroProximo(mkOrg({ cupo: 1, plan: "anual" }))).toBe(
+      10 * PRECIO_POR_SUCURSAL,
+    );
+  });
+  it("mensual cobra 1 mes", () => {
+    expect(cobroProximo(mkOrg({ cupo: 1, plan: "mensual" }))).toBe(
+      PRECIO_POR_SUCURSAL,
+    );
   });
 });
 

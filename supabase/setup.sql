@@ -106,3 +106,49 @@ alter publication supabase_realtime add table public.pedidos;
 -- 6) Web Push: RLS en push_subscriptions (solo el server con service_role la toca)
 --    Sin policies => anon/authenticated no acceden; el service_role saltea RLS.
 alter table public.push_subscriptions enable row level security;
+
+-- 7) Facturación manual: ciclo de plan (mensual/anual/gratis) + cortesía ------
+alter table public.organizaciones
+  add column if not exists plan text not null default 'mensual',
+  add column if not exists mes_gratis_hasta timestamptz;
+
+-- 8) Solicitudes de prueba (leads del formulario público) --------------------
+create table if not exists public.solicitudes (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null,
+  email text not null,
+  local text,
+  ciudad text,
+  estado text not null default 'nueva',
+  creado_en timestamptz not null default now()
+);
+-- RLS: solo el server con service_role la toca (form público inserta por action).
+alter table public.solicitudes enable row level security;
+
+-- 9) Endurecer RLS de facturación (revisión de seguridad) --------------------
+-- El dueño NO debe poder modificar su facturación (pagado/activo/plan/cupo/
+-- mes_gratis_hasta): eso es solo del superadmin. La policy vieja dejaba al dueño
+-- actualizar su propia fila de organizaciones. La reemplazamos.
+drop policy if exists "org update dueño/SA" on public.organizaciones;
+create policy "org update SA" on public.organizaciones
+  for update using (public.auth_rol() = 'superadmin')
+  with check (public.auth_rol() = 'superadmin');
+
+-- El dueño ve y edita la config de sus sucursales (SELECT/UPDATE), pero crear o
+-- borrar sucursales (impacta el cupo/cobro) queda solo para el superadmin.
+drop policy if exists "sucursales de mi org" on public.locales;
+create policy "locales select org/SA" on public.locales
+  for select using (
+    organizacion_id = public.auth_org() or public.auth_rol() = 'superadmin'
+  );
+create policy "locales update org/SA" on public.locales
+  for update using (
+    organizacion_id = public.auth_org() or public.auth_rol() = 'superadmin'
+  )
+  with check (
+    organizacion_id = public.auth_org() or public.auth_rol() = 'superadmin'
+  );
+create policy "locales insert SA" on public.locales
+  for insert with check (public.auth_rol() = 'superadmin');
+create policy "locales delete SA" on public.locales
+  for delete using (public.auth_rol() = 'superadmin');

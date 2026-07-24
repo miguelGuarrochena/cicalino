@@ -99,11 +99,17 @@ const PreciosPage = () => {
           </p>
 
           <div className="mt-6 flex flex-col gap-2">
-            <a
-              href={mailHref()}
+            <Link
+              href="/probar"
               className="rounded-full bg-marca px-5 py-3 text-center text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
             >
-              {es ? "Escribinos por mail" : "Email us"}
+              {es ? "Probá 1 mes gratis" : "Start a free month"}
+            </Link>
+            <a
+              href={mailHref()}
+              className="rounded-full border border-linea px-5 py-2.5 text-center text-sm font-semibold text-carbon/70 transition hover:bg-carbon/5"
+            >
+              {es ? "O escribinos por mail" : "Or email us"}
             </a>
             <p className="text-center text-xs text-carbon/45">info@cicalino.net</p>
           </div>
