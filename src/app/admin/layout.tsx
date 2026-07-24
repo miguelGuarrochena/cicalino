@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
 import { RoleSwitcher } from "@/components/panel/RoleSwitcher";
+import { LogoutButton } from "@/components/ui/LogoutButton";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { getPerfilActual } from "@/lib/auth/profile";
@@ -29,6 +30,7 @@ const AdminLayout = async ({
           <div className="flex items-center gap-2 sm:gap-3">
             <RoleSwitcher />
             <Controls />
+            <LogoutButton />
           </div>
         </div>
       </header>

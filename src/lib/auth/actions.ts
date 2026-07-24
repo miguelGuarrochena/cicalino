@@ -3,19 +3,45 @@
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { getPerfilActual } from "@/lib/auth/profile";
+import type { UserRole } from "@/lib/db/schema";
 
 type Resultado = { ok: true } | { ok: false; error: string };
+
+type LoginOk = {
+  ok: true;
+  rol: UserRole;
+  organizacionId: string | null;
+  localId: string | null;
+};
+type LoginResultado = LoginOk | { ok: false; error: string };
+
+// Mensajes de Supabase → español, para mostrar al usuario.
+const traducirError = (m: string): string => {
+  if (/invalid login credentials/i.test(m))
+    return "Email o contraseña incorrectos.";
+  if (/email not confirmed/i.test(m))
+    return "Falta confirmar el email de la invitación.";
+  return m;
+};
 
 // Login con email + contraseña (usuarios ya invitados por el superadmin/admin).
 export const signIn = async (
   email: string,
   password: string,
-): Promise<Resultado> => {
+): Promise<LoginResultado> => {
   const supabase = await createServerSupabase();
   if (!supabase) return { ok: false, error: "Supabase no configurado" };
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  if (error) return { ok: false, error: traducirError(error.message) };
+
+  const perfil = await getPerfilActual();
+  return {
+    ok: true,
+    rol: perfil?.rol ?? "admin",
+    organizacionId: perfil?.organizacionId ?? null,
+    localId: perfil?.localId ?? null,
+  };
 };
 
 export const signOut = async () => {

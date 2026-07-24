@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useOrdersStore } from "@/lib/store/orders-store";
+import { useOrders } from "@/lib/hooks/useOrders";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
 import { ThemedImg } from "@/components/ui/ThemedImg";
@@ -60,9 +60,16 @@ const PanelOrdersPage = () => {
   const activeEmployee = useSessionStore((s) => s.empleadoActivo);
   const branchId = useSessionStore((s) => s.sucursalId);
   const orgs = useSuperadminStore((s) => s.organizaciones);
-  const branchNameLabel = branchById(orgs, branchId)?.nombre;
-  const { pedidos: orders, seedSiVacio, cambiarEstado: changeStatus, agregarPedido: addOrder } =
-    useOrdersStore();
+  const {
+    orders,
+    createOrder,
+    changeStatus,
+    branchName: liveBranchName,
+    live,
+  } = useOrders(branchId);
+  const branchNameLabel = live
+    ? liveBranchName
+    : branchById(orgs, branchId)?.nombre;
 
   const [contador, setContador] = useState(43);
   const [qrOrder, setQrOrder] = useState<OrderView | null>(null);
@@ -72,10 +79,6 @@ const PanelOrdersPage = () => {
   const [createOpen, setCrearOpen] = useState(false);
   const [refDraft, setRefDraft] = useState("");
   const [refError, setRefError] = useState(false);
-
-  useEffect(() => {
-    seedSiVacio();
-  }, [seedSiVacio]);
 
   useEffect(() => {
     setPage(1);
@@ -108,49 +111,41 @@ const PanelOrdersPage = () => {
         ? t("panel.buscarNombre")
         : t("panel.buscarPedido");
 
+  const handleCreate = async (reference: string) => {
+    const created = await createOrder(reference, activeEmployee);
+    if (!created) {
+      toast("No se pudo crear el pedido", "error");
+      return;
+    }
+    setQrOrder(created);
+    setFiltro("todos");
+    setQ("");
+    dingNuevo();
+    toast(t("toast.creado", { n: reference }), "success");
+  };
+
   const abrirNuevo = () => {
-        if (mode === "pedido") {
-          createOrder(String(contador));
-          setContador((c) => c + 1);
-          return;
-        }
-        setRefDraft("");
-        setRefError(false);
-        setCrearOpen(true);
-      };
+    if (mode === "pedido") {
+      handleCreate(String(contador));
+      setContador((c) => c + 1);
+      return;
+    }
+    setRefDraft("");
+    setRefError(false);
+    setCrearOpen(true);
+  };
 
-  const createOrder = (reference: string) => {
-        const nuevo: OrderView = {
-          id: crypto.randomUUID(),
-          referencia: reference,
-          estado: "creado",
-          creadoEn: new Date().toISOString(),
-          enPreparacionEn: null,
-          listoEn: null,
-          retiradoEn: null,
-          canceladoEn: null,
-          qrToken: crypto.randomUUID(),
-          empleado: activeEmployee?.nombre ?? null,
-        };
-        addOrder(nuevo);
-        setQrOrder(nuevo);
-        setFiltro("todos");
-        setQ("");
-        dingNuevo();
-        toast(t("toast.creado", { n: reference }), "success");
-      };
-
-  const changeStatusUX = (id: string, status: OrderStatus) => {
-        changeStatus(id, status);
-        if (status === "listo") {
-          notifyReady();
-          toast(t("toast.listo"), "success");
-        } else if (status === "retirado") {
-          toast(t("toast.retirado"), "info");
-        } else if (status === "cancelado") {
-          toast(t("toast.cancelado"), "error");
-        }
-      };
+  const changeStatusUX = async (id: string, status: OrderStatus) => {
+    await changeStatus(id, status);
+    if (status === "listo") {
+      notifyReady();
+      toast(t("toast.listo"), "success");
+    } else if (status === "retirado") {
+      toast(t("toast.retirado"), "info");
+    } else if (status === "cancelado") {
+      toast(t("toast.cancelado"), "error");
+    }
+  };
 
   const confirmarCrear = () => {
         const valor = refDraft.trim();
@@ -164,9 +159,9 @@ const PanelOrdersPage = () => {
             setRefError(true);
             return;
           }
-          createOrder(String(n));
+          handleCreate(String(n));
         } else {
-          createOrder(valor);
+          handleCreate(valor);
         }
         setCrearOpen(false);
       };

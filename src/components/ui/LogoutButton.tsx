@@ -1,0 +1,50 @@
+"use client";
+
+import { useState } from "react";
+import { signOut } from "@/lib/auth/actions";
+import { useSessionStore } from "@/lib/store/session-store";
+import { useApp } from "@/components/providers/Providers";
+
+// Cierra la sesión: limpia el estado local (demo/persist) y llama al server
+// action signOut, que borra la cookie de Supabase y redirige a /login.
+export const LogoutButton = ({ className = "" }: { className?: string }) => {
+  const { locale } = useApp();
+  const [loading, setLoading] = useState(false);
+  const label = locale === "en" ? "Log out" : "Cerrar sesión";
+
+  const salir = async () => {
+    setLoading(true);
+    try {
+      useSessionStore.persist.clearStorage();
+    } catch {
+      // sin storage disponible: seguimos igual
+    }
+    await signOut();
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={salir}
+      disabled={loading}
+      title={label}
+      aria-label={label}
+      className={`flex size-9 items-center justify-center rounded-full border border-linea text-carbon/60 transition hover:border-marca/40 hover:text-marca disabled:opacity-60 ${className}`}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+      </svg>
+    </button>
+  );
+};

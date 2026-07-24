@@ -9,6 +9,8 @@ import { SiteFooter } from "@/components/ui/SiteFooter";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore, type CurrentRole } from "@/lib/store/session-store";
 import { isEmail } from "@/lib/validations";
+import { signIn } from "@/lib/auth/actions";
+import { supabaseConfigurado } from "@/lib/supabase/config";
 
 type Destino = {
   rol: CurrentRole;
@@ -60,6 +62,8 @@ const EntrarPage = () => {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [notice, setAviso] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ email?: string; pass?: string }>({});
 
   const enterAs = (d: Destino) => {
@@ -73,25 +77,50 @@ const EntrarPage = () => {
     router.push(d.href);
   };
 
-  const submitLogin = (e: React.FormEvent) => {
-        e.preventDefault();
-        const next: { email?: string; pass?: string } = {};
-        if (!isEmail(email)) next.email = t("entrar.errEmail");
-        if (pass.trim().length < 4) next.pass = t("entrar.errPass");
-        setErrors(next);
-        if (Object.keys(next).length) return;
+  const submitLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const next: { email?: string; pass?: string } = {};
+    if (!isEmail(email)) next.email = t("entrar.errEmail");
+    if (pass.trim().length < 4) next.pass = t("entrar.errPass");
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setServerError(null);
 
-        setAviso(true);
-        if (email.toLowerCase().includes("super")) {
-          setRole("superadmin");
-          setContexto(null, null);
-          router.push("/admin");
-          return;
-        }
-        setRole("admin");
-        setContexto("org-esquina", "suc-centro");
-        router.push("/panel");
-      };
+    // Modo demo (sin Supabase): entra simulando el rol, como antes.
+    if (!supabaseConfigurado) {
+      setAviso(true);
+      if (email.toLowerCase().includes("super")) {
+        setRole("superadmin");
+        setContexto(null, null);
+        router.push("/admin");
+        return;
+      }
+      setRole("admin");
+      setContexto("org-esquina", "suc-centro");
+      router.push("/panel");
+      return;
+    }
+
+    // Login real contra Supabase.
+    setLoading(true);
+    const res = await signIn(email, pass);
+    setLoading(false);
+    if (!res.ok) {
+      setServerError(res.error);
+      return;
+    }
+    setRole(res.rol as CurrentRole);
+    if (res.rol === "superadmin") {
+      setContexto(null, null);
+      router.push("/admin");
+    } else {
+      // Contexto real si viene; si no, defaults demo para que el panel renderice
+      // (los pedidos reales se cablean en el próximo paso).
+      setContexto(res.organizacionId ?? "org-esquina", res.localId ?? "suc-centro");
+      router.push("/panel");
+    }
+    router.refresh();
+  };
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -154,10 +183,14 @@ const EntrarPage = () => {
           </label>
           <button
             type="submit"
-            className="mt-1 rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
+            disabled={loading}
+            className="mt-1 rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {t("entrar.cta")}
+            {loading ? "Entrando…" : t("entrar.cta")}
           </button>
+          {serverError && (
+            <p className="text-center text-xs text-red-500">{serverError}</p>
+          )}
           {notice && (
             <p className="text-center text-xs text-carbon/45">
               {t("entrar.demoHint")}
@@ -165,6 +198,7 @@ const EntrarPage = () => {
           )}
         </form>
 
+        {!supabaseConfigurado && (
         <div className="mt-8">
           <p className="mb-3 text-center text-xs font-bold uppercase tracking-wide text-carbon/40">
             {t("entrar.probar")}
@@ -214,6 +248,7 @@ const EntrarPage = () => {
             ))}
           </div>
         </div>
+        )}
 
         <p className="mt-8 text-center text-xs text-carbon/40">
           <Link href="/" className="underline-offset-2 hover:underline">

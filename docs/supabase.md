@@ -77,8 +77,49 @@ update public.usuarios set rol = 'superadmin' where email = 'TU_EMAIL';
 - `src/middleware.ts` — refresca sesión y protege `/panel` y `/admin`.
 - `supabase/setup.sql` — RLS, trigger y realtime.
 
+## Probar pedidos reales (panel + realtime)
+
+El panel usa la base + realtime cuando el usuario logueado tiene una **sucursal
+real** (`local_id`). Para armar una de prueba:
+
+**1) Organización + sucursal** (SQL Editor). Devuelve los IDs:
+
+```sql
+with org as (
+  insert into public.organizaciones (nombre, dueno_email)
+  values ('Café Demo', 'dueno@cafedemo.com')
+  returning id
+)
+insert into public.locales (organizacion_id, nombre, slug)
+select id, 'Centro', 'centro' from org;
+```
+
+**2) Usuario dueño de prueba**: Authentication → Add user → email
+`dueno@cafedemo.com` + contraseña. El trigger le crea la fila en `usuarios`.
+
+**3) Linkear ese usuario a la sucursal:**
+
+```sql
+update public.usuarios u
+set organizacion_id = l.organizacion_id,
+    local_id        = l.id,
+    rol             = 'admin'
+from public.locales l
+where l.slug = 'centro' and u.email = 'dueno@cafedemo.com';
+```
+
+**4) Entrar** con `dueno@cafedemo.com` → `/panel`. Crear un pedido queda en la
+base; abrí el panel en dos dispositivos/pestañas y vas a ver que **se sincroniza
+solo** (realtime). El superadmin no opera el panel (tiene su consola en `/admin`).
+
 ## Pendiente (próximo)
 
-- Cablear el front (pedidos, config, empleados, superadmin) a Supabase en lugar de
-  los stores demo, y suscribir el panel a **realtime** por sucursal.
+- Vista del cliente `/p/[token]` leyendo de la base (route handler con service_role)
+  para que el aviso funcione **entre dispositivos** (celular del cliente).
+- Cablear config, empleados y superadmin (organizaciones/sucursales) a la base.
 - Web Push (VAPID) y Mercado Pago.
+
+## Archivos clave (backend de datos)
+
+- `src/lib/data/orders.ts` — fetch/insert/update de pedidos + suscripción realtime.
+- `src/lib/hooks/useOrders.ts` — decide demo (Zustand) vs live (Supabase) por sucursal.
