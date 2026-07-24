@@ -24,6 +24,7 @@ type OrgDb = {
   id: string;
   nombre: string;
   responsable: string | null;
+  telefono: string | null;
   cuil: string | null;
   direccion: string | null;
   dueno_email: string;
@@ -40,6 +41,7 @@ const mapOrg = (o: OrgDb): OrganizationRow => ({
   id: o.id,
   nombre: o.nombre,
   responsable: o.responsable ?? "",
+  telefono: o.telefono ?? "",
   cuil: o.cuil ?? "",
   direccion: o.direccion ?? "",
   duenoEmail: o.dueno_email,
@@ -66,7 +68,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, creado_en, locales(id, nombre, tipo_negocio, direccion)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, creado_en, locales(id, nombre, tipo_negocio, direccion)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
@@ -87,6 +89,7 @@ export const updateOrgDb = async (
   patch: Partial<{
     nombre: string;
     responsable: string;
+    telefono: string;
     cuil: string;
     direccion: string;
     duenoEmail: string;
@@ -102,6 +105,7 @@ export const updateOrgDb = async (
   const db: Record<string, unknown> = {};
   if (patch.nombre != null) db.nombre = patch.nombre.trim();
   if (patch.responsable != null) db.responsable = patch.responsable.trim();
+  if (patch.telefono != null) db.telefono = patch.telefono.trim() || null;
   if (patch.cuil != null) db.cuil = patch.cuil.trim();
   if (patch.direccion != null) db.direccion = patch.direccion.trim();
   if (patch.duenoEmail != null) db.dueno_email = patch.duenoEmail.trim();

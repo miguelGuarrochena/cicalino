@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E del flujo DEMO (sin Supabase): forzamos modo demo vaciando las env vars
-// públicas de Supabase, así aparecen los botones de rol y no hace falta login.
+// E2E de superficies públicas (home + vista del cliente). Los flujos con login
+// se testean manualmente o con una cuenta de prueba (no hay más modo demo).
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -20,10 +20,5 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: {
-      NEXT_PUBLIC_SUPABASE_URL: "",
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
-    },
   },
 });

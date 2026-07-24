@@ -8,6 +8,13 @@
       "when": 1784814214672,
       "tag": "0000_rare_nehzno",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784900000000,
+      "tag": "0001_org_telefono",
+      "breakpoints": true
     }
   ]
 }

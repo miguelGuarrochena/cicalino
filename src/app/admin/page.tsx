@@ -161,7 +161,8 @@ const SuperadminPage = () => {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-carbon">{o.nombre}</p>
                 <p className="truncate text-xs text-carbon/50">
-                  {o.responsable} · {o.duenoEmail}
+                  {o.responsable}
+                  {o.telefono ? ` · ${o.telefono}` : ""} · {o.duenoEmail}
                 </p>
                 <p className="text-xs text-carbon/40">
                   {t("super.cupoResumen", {

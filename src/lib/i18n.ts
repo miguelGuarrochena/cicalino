@@ -79,7 +79,7 @@ const dict = {
       cliSub:
         "No instala nada. Deja la pantalla abierta (o activa notificaciones) y recibe el aviso cuando corresponde.",
       cierreTitulo: "Listo para probar",
-      cierreSub: "Entrá al panel demo o mirá el recorrido del cliente.",
+      cierreSub: "Mirá el recorrido del cliente antes de arrancar.",
       walk: {
         kicker: "Vista del cliente",
         titulo: "Así se ve mientras esperás",
@@ -96,7 +96,7 @@ const dict = {
     },
     entrar: {
       titulo: "Entrar",
-      sub: "Login del negocio. Por ahora es un prototipo: elegí un rol para probar.",
+      sub: "Ingresá con tu email y contraseña.",
       email: "Email",
       pass: "Contraseña",
       cta: "Entrar",
@@ -286,6 +286,7 @@ const dict = {
       crear: "Crear empresa",
       errNombre: "El nombre es obligatorio.",
       errResponsable: "El responsable es obligatorio.",
+      errTelefono: "Teléfono inválido (mín. 8 dígitos).",
       errEmail: "Email inválido.",
       errCuil: "CUIL/CUIT inválido (11 dígitos).",
       errCupo: "El cupo mínimo es 1.",
@@ -293,6 +294,7 @@ const dict = {
       nombreOrg: "Nombre de la empresa",
       emailDueno: "Email del dueño",
       responsable: "Responsable",
+      telefono: "Teléfono / WhatsApp",
       cuil: "CUIL / CUIT",
       direccion: "Dirección",
       cupo: "Sucursales contratadas",
@@ -399,7 +401,7 @@ const dict = {
       cliSub:
         "Nothing to install. Keep the screen open (or enable notifications) and get pinged when it’s time.",
       cierreTitulo: "Ready to try",
-      cierreSub: "Open the demo panel or walk through the customer journey.",
+      cierreSub: "Walk through the customer journey before you start.",
       walk: {
         kicker: "Customer view",
         titulo: "How it looks while you wait",
@@ -416,7 +418,7 @@ const dict = {
     },
     entrar: {
       titulo: "Sign in",
-      sub: "Business login. Prototype for now: pick a role to try the app.",
+      sub: "Sign in with your email and password.",
       email: "Email",
       pass: "Password",
       cta: "Sign in",
@@ -606,6 +608,7 @@ const dict = {
       crear: "Create company",
       errNombre: "Name is required.",
       errResponsable: "Contact person is required.",
+      errTelefono: "Invalid phone (min. 8 digits).",
       errEmail: "Invalid email.",
       errCuil: "Invalid tax ID (11 digits).",
       errCupo: "Minimum quota is 1.",
@@ -613,6 +616,7 @@ const dict = {
       nombreOrg: "Company name",
       emailDueno: "Owner email",
       responsable: "Contact person",
+      telefono: "Phone / WhatsApp",
       cuil: "Tax ID",
       direccion: "Address",
       cupo: "Contracted branches",

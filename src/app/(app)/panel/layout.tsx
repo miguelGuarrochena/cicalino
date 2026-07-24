@@ -5,11 +5,9 @@ import { PanelNav } from "@/components/panel/PanelNav";
 import { Fichaje } from "@/components/panel/TimeClock";
 import { SoundToggle } from "@/components/panel/SoundToggle";
 import { BranchSwitcher } from "@/components/panel/BranchSwitcher";
-import { RoleSwitcher } from "@/components/panel/RoleSwitcher";
 import { PanelMenu } from "@/components/panel/PanelMenu";
 import { useWakeLock } from "@/lib/hooks/useWakeLock";
 import { useBranchConfigSync } from "@/lib/hooks/useBranchConfigSync";
-import { supabaseConfigurado } from "@/lib/supabase/config";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
@@ -86,7 +84,6 @@ const PanelLayout = ({
             {role !== "superadmin" && <PanelNav />}
             {role !== "superadmin" && <Fichaje />}
             {role !== "superadmin" && <SoundToggle />}
-            {!supabaseConfigurado && <RoleSwitcher />}
             <PanelMenu />
           </div>
         </div>

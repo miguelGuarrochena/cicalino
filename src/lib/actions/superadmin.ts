@@ -23,6 +23,7 @@ const slugify = (s: string): string =>
 export const crearOrganizacion = async (input: {
   nombre: string;
   responsable: string;
+  telefono: string;
   cuil: string;
   direccion: string;
   duenoEmail: string;
@@ -50,6 +51,7 @@ export const crearOrganizacion = async (input: {
     .insert({
       nombre: input.nombre.trim(),
       responsable: input.responsable.trim() || null,
+      telefono: input.telefono.trim() || null,
       cuil: input.cuil.trim() || null,
       direccion: input.direccion.trim() || null,
       dueno_email: input.duenoEmail.trim(),
@@ -131,6 +133,7 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
   const res = await crearOrganizacion({
     nombre: sol.local || sol.nombre,
     responsable: sol.nombre,
+    telefono: "",
     cuil: "",
     direccion: sol.ciudad || "",
     duenoEmail: sol.email,

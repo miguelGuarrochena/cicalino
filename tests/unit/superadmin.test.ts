@@ -12,6 +12,7 @@ const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
   id: "o1",
   nombre: "Org",
   responsable: "R",
+  telefono: "+54 9 11 5555 5555",
   cuil: "30-71234567-8",
   direccion: "",
   duenoEmail: "d@x.com",

@@ -65,6 +65,8 @@ export const organizations = pgTable("organizaciones", {
   id: uuid("id").primaryKey().defaultRandom(),
   nombre: text("nombre").notNull(),
   responsable: text("responsable"),
+  // Teléfono de contacto del dueño / empresa (WhatsApp preferido).
+  telefono: text("telefono"),
   cuil: text("cuil"),
   direccion: text("direccion"),
   duenoEmail: text("dueno_email").notNull(),

@@ -22,6 +22,7 @@ export interface OrganizationRow {
   id: string;
   nombre: string;
   responsable: string;
+  telefono: string;
   cuil: string;
   direccion: string;
   duenoEmail: string;
@@ -40,6 +41,7 @@ export interface OrganizationRow {
 export type OrgInput = {
   nombre: string;
   responsable: string;
+  telefono: string;
   cuil: string;
   direccion: string;
   duenoEmail: string;
@@ -88,6 +90,7 @@ const seed = (): OrganizationRow[] => {
       id: org1,
       nombre: "La Esquina SA",
       responsable: "Carlos Ruiz",
+      telefono: "+54 9 341 555 0101",
       cuil: "30-71234567-8",
       direccion: "Calle Falsa 742, Rosario",
       duenoEmail: "hola@laesquina.com",
@@ -122,6 +125,7 @@ const seed = (): OrganizationRow[] => {
       id: org2,
       nombre: "El Buen Sabor",
       responsable: "María Gómez",
+      telefono: "+54 9 351 444 2200",
       cuil: "27-25999888-1",
       direccion: "San Martín 500, Córdoba",
       duenoEmail: "pedidos@buensabor.com",
@@ -182,6 +186,7 @@ export const useSuperadminStore = create<SuperadminState>()(
               id,
               nombre: data.nombre.trim(),
               responsable: data.responsable.trim(),
+              telefono: data.telefono.trim(),
               cuil: data.cuil.trim(),
               direccion: data.direccion.trim(),
               duenoEmail: data.duenoEmail.trim(),
@@ -207,6 +212,7 @@ export const useSuperadminStore = create<SuperadminState>()(
             if (data.nombre != null) next.nombre = data.nombre.trim();
             if (data.responsable != null)
               next.responsable = data.responsable.trim();
+            if (data.telefono != null) next.telefono = data.telefono.trim();
             if (data.cuil != null) next.cuil = data.cuil.trim();
             if (data.direccion != null) next.direccion = data.direccion.trim();
             if (data.duenoEmail != null)

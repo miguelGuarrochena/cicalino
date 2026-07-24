@@ -17,7 +17,7 @@ import {
 } from "@/lib/store/superadmin-store";
 import type { TipoNegocio } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
-import { isEmail, isCuil } from "@/lib/validations";
+import { isEmail, isCuil, isWhatsapp } from "@/lib/validations";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import {
   crearOrganizacion,
@@ -113,6 +113,7 @@ export const OrgModal = ({
 
   const [name, setName] = useState(org?.nombre ?? "");
   const [manager, setResponsable] = useState(org?.responsable ?? "");
+  const [phone, setTelefono] = useState(org?.telefono ?? "");
   const [cuil, setCuil] = useState(org?.cuil ?? "");
   const [address, setDireccion] = useState(org?.direccion ?? "");
   const [ownerEmail, setOwnerEmail] = useState(org?.duenoEmail ?? "");
@@ -130,6 +131,8 @@ export const OrgModal = ({
     const e: Record<string, string> = {};
     if (!required(name)) e.nombre = t("super.errNombre");
     if (!required(manager)) e.responsable = t("super.errResponsable");
+    if (!required(phone) || !isWhatsapp(phone))
+      e.telefono = t("super.errTelefono");
     if (!emailOk(ownerEmail)) e.duenoEmail = t("super.errEmail");
     if (cuil && !cuilOk(cuil)) e.cuil = t("super.errCuil");
     if (quota < 1) e.cupo = t("super.errCupo");
@@ -143,6 +146,7 @@ export const OrgModal = ({
     const data: OrgInput = {
       nombre: name,
       responsable: manager,
+      telefono: phone,
       cuil,
       direccion: address,
       duenoEmail: ownerEmail,
@@ -323,6 +327,16 @@ export const OrgModal = ({
               onChange={(e) => setResponsable(e.target.value)}
             />
           </Campo>
+          <Campo label={t("super.telefono")} error={errors.telefono}>
+            <input
+              className={INPUT}
+              type="tel"
+              inputMode="tel"
+              placeholder="+54 9 11 5555 5555"
+              value={phone}
+              onChange={(e) => setTelefono(e.target.value)}
+            />
+          </Campo>
           <Campo label={t("super.emailDueno")} error={errors.duenoEmail}>
             <input
               className={INPUT}
@@ -403,6 +417,10 @@ export const OrgModal = ({
         <div className="mt-5 flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <Dato label={t("super.responsable")} value={vista.responsable} />
+            <Dato
+              label={t("super.telefono")}
+              value={vista.telefono || "—"}
+            />
             <Dato label={t("super.emailDueno")} value={vista.duenoEmail} />
             <Dato label={t("super.cuil")} value={vista.cuil || "—"} />
             <Dato

@@ -110,7 +110,8 @@ alter table public.push_subscriptions enable row level security;
 -- 7) Facturación manual: ciclo de plan (mensual/anual/gratis) + cortesía ------
 alter table public.organizaciones
   add column if not exists plan text not null default 'mensual',
-  add column if not exists mes_gratis_hasta timestamptz;
+  add column if not exists mes_gratis_hasta timestamptz,
+  add column if not exists telefono text;
 
 -- 8) Solicitudes de prueba (leads del formulario público) --------------------
 create table if not exists public.solicitudes (
