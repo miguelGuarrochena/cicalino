@@ -37,6 +37,19 @@ interface ConfigState {
   ) => void;
   setModo: (mode: IdentificationMode) => void;
   setCantidadMesas: (n: number) => void;
+  /** Sobrescribe varios campos de config de una (al cargar desde la base). */
+  hydrate: (
+    partial: Partial<
+      Pick<
+        ConfigState,
+        "nombre" | "tipo" | "whatsapp" | "direccion" | "modo" | "cantidadMesas"
+      >
+    >,
+  ) => void;
+  /** Reemplaza la lista de empleados (al cargar desde la base). */
+  setEmpleados: (list: EmployeeUI[]) => void;
+  /** Agrega un empleado ya formado (con id real de la base). */
+  pushEmpleado: (emp: EmployeeUI) => void;
   agregarEmpleado: (data: NewEmployeeInput) => void;
   actualizarEmpleado: (
     id: string,
@@ -67,6 +80,9 @@ export const useConfigStore = create<ConfigState>()(
       setCampo: (campo, valor) => set({ [campo]: valor } as Partial<ConfigState>),
       setModo: (mode) => set({ modo: mode }),
       setCantidadMesas: (n) => set({ cantidadMesas: Math.max(1, n || 1) }),
+      hydrate: (partial) => set(partial),
+      setEmpleados: (list) => set({ empleados: list }),
+      pushEmpleado: (emp) => set((s) => ({ empleados: [...s.empleados, emp] })),
 
       agregarEmpleado: (data) =>
         set((s) => ({

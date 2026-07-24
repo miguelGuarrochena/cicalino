@@ -15,6 +15,17 @@ import {
 import type { TipoNegocio } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { isEmail, isCuil } from "@/lib/validations";
+import { supabaseConfigurado } from "@/lib/supabase/config";
+import {
+  crearOrganizacion,
+  eliminarOrganizacion,
+} from "@/lib/actions/superadmin";
+import {
+  refreshOrganizations,
+  updateOrgDb,
+  insertBranchDb,
+  deleteBranchDb,
+} from "@/lib/data/superadmin";
 
 const required = (v: string) => v.trim().length > 0;
 const emailOk = isEmail;
@@ -77,8 +88,10 @@ export const OrgModal = ({
     quitarSucursal: removeBranch,
   } = useSuperadminStore();
   const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
+  const live = supabaseConfigurado;
 
   const [mode, setMode] = useState<Mode>(initialMode);
+  const [saving, setSaving] = useState(false);
   const editing = mode === "crear" || mode === "editar";
 
   const [name, setName] = useState(org?.nombre ?? "");
@@ -107,7 +120,7 @@ export const OrgModal = ({
     return Object.keys(e).length === 0;
   };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!validate()) return;
     const data: OrgInput = {
       nombre: name,
@@ -118,23 +131,52 @@ export const OrgModal = ({
       cupo: quota,
     };
     if (mode === "crear") {
-      createOrg(data);
+      if (live) {
+        setSaving(true);
+        const res = await crearOrganizacion({ ...data, sucursales: [] });
+        setSaving(false);
+        if (!res.ok) {
+          setErrors((e) => ({ ...e, nombre: res.error }));
+          return;
+        }
+        await refreshOrganizations();
+      } else {
+        createOrg(data);
+      }
       onClose();
       return;
     }
     if (org) {
-      actualizarOrg(org.id, data);
+      if (live) {
+        setSaving(true);
+        await updateOrgDb(org.id, data);
+        await refreshOrganizations();
+        setSaving(false);
+      } else {
+        actualizarOrg(org.id, data);
+      }
       setMode("ver");
     }
   };
 
-  const agregarSuc = () => {
+  const agregarSuc = async () => {
     if (!org || !newBranch.trim()) return;
     const data: BranchInput = {
       nombre: newBranch.trim(),
       tipo: nuevaTipo,
       direccion: org.direccion,
     };
+    if (live) {
+      if ((vista?.sucursales.length ?? 0) >= (vista?.cupo ?? 0)) {
+        setCupoError(true);
+        return;
+      }
+      await insertBranchDb(org.id, data);
+      await refreshOrganizations();
+      setCupoError(false);
+      setNuevaSuc("");
+      return;
+    }
     const res = createBranch(org.id, data);
     if (!res.ok) {
       setCupoError(true);
@@ -142,6 +184,47 @@ export const OrgModal = ({
     }
     setCupoError(false);
     setNuevaSuc("");
+  };
+
+  const togglePagado = async () => {
+    if (!vista) return;
+    if (live) {
+      await updateOrgDb(vista.id, { pagado: !vista.pagado });
+      await refreshOrganizations();
+    } else {
+      toggleOrgPagado(vista.id);
+    }
+  };
+
+  const toggleActivo = async () => {
+    if (!vista) return;
+    if (live) {
+      await updateOrgDb(vista.id, { activo: !vista.activo });
+      await refreshOrganizations();
+    } else {
+      toggleOrgActivo(vista.id);
+    }
+  };
+
+  const borrarSuc = async (sucId: string) => {
+    if (!vista) return;
+    if (live) {
+      await deleteBranchDb(sucId);
+      await refreshOrganizations();
+    } else {
+      removeBranch(vista.id, sucId);
+    }
+  };
+
+  const borrarOrg = async () => {
+    if (!vista) return;
+    if (live) {
+      await eliminarOrganizacion(vista.id);
+      await refreshOrganizations();
+    } else {
+      quitarOrg(vista.id);
+    }
+    onClose();
   };
 
   const enterOwner = (branchId: string, branchNameLabel: string) => {
@@ -258,9 +341,10 @@ export const OrgModal = ({
             <button
               type="button"
               onClick={guardar}
-              className="flex-1 rounded-full bg-marca py-2.5 text-sm font-semibold text-crema hover:bg-marca-fuerte"
+              disabled={saving}
+              className="flex-1 rounded-full bg-marca py-2.5 text-sm font-semibold text-crema hover:bg-marca-fuerte disabled:opacity-60"
             >
-              {t("super.guardar")}
+              {saving ? "…" : t("super.guardar")}
             </button>
           </div>
         </div>
@@ -287,7 +371,7 @@ export const OrgModal = ({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => toggleOrgPagado(vista.id)}
+              onClick={togglePagado}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                 vista.pagado
                   ? "bg-emerald-100 text-emerald-700"
@@ -298,7 +382,7 @@ export const OrgModal = ({
             </button>
             <button
               type="button"
-              onClick={() => toggleOrgActivo(vista.id)}
+              onClick={toggleActivo}
               className="rounded-full bg-carbon/8 px-3 py-1.5 text-xs font-semibold text-carbon/70"
             >
               {vista.activo ? t("super.pausar") : t("super.activar")}
@@ -345,7 +429,7 @@ export const OrgModal = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => removeBranch(vista.id, suc.id)}
+                      onClick={() => borrarSuc(suc.id)}
                       className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600/80"
                     >
                       {t("super.eliminar")}
@@ -413,10 +497,7 @@ export const OrgModal = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  quitarOrg(vista.id);
-                  onClose();
-                }}
+                onClick={borrarOrg}
                 className="flex-1 rounded-full bg-red-600 py-2 text-sm font-semibold text-white"
               >
                 {t("super.confirmarEliminar")}

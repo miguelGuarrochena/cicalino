@@ -10,6 +10,7 @@ import { RoleSwitcher } from "@/components/panel/RoleSwitcher";
 import { Controls } from "@/components/ui/Controls";
 import { LogoutButton } from "@/components/ui/LogoutButton";
 import { useWakeLock } from "@/lib/hooks/useWakeLock";
+import { useBranchConfigSync } from "@/lib/hooks/useBranchConfigSync";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useApp } from "@/components/providers/Providers";
@@ -71,8 +72,10 @@ const PanelLayout = ({
 }: Readonly<{ children: React.ReactNode }>) => {
   const role = useSessionStore((s) => s.rol);
   const impersonating = useSessionStore((s) => s.impersonando);
+  const branchId = useSessionStore((s) => s.sucursalId);
 
   useWakeLock(role !== "superadmin");
+  useBranchConfigSync(branchId);
 
   return (
     <div className="flex min-h-dvh flex-col bg-crema">

@@ -1,0 +1,86 @@
+"use server";
+
+import { getPerfilActual } from "@/lib/auth/profile";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+
+type Resultado = { ok: true; id: string } | { ok: false; error: string };
+type SimpleResult = { ok: true } | { ok: false; error: string };
+
+type SucursalInput = { nombre: string; tipo: string; direccion?: string };
+
+const slugify = (s: string): string =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 40) || "sucursal";
+
+// Solo superadmin. Crea la organización + sucursales e invita al dueño por email.
+// Usa service_role porque organizaciones no tiene policy de INSERT para anon.
+export const crearOrganizacion = async (input: {
+  nombre: string;
+  responsable: string;
+  cuil: string;
+  direccion: string;
+  duenoEmail: string;
+  cupo: number;
+  sucursales: SucursalInput[];
+}): Promise<Resultado> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: org, error } = await admin
+    .from("organizaciones")
+    .insert({
+      nombre: input.nombre.trim(),
+      responsable: input.responsable.trim() || null,
+      cuil: input.cuil.trim() || null,
+      direccion: input.direccion.trim() || null,
+      dueno_email: input.duenoEmail.trim(),
+      cupo: Math.max(1, input.cupo || 1),
+    })
+    .select("id")
+    .single();
+  if (error || !org) {
+    return { ok: false, error: error?.message ?? "No se pudo crear" };
+  }
+
+  if (input.sucursales.length) {
+    const rows = input.sucursales.map((b) => ({
+      organizacion_id: org.id,
+      nombre: b.nombre.trim(),
+      tipo_negocio: b.tipo,
+      direccion: b.direccion?.trim() || null,
+      slug: `${slugify(b.nombre)}-${Math.random().toString(36).slice(2, 7)}`,
+    }));
+    await admin.from("locales").insert(rows);
+  }
+
+  // Invitar al dueño (si el mail ya existe, ignoramos el error).
+  await admin.auth.admin.inviteUserByEmail(input.duenoEmail.trim(), {
+    data: { rol: "admin", organizacion_id: org.id },
+  });
+
+  return { ok: true, id: org.id };
+};
+
+// Elimina la organización (cascade borra sucursales y pedidos). Solo superadmin.
+export const eliminarOrganizacion = async (
+  id: string,
+): Promise<SimpleResult> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+  const { error } = await admin.from("organizaciones").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+};

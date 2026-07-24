@@ -3,9 +3,15 @@
  * - Web Push: muestra el aviso cuando el pedido pasa a "listo".
  */
 
-const CACHE = "cicalino-v1";
+const CACHE = "cicalino-v2";
 const OFFLINE_URL = "/offline.html";
-const PRECACHE = [OFFLINE_URL, "/manifest.webmanifest", "/icon-192.png"];
+const PRECACHE = [
+  OFFLINE_URL,
+  "/manifest.webmanifest",
+  "/icon-192.png",
+  "/bell-light.png",
+  "/bell-dark.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -10,6 +10,9 @@ import {
   type IdentificationMode,
 } from "@/lib/store/config-store";
 import { isWhatsapp } from "@/lib/validations";
+import { supabaseConfigurado } from "@/lib/supabase/config";
+import { isRealBranchId } from "@/lib/data/orders";
+import { saveBranchConfig } from "@/lib/data/branch";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
@@ -44,6 +47,7 @@ type FormErrors = {
 const ConfigPage = () => {
   const { t } = useApp();
   const role = useSessionStore((s) => s.rol);
+  const branchId = useSessionStore((s) => s.sucursalId);
   const c = useConfigStore();
   const [guardado, setGuardado] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -71,10 +75,20 @@ const ConfigPage = () => {
         return next;
       };
 
-  const guardar = () => {
+  const guardar = async () => {
         const next = validar();
         setErrors(next);
         if (Object.keys(next).length) return;
+        if (supabaseConfigurado && isRealBranchId(branchId)) {
+          await saveBranchConfig(branchId, {
+            nombre: c.nombre,
+            tipo: c.tipo,
+            whatsapp: c.whatsapp,
+            direccion: c.direccion,
+            modo: c.modo,
+            cantidadMesas: c.cantidadMesas,
+          });
+        }
         setGuardado(true);
         setTimeout(() => setGuardado(false), 2200);
       };

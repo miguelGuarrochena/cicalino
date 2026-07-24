@@ -14,9 +14,11 @@
         background: #f4f1da; color: #20264f;
       }
       @media (prefers-color-scheme: dark) { body { background: #10142f; color: #ede9ce; } }
-      .badge {
-        width: 88px; height: 88px; border-radius: 24px; background: #2536d4;
-        display: flex; align-items: center; justify-content: center;
+      .mascota { width: 150px; height: auto; }
+      .m-dark { display: none; }
+      @media (prefers-color-scheme: dark) {
+        .m-light { display: none; }
+        .m-dark { display: block; }
       }
       h1 { font-size: 22px; margin: 0; text-transform: uppercase; letter-spacing: -0.02em; }
       p { margin: 0; opacity: 0.7; max-width: 28rem; }
@@ -28,13 +30,8 @@
     </style>
   </head>
   <body>
-    <div class="badge">
-      <svg width="48" height="48" viewBox="0 0 512 512" fill="#f4f1da" aria-hidden="true">
-        <circle cx="256" cy="118" r="22" />
-        <path d="M256 134 C184 134 150 196 150 264 C150 336 132 356 106 384 C95 396 104 414 120 414 L392 414 C408 414 417 396 406 384 C380 356 362 336 362 264 C362 196 328 134 256 134 Z" />
-        <path d="M304 436 a48 44 0 0 1 -96 0 z" />
-      </svg>
-    </div>
+    <img class="mascota m-light" src="/bell-light.png" alt="" width="150" height="150" />
+    <img class="mascota m-dark" src="/bell-dark.png" alt="" width="150" height="150" />
     <h1>Sin conexión</h1>
     <p>No pudimos cargar la página. Revisá tu conexión y volvé a intentar.</p>
     <button onclick="location.reload()">Reintentar</button>

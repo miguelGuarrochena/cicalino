@@ -112,14 +112,30 @@ where l.slug = 'centro' and u.email = 'dueno@cafedemo.com';
 base; abrí el panel en dos dispositivos/pestañas y vas a ver que **se sincroniza
 solo** (realtime). El superadmin no opera el panel (tiene su consola en `/admin`).
 
+## Superadmin (ya cableado)
+
+- El superadmin da de alta una organización desde `/admin`: se crea la org + sus
+  sucursales e **invita al dueño por email** (server action con service_role, que
+  valida rol superadmin). El dueño recibe un mail para poner su contraseña.
+- Listar / pausar / marcar pagado / editar cupo / alta y baja de sucursales van
+  contra la base (RLS: el superadmin ve y edita todo).
+- "Entrar como dueño" usa el `id` real de la sucursal, así que abre su panel con
+  pedidos reales.
+
+Archivos: `src/lib/actions/superadmin.ts` (crear/eliminar), `src/lib/data/superadmin.ts`
+(listar/actualizar/sucursales), `src/lib/hooks/useSuperadminSync.ts`.
+
 ## Pendiente (próximo)
 
-- Vista del cliente `/p/[token]` leyendo de la base (route handler con service_role)
-  para que el aviso funcione **entre dispositivos** (celular del cliente).
-- Cablear config, empleados y superadmin (organizaciones/sucursales) a la base.
+- Selector de sucursal real (para dueños con varias) y métricas con datos reales.
 - Web Push (VAPID) y Mercado Pago.
+- Sacar el modo demo al lanzar; tests E2E; deploy a Vercel.
 
 ## Archivos clave (backend de datos)
 
 - `src/lib/data/orders.ts` — fetch/insert/update de pedidos + suscripción realtime.
 - `src/lib/hooks/useOrders.ts` — decide demo (Zustand) vs live (Supabase) por sucursal.
+- `src/lib/data/branch.ts` — config de la sucursal (`locales`) y empleados (`empleados`).
+- `src/lib/hooks/useBranchConfigSync.ts` — carga config + empleados de la base al store.
+  La config-store sigue siendo la fuente que lee la UI; con backend se hidrata y
+  escribe en la base (guardar config, alta/baja de empleados con PIN).

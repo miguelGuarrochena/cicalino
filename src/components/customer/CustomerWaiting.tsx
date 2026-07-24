@@ -4,11 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { Controls } from "@/components/ui/Controls";
 import { useApp } from "@/components/providers/Providers";
-import { useConfigStore } from "@/lib/store/config-store";
-import {
-  orderByToken,
-  useOrdersStore,
-} from "@/lib/store/orders-store";
+import { useCustomerOrder } from "@/lib/hooks/useCustomerOrder";
 import {
   mostrarAvisoListo,
   pedirPermisoNotificaciones,
@@ -20,30 +16,13 @@ interface Props {
   token: string;
 }
 
-// Pantalla del cliente tras escanear el QR.
-// Lee el pedido por token del store (mismo browser que el panel en el demo).
-// En producción: polling / Web Push contra /api/p/[token].
+// Pantalla del cliente tras escanear el QR. Con Supabase hace polling al
+// endpoint público (/api/p/[token]); en demo lee del store local.
 export const CustomerWaiting = ({ token }: Props) => {
   const { t } = useApp();
-  const cfg = useConfigStore();
-  const seedSiVacio = useOrdersStore((s) => s.seedSiVacio);
-  const orders = useOrdersStore((s) => s.pedidos);
+  const { ready: hydrated, order } = useCustomerOrder(token);
   const [pushActivo, setPushActivo] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
   const prevEstado = useRef<string | null>(null);
-
-  useEffect(() => {
-    const done = () => {
-      seedSiVacio();
-      setHydrated(true);
-    };
-    const result = useOrdersStore.persist.rehydrate();
-    if (result && typeof (result as Promise<void>).then === "function") {
-      void (result as Promise<void>).then(done);
-    } else {
-      done();
-    }
-  }, [seedSiVacio]);
 
   // Registrar SW temprano (habilita avisos con pestaña en segundo plano)
   useEffect(() => {
@@ -53,19 +32,7 @@ export const CustomerWaiting = ({ token }: Props) => {
     }
   }, []);
 
-  // Sync entre pestañas (panel marca listo → cliente se actualiza)
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "cicalino-pedidos") {
-        void useOrdersStore.persist.rehydrate();
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
-  const order = orderByToken(orders, token);
-  const status = order?.estado ?? "creado";
+  const status = order?.status ?? "creado";
   const listo = status === "listo" || status === "retirado";
   const cancelado = status === "cancelado";
   const cerrado = listo || cancelado;
@@ -86,9 +53,9 @@ export const CustomerWaiting = ({ token }: Props) => {
   useEffect(() => {
     if (!order) return;
     const prev = prevEstado.current;
-    prevEstado.current = order.estado;
-    if (prev == null || prev === order.estado) return;
-    if (order.estado !== "listo") return;
+    prevEstado.current = order.status;
+    if (prev == null || prev === order.status) return;
+    if (order.status !== "listo") return;
     if ("vibrate" in navigator) navigator.vibrate?.([200, 100, 200]);
     void lanzarConfetiListo();
     if (pushActivo) {
@@ -141,10 +108,10 @@ export const CustomerWaiting = ({ token }: Props) => {
 
       <div className="u-in flex flex-col items-center gap-1">
         <span className="text-sm font-semibold text-carbon/50">
-          {cfg.nombre}
+          {order.nombreLocal}
         </span>
         <span className="text-xs uppercase tracking-widest text-carbon/40">
-          {t(`modo.${cfg.modo}`)}
+          {t(`modo.${order.modo}`)}
         </span>
         <span className="font-display text-6xl leading-none text-marca">
           {order.referencia}

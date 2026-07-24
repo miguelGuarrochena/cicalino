@@ -9,6 +9,7 @@ import {
 } from "@/lib/store/superadmin-store";
 import { OrgModal } from "@/components/admin/OrgModal";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
+import { useSuperadminSync } from "@/lib/hooks/useSuperadminSync";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
 const MULT: Record<Periodo, number> = { dia: 1, semana: 6.5, mes: 28, ano: 330 };
@@ -48,6 +49,7 @@ const Metric = ({
 
 const SuperadminPage = () => {
   const { t } = useApp();
+  useSuperadminSync();
   const organizations = useSuperadminStore((s) => s.organizaciones);
 
   const [periodo, setPeriodo] = useState<Periodo>("dia");

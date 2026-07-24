@@ -3,9 +3,13 @@
 import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
+import { useSessionStore } from "@/lib/store/session-store";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { isPin4, pinEnUso } from "@/lib/validations";
+import { supabaseConfigurado } from "@/lib/supabase/config";
+import { isRealBranchId } from "@/lib/data/orders";
+import { insertEmployee, removeEmployeeDb } from "@/lib/data/branch";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
@@ -25,6 +29,9 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const { t } = useApp();
   const employees = useConfigStore((s) => s.empleados);
   const addEmployee = useConfigStore((s) => s.agregarEmpleado);
+  const pushEmpleado = useConfigStore((s) => s.pushEmpleado);
+  const branchId = useSessionStore((s) => s.sucursalId);
+  const live = supabaseConfigurado && isRealBranchId(branchId);
 
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
@@ -39,11 +46,20 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
         return next;
       };
 
-  const guardar = () => {
+  const guardar = async () => {
         const next = validar();
         setErrors(next);
         if (Object.keys(next).length) return;
-        addEmployee({ nombre: name, rol: role, pin });
+        if (live && branchId) {
+          const created = await insertEmployee(branchId, {
+            nombre: name,
+            rol: role,
+            pin,
+          });
+          if (created) pushEmpleado(created);
+        } else {
+          addEmployee({ nombre: name, rol: role, pin });
+        }
         onClose();
       };
 
@@ -150,6 +166,8 @@ export const EmployeeList = () => {
   const { t } = useApp();
   const employees = useConfigStore((s) => s.empleados);
   const removeEmployee = useConfigStore((s) => s.quitarEmpleado);
+  const branchId = useSessionStore((s) => s.sucursalId);
+  const live = supabaseConfigurado && isRealBranchId(branchId);
   const [modal, setModal] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -199,7 +217,8 @@ export const EmployeeList = () => {
                   <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row sm:items-center">
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
+                        if (live) await removeEmployeeDb(e.id);
                         removeEmployee(e.id);
                         setConfirmId(null);
                         const remaining = employees.length - 1;
