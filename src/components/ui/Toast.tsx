@@ -35,7 +35,7 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     <Ctx.Provider value={{ toast }}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex flex-col items-center gap-2 px-4 sm:bottom-6"
+        className="pointer-events-none fixed inset-x-0 bottom-24 z-[220] flex flex-col items-center gap-2 px-4 sm:bottom-6"
         role="region"
         aria-live="polite"
       >

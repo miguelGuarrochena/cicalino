@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useApp } from "@/components/providers/Providers";
+import { useToast } from "@/components/ui/Toast";
 import {
   listarSolicitudes,
   activarSolicitud,
@@ -11,6 +13,8 @@ import type { Solicitud } from "@/lib/db/schema";
 
 // Solicitudes de prueba (leads) pendientes. Solo aparece si hay alguna nueva.
 export const SolicitudesPanel = () => {
+  const { t } = useApp();
+  const toast = useToast();
   const [items, setItems] = useState<Solicitud[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -32,6 +36,9 @@ export const SolicitudesPanel = () => {
     if (r.ok) {
       await load();
       await refreshOrganizations();
+      toast(t("toast.leadActivada"), "success");
+    } else {
+      toast(t("toast.leadError"), "error");
     }
   };
 
@@ -40,6 +47,7 @@ export const SolicitudesPanel = () => {
     await descartarSolicitud(id);
     setBusy(null);
     await load();
+    toast(t("toast.leadDescartada"), "info");
   };
 
   return (

@@ -18,6 +18,8 @@ import {
 import type { TipoNegocio } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { isEmail, isCuil, isWhatsapp } from "@/lib/validations";
+import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/Toast";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import {
   crearOrganizacion,
@@ -92,6 +94,7 @@ export const OrgModal = ({
   onClose: () => void;
 }) => {
   const { t } = useApp();
+  const toast = useToast();
   const router = useRouter();
   const {
     altaOrg: createOrg,
@@ -160,12 +163,14 @@ export const OrgModal = ({
         setSaving(false);
         if (!res.ok) {
           setErrors((e) => ({ ...e, nombre: res.error }));
+          toast(t("toast.orgError"), "error");
           return;
         }
         await refreshOrganizations();
       } else {
         createOrg(data);
       }
+      toast(t("toast.orgCreada"), "success");
       onClose();
       return;
     }
@@ -178,6 +183,7 @@ export const OrgModal = ({
       } else {
         actualizarOrg(org.id, data);
       }
+      toast(t("toast.orgGuardada"), "success");
       setMode("ver");
     }
   };
@@ -198,6 +204,7 @@ export const OrgModal = ({
       await refreshOrganizations();
       setCupoError(false);
       setNuevaSuc("");
+      toast(t("toast.sucAgregada"), "success");
       return;
     }
     const res = createBranch(org.id, data);
@@ -207,26 +214,31 @@ export const OrgModal = ({
     }
     setCupoError(false);
     setNuevaSuc("");
+    toast(t("toast.sucAgregada"), "success");
   };
 
   const togglePagado = async () => {
     if (!vista) return;
+    const next = !vista.pagado;
     if (live) {
-      await updateOrgDb(vista.id, { pagado: !vista.pagado });
+      await updateOrgDb(vista.id, { pagado: next });
       await refreshOrganizations();
     } else {
       toggleOrgPagado(vista.id);
     }
+    toast(next ? t("toast.orgPagado") : t("toast.orgImpago"), "info");
   };
 
   const toggleActivo = async () => {
     if (!vista) return;
+    const next = !vista.activo;
     if (live) {
-      await updateOrgDb(vista.id, { activo: !vista.activo });
+      await updateOrgDb(vista.id, { activo: next });
       await refreshOrganizations();
     } else {
       toggleOrgActivo(vista.id);
     }
+    toast(next ? t("toast.orgActiva") : t("toast.orgPausada"), "info");
   };
 
   const borrarSuc = async (sucId: string) => {
@@ -237,6 +249,7 @@ export const OrgModal = ({
     } else {
       removeBranch(vista.id, sucId);
     }
+    toast(t("toast.sucBorrada"), "info");
   };
 
   const borrarOrg = async () => {
@@ -247,6 +260,7 @@ export const OrgModal = ({
     } else {
       quitarOrg(vista.id);
     }
+    toast(t("toast.orgBorrada"), "info");
     onClose();
   };
 
@@ -262,6 +276,7 @@ export const OrgModal = ({
     } else {
       giveFreeMonth(vista.id, 1);
     }
+    toast(t("toast.mesGratis"), "success");
   };
 
   const enterOwner = (branchId: string, branchNameLabel: string) => {
@@ -364,15 +379,15 @@ export const OrgModal = ({
             </Campo>
           </div>
           <Campo label="Plan / ciclo de cobro">
-            <select
-              className={INPUT}
+            <Select
               value={plan}
-              onChange={(e) => setPlan(e.target.value as PlanTipo)}
-            >
-              <option value="mensual">Mensual</option>
-              <option value="anual">Anual (2 meses gratis)</option>
-              <option value="gratis">Gratis (cortesía)</option>
-            </select>
+              onChange={(v) => setPlan(v as PlanTipo)}
+              options={[
+                { value: "mensual", label: "Mensual" },
+                { value: "anual", label: "Anual (2 meses gratis)" },
+                { value: "gratis", label: "Gratis (cortesía)" },
+              ]}
+            />
           </Campo>
           <Campo label={t("super.direccion")}>
             <input
@@ -505,7 +520,14 @@ export const OrgModal = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => toggleBranchActive(vista.id, suc.id)}
+                      onClick={() => {
+                        const next = !suc.activo;
+                        toggleBranchActive(vista.id, suc.id);
+                        toast(
+                          next ? t("toast.sucActiva") : t("toast.sucPausada"),
+                          "info",
+                        );
+                      }}
                       className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60"
                     >
                       {suc.activo ? t("super.pausar") : t("super.activar")}
@@ -539,17 +561,14 @@ export const OrgModal = ({
                   value={newBranch}
                   onChange={(e) => setNuevaSuc(e.target.value)}
                 />
-                <select
-                  className={INPUT}
+                <Select
                   value={nuevaTipo}
-                  onChange={(e) => setNuevaTipo(e.target.value as TipoNegocio)}
-                >
-                  {(Object.keys(TIPO_LABEL) as TipoNegocio[]).map((k) => (
-                    <option key={k} value={k}>
-                      {TIPO_LABEL[k]}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setNuevaTipo(v as TipoNegocio)}
+                  options={(Object.keys(TIPO_LABEL) as TipoNegocio[]).map(
+                    (k) => ({ value: k, label: TIPO_LABEL[k] }),
+                  )}
+                  className="sm:min-w-[9.5rem]"
+                />
                 <button
                   type="button"
                   onClick={agregarSuc}

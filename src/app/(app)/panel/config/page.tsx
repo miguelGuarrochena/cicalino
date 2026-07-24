@@ -10,6 +10,8 @@ import {
   type IdentificationMode,
 } from "@/lib/store/config-store";
 import { isWhatsapp } from "@/lib/validations";
+import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/Toast";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { saveBranchConfig } from "@/lib/data/branch";
@@ -18,6 +20,19 @@ const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 const CARD =
   "rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6";
+
+const TIPOS = [
+  { value: "cafeteria", label: "Cafetería" },
+  { value: "panaderia", label: "Panadería" },
+  { value: "rotiseria", label: "Rotisería" },
+  { value: "heladeria", label: "Heladería" },
+  { value: "otro", label: "Otro" },
+] as const;
+
+const HORAS_CORTE = Array.from({ length: 24 }).map((_, h) => ({
+  value: String(h),
+  label: `${String(h).padStart(2, "0")}:00`,
+}));
 
 const Campo = ({
   label,
@@ -46,6 +61,7 @@ type FormErrors = {
 
 const ConfigPage = () => {
   const { t } = useApp();
+  const toast = useToast();
   const role = useSessionStore((s) => s.rol);
   const branchId = useSessionStore((s) => s.sucursalId);
   const c = useConfigStore();
@@ -79,19 +95,24 @@ const ConfigPage = () => {
         const next = validar();
         setErrors(next);
         if (Object.keys(next).length) return;
-        if (supabaseConfigurado && isRealBranchId(branchId)) {
-          await saveBranchConfig(branchId, {
-            nombre: c.nombre,
-            tipo: c.tipo,
-            whatsapp: c.whatsapp,
-            direccion: c.direccion,
-            modo: c.modo,
-            cantidadMesas: c.cantidadMesas,
-            horaCorte: c.horaCorte,
-          });
+        try {
+          if (supabaseConfigurado && isRealBranchId(branchId)) {
+            await saveBranchConfig(branchId, {
+              nombre: c.nombre,
+              tipo: c.tipo,
+              whatsapp: c.whatsapp,
+              direccion: c.direccion,
+              modo: c.modo,
+              cantidadMesas: c.cantidadMesas,
+              horaCorte: c.horaCorte,
+            });
+          }
+          setGuardado(true);
+          toast(t("toast.configGuardada"), "success");
+          setTimeout(() => setGuardado(false), 2200);
+        } catch {
+          toast(t("toast.configError"), "error");
         }
-        setGuardado(true);
-        setTimeout(() => setGuardado(false), 2200);
       };
 
   if (role === "empleado" || role === "superadmin") return <NoAccess />;
@@ -129,17 +150,12 @@ const ConfigPage = () => {
               />
             </Campo>
             <Campo label={t("config.tipo")}>
-              <select
-                className={INPUT}
+              <Select
                 value={c.tipo}
-                onChange={(e) => c.setCampo("tipo", e.target.value)}
-              >
-                <option value="cafeteria">Cafetería</option>
-                <option value="panaderia">Panadería</option>
-                <option value="rotiseria">Rotisería</option>
-                <option value="heladeria">Heladería</option>
-                <option value="otro">Otro</option>
-              </select>
+                onChange={(v) => c.setCampo("tipo", v)}
+                options={[...TIPOS]}
+                triggerClassName="px-4 py-3"
+              />
             </Campo>
             <Campo label={t("config.whatsapp")} error={errors.whatsapp}>
               <input
@@ -215,17 +231,12 @@ const ConfigPage = () => {
 
         <div className="mt-4 max-w-xs border-t border-linea pt-4">
           <Campo label="Corte del día">
-            <select
-              className={INPUT}
-              value={c.horaCorte}
-              onChange={(e) => c.setHoraCorte(parseInt(e.target.value, 10))}
-            >
-              {Array.from({ length: 24 }).map((_, h) => (
-                <option key={h} value={h}>
-                  {String(h).padStart(2, "0")}:00
-                </option>
-              ))}
-            </select>
+            <Select
+              value={String(c.horaCorte)}
+              onChange={(v) => c.setHoraCorte(parseInt(v, 10))}
+              options={HORAS_CORTE}
+              triggerClassName="px-4 py-3"
+            />
           </Campo>
           <p className="mt-1.5 text-xs text-carbon/50">
             La jornada arranca a esta hora. Los pedidos de después de medianoche

@@ -6,6 +6,7 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
+import { useToast } from "@/components/ui/Toast";
 import { isPin4, pinEnUso } from "@/lib/validations";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
@@ -27,6 +28,7 @@ type FieldErrors = {
 // Modal para dar de alta un empleado (nombre + puesto + PIN único de 4 dígitos).
 export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const { t } = useApp();
+  const toast = useToast();
   const employees = useConfigStore((s) => s.empleados);
   const addEmployee = useConfigStore((s) => s.agregarEmpleado);
   const pushEmpleado = useConfigStore((s) => s.pushEmpleado);
@@ -50,17 +52,26 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
         const next = validar();
         setErrors(next);
         if (Object.keys(next).length) return;
-        if (live && branchId) {
-          const created = await insertEmployee(branchId, {
-            nombre: name,
-            rol: role,
-            pin,
-          });
-          if (created) pushEmpleado(created);
-        } else {
-          addEmployee({ nombre: name, rol: role, pin });
+        try {
+          if (live && branchId) {
+            const created = await insertEmployee(branchId, {
+              nombre: name,
+              rol: role,
+              pin,
+            });
+            if (!created) {
+              toast(t("toast.empError"), "error");
+              return;
+            }
+            pushEmpleado(created);
+          } else {
+            addEmployee({ nombre: name, rol: role, pin });
+          }
+          toast(t("toast.empAgregado"), "success");
+          onClose();
+        } catch {
+          toast(t("toast.empError"), "error");
         }
-        onClose();
       };
 
   return (
@@ -164,6 +175,7 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
 
 export const EmployeeList = () => {
   const { t } = useApp();
+  const toast = useToast();
   const employees = useConfigStore((s) => s.empleados);
   const removeEmployee = useConfigStore((s) => s.quitarEmpleado);
   const branchId = useSessionStore((s) => s.sucursalId);
@@ -221,6 +233,7 @@ export const EmployeeList = () => {
                         if (live) await removeEmployeeDb(e.id);
                         removeEmployee(e.id);
                         setConfirmId(null);
+                        toast(t("toast.empBorrado"), "info");
                         const remaining = employees.length - 1;
                         const maxPage = Math.max(
                           1,
