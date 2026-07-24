@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { supabaseConfigurado } from "@/lib/supabase/config";
 
 export type IdentificationMode = "pedido" | "nombre" | "mesa";
 export type TipoNegocio =
@@ -29,6 +30,7 @@ interface ConfigState {
   direccion: string;
   modo: IdentificationMode;
   cantidadMesas: number;
+  horaCorte: number;
   empleados: EmployeeUI[];
 
   setCampo: (
@@ -37,12 +39,19 @@ interface ConfigState {
   ) => void;
   setModo: (mode: IdentificationMode) => void;
   setCantidadMesas: (n: number) => void;
+  setHoraCorte: (n: number) => void;
   /** Sobrescribe varios campos de config de una (al cargar desde la base). */
   hydrate: (
     partial: Partial<
       Pick<
         ConfigState,
-        "nombre" | "tipo" | "whatsapp" | "direccion" | "modo" | "cantidadMesas"
+        | "nombre"
+        | "tipo"
+        | "whatsapp"
+        | "direccion"
+        | "modo"
+        | "cantidadMesas"
+        | "horaCorte"
       >
     >,
   ) => void;
@@ -61,25 +70,43 @@ interface ConfigState {
 
 // Store de configuracion del local. Persistido en localStorage para el
 // prototipo; en produccion sincroniza con la tabla `locales` + `empleados`.
-export const useConfigStore = create<ConfigState>()(
-  persist(
-    (set) => ({
-      // Demo: config de la sucursal activa (La Esquina — Centro).
-      // En producción la config vive en la tabla `locales` (una por sucursal).
+// Estado inicial. En producción (Supabase) arranca vacío y se hidrata desde la
+// base (tabla `locales` + `empleados`); en demo trae datos de ejemplo.
+const INICIAL = supabaseConfigurado
+  ? {
+      nombre: "",
+      tipo: "otro" as TipoNegocio,
+      whatsapp: "",
+      direccion: "",
+      modo: "pedido" as IdentificationMode,
+      cantidadMesas: 10,
+      horaCorte: 6,
+      empleados: [] as EmployeeUI[],
+    }
+  : {
       nombre: "La Esquina — Centro",
-      tipo: "panaderia",
+      tipo: "panaderia" as TipoNegocio,
       whatsapp: "+54 9 341 555 1234",
       direccion: "Calle Falsa 742, Rosario",
-      modo: "pedido",
+      modo: "pedido" as IdentificationMode,
       cantidadMesas: 10,
+      horaCorte: 6,
       empleados: [
         { id: "emp-demo-1", nombre: "Lucía", rol: "Mozo", pin: "1234" },
         { id: "emp-demo-2", nombre: "Marcos", rol: "Cocina", pin: "4321" },
-      ],
+      ] as EmployeeUI[],
+    };
+
+export const useConfigStore = create<ConfigState>()(
+  persist(
+    (set) => ({
+      ...INICIAL,
 
       setCampo: (campo, valor) => set({ [campo]: valor } as Partial<ConfigState>),
       setModo: (mode) => set({ modo: mode }),
       setCantidadMesas: (n) => set({ cantidadMesas: Math.max(1, n || 1) }),
+      setHoraCorte: (n) =>
+        set({ horaCorte: Math.min(23, Math.max(0, Math.floor(n) || 0)) }),
       hydrate: (partial) => set(partial),
       setEmpleados: (list) => set({ empleados: list }),
       pushEmpleado: (emp) => set((s) => ({ empleados: [...s.empleados, emp] })),

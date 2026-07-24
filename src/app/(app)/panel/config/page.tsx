@@ -87,6 +87,7 @@ const ConfigPage = () => {
             direccion: c.direccion,
             modo: c.modo,
             cantidadMesas: c.cantidadMesas,
+            horaCorte: c.horaCorte,
           });
         }
         setGuardado(true);
@@ -211,6 +212,26 @@ const ConfigPage = () => {
             </Campo>
           </div>
         )}
+
+        <div className="mt-4 max-w-xs border-t border-linea pt-4">
+          <Campo label="Corte del día">
+            <select
+              className={INPUT}
+              value={c.horaCorte}
+              onChange={(e) => c.setHoraCorte(parseInt(e.target.value, 10))}
+            >
+              {Array.from({ length: 24 }).map((_, h) => (
+                <option key={h} value={h}>
+                  {String(h).padStart(2, "0")}:00
+                </option>
+              ))}
+            </select>
+          </Campo>
+          <p className="mt-1.5 text-xs text-carbon/50">
+            La jornada arranca a esta hora. Los pedidos de después de medianoche
+            cuentan para el mismo día hasta acá. Útil para bares (default 06:00).
+          </p>
+        </div>
       </section>
 
       <section className={CARD}>

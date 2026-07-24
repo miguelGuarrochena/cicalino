@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { supabaseConfigurado } from "@/lib/supabase/config";
 
 export interface ActiveEmployee {
   id: string;
@@ -36,9 +37,9 @@ export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
       rol: "admin",
-      // Demo: dueño de La Esquina, sucursal Centro
-      organizacionId: "org-esquina",
-      sucursalId: "suc-centro",
+      // En producción el contexto lo fija el login; en demo, La Esquina · Centro.
+      organizacionId: supabaseConfigurado ? null : "org-esquina",
+      sucursalId: supabaseConfigurado ? null : "suc-centro",
       setRol: (role) =>
         set({
           rol: role,

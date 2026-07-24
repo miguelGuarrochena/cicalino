@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -66,6 +67,7 @@ const RootLayout = ({
             <div id="contenido">{children}</div>
           </ToastProvider>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );

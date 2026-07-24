@@ -125,6 +125,14 @@ create table if not exists public.solicitudes (
 -- RLS: solo el server con service_role la toca (form público inserta por action).
 alter table public.solicitudes enable row level security;
 
+-- Marca de "visto": cuándo el cliente abrió el link del QR (cierra el popup).
+alter table public.pedidos
+  add column if not exists visto_en timestamptz;
+
+-- Hora de corte de la jornada por sucursal (0-23; default 6:00).
+alter table public.locales
+  add column if not exists hora_corte integer not null default 6;
+
 -- 9) Endurecer RLS de facturación (revisión de seguridad) --------------------
 -- El dueño NO debe poder modificar su facturación (pagado/activo/plan/cupo/
 -- mes_gratis_hasta): eso es solo del superadmin. La policy vieja dejaba al dueño

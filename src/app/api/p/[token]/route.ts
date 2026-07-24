@@ -20,7 +20,9 @@ export const GET = async (
 
   const { data, error } = await supabase
     .from("pedidos")
-    .select("referencia, estado, qr_expira_en, locales(nombre, modo_identificacion)")
+    .select(
+      "id, referencia, estado, qr_expira_en, visto_en, locales(nombre, modo_identificacion)",
+    )
     .eq("qr_token", token)
     .single();
 
@@ -30,6 +32,15 @@ export const GET = async (
 
   if (data.qr_expira_en && new Date(data.qr_expira_en) < new Date()) {
     return NextResponse.json({ ok: false, reason: "expired" });
+  }
+
+  // Primera vez que el cliente abre el link: marcar "visto" para que el popup
+  // del QR se cierre solo en la caja (por realtime). Solo se setea una vez.
+  if (!data.visto_en) {
+    await supabase
+      .from("pedidos")
+      .update({ visto_en: new Date().toISOString() })
+      .eq("id", data.id);
   }
 
   // El join puede venir como objeto o como array según la relación.

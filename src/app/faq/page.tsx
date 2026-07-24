@@ -23,6 +23,7 @@ const FaqPage = () => {
     { q: "faq.q5", a: "faq.a5" },
     { q: "faq.q6", a: "faq.a6" },
     { q: "faq.q7", a: "faq.a7" },
+    { q: "faq.q8", a: "faq.a8" },
   ] as const;
 
   return (

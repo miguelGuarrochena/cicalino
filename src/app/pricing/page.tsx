@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
@@ -15,10 +16,23 @@ const money = new Intl.NumberFormat("es-AR", {
 // Contacto directo (sin pasarela). Solo por mail.
 const MAIL = "info@cicalino.net";
 const PRECIO_MENSUAL = 20000; // ARS por sucursal
+const PRECIO_ANUAL = PRECIO_MENSUAL * 10; // 2 meses gratis
 
 const PreciosPage = () => {
   const { locale } = useApp();
   const es = locale !== "en";
+  const [anual, setAnual] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+
+  const copiarMail = async () => {
+    try {
+      await navigator.clipboard.writeText(MAIL);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1600);
+    } catch {
+      /* sin clipboard */
+    }
+  };
 
   const features = es
     ? [
@@ -54,12 +68,12 @@ const PreciosPage = () => {
       <main className="mx-auto w-full max-w-xl flex-1 px-5 py-10 sm:py-14">
         <div className="u-in text-center">
           <h1 className="font-display text-4xl uppercase tracking-tight text-marca sm:text-5xl">
-            {es ? "Sin vueltas" : "No tricks"}
+            {es ? "Precio claro" : "Clear pricing"}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-carbon/60">
             {es
-              ? "Una tarifa fija por sucursal. Tu cliente no paga nunca. Escribinos y lo activamos."
-              : "A flat monthly fee per branch. Free for your customers. Message us and we turn it on."}
+              ? "Una tarifa fija por sucursal. Elegí mensual o anual, y lo activamos."
+              : "A flat fee per branch. Pick monthly or yearly, and we set it up."}
           </p>
         </div>
 
@@ -67,18 +81,51 @@ const PreciosPage = () => {
           className="u-in mt-10 rounded-[28px] border border-marca bg-surface p-7 shadow-sm ring-2 ring-marca/25"
           style={{ animationDelay: "0.08s" }}
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-marca">
-            Cicalino
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-marca">
+              Cicalino
+            </p>
+            <div className="flex rounded-full border border-linea bg-crema/50 p-0.5 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setAnual(false)}
+                className={`rounded-full px-3 py-1.5 transition ${
+                  !anual ? "bg-marca text-crema" : "text-carbon/55"
+                }`}
+              >
+                {es ? "Mensual" : "Monthly"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAnual(true)}
+                className={`rounded-full px-3 py-1.5 transition ${
+                  anual ? "bg-marca text-crema" : "text-carbon/55"
+                }`}
+              >
+                {es ? "Anual" : "Yearly"}
+              </button>
+            </div>
+          </div>
 
-          <div className="mt-3 flex items-baseline gap-1.5">
+          <div className="mt-4 flex items-baseline gap-1.5">
             <span className="font-display text-5xl text-marca">
-              {money.format(PRECIO_MENSUAL)}
+              {money.format(anual ? PRECIO_ANUAL : PRECIO_MENSUAL)}
             </span>
             <span className="text-sm text-carbon/50">
-              {es ? "/mes · por sucursal" : "/mo · per branch"}
+              {anual
+                ? es
+                  ? "/año · por sucursal"
+                  : "/yr · per branch"
+                : es
+                  ? "/mes · por sucursal"
+                  : "/mo · per branch"}
             </span>
           </div>
+          {anual && (
+            <p className="mt-2 inline-block rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+              {es ? "2 meses gratis 🎉" : "2 months free 🎉"}
+            </p>
+          )}
 
           <ul className="mt-6 flex flex-col gap-2.5">
             {features.map((f) => (
@@ -94,8 +141,12 @@ const PreciosPage = () => {
 
           <p className="mt-5 text-sm text-carbon/55">
             {es
-              ? "¿Varias sucursales? Mismo producto: se suma $20.000 por cada una. Escribinos y armamos el total."
-              : "Several branches? Same product: add the monthly fee per branch. Message us and we’ll set the total."}
+              ? `¿Varias sucursales? Se suma ${money.format(
+                  anual ? PRECIO_ANUAL : PRECIO_MENSUAL,
+                )} por cada una. Escribinos y armamos el total.`
+              : `Several branches? Add ${money.format(
+                  anual ? PRECIO_ANUAL : PRECIO_MENSUAL,
+                )} per branch. Message us and we’ll set the total.`}
           </p>
 
           <div className="mt-6 flex flex-col gap-2">
@@ -111,7 +162,34 @@ const PreciosPage = () => {
             >
               {es ? "O escribinos por mail" : "Or email us"}
             </a>
-            <p className="text-center text-xs text-carbon/45">info@cicalino.net</p>
+            <button
+              type="button"
+              onClick={copiarMail}
+              className="mx-auto flex items-center gap-1.5 text-xs text-carbon/45 transition hover:text-carbon/70"
+              title={es ? "Copiar mail" : "Copy email"}
+            >
+              {MAIL}
+              {copiado ? (
+                <span className="font-semibold text-emerald-600">
+                  ✓ {es ? "copiado" : "copied"}
+                </span>
+              ) : (
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
 
@@ -123,7 +201,7 @@ const PreciosPage = () => {
 
         <p className="mt-8 text-center text-xs text-carbon/50">
           <Link href="/" className="hover:underline">
-            ← cicalino.ar
+            ← Volver al inicio
           </Link>
         </p>
       </main>

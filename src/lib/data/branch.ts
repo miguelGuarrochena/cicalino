@@ -19,6 +19,7 @@ export interface BranchConfig {
   direccion: string;
   modo: IdentificationMode;
   cantidadMesas: number;
+  horaCorte: number;
 }
 
 export const fetchBranchConfig = async (
@@ -29,7 +30,7 @@ export const fetchBranchConfig = async (
   const { data, error } = await supabase
     .from("locales")
     .select(
-      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas",
+      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas, hora_corte",
     )
     .eq("id", branchId)
     .single();
@@ -41,6 +42,7 @@ export const fetchBranchConfig = async (
     direccion: data.direccion ?? "",
     modo: (data.modo_identificacion as IdentificationMode) ?? "pedido",
     cantidadMesas: data.cantidad_mesas ?? 10,
+    horaCorte: data.hora_corte ?? 6,
   };
 };
 
@@ -59,6 +61,7 @@ export const saveBranchConfig = async (
       direccion: cfg.direccion,
       modo_identificacion: cfg.modo,
       cantidad_mesas: cfg.cantidadMesas,
+      hora_corte: cfg.horaCorte,
       updated_at: new Date().toISOString(),
     })
     .eq("id", branchId);

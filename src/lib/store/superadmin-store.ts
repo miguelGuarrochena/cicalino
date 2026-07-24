@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { TipoNegocio } from "@/lib/store/config-store";
+import { supabaseConfigurado } from "@/lib/supabase/config";
 
 /** Precio mensual por sucursal activa (ARS). */
 export const PRECIO_POR_SUCURSAL = 20000;
@@ -168,7 +169,8 @@ export const cobroProximo = (org: OrganizationRow): number => {
 export const useSuperadminStore = create<SuperadminState>()(
   persist(
     (set, get) => ({
-      organizaciones: seed(),
+      // En producción arranca vacío y se llena desde la base; en demo, ejemplos.
+      organizaciones: supabaseConfigurado ? [] : seed(),
 
       setOrganizaciones: (list) => set({ organizaciones: list }),
 

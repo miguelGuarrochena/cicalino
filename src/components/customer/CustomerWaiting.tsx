@@ -186,7 +186,7 @@ export const CustomerWaiting = ({ token }: Props) => {
       )}
 
       <p className="mt-12 text-xs text-carbon/35">
-        {t("cliente.espera")} · cicalino.ar
+        {t("cliente.espera")} · cicalino.net
       </p>
     </main>
   );

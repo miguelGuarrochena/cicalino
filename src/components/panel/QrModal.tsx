@@ -10,20 +10,29 @@ interface Props {
   token: string;
   etiqueta: string;
   onClose: () => void;
+  /** Si se pasa, muestra "Cancelar pedido" (para deshacer un alta por error). */
+  onCancelar?: () => void;
 }
 
 // Modal que muestra el QR de un pedido para que el cliente lo escanee, con
 // fallback para mandar el link (WhatsApp / compartir / copiar) si no anda la camara.
-export const QrModal = ({ referencia: reference, token, etiqueta, onClose }: Props) => {
-  const { t } = useApp();
+export const QrModal = ({
+  referencia: reference,
+  token,
+  etiqueta,
+  onClose,
+  onCancelar,
+}: Props) => {
+  const { t, locale } = useApp();
   const [dataUrl, setDataUrl] = useState("");
   const [copiado, setCopiado] = useState(false);
   const [puedeCompartir, setPuedeCompartir] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const url =
     typeof window !== "undefined"
       ? `${window.location.origin}/p/${token}`
-      : `https://cicalino.ar/p/${token}`;
+      : `https://cicalino.net/p/${token}`;
 
   useEffect(() => {
     QRCode.toDataURL(url, {
@@ -133,6 +142,37 @@ export const QrModal = ({ referencia: reference, token, etiqueta, onClose }: Pro
             </button>
           </div>
         </div>
+
+        {onCancelar && (
+          <div className="mt-4 border-t border-linea pt-3 text-center">
+            {confirmCancel ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onCancelar}
+                  className="flex-1 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
+                >
+                  {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmCancel(false)}
+                  className="flex-1 rounded-full border border-linea px-4 py-2 text-xs font-semibold text-carbon/60 transition hover:bg-carbon/5"
+                >
+                  {locale === "en" ? "Keep it" : "No, dejarlo"}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmCancel(true)}
+                className="text-xs font-semibold text-red-600/70 transition hover:text-red-600"
+              >
+                {t("card.marcarCancelado")}
+              </button>
+            )}
+          </div>
+        )}
     </ModalShell>
   );
 };

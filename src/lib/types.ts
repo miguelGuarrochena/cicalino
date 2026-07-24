@@ -28,6 +28,7 @@ export interface OrderView {
   canceladoEn: string | null;
   qrToken: string;
   empleado?: string | null; // nombre del empleado que lo atendió
+  vistoEn?: string | null; // cuándo el cliente abrió el link (para cerrar el QR)
 }
 
 // Lo minimo que necesita la pantalla del cliente (sin exponer datos internos).

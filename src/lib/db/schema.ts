@@ -95,7 +95,7 @@ export const locales = pgTable("locales", {
   tipoNegocio: businessTypeEnum("tipo_negocio").notNull().default("otro"),
   whatsapp: text("whatsapp"),
   direccion: text("direccion"),
-  // slug corto para URLs amigables del local (ej: cicalino.ar/l/mi-cafe)
+  // slug corto para URLs amigables del local (ej: cicalino.net/l/mi-cafe)
   slug: text("slug").notNull(),
   // Como se identifica cada pedido (lo elige el local en la config).
   modoIdentificacion: identificationModeEnum("modo_identificacion")
@@ -103,6 +103,8 @@ export const locales = pgTable("locales", {
     .default("pedido"),
   // Cantidad de mesas (solo aplica si modoIdentificacion = "mesa").
   cantidadMesas: integer("cantidad_mesas"),
+  // Hora a la que corta la jornada operativa (0-23). Default 6:00.
+  horaCorte: integer("hora_corte").notNull().default(6),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -193,6 +195,8 @@ export const orders = pgTable(
     listoEn: timestamp("listo_en", { withTimezone: true }),
     retiradoEn: timestamp("retirado_en", { withTimezone: true }),
     canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
+    // Cuándo el cliente abrió el link del QR (para cerrar el popup en la caja).
+    vistoEn: timestamp("visto_en", { withTimezone: true }),
   },
   (t) => [
     // Busqueda rapida de pedidos por local + estado (vista del panel).

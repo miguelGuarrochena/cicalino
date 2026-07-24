@@ -45,6 +45,7 @@ export const OrderCard = ({
   const { t, locale } = useApp();
   const mode = useConfigStore((s) => s.modo);
   const [now, setNow] = useState(() => Date.now());
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   useEffect(() => {
     if (orderClosed(order.estado)) return;
@@ -58,11 +59,6 @@ export const OrderCard = ({
   const listo = order.estado === "listo";
   const cerrado = orderClosed(order.estado);
   const urgente = wait !== null && wait >= 15 && !cerrado;
-
-  const cancelar = () => {
-        if (!window.confirm(t("card.confirmarCancel"))) return;
-        onCambiarEstado(order.id, "cancelado");
-      };
 
   return (
     <article
@@ -155,15 +151,41 @@ export const OrderCard = ({
         </button>
       )}
 
-      {(enCurso || listo) && (
-        <button
-          type="button"
-          onClick={cancelar}
-          className="w-full rounded-full px-4 py-2 text-xs font-semibold text-red-600/80 transition hover:bg-red-50 hover:text-red-700"
-        >
-          {t("card.marcarCancelado")}
-        </button>
-      )}
+      {(enCurso || listo) &&
+        (confirmCancel ? (
+          <div className="flex flex-col gap-2 rounded-2xl bg-red-50 p-2 dark:bg-red-500/10">
+            <p className="px-1 text-center text-xs font-medium text-red-700 dark:text-red-300">
+              {t("card.confirmarCancel")}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onCambiarEstado(order.id, "cancelado");
+                  setConfirmCancel(false);
+                }}
+                className="flex-1 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-600 active:scale-[0.97]"
+              >
+                {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmCancel(false)}
+                className="flex-1 rounded-full border border-linea bg-surface px-4 py-2 text-xs font-semibold text-carbon/60 transition hover:bg-carbon/5"
+              >
+                {locale === "en" ? "Keep it" : "No, dejarlo"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmCancel(true)}
+            className="w-full rounded-full px-4 py-2 text-xs font-semibold text-red-600/80 transition hover:bg-red-50 hover:text-red-700"
+          >
+            {t("card.marcarCancelado")}
+          </button>
+        ))}
 
       {onMostrarQr && !cerrado && (
         <button

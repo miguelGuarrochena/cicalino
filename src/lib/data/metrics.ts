@@ -1,6 +1,8 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
+import { inicioJornada } from "@/lib/businessDay";
+import { useConfigStore } from "@/lib/store/config-store";
 
 export type Periodo = "dia" | "semana" | "mes" | "ano";
 
@@ -26,9 +28,9 @@ const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MESES = ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 
 const desde = (period: Periodo): Date => {
+  if (period === "dia") return inicioJornada(useConfigStore.getState().horaCorte);
   const d = new Date();
-  if (period === "dia") d.setHours(0, 0, 0, 0);
-  else if (period === "semana") d.setDate(d.getDate() - 6);
+  if (period === "semana") d.setDate(d.getDate() - 6);
   else if (period === "mes") d.setDate(d.getDate() - 29);
   else d.setMonth(d.getMonth() - 11);
   return d;

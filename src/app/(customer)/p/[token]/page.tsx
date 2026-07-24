@@ -1,6 +1,6 @@
 import { CustomerWaiting } from "@/components/customer/CustomerWaiting";
 
-// Vista publica del cliente: cicalino.ar/p/[token]
+// Vista publica del cliente: cicalino.net/p/[token]
 // El token viaja en el QR y expira a fin del dia. En produccion validamos
 // el token contra la base antes de renderizar; si expiro, mostramos aviso.
 const CustomerPage = async ({

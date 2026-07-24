@@ -40,6 +40,16 @@ const TerminosPage = () => {
                 razonable. El servicio se presta “tal cual”, sujeto a
                 disponibilidad.
               </p>
+              <p>
+                Contacto:{" "}
+                <a
+                  href="mailto:info@cicalino.net"
+                  className="font-semibold text-marca hover:underline"
+                >
+                  info@cicalino.net
+                </a>
+                .
+              </p>
             </>
           ) : (
             <>
@@ -54,6 +64,16 @@ const TerminosPage = () => {
               <p>
                 Pricing may change with reasonable notice. The service is
                 provided as-is, subject to availability.
+              </p>
+              <p>
+                Contact:{" "}
+                <a
+                  href="mailto:info@cicalino.net"
+                  className="font-semibold text-marca hover:underline"
+                >
+                  info@cicalino.net
+                </a>
+                .
               </p>
             </>
           )}

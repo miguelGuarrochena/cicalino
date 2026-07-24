@@ -36,15 +36,12 @@ const PrivacidadPage = () => {
                 temporal. Los tokens de QR expiran al final del día.
               </p>
               <p>
-                Para ejercer derechos o consultas: escribinos desde el contacto
-                del local o a través de{" "}
+                Para ejercer derechos o consultas, escribinos a{" "}
                 <a
-                  href="https://miguelguarrochena.dev"
+                  href="mailto:info@cicalino.net"
                   className="font-semibold text-marca hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
                 >
-                  miguelguarrochena.dev
+                  info@cicalino.net
                 </a>
                 .
               </p>
@@ -60,14 +57,12 @@ const PrivacidadPage = () => {
                 temporary QR. QR tokens expire at end of day.
               </p>
               <p>
-                For requests, contact via the venue or{" "}
+                For requests, email us at{" "}
                 <a
-                  href="https://miguelguarrochena.dev"
+                  href="mailto:info@cicalino.net"
                   className="font-semibold text-marca hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
                 >
-                  miguelguarrochena.dev
+                  info@cicalino.net
                 </a>
                 .
               </p>

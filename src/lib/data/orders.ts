@@ -1,6 +1,8 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
+import { inicioJornada, finJornada } from "@/lib/businessDay";
+import { useConfigStore } from "@/lib/store/config-store";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -25,6 +27,7 @@ type Row = {
   listo_en: string | null;
   retirado_en: string | null;
   cancelado_en: string | null;
+  visto_en: string | null;
   qr_token: string;
   empleados?: { nombre: string | null } | null;
 };
@@ -38,23 +41,17 @@ const mapRow = (r: Row): OrderView => ({
   listoEn: r.listo_en,
   retiradoEn: r.retirado_en,
   canceladoEn: r.cancelado_en,
+  vistoEn: r.visto_en,
   qrToken: r.qr_token,
   empleado: r.empleados?.nombre ?? null,
 });
 
 const SELECT = "*, empleados(nombre)";
 
-const inicioDelDia = (): string => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-};
-
-const finDelDia = (): string => {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d.toISOString();
-};
+// El "día" es la jornada operativa (corta a la hora configurada), no medianoche.
+const horaCorte = (): number => useConfigStore.getState().horaCorte;
+const inicioDelDia = (): string => inicioJornada(horaCorte()).toISOString();
+const finDelDia = (): string => finJornada(horaCorte()).toISOString();
 
 // Pedidos del día de una sucursal (más nuevos primero).
 export const fetchTodayOrders = async (

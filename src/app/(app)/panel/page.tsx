@@ -84,6 +84,13 @@ const PanelOrdersPage = () => {
     setPage(1);
   }, [filtro, q]);
 
+  // Cerrar el popup del QR cuando el cliente abre el link (queda "visto").
+  useEffect(() => {
+    if (!qrOrder) return;
+    const fresh = orders.find((o) => o.id === qrOrder.id);
+    if (fresh?.vistoEn) setQrOrder(null);
+  }, [orders, qrOrder]);
+
   const filtrados = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return orders
@@ -405,6 +412,10 @@ const PanelOrdersPage = () => {
           token={qrOrder.qrToken}
           etiqueta={t(`modo.${mode}`)}
           onClose={() => setQrOrder(null)}
+          onCancelar={() => {
+            void changeStatusUX(qrOrder.id, "cancelado");
+            setQrOrder(null);
+          }}
         />
       )}
     </div>
