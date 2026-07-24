@@ -114,9 +114,9 @@ const EntrarPage = () => {
       setContexto(null, null);
       router.push("/admin");
     } else {
-      // Contexto real si viene; si no, defaults demo para que el panel renderice
-      // (los pedidos reales se cablean en el próximo paso).
-      setContexto(res.organizacionId ?? "org-esquina", res.localId ?? "suc-centro");
+      // Contexto real del perfil. Si el dueño no tiene una sucursal fija
+      // (localId null), el selector auto-elige la primera (useMyBranches).
+      setContexto(res.organizacionId, res.localId);
       router.push("/panel");
     }
     router.refresh();

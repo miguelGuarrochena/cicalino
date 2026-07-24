@@ -71,7 +71,6 @@ const PanelOrdersPage = () => {
     ? liveBranchName
     : branchById(orgs, branchId)?.nombre;
 
-  const [contador, setContador] = useState(43);
   const [qrOrder, setQrOrder] = useState<OrderView | null>(null);
   const [page, setPage] = useState(1);
   const [filtro, setFiltro] = useState<FiltroEstado>("todos");
@@ -104,6 +103,15 @@ const PanelOrdersPage = () => {
       });
   }, [orders, filtro, q]);
 
+  // Próximo N° de turno: derivado de los pedidos de la jornada. Compartido
+  // entre cajas por realtime, arranca en 1 y se reinicia cada jornada.
+  const nextNumero = useMemo(() => {
+    const nums = orders
+      .map((p) => parseInt(p.referencia, 10))
+      .filter((n) => Number.isFinite(n));
+    return (nums.length ? Math.max(...nums) : 0) + 1;
+  }, [orders]);
+
   const activeItems = orders.filter((p) => !orderClosed(p.estado));
   const enCurso = activeItems.filter(
     (p) => p.estado === "creado" || p.estado === "en_preparacion",
@@ -133,8 +141,7 @@ const PanelOrdersPage = () => {
 
   const abrirNuevo = () => {
     if (mode === "pedido") {
-      handleCreate(String(contador));
-      setContador((c) => c + 1);
+      handleCreate(String(nextNumero));
       return;
     }
     setRefDraft("");

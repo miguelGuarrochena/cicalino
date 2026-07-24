@@ -63,6 +63,7 @@ export const useCustomerOrder = (token: string): Result => {
   useEffect(() => {
     if (!live) return;
     let active = true;
+    let id: number | undefined;
     const load = async () => {
       try {
         const res = await fetch(`/api/p/${token}`, { cache: "no-store" });
@@ -76,6 +77,10 @@ export const useCustomerOrder = (token: string): Result => {
             modo: data.modo as IdentificationMode,
           });
           setRemoteFound(true);
+          // Estado terminal: dejamos de pollear (no hay más cambios).
+          if (data.estado === "retirado" || data.estado === "cancelado") {
+            if (id) window.clearInterval(id);
+          }
         } else {
           setRemoteFound(false);
         }
@@ -86,10 +91,10 @@ export const useCustomerOrder = (token: string): Result => {
       }
     };
     void load();
-    const id = window.setInterval(load, POLL_MS);
+    id = window.setInterval(load, POLL_MS);
     return () => {
       active = false;
-      window.clearInterval(id);
+      if (id) window.clearInterval(id);
     };
   }, [live, token]);
 

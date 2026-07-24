@@ -68,7 +68,7 @@ const PreciosPage = () => {
       <main className="mx-auto w-full max-w-xl flex-1 px-5 py-10 sm:py-14">
         <div className="u-in text-center">
           <h1 className="font-display text-4xl uppercase tracking-tight text-marca sm:text-5xl">
-            {es ? "Precio claro" : "Clear pricing"}
+            {es ? "Empezá hoy" : "Start today"}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-carbon/60">
             {es

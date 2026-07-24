@@ -49,7 +49,9 @@ export const useOrders = (branchId: string | null): UseOrders => {
 
   useEffect(() => {
     if (!live || !branchId) {
-      seed();
+      // Solo sembrar ejemplos en demo real (sin Supabase). En producción, si aún
+      // no hay sucursal, quedamos vacíos (no se filtran los pedidos demo).
+      if (!supabaseConfigurado) seed();
       setReady(true);
       return;
     }
