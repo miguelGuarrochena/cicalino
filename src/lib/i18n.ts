@@ -78,6 +78,7 @@ const dict = {
       cliTitulo: "Escanea el QR y espera el aviso",
       cliSub:
         "No instala nada. Deja la pantalla abierta (o activa notificaciones) y recibe el aviso cuando corresponde.",
+      faqKicker: "Dudas",
       cierreTitulo: "Listo para probar",
       cierreSub: "Mirá el recorrido del cliente antes de arrancar.",
       walk: {
@@ -421,6 +422,7 @@ const dict = {
       cliTitulo: "Scan the QR and wait for the ping",
       cliSub:
         "Nothing to install. Keep the screen open (or enable notifications) and get pinged when it’s time.",
+      faqKicker: "FAQ",
       cierreTitulo: "Ready to try",
       cierreSub: "Walk through the customer journey before you start.",
       walk: {

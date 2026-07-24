@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { InstallButton } from "@/components/pwa/InstallButton";
 import { signOut } from "@/lib/auth/actions";
-import { useSessionStore } from "@/lib/store/session-store";
+import { clearSessionLocal } from "@/lib/store/session-store";
 import type { Locale } from "@/lib/i18n";
 
 // Menú "···" del panel: agrupa lo secundario (idioma, tema, instalar, salir)
@@ -15,11 +15,7 @@ export const PanelMenu = () => {
   const [open, setOpen] = useState(false);
 
   const salir = async () => {
-    try {
-      useSessionStore.persist.clearStorage();
-    } catch {
-      /* sin storage */
-    }
+    clearSessionLocal();
     await signOut();
   };
 

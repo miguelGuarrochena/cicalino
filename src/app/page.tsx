@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { CustomerWalkthrough } from "@/components/landing/CustomerWalkthrough";
+import { FaqContent } from "@/components/faq/FaqContent";
 import { useApp } from "@/components/providers/Providers";
 
 const Home = () => {
@@ -22,12 +23,20 @@ const Home = () => {
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
       <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
-        <Link
-          href="/pricing"
-          className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca backdrop-blur transition hover:bg-marca hover:text-crema sm:text-sm"
-        >
-          {t("nav.precios")}
-        </Link>
+        <nav className="flex items-center gap-2">
+          <Link
+            href="/pricing"
+            className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca backdrop-blur transition hover:bg-marca hover:text-crema sm:text-sm"
+          >
+            {t("nav.precios")}
+          </Link>
+          <Link
+            href="#faq"
+            className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca backdrop-blur transition hover:bg-marca hover:text-crema sm:text-sm"
+          >
+            {t("nav.faq")}
+          </Link>
+        </nav>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/login"
@@ -173,6 +182,27 @@ const Home = () => {
               <span className="pointer-events-none absolute size-40 rounded-full bg-emerald-400/15 sm:size-48" />
               <ThemedImg name="ok" alt="" className="u-float relative z-10 h-44 sm:h-52" />
             </div>
+          </div>
+        </section>
+
+        {/* FAQ — para quien evalúa comprar */}
+        <section
+          id="faq"
+          className="scroll-mt-8 border-t border-linea/80 px-6 py-16 sm:px-8 sm:py-20"
+        >
+          <div className="mx-auto w-full max-w-3xl">
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-marca">
+                {t("home.faqKicker")}
+              </p>
+              <h2 className="mt-2 font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+                {t("faq.titulo")}
+              </h2>
+              <p className="mx-auto mt-3 max-w-lg text-carbon/60">
+                {t("faq.sub")}
+              </p>
+            </div>
+            <FaqContent className="mt-10" />
           </div>
         </section>
 

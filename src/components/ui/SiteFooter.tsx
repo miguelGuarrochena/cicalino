@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
 
 // Footer a todo el ancho:
-// © Cicalino | Creado por … | Privacidad · Términos
-// (FAQ solo dentro de la app / panel)
+// © Cicalino | Creado por … | FAQ · Privacidad · Términos
 export const SiteFooter = ({ className = "" }: { className?: string }) => {
   const { t } = useApp();
   const year = new Date().getFullYear();
@@ -30,6 +29,12 @@ export const SiteFooter = ({ className = "" }: { className?: string }) => {
         </p>
 
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-medium text-carbon/55 sm:justify-self-end">
+          <Link
+            href="/faq"
+            className="underline-offset-2 transition hover:text-carbon hover:underline"
+          >
+            {t("nav.faq")}
+          </Link>
           <Link
             href="/privacy"
             className="underline-offset-2 transition hover:text-carbon hover:underline"

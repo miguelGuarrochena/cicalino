@@ -17,7 +17,7 @@ const AdminLayout = async ({
       <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3 px-5 py-3 sm:px-8">
           <div className="flex items-center gap-3">
-            <Logo className="h-10 sm:h-12" />
+            <Logo href="/admin" className="h-10 sm:h-12" />
             <span className="rounded-full bg-carbon px-3 py-1 text-xs font-bold uppercase tracking-wide text-crema">
               Superadmin
             </span>

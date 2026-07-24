@@ -3,8 +3,9 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 type CookieItem = { name: string; value: string; options?: CookieOptions };
 
-// Refresca la sesión de Supabase y protege /panel y /admin.
-// Si Supabase no está configurado (modo demo), no hace nada.
+// Refresca la sesión de Supabase en (casi) todas las rutas para que la cookie
+// no expire al navegar a landing/precios/etc. Solo redirige a /login en áreas
+// protegidas sin usuario.
 export const middleware = async (req: NextRequest) => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon =
@@ -27,6 +28,7 @@ export const middleware = async (req: NextRequest) => {
     },
   });
 
+  // getUser valida/refresca la sesión (actualiza cookies via setAll).
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -41,9 +43,28 @@ export const middleware = async (req: NextRequest) => {
     return NextResponse.redirect(login);
   }
 
+  // Si ya hay sesión y entra a /login, mandarlo a su área (según rol).
+  if (user && (path === "/login" || path === "/entrar")) {
+    const { data: perfil } = await supabase
+      .from("usuarios")
+      .select("rol")
+      .eq("id", user.id)
+      .maybeSingle();
+    const dest = req.nextUrl.clone();
+    dest.pathname = perfil?.rol === "superadmin" ? "/admin" : "/panel";
+    dest.search = "";
+    return NextResponse.redirect(dest);
+  }
+
   return res;
 };
 
 export const config = {
-  matcher: ["/panel/:path*", "/admin/:path*"],
+  matcher: [
+    /*
+     * Refrescar sesión en páginas HTML; excluir estáticos y APIs públicas
+     * que no necesitan cookie (assets, sw, etc.).
+     */
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };

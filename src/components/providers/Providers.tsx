@@ -12,6 +12,7 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useSuperadminStore } from "@/lib/store/superadmin-store";
 import { useOrdersStore } from "@/lib/store/orders-store";
+import { useAuthSessionSync } from "@/lib/hooks/useAuthSessionSync";
 
 type ThemePref = "light" | "dark" | "system";
 
@@ -35,6 +36,9 @@ const applyTheme = (theme: ThemePref) => {
 export const Providers = ({ children }: { children: React.ReactNode }) => {
   const [theme, setThemeState] = useState<ThemePref>("system");
   const [locale, setLocaleState] = useState<Locale>("es");
+
+  // Alinea rol/org/sucursal con la cookie de Supabase (sobrevive landing / app kill).
+  useAuthSessionSync();
 
   useEffect(() => {
     const st = (localStorage.getItem("cicalino-theme") as ThemePref) || "system";

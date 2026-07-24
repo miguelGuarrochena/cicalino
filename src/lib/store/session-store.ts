@@ -41,19 +41,24 @@ export const useSessionStore = create<SessionState>()(
       organizacionId: supabaseConfigurado ? null : "org-esquina",
       sucursalId: supabaseConfigurado ? null : "suc-centro",
       setRol: (role) =>
-        set({
-          rol: role,
-          impersonando: null,
-          // Defaults demo al cambiar rol
-          organizacionId:
-            role === "superadmin" ? null : "org-esquina",
-          sucursalId:
-            role === "superadmin"
-              ? null
-              : role === "admin"
-                ? "suc-centro"
-                : "suc-centro",
-        }),
+        set(
+          supabaseConfigurado
+            ? {
+                rol: role,
+                impersonando: null,
+                // En vivo el contexto lo fija login / sync de perfil, no demos.
+                ...(role === "superadmin"
+                  ? { organizacionId: null, sucursalId: null }
+                  : {}),
+              }
+            : {
+                rol: role,
+                impersonando: null,
+                organizacionId:
+                  role === "superadmin" ? null : "org-esquina",
+                sucursalId: role === "superadmin" ? null : "suc-centro",
+              },
+        ),
       setContexto: (organizationId, branchId) =>
         set({ organizacionId: organizationId, sucursalId: branchId }),
       setSucursalId: (branchId) => set({ sucursalId: branchId }),
@@ -81,3 +86,19 @@ export const useSessionStore = create<SessionState>()(
     { name: "cicalino-session-v2", skipHydration: true },
   ),
 );
+
+/** Limpia sesión de panel (memoria + localStorage). Solo al cerrar sesión a propósito. */
+export const clearSessionLocal = () => {
+  useSessionStore.setState({
+    rol: "admin",
+    organizacionId: supabaseConfigurado ? null : "org-esquina",
+    sucursalId: supabaseConfigurado ? null : "suc-centro",
+    empleadoActivo: null,
+    impersonando: null,
+  });
+  try {
+    useSessionStore.persist.clearStorage();
+  } catch {
+    /* sin storage */
+  }
+};

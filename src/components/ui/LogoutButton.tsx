@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signOut } from "@/lib/auth/actions";
-import { useSessionStore } from "@/lib/store/session-store";
+import { clearSessionLocal } from "@/lib/store/session-store";
 import { useApp } from "@/components/providers/Providers";
 
 // Cierra la sesión: limpia el estado local (demo/persist) y llama al server
@@ -14,11 +14,7 @@ export const LogoutButton = ({ className = "" }: { className?: string }) => {
 
   const salir = async () => {
     setLoading(true);
-    try {
-      useSessionStore.persist.clearStorage();
-    } catch {
-      // sin storage disponible: seguimos igual
-    }
+    clearSessionLocal();
     await signOut();
   };
 
