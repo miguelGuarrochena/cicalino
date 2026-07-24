@@ -14,16 +14,9 @@ const Home = () => {
   const { t } = useApp();
   const [walkOpen, setWalkOpen] = useState(false);
 
-  // Si salís de la sección FAQ (o refresciás), limpiamos #faq de la URL.
+  // Deep link: /#faq sobrevive al refresh y aterriza en la sección.
+  // Solo se limpia el hash cuando scrolleás lejos de las FAQ.
   useEffect(() => {
-    if (window.location.hash === "#faq") {
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname + window.location.search,
-      );
-    }
-
     const el = document.getElementById("faq");
     if (!el) return;
 
