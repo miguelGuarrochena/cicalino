@@ -102,3 +102,7 @@ create policy "pedidos de mi org" on public.pedidos
 
 -- 5) Realtime: habilitar cambios en `pedidos` para el panel multi-caja ------
 alter publication supabase_realtime add table public.pedidos;
+
+-- 6) Web Push: RLS en push_subscriptions (solo el server con service_role la toca)
+--    Sin policies => anon/authenticated no acceden; el service_role saltea RLS.
+alter table public.push_subscriptions enable row level security;

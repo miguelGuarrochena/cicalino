@@ -9,6 +9,7 @@ import {
   mostrarAvisoListo,
   pedirPermisoNotificaciones,
   registrarServiceWorker,
+  suscribirWebPush,
 } from "@/lib/notifications";
 import { lanzarConfetiListo } from "@/lib/confetti";
 
@@ -71,6 +72,7 @@ export const CustomerWaiting = ({ token }: Props) => {
     await registrarServiceWorker();
     const ok = await pedirPermisoNotificaciones();
     setPushActivo(ok);
+    if (ok) void suscribirWebPush(token);
   };
 
   if (!hydrated) {

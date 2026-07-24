@@ -118,6 +118,26 @@ export const insertEmployee = async (
   return mapEmp(row as EmpRow);
 };
 
+export interface BranchLite {
+  id: string;
+  nombre: string;
+}
+
+// Sucursales de la organización del dueño (para el selector de sucursal).
+export const fetchMyBranches = async (
+  orgId: string,
+): Promise<BranchLite[]> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("locales")
+    .select("id, nombre")
+    .eq("organizacion_id", orgId)
+    .order("created_at", { ascending: true });
+  if (error || !data) return [];
+  return data as BranchLite[];
+};
+
 export const removeEmployeeDb = async (id: string): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;

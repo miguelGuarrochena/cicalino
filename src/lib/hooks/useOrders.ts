@@ -103,6 +103,14 @@ export const useOrders = (branchId: string | null): UseOrders => {
         cur.map((o) => (o.id === id ? { ...o, estado: status } : o)),
       );
       await updateOrderStatus(id, status);
+      if (status === "listo") {
+        // Aviso Web Push al cliente (best-effort; requiere VAPID configurado).
+        void fetch("/api/push/notify", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ orderId: id }),
+        }).catch(() => {});
+      }
     },
     [live, demoChange],
   );

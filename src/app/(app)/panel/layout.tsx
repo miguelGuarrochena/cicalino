@@ -84,7 +84,7 @@ const PanelLayout = ({
         <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-8 sm:py-3">
           <Logo className="h-9 sm:h-12" />
           <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-3">
-            {role !== "superadmin" && !supabaseConfigurado && <BranchSwitcher />}
+            {role !== "superadmin" && <BranchSwitcher />}
             {role !== "superadmin" && <PanelNav />}
             {role !== "superadmin" && <Fichaje />}
             {role !== "superadmin" && <SoundToggle />}

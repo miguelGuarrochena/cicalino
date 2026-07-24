@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import {
@@ -8,6 +8,9 @@ import {
   useSuperadminStore,
 } from "@/lib/store/superadmin-store";
 import { NoAccess } from "@/components/ui/NoAccess";
+import { supabaseConfigurado } from "@/lib/supabase/config";
+import { isRealBranchId } from "@/lib/data/orders";
+import { fetchMetrics, type MetricsData } from "@/lib/data/metrics";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
 
@@ -67,21 +70,48 @@ const MetricasPage = () => {
   const [periodo, setPeriodo] = useState<Periodo>("dia");
   const [alcance, setAlcance] = useState<"sucursal" | "global">("sucursal");
 
+  const live = supabaseConfigurado && isRealBranchId(branchId);
+  const [liveData, setLiveData] = useState<MetricsData | null>(null);
+  useEffect(() => {
+    if (!live || !branchId) {
+      setLiveData(null);
+      return;
+    }
+    let active = true;
+    void fetchMetrics(branchId, periodo).then((m) => {
+      if (active) setLiveData(m);
+    });
+    return () => {
+      active = false;
+    };
+  }, [live, branchId, periodo]);
+
   if (role !== "admin") return <NoAccess />;
 
   const org = orgById(orgs, useSessionStore.getState().organizacionId);
   const suc = org?.sucursales.find((s) => s.id === branchId);
   const multi = (org?.sucursales.filter((s) => s.activo).length ?? 0) > 1;
 
-  const d = DATA[periodo];
-  const factor = alcance === "global" && multi ? 1.7 : 1;
+  const EMPTY: MetricsData = {
+    pedidos: "…",
+    prep: "—",
+    retiro: "—",
+    cola: "—",
+    pico: "—",
+    avisos: "—",
+    labels: [],
+    valores: [],
+  };
+  const d = live ? liveData ?? EMPTY : DATA[periodo];
+  // En live el alcance es por sucursal (sin multiplicador demo).
+  const factor = !live && alcance === "global" && multi ? 1.7 : 1;
   const ordersNum = Math.round(
     Number(d.pedidos.replace(/\./g, "").replace(",", ".")) * factor,
   );
   const ordersDisplay = Number.isFinite(ordersNum)
     ? ordersNum.toLocaleString("es-AR")
     : d.pedidos;
-  const max = Math.max(...d.valores.map((v) => Math.round(v * factor)));
+  const max = Math.max(1, ...d.valores.map((v) => Math.round(v * factor)));
   const valores = d.valores.map((v) => Math.round(v * factor));
   const tiempos = [
     { rango: "0-5", pct: 34 },

@@ -125,11 +125,29 @@ solo** (realtime). El superadmin no opera el panel (tiene su consola en `/admin`
 Archivos: `src/lib/actions/superadmin.ts` (crear/eliminar), `src/lib/data/superadmin.ts`
 (listar/actualizar/sucursales), `src/lib/hooks/useSuperadminSync.ts`.
 
+## Web Push (VAPID) — avisos con la pestaña cerrada
+
+1. Generá las claves: `npx web-push generate-vapid-keys` y ponelas en `.env.local`:
+
+   ```
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
+   VAPID_PRIVATE_KEY=...
+   VAPID_SUBJECT=mailto:info@cicalino.net
+   ```
+
+2. Corré la línea nueva de `supabase/setup.sql` (habilita RLS en
+   `push_subscriptions`).
+3. Flujo: el cliente toca "Activar avisos" → se suscribe (`/api/push/subscribe`).
+   Cuando el panel marca **listo**, llama a `/api/push/notify`, que valida por la
+   sesión del dueño (RLS) y envía el push con `web-push`. El service worker
+   (`public/sw.js`) muestra la notificación aunque la pestaña esté cerrada.
+
+Archivos: `src/lib/push/server.ts`, `src/app/api/push/{subscribe,notify}/route.ts`,
+`suscribirWebPush` en `src/lib/notifications.ts`.
+
 ## Pendiente (próximo)
 
-- Selector de sucursal real (para dueños con varias) y métricas con datos reales.
-- Web Push (VAPID) y Mercado Pago.
-- Sacar el modo demo al lanzar; tests E2E; deploy a Vercel.
+- Sacar el modo demo al lanzar; tests E2E; deploy a Vercel; Mercado Pago (cobro).
 
 ## Archivos clave (backend de datos)
 

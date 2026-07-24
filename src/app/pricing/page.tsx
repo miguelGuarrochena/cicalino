@@ -12,9 +12,8 @@ const money = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-// Contacto directo (sin pasarela). Cambiá estos valores.
-const MAIL = "hola@cicalino.ar";
-const WA = "5491112345678"; // sin + ni espacios
+// Contacto directo (sin pasarela). Solo por mail.
+const MAIL = "info@cicalino.net";
 const PRECIO_MENSUAL = 20000; // ARS por sucursal
 
 const PreciosPage = () => {
@@ -36,13 +35,6 @@ const PreciosPage = () => {
         "Daily metrics",
         "1 branch included",
       ];
-
-  const waHref = () => {
-    const msg = es
-      ? "Hola! Quiero Cicalino para mi local."
-      : "Hi! I'd like Cicalino for my venue.";
-    return `https://wa.me/${WA}?text=${encodeURIComponent(msg)}`;
-  };
 
   const mailHref = () => {
     const subject = es ? "Cicalino — quiero activarlo" : "Cicalino — get started";
@@ -108,19 +100,12 @@ const PreciosPage = () => {
 
           <div className="mt-6 flex flex-col gap-2">
             <a
-              href={waHref()}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={mailHref()}
               className="rounded-full bg-marca px-5 py-3 text-center text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
             >
-              WhatsApp
+              {es ? "Escribinos por mail" : "Email us"}
             </a>
-            <a
-              href={mailHref()}
-              className="rounded-full border border-linea px-5 py-2.5 text-center text-sm font-semibold text-carbon/70 transition hover:bg-carbon/5"
-            >
-              {es ? "Escribir por mail" : "Email us"}
-            </a>
+            <p className="text-center text-xs text-carbon/45">info@cicalino.net</p>
           </div>
         </div>
 

@@ -13,6 +13,42 @@ export const registrarServiceWorker = async (): Promise<ServiceWorkerRegistratio
   }
 };
 
+// Convierte la clave pública VAPID (base64url) a Uint8Array para el navegador.
+const urlBase64ToUint8Array = (base64: string): Uint8Array => {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+};
+
+// Suscribe el navegador del cliente a Web Push y manda la suscripción al server
+// (asociada al pedido por token). Best-effort: si no hay VAPID/SW, no hace nada.
+export const suscribirWebPush = async (token: string): Promise<boolean> => {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!publicKey) return false;
+  const reg = await registrarServiceWorker();
+  if (!reg || !("pushManager" in reg)) return false;
+  try {
+    const existing = await reg.pushManager.getSubscription();
+    const sub =
+      existing ??
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+      }));
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token, subscription: sub.toJSON() }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
+
 export const pedirPermisoNotificaciones = async (): Promise<boolean> => {
   if (!("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;
