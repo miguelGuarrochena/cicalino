@@ -31,7 +31,7 @@ const Home = () => {
             {t("nav.precios")}
           </Link>
           <Link
-            href="#faq"
+            href="/#faq"
             className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca backdrop-blur transition hover:bg-marca hover:text-crema sm:text-sm"
           >
             {t("nav.faq")}
