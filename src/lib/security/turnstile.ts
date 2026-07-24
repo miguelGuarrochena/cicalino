@@ -6,7 +6,9 @@ export const verificarTurnstile = async (
   token: string | undefined,
   ip?: string,
 ): Promise<boolean> => {
-  const secret = process.env.TURNSTILE_SECRET_KEY;
+  // Nombre canónico del skill (TURNSTILE_SECRET), con fallback al viejo.
+  const secret =
+    process.env.TURNSTILE_SECRET ?? process.env.TURNSTILE_SECRET_KEY;
   if (!secret) return true; // no configurado → no exige captcha
   if (!token) return false;
   try {

@@ -141,6 +141,7 @@ const ProbarPage = () => {
                 <div
                   className="cf-turnstile mx-auto"
                   data-sitekey={TURNSTILE_SITE_KEY}
+                  data-action="turnstile-spin-v2"
                 />
               )}
               <button

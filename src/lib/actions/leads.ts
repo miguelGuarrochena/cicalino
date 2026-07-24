@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { enviarEmail } from "@/lib/email/resend";
 import { emailLayout } from "@/lib/email/templates";
@@ -37,7 +38,9 @@ export const crearSolicitud = async (input: {
     return { ok: false, error: "Completá tu nombre y un email válido." };
   }
   // Anti-bot (Cloudflare Turnstile). Si no está configurado, no bloquea.
-  const humano = await verificarTurnstile(input.turnstileToken);
+  const hdrs = await headers();
+  const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined;
+  const humano = await verificarTurnstile(input.turnstileToken, ip);
   if (!humano) {
     return { ok: false, error: "No pudimos verificar que sos humano. Reintentá." };
   }
