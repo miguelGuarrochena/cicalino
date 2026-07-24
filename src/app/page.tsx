@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { Logo } from "@/components/ui/Logo";
@@ -13,6 +13,33 @@ import { useApp } from "@/components/providers/Providers";
 const Home = () => {
   const { t } = useApp();
   const [walkOpen, setWalkOpen] = useState(false);
+
+  // Si salís de la sección FAQ, limpiamos #faq de la URL.
+  useEffect(() => {
+    const el = document.getElementById("faq");
+    if (!el) return;
+
+    let visto = false;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          visto = true;
+          return;
+        }
+        if (visto && window.location.hash === "#faq") {
+          window.history.replaceState(
+            null,
+            "",
+            window.location.pathname + window.location.search,
+          );
+          visto = false;
+        }
+      },
+      { threshold: 0.12 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   const shopSteps = [
     { key: "1", img: "bell" as const },
@@ -30,12 +57,19 @@ const Home = () => {
           >
             {t("nav.precios")}
           </Link>
-          <Link
+          <a
             href="/#faq"
+            onClick={(e) => {
+              e.preventDefault();
+              document
+                .getElementById("faq")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              window.history.replaceState(null, "", "/#faq");
+            }}
             className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca backdrop-blur transition hover:bg-marca hover:text-crema sm:text-sm"
           >
             {t("nav.faq")}
-          </Link>
+          </a>
         </nav>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
