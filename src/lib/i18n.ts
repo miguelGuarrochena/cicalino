@@ -47,8 +47,6 @@ const dict = {
       a6: "Filtros: en curso, listo, retirado, cancelado. Más el buscador por mesa, nombre o N° según tu modo.",
       q7: "¿Se puede cancelar un pedido?",
       a7: "Sí. Desde el panel, en curso o listo, tocás «Cancelar pedido». Sirve si el cliente se arrepiente o nunca lo retira. Queda en el historial como cancelado.",
-      q8: "¿El cliente paga algo?",
-      a8: "No, nunca. Cicalino es 100% gratis para tus clientes: solo escanean el QR y esperan el aviso. El único que paga una tarifa fija por sucursal sos vos.",
     },
     home: {
       kicker: "Cicalino",
@@ -391,8 +389,6 @@ const dict = {
       a6: "Filters: in progress, ready, picked up, cancelled — plus search by table, name or #.",
       q7: "Can I cancel an order?",
       a7: "Yes. From the panel, while in progress or ready, tap “Cancel order”. Use it if the customer changes their mind or never picks up. It stays in history as cancelled.",
-      q8: "Does the customer pay anything?",
-      a8: "Never. Cicalino is 100% free for your customers — they just scan the QR and wait for the notice. Only you pay a flat fee per branch.",
     },
     home: {
       kicker: "Cicalino",
