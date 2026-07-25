@@ -119,9 +119,11 @@ export const CustomerWaiting = ({ token }: Props) => {
       )}
 
       <div className="u-in flex flex-col items-center gap-1">
-        <span className="text-sm font-semibold text-carbon/50">
-          {order.nombreLocal}
-        </span>
+        {order.nombreLocal && (
+          <span className="mb-1 font-display text-xl uppercase tracking-tight text-carbon sm:text-2xl">
+            {order.nombreLocal}
+          </span>
+        )}
         <span className="text-xs uppercase tracking-widest text-carbon/40">
           {t(`modo.${order.modo}`)}
         </span>
