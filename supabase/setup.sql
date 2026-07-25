@@ -60,22 +60,18 @@ alter table public.pedidos        enable row level security;
 alter table public.usuarios       enable row level security;
 
 -- Cada usuario ve su propio perfil.
+drop policy if exists "perfil propio" on public.usuarios;
 create policy "perfil propio" on public.usuarios
   for select using (id = auth.uid() or public.auth_rol() = 'superadmin');
 
--- Organización: el dueño ve/edita la suya; el superadmin, todas.
+-- Organización: el dueño ve la suya; el superadmin, todas. (El update de
+-- facturación queda solo para el superadmin en la sección 9.)
+drop policy if exists "org de mi empresa" on public.organizaciones;
 create policy "org de mi empresa" on public.organizaciones
   for select using (id = public.auth_org() or public.auth_rol() = 'superadmin');
-create policy "org update dueño/SA" on public.organizaciones
-  for update using (id = public.auth_org() or public.auth_rol() = 'superadmin');
 
--- Sucursales / empleados / pedidos: dentro de la organización del usuario
--- (o todo, si es superadmin). Afinar por sucursal para supervisor/empleado
--- se hace además en las queries (scope por local_id activo).
-create policy "sucursales de mi org" on public.locales
-  for all using (organizacion_id = public.auth_org() or public.auth_rol() = 'superadmin')
-  with check (organizacion_id = public.auth_org() or public.auth_rol() = 'superadmin');
-
+-- Empleados / pedidos: dentro de la organización del usuario (o todo, si es SA).
+drop policy if exists "empleados de mi org" on public.empleados;
 create policy "empleados de mi org" on public.empleados
   for all using (
     local_id in (select id from public.locales where organizacion_id = public.auth_org())
@@ -86,6 +82,7 @@ create policy "empleados de mi org" on public.empleados
     or public.auth_rol() = 'superadmin'
   );
 
+drop policy if exists "pedidos de mi org" on public.pedidos;
 create policy "pedidos de mi org" on public.pedidos
   for all using (
     local_id in (select id from public.locales where organizacion_id = public.auth_org())
@@ -101,7 +98,17 @@ create policy "pedidos de mi org" on public.pedidos
 -- pedido por qr_token y devolviendo solo lo mínimo (referencia, estado, local).
 
 -- 5) Realtime: habilitar cambios en `pedidos` para el panel multi-caja ------
-alter publication supabase_realtime add table public.pedidos;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'pedidos'
+  ) then
+    alter publication supabase_realtime add table public.pedidos;
+  end if;
+end $$;
 
 -- 6) Web Push: RLS en push_subscriptions (solo el server con service_role la toca)
 --    Sin policies => anon/authenticated no acceden; el service_role saltea RLS.
@@ -139,6 +146,7 @@ alter table public.locales
 -- mes_gratis_hasta): eso es solo del superadmin. La policy vieja dejaba al dueño
 -- actualizar su propia fila de organizaciones. La reemplazamos.
 drop policy if exists "org update dueño/SA" on public.organizaciones;
+drop policy if exists "org update SA" on public.organizaciones;
 create policy "org update SA" on public.organizaciones
   for update using (public.auth_rol() = 'superadmin')
   with check (public.auth_rol() = 'superadmin');
@@ -146,6 +154,10 @@ create policy "org update SA" on public.organizaciones
 -- El dueño ve y edita la config de sus sucursales (SELECT/UPDATE), pero crear o
 -- borrar sucursales (impacta el cupo/cobro) queda solo para el superadmin.
 drop policy if exists "sucursales de mi org" on public.locales;
+drop policy if exists "locales select org/SA" on public.locales;
+drop policy if exists "locales update org/SA" on public.locales;
+drop policy if exists "locales insert SA" on public.locales;
+drop policy if exists "locales delete SA" on public.locales;
 create policy "locales select org/SA" on public.locales
   for select using (
     organizacion_id = public.auth_org() or public.auth_rol() = 'superadmin'
