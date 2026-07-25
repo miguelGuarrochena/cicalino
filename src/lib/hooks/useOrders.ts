@@ -58,8 +58,24 @@ export const useOrders = (branchId: string | null): UseOrders => {
     setReady(false);
     reload();
     fetchBranchName(branchId).then(setBranchName);
+    // Primario: realtime por WebSocket (Supabase). Safety net por si el socket
+    // se cae o la tablet se duerme: re-sincronizamos al volver el foco / la red,
+    // y con un refresco periódico. Así el panel nunca se queda desactualizado.
     const unsub = subscribeOrders(branchId, reload);
-    return unsub;
+    const onWake = () => {
+      if (document.visibilityState === "visible") void reload();
+    };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    window.addEventListener("online", onWake);
+    const iv = window.setInterval(() => void reload(), 30_000);
+    return () => {
+      unsub();
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+      window.removeEventListener("online", onWake);
+      window.clearInterval(iv);
+    };
   }, [live, branchId, seed, reload]);
 
   const createOrder = useCallback<UseOrders["createOrder"]>(

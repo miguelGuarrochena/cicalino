@@ -20,10 +20,20 @@ interface Props {
 // Pantalla del cliente tras escanear el QR. Con Supabase hace polling al
 // endpoint público (/api/p/[token]); en demo lee del store local.
 export const CustomerWaiting = ({ token }: Props) => {
-  const { t } = useApp();
+  const { t, locale } = useApp();
   const { ready: hydrated, order } = useCustomerOrder(token);
   const [pushActivo, setPushActivo] = useState(false);
+  const [confirmado, setConfirmado] = useState(false);
   const prevEstado = useRef<string | null>(null);
+
+  const marcarRetirado = async () => {
+    setConfirmado(true);
+    try {
+      await fetch(`/api/p/${token}/retirado`, { method: "POST" });
+    } catch {
+      /* el polling lo reflejará igual */
+    }
+  };
 
   // Registrar SW temprano (habilita avisos con pestaña en segundo plano)
   useEffect(() => {
@@ -173,6 +183,24 @@ export const CustomerWaiting = ({ token }: Props) => {
           </>
         )}
       </div>
+
+      {status === "listo" && (
+        <div className="u-in mt-6 w-full max-w-sm">
+          {confirmado ? (
+            <p className="text-center text-sm font-semibold text-emerald-600">
+              {locale === "en" ? "Thanks! 🙌" : "¡Gracias! 🙌"}
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={marcarRetirado}
+              className="w-full rounded-full border border-emerald-300 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+            >
+              {locale === "en" ? "I picked it up 👍" : "Ya lo retiré 👍"}
+            </button>
+          )}
+        </div>
+      )}
 
       {!cerrado && (
         <button

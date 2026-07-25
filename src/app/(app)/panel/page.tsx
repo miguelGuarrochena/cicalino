@@ -126,6 +126,22 @@ const PanelOrdersPage = () => {
         ? t("panel.buscarNombre")
         : t("panel.buscarPedido");
 
+  // Reenvía el aviso "pasá a retirar" al cliente (push). Solo en live.
+  const reavisar = async (id: string) => {
+    try {
+      const res = await fetch("/api/push/notify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ orderId: id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data?.ok) toast("Aviso reenviado al cliente 🔔", "success");
+      else toast("No se pudo reenviar (¿el cliente activó avisos?)", "info");
+    } catch {
+      toast("No se pudo reenviar el aviso", "error");
+    }
+  };
+
   const handleCreate = async (reference: string) => {
     const created = await createOrder(reference, activeEmployee);
     if (!created) {
@@ -335,6 +351,7 @@ const PanelOrdersPage = () => {
                 index={i}
                 onCambiarEstado={changeStatusUX}
                 onMostrarQr={setQrOrder}
+                onReavisar={live ? reavisar : undefined}
               />
             ))}
           </div>

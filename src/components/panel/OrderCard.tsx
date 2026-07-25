@@ -31,6 +31,7 @@ interface Props {
   index?: number;
   onCambiarEstado: (id: string, status: OrderStatus) => void;
   onMostrarQr?: (order: OrderView) => void;
+  onReavisar?: (id: string) => void;
 }
 
 // Flujo simple (mostrador / caja):
@@ -41,6 +42,7 @@ export const OrderCard = ({
   index = 0,
   onCambiarEstado,
   onMostrarQr,
+  onReavisar,
 }: Props) => {
   const { t, locale } = useApp();
   const mode = useConfigStore((s) => s.modo);
@@ -139,6 +141,15 @@ export const OrderCard = ({
           className="w-full rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.97]"
         >
           {t("card.marcarListo")}
+        </button>
+      )}
+      {listo && onReavisar && (
+        <button
+          type="button"
+          onClick={() => onReavisar(order.id)}
+          className="w-full rounded-full border border-marca/40 bg-marca/5 px-4 py-2.5 text-sm font-semibold text-marca transition hover:bg-marca/10 active:scale-[0.97]"
+        >
+          {locale === "en" ? "Notify again 🔔" : "Volver a avisar 🔔"}
         </button>
       )}
       {listo && (
