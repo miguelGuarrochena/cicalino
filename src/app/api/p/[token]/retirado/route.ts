@@ -3,7 +3,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 
 // POST /api/p/[token]/retirado
 // El cliente confirma que retiró su pedido. Pasa de "listo" a "retirado"
-// (corta los recordatorios y avisa a la caja por realtime). Auth por token.
+// (cierra el pedido y avisa a la caja por realtime). Auth por token.
 export const dynamic = "force-dynamic";
 
 export const POST = async (

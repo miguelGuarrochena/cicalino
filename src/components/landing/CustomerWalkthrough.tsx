@@ -134,7 +134,7 @@ export const CustomerWalkthrough = ({
                 step.key === "aviso" ? "mt-16" : ""
               }`}
             >
-              La Esquina
+              Café Aroma
             </span>
             <span className="mt-0.5 text-[10px] uppercase tracking-widest text-carbon/35">
               {t("modo.pedido")}
