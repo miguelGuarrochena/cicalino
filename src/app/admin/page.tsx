@@ -1,16 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
   monthlyCharge,
   type OrganizationRow,
 } from "@/lib/store/superadmin-store";
+import { useSessionStore } from "@/lib/store/session-store";
 import { OrgModal } from "@/components/admin/OrgModal";
 import { SolicitudesPanel } from "@/components/admin/SolicitudesPanel";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useSuperadminSync } from "@/lib/hooks/useSuperadminSync";
+import { asegurarOrgDemo } from "@/lib/actions/superadmin";
+import { refreshOrganizations } from "@/lib/data/superadmin";
+import { useToast } from "@/components/ui/Toast";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
 const MULT: Record<Periodo, number> = { dia: 1, semana: 6.5, mes: 28, ano: 330 };
@@ -50,14 +55,37 @@ const Metric = ({
 
 const SuperadminPage = () => {
   const { t } = useApp();
+  const { toast } = useToast();
+  const router = useRouter();
   useSuperadminSync();
   const organizations = useSuperadminStore((s) => s.organizaciones);
+  const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
 
   const [periodo, setPeriodo] = useState<Periodo>("dia");
   const [page, setPage] = useState(1);
+  const [abriendoDemo, setAbriendoDemo] = useState(false);
   const [modal, setModal] = useState<
     { mode: "crear" } | { mode: "ver"; org: OrganizationRow } | null
   >(null);
+
+  const abrirDemo = async () => {
+    setAbriendoDemo(true);
+    const res = await asegurarOrgDemo();
+    if (!res.ok) {
+      setAbriendoDemo(false);
+      toast(res.error || t("super.demoError"), "error");
+      return;
+    }
+    await refreshOrganizations();
+    enterAsOwner({
+      organizacionId: res.demo.organizacionId,
+      organizacionNombre: res.demo.organizacionNombre,
+      sucursalId: res.demo.sucursalId,
+      sucursalNombre: res.demo.sucursalNombre,
+    });
+    setAbriendoDemo(false);
+    router.push("/panel");
+  };
 
   const orgAbierta =
     modal?.mode === "ver"
@@ -105,6 +133,14 @@ const SuperadminPage = () => {
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => void abrirDemo()}
+            disabled={abriendoDemo}
+            className="shrink-0 rounded-full border border-marca/30 bg-crema px-4 py-2.5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-95 disabled:opacity-60"
+          >
+            {abriendoDemo ? t("super.abriendoDemo") : t("super.abrirDemo")}
+          </button>
           <button
             type="button"
             onClick={() => setModal({ mode: "crear" })}

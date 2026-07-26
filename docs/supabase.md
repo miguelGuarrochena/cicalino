@@ -121,6 +121,9 @@ solo** (realtime). El superadmin no opera el panel (tiene su consola en `/admin`
   contra la base (RLS: el superadmin ve y edita todo).
 - "Entrar como dueño" usa el `id` real de la sucursal, así que abre su panel con
   pedidos reales.
+- **Demo para ventas:** en `/admin` → **Abrir demo**. Crea (o reutiliza) la org
+  `Cicalino Demo` / sucursal `Mostrador` (`demo@cicalino.net`) **sin invitar a
+  nadie**, e impersona al panel. No hace falta invitarte a vos.
 
 Archivos: `src/lib/actions/superadmin.ts` (crear/eliminar), `src/lib/data/superadmin.ts`
 (listar/actualizar/sucursales), `src/lib/hooks/useSuperadminSync.ts`.

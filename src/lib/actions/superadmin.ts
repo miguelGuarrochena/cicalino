@@ -99,6 +99,115 @@ export const eliminarOrganizacion = async (
   return { ok: true };
 };
 
+/** Email fijo de la org demo (no se invita a nadie). */
+export const DEMO_ORG_EMAIL = "demo@cicalino.net";
+const DEMO_ORG_NOMBRE = "Cicalino Demo";
+const DEMO_SUC_NOMBRE = "Mostrador";
+const DEMO_SUC_SLUG = "cicalino-demo";
+
+export type DemoContexto = {
+  organizacionId: string;
+  organizacionNombre: string;
+  sucursalId: string;
+  sucursalNombre: string;
+};
+
+/**
+ * Asegura la org + sucursal de demo para el superadmin.
+ * Idempotente: si ya existe, la reutiliza. No invita usuario.
+ */
+export const asegurarOrgDemo = async (): Promise<
+  { ok: true; demo: DemoContexto } | { ok: false; error: string }
+> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: existente } = await admin
+    .from("organizaciones")
+    .select("id, nombre, locales(id, nombre)")
+    .eq("dueno_email", DEMO_ORG_EMAIL)
+    .maybeSingle();
+
+  if (existente) {
+    const locales = (existente.locales ?? []) as {
+      id: string;
+      nombre: string;
+    }[];
+    let suc = locales[0];
+    if (!suc) {
+      const { data: creada, error } = await admin
+        .from("locales")
+        .insert({
+          organizacion_id: existente.id,
+          nombre: DEMO_SUC_NOMBRE,
+          tipo_negocio: "cafeteria",
+          slug: DEMO_SUC_SLUG,
+        })
+        .select("id, nombre")
+        .single();
+      if (error || !creada) {
+        return { ok: false, error: error?.message ?? "No se pudo crear sucursal demo" };
+      }
+      suc = creada;
+    }
+    return {
+      ok: true,
+      demo: {
+        organizacionId: existente.id,
+        organizacionNombre: existente.nombre,
+        sucursalId: suc.id,
+        sucursalNombre: suc.nombre,
+      },
+    };
+  }
+
+  const { data: org, error } = await admin
+    .from("organizaciones")
+    .insert({
+      nombre: DEMO_ORG_NOMBRE,
+      responsable: "Cicalino",
+      telefono: "1100000000",
+      dueno_email: DEMO_ORG_EMAIL,
+      cupo: 1,
+      plan: "gratis",
+      pagado: true,
+      activo: true,
+    })
+    .select("id, nombre")
+    .single();
+  if (error || !org) {
+    return { ok: false, error: error?.message ?? "No se pudo crear la demo" };
+  }
+
+  const { data: suc, error: errSuc } = await admin
+    .from("locales")
+    .insert({
+      organizacion_id: org.id,
+      nombre: DEMO_SUC_NOMBRE,
+      tipo_negocio: "cafeteria",
+      slug: DEMO_SUC_SLUG,
+    })
+    .select("id, nombre")
+    .single();
+  if (errSuc || !suc) {
+    return { ok: false, error: errSuc?.message ?? "No se pudo crear sucursal demo" };
+  }
+
+  return {
+    ok: true,
+    demo: {
+      organizacionId: org.id,
+      organizacionNombre: org.nombre,
+      sucursalId: suc.id,
+      sucursalNombre: suc.nombre,
+    },
+  };
+};
+
 // --- Solicitudes de prueba (leads) — solo superadmin --------------------------
 
 export const listarSolicitudes = async (): Promise<Solicitud[]> => {
