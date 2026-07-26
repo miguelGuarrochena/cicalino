@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/security/rateLimit";
 
 // GET /api/p/[token] -> estado público del pedido para la vista del cliente.
 // El cliente no está autenticado, así que leemos con el service_role (saltea
@@ -13,6 +14,18 @@ export const GET = async (
   { params }: { params: Promise<{ token: string }> },
 ) => {
   const { token } = await params;
+
+  // Rate limit por token: el cliente legítimo consulta ~1 vez cada 4s (2-3 por
+  // cada ventana de 10s). 30 req/10s deja amplio margen para varias pestañas o
+  // reintentos, y corta a quien martille un mismo token.
+  const rl = rateLimit(`p:${token}`, 30, 10_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, reason: "rate-limited" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
+  }
+
   const supabase = createAdminSupabase();
   if (!supabase) {
     return NextResponse.json({ ok: false, reason: "not-configured" });

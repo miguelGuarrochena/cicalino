@@ -63,10 +63,18 @@ export const useCustomerOrder = (token: string): Result => {
   useEffect(() => {
     if (!live) return;
     let active = true;
+    let inFlight = false;
     let id: number | undefined;
     const load = async () => {
+      // En redes lentas, evitamos apilar requests: si el anterior sigue en
+      // vuelo, saltamos este tick.
+      if (inFlight) return;
+      inFlight = true;
       try {
         const res = await fetch(`/api/p/${token}`, { cache: "no-store" });
+        // Límite alcanzado o error transitorio del server: mantenemos el último
+        // estado conocido y reintentamos en el próximo tick.
+        if (res.status === 429 || res.status >= 500) return;
         const data = await res.json();
         if (!active) return;
         if (data.ok) {
@@ -81,12 +89,15 @@ export const useCustomerOrder = (token: string): Result => {
           if (data.estado === "retirado" || data.estado === "cancelado") {
             if (id) window.clearInterval(id);
           }
-        } else {
+        } else if (data.reason === "not-found" || data.reason === "expired") {
+          // Solo blanqueamos si el pedido realmente no existe o venció; el resto
+          // de las razones son transitorias y conservan el último estado.
           setRemoteFound(false);
         }
       } catch {
         // sin red: mantenemos el último estado conocido
       } finally {
+        inFlight = false;
         if (active) setReady(true);
       }
     };

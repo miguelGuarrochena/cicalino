@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/security/rateLimit";
 
 // POST /api/push/subscribe
 // Body: { token, subscription }. Guarda la suscripción del cliente asociada
@@ -23,6 +24,15 @@ export const POST = async (req: Request) => {
   const sub = body?.subscription;
   if (!token || !sub?.endpoint) {
     return NextResponse.json({ ok: false, reason: "bad-request" }, { status: 400 });
+  }
+
+  // El cliente se suscribe una sola vez; 5/min por token frena inserts abusivos.
+  const rl = rateLimit(`sub:${token}`, 5, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, reason: "rate-limited" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   const { data: pedido } = await admin

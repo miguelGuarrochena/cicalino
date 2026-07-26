@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/security/rateLimit";
 
 // POST /api/p/[token]/retirado
 // El cliente confirma que retiró su pedido. Pasa de "listo" a "retirado"
@@ -11,6 +12,16 @@ export const POST = async (
   { params }: { params: Promise<{ token: string }> },
 ) => {
   const { token } = await params;
+
+  // Acción puntual: 5 por minuto por token es más que suficiente.
+  const rl = rateLimit(`retirado:${token}`, 5, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, reason: "rate-limited" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
+  }
+
   const admin = createAdminSupabase();
   if (!admin) return NextResponse.json({ ok: false, reason: "not-configured" });
 
