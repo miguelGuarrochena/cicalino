@@ -99,13 +99,13 @@ export const eliminarOrganizacion = async (
   return { ok: true };
 };
 
-/** Email fijo de la org demo (no se invita a nadie). */
-export const DEMO_ORG_EMAIL = "demo@cicalino.net";
+// En "use server" solo se exportan async actions (no constantes ni types).
+const DEMO_ORG_EMAIL = "demo@cicalino.net";
 const DEMO_ORG_NOMBRE = "Cicalino Demo";
 const DEMO_SUC_NOMBRE = "Mostrador";
 const DEMO_SUC_SLUG = "cicalino-demo";
 
-export type DemoContexto = {
+type DemoContexto = {
   organizacionId: string;
   organizacionNombre: string;
   sucursalId: string;

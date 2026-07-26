@@ -55,7 +55,7 @@ const Metric = ({
 
 const SuperadminPage = () => {
   const { t } = useApp();
-  const { toast } = useToast();
+  const toast = useToast();
   const router = useRouter();
   useSuperadminSync();
   const organizations = useSuperadminStore((s) => s.organizaciones);
