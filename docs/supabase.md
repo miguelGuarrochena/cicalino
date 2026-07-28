@@ -3,8 +3,9 @@
 Cicalino usa **Supabase** para base de datos, **auth** (login por email + contraseña)
 y **realtime** (sync de pedidos entre dispositivos/cajas).
 
-Mientras no haya credenciales, la app corre en **modo demo** (stores de Zustand,
-sin base ni login). Apenas cargás las variables, se activa el backend real.
+En **desarrollo**, si faltan credenciales, la app corre en **modo demo**
+(Zustand). En **producción**, `/panel` y `/admin` responden 503 si faltan las
+vars de Supabase (no se abre el panel sin backend).
 
 ## 1. Crear el proyecto
 
@@ -22,6 +23,10 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...   # segura para el navegador
 SUPABASE_SECRET_KEY=sb_secret_...                         # SOLO server, nunca al cliente
 DATABASE_URL=postgresql://postgres:PASSWORD@db.TU-PROYECTO.supabase.co:5432/postgres
+
+# Opcional en Vercel (recomendado):
+# UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN  → rate limit global
+# NEXT_PUBLIC_VAPID_* / VAPID_*                       → Web Push
 ```
 
 > Nombres nuevos de Supabase: **publishable** = la vieja `anon`; **secret** = la vieja
@@ -40,14 +45,22 @@ pnpm db:migrate     # aplica drizzle/*.sql a la base
 # (o pnpm db:push para empujar el schema directo en desarrollo)
 ```
 
-## 4. Auth + RLS + Realtime
+## 4. Auth + RLS + Realtime + security fixes
 
-En **Supabase → SQL Editor**, pegá y corré `supabase/setup.sql`. Eso:
+En **Supabase → SQL Editor**, corré **en este orden**:
 
-- vincula la tabla `usuarios` (perfil) con `auth.users`,
-- crea el trigger que arma el perfil al invitar a alguien,
-- define las **policies de RLS** (cada dueño ve su organización; el superadmin, todo),
-- habilita **realtime** en `pedidos`.
+1. `supabase/setup.sql` — perfiles, trigger de invitación, RLS base, realtime.
+2. `supabase/security-fixes-01.sql` — endurece RLS / `handle_new_user`.
+3. `supabase/security-fixes-02.sql` — constraints de cupo y facturación.
+4. `supabase/security-fixes-03.sql` — PIN hasheado (`pin_hash`) + RPCs
+   `set_empleado_pin` / `verificar_pin_empleado`.
+
+Sin el **#03**, el fichaje y el alta de empleados con PIN fallan (el front ya
+habla por RPC, no lee `pin` en texto plano).
+
+> No uses `pnpm db:push` a ciegas después de estos scripts: la columna
+> `tiene_pin` es **GENERATED**. Si necesitás alinear Drizzle, usá
+> `drizzle/0002_empleados_pin_hash.sql` o regenerá migraciones con cuidado.
 
 En **Authentication → Providers → Email**: dejá habilitado *Email*, y
 **desactivá "Enable signups"** (no hay registro público; solo invitación).
@@ -150,7 +163,8 @@ Archivos: `src/lib/push/server.ts`, `src/app/api/push/{subscribe,notify}/route.t
 
 ## Pendiente (próximo)
 
-- Sacar el modo demo al lanzar; tests E2E; deploy a Vercel; Mercado Pago (cobro).
+- Upstash en Vercel (rate limit global); CSP_ENFORCE=1 cuando la consola esté limpia.
+- Mercado Pago si el volumen lo justifica; tests E2E.
 
 ## Archivos clave (backend de datos)
 

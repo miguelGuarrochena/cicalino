@@ -84,7 +84,7 @@ export const invitarAdmin = async (
     return { ok: false, error: "No autorizado" };
   }
   const admin = createAdminSupabase();
-  if (!admin) return { ok: false, error: "Falta SUPABASE_SERVICE_ROLE_KEY" };
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
   const { error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { rol: "admin", organizacion_id: organizationId },
   });

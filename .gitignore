@@ -17,7 +17,7 @@ next-env.d.ts
 
 # ---------------------------------------------------------------------------
 # VARIABLES DE ENTORNO / SECRETOS  (NUNCA commitear info sensible)
-#   - DATABASE_URL (Neon), claves VAPID de Web Push, tokens de Mercado Pago, etc.
+#   - DATABASE_URL (Supabase), claves VAPID de Web Push, tokens de Mercado Pago, etc.
 #   - Se versiona SOLO .env.example (plantilla sin valores reales).
 # ---------------------------------------------------------------------------
 .env

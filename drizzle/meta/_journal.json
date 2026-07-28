@@ -15,6 +15,13 @@
       "when": 1784900000000,
       "tag": "0001_org_telefono",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785300000000,
+      "tag": "0002_empleados_pin_hash",
+      "breakpoints": true
     }
   ]
 }

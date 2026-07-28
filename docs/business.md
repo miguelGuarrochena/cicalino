@@ -62,11 +62,7 @@ hardware y sin obligar al local a migrar todo su sistema de gestión.
 
 ## Roadmap (alto nivel)
 
-1. **Fase actual:** prototipo front-first (Zustand + localStorage) con modelo
-   org → sucursales, panel, cliente y landing.
-2. Conexión real a Neon + API (crear pedidos, cambiar estado, vista del cliente).
-3. Web Push real (VAPID + service worker) con fallback a polling.
-4. Métricas del local (tiempos, volumen por hora, historial).
-5. Onboarding de organizaciones (alta, cupo, sucursales, slug, QR).
-6. Evaluar pasarela de pago (Mercado Pago) si el volumen lo justifica.
-7. Evaluar expansión a España.
+1. **Hecho:** panel, cliente QR, auth Supabase, superadmin, demo, security SQL.
+2. Pulir métricas globales y experiencia push en iOS.
+3. Evaluar pasarela de pago (Mercado Pago) si el volumen lo justifica.
+4. Evaluar expansión a España.

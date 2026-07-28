@@ -128,8 +128,9 @@ export const employees = pgTable(
       .references(() => locales.id, { onDelete: "cascade" }),
     nombre: text("nombre").notNull(),
     rol: text("rol"),
-    // PIN corto (4 digitos) para fichar en el dispositivo compartido.
-    pin: text("pin"),
+    // Hash bcrypt del PIN (solo vía RPC `set_empleado_pin`). Nunca al cliente.
+    // La columna generada `tiene_pin` vive en la DB (security-fixes-03.sql).
+    pinHash: text("pin_hash"),
     activo: boolean("activo").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

@@ -35,6 +35,19 @@ export const middleware = async (req: NextRequest) => {
   const anon =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const path = req.nextUrl.pathname;
+  const protegido = path.startsWith("/panel") || path.startsWith("/admin");
+
+  // En producción sin credenciales: no abrir el panel en "modo demo".
+  if ((!url || !anon) && process.env.NODE_ENV === "production" && protegido) {
+    return conCsp(
+      new NextResponse("Cicalino: faltan variables de Supabase en el deploy.", {
+        status: 503,
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      }),
+    );
+  }
+
   if (!url || !anon) {
     return conCsp(NextResponse.next({ request: { headers: reqHeaders } }));
   }
@@ -58,9 +71,6 @@ export const middleware = async (req: NextRequest) => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const path = req.nextUrl.pathname;
-  const protegido = path.startsWith("/panel") || path.startsWith("/admin");
 
   if (protegido && !user) {
     const login = req.nextUrl.clone();

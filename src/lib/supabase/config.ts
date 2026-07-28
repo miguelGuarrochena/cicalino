@@ -1,5 +1,5 @@
-// Config de Supabase. Si falta la URL/anon key, la app corre en "modo demo"
-// (sin auth ni base): los stores de Zustand siguen funcionando como hasta ahora.
+// Config de Supabase. Sin URL/anon key: en desarrollo corre "modo demo"
+// (Zustand). En producción el middleware bloquea /panel y /admin.
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 // Supabase renombró las claves: "publishable" reemplaza a "anon" (ambas son
 // seguras para el navegador). Aceptamos las dos por compatibilidad.

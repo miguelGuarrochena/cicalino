@@ -167,11 +167,13 @@ export const insertEmployee = async (
   const emp = mapEmp(row as EmpRow);
 
   // El PIN se setea aparte, por RPC (queda hasheado del lado del servidor).
+  // Si falla, rollback: no dejamos un empleado sin el PIN que el admin pidió.
   if (v.data.pin) {
     const res = await setEmployeePin(emp.id, v.data.pin);
     if (!res.ok) {
       console.error("insertEmployee/pin", res.error);
-      return { ...emp, tienePin: false };
+      await supabase.from("empleados").delete().eq("id", emp.id);
+      return null;
     }
     return { ...emp, tienePin: true };
   }

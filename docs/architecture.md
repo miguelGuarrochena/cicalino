@@ -6,7 +6,8 @@
 - **Cero fricción para el cliente**: sin registro, sin instalar apps.
 - **Separación clara** entre panel del local, vista del cliente y lógica
   compartida.
-- **Serverless-friendly**: Neon (Postgres HTTP) + Next App Router.
+- **Serverless-friendly**: Supabase (Postgres + Auth + Realtime) + Next App
+  Router.
 
 ## Estructura de carpetas
 
@@ -30,30 +31,27 @@ cicalino/
 │   │   │       └── [token]/
 │   │   │           └── page.tsx  # pantalla de espera tras escanear el QR
 │   │   │
-│   │   └── api/                 # route handlers (stubs hasta conectar Neon)
-│   │       ├── pedidos/route.ts              # GET lista / POST crear
-│   │       ├── pedidos/[id]/status/route.ts  # PATCH cambia estado
-│   │       └── p/[token]/route.ts            # GET estado público del pedido
+│   │   └── api/                 # route handlers (cliente QR, push)
 │   │
 │   ├── components/
 │   │   ├── panel/               # componentes del panel (OrderCard, ...)
-│   │   ├── cliente/             # componentes de la vista del cliente
-│   │   └── ui/                  # componentes compartidos (a futuro)
+│   │   ├── customer/            # componentes de la vista del cliente
+│   │   └── ui/                  # componentes compartidos
 │   │
 │   └── lib/                     # ── LÓGICA COMPARTIDA ──
 │       ├── db/
-│       │   ├── index.ts         # conexión a Neon (drizzle + neon-http)
-│       │   └── schema.ts        # tablas Drizzle (locales, pedidos, push)
+│       │   └── schema.ts        # tablas Drizzle (orgs, locales, pedidos…)
+│       ├── supabase/            # clientes browser / server / admin
 │       ├── store/
-│       │   └── orders-store.ts # store de Zustand del panel
+│       │   └── orders-store.ts  # store de Zustand del panel
 │       ├── utils/
 │       │   └── token.ts         # generación / expiración del token del QR
-│       ├── mock.ts              # datos demo para los prototipos
 │       └── types.ts             # tipos de dominio compartidos
 │
 ├── public/
-│   └── sw.js                    # service worker Web Push (placeholder)
-├── drizzle.config.ts            # config de migraciones
+│   └── sw.js                    # service worker Web Push
+├── supabase/                    # setup.sql + security-fixes-*.sql
+├── drizzle.config.ts
 ├── .env.example
 └── next.config.ts
 ```
@@ -69,7 +67,7 @@ Ver `src/lib/db/schema.ts`:
 - **pedidos**: `local_id`, `referencia`, `estado`
   (`creado → listo → retirado`, + `cancelado`), `qr_token` + expiración, y
   timestamps por cambio de estado.
-- **empleados**: PIN por sucursal.
+- **empleados**: PIN hasheado por sucursal (`pin_hash`; la UI solo ve `tiene_pin`).
 - **usuarios**: login real — dueño → `organizacion_id`; supervisor → `local_id`.
 - **push_subscriptions**: Web Push por pedido/navegador.
 
@@ -102,10 +100,9 @@ Ver `src/lib/db/schema.ts`:
 
 ## Decisiones técnicas
 
-- **Neon en vez de Supabase**: se llegó al límite de proyectos gratis en
-  Supabase. Neon da Postgres serverless con driver HTTP ideal para Next.
-- **Drizzle en vez de Prisma**: ORM liviano, TypeScript-first, migraciones
-  simples, buen encaje con Neon.
+- **Supabase**: Postgres + Auth + Realtime + RLS. La app habla con la base vía
+  el cliente de Supabase (browser/server/admin).
+- **Drizzle**: schema tipado y migraciones; no es el runtime principal.
 - **Zustand**: estado del panel simple y sin boilerplate.
 - **Tailwind v4**: configuración por CSS (`@theme` en `globals.css`), sin
   `tailwind.config.js`.
@@ -147,10 +144,8 @@ Nombre, tipo, dirección, modo de identificación, cantidad de mesas y empleados
 son **de cada sucursal** — viven en la fila `locales` de esa sucursal y en la
 tabla `empleados` (con `local_id`).
 
-> **Nota de prototipo:** el front demo simplifica esto a **una sola sucursal
-> activa**: `config-store` y `orders-store` son planos (sin `sucursal_id`). Al
-> conectar Neon, cada consulta se scopea por `local_id` y la config/empleados
-> pasan a leerse de la sucursal activa — el schema ya está modelado así.
+> **Nota:** en vivo, cada consulta se scopea por `local_id` (sucursal activa).
+> El schema y los stores ya trabajan con ese modelo.
 
 ### Identificación del pedido y ciclo de vida
 
@@ -170,8 +165,6 @@ NFC queda como opción premium para modo mesa (tag fijo por mesa).
 
 ## Pendiente (próximas etapas)
 
-- Implementar los route handlers contra Neon.
-- Web Push real: generar claves VAPID, suscripción desde la vista del cliente,
-  envío desde el backend.
-- Onboarding de locales + generación e impresión del QR.
-- Integración de Mercado Pago (suscripción mensual).
+- Pulir métricas globales (consolidadas por org).
+- Confirmar VAPID en todos los deploys; medir entrega de push en iOS.
+- Integración de Mercado Pago si el volumen lo justifica.
