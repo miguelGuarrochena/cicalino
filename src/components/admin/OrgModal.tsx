@@ -466,18 +466,18 @@ export const OrgModal = ({
         <p className="text-center text-sm font-semibold text-carbon">
           ¿Salir sin guardar los cambios?
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
             onClick={() => setConfirmDiscard(false)}
-            className="flex-1 rounded-full border border-linea bg-surface py-3.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5"
+            className="w-full rounded-full border border-linea bg-surface py-3 text-sm font-semibold text-carbon transition hover:bg-carbon/5 sm:flex-1"
           >
             Seguir editando
           </button>
           <button
             type="button"
             onClick={descartarYSalir}
-            className="flex-1 rounded-full bg-red-500 py-3.5 text-sm font-semibold text-white transition hover:bg-red-600"
+            className="w-full rounded-full bg-red-500 py-3 text-sm font-semibold text-white transition hover:bg-red-600 sm:flex-1"
           >
             Salir sin guardar
           </button>
@@ -490,12 +490,12 @@ export const OrgModal = ({
             Hay cambios sin guardar
           </p>
         ) : null}
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
             onClick={intentarSalirForm}
             disabled={saving}
-            className="min-w-[7.5rem] rounded-full border-2 border-linea bg-crema/60 px-4 py-3.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-50"
+            className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-50 sm:flex-1"
           >
             {t("super.cancelar")}
           </button>
@@ -503,7 +503,7 @@ export const OrgModal = ({
             type="button"
             onClick={() => void guardar()}
             disabled={saving || (mode === "editar" && !dirty)}
-            className="flex-1 rounded-full bg-marca px-4 py-3.5 text-base font-bold text-crema shadow-md transition hover:bg-marca-fuerte active:scale-[0.98] disabled:opacity-50"
+            className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50 sm:flex-1"
           >
             {saving ? "Guardando…" : t("super.guardar")}
           </button>

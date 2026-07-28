@@ -103,18 +103,18 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
             <p className="text-center text-sm font-semibold text-carbon">
               ¿Salir sin guardar?
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
                 onClick={() => setConfirmDiscard(false)}
-                className="flex-1 rounded-full border border-linea py-3.5 text-sm font-semibold text-carbon"
+                className="w-full rounded-full border border-linea py-3 text-sm font-semibold text-carbon sm:flex-1"
               >
                 Seguir
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 rounded-full bg-red-500 py-3.5 text-sm font-semibold text-white"
+                className="w-full rounded-full bg-red-500 py-3 text-sm font-semibold text-white sm:flex-1"
               >
                 Salir sin guardar
               </button>
@@ -127,12 +127,12 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
                 Completá y tocá Agregar para guardar
               </p>
             ) : null}
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
                 onClick={intentarCerrar}
                 disabled={saving}
-                className="min-w-[7.5rem] rounded-full border-2 border-linea bg-crema/60 px-4 py-3.5 text-sm font-semibold text-carbon disabled:opacity-50"
+                className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50 sm:flex-1"
               >
                 {t("qr.cerrar")}
               </button>
@@ -140,7 +140,7 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
                 type="button"
                 onClick={() => void guardar()}
                 disabled={saving}
-                className="flex-1 rounded-full bg-marca px-4 py-3.5 text-base font-bold text-crema shadow-md transition hover:bg-marca-fuerte disabled:opacity-60"
+                className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60 sm:flex-1"
               >
                 {saving ? "…" : t("config.guardarEmp")}
               </button>

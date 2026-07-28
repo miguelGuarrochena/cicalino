@@ -412,7 +412,7 @@ const PanelOrdersPage = () => {
           labelledBy="nuevo-pedido"
           busy={creating}
           footer={
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
                 disabled={creating}
@@ -431,7 +431,7 @@ const PanelOrdersPage = () => {
                   }
                   setCrearOpen(false);
                 }}
-                className="min-w-[7.5rem] rounded-full border-2 border-linea bg-crema/60 px-4 py-3.5 text-sm font-semibold text-carbon disabled:opacity-50"
+                className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50 sm:flex-1"
               >
                 {t("qr.cerrar")}
               </button>
@@ -439,7 +439,7 @@ const PanelOrdersPage = () => {
                 type="button"
                 disabled={creating}
                 onClick={() => void confirmarCrear()}
-                className="flex-1 rounded-full bg-marca px-4 py-3.5 text-base font-bold text-crema shadow-md disabled:opacity-60"
+                className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema disabled:opacity-60 sm:flex-1"
               >
                 {creating ? "…" : t("panel.crearYQr")}
               </button>
