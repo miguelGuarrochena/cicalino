@@ -40,6 +40,18 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const [pin, setPin] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  const dirty = Boolean(name.trim() || role.trim() || pin.trim());
+
+  const intentarCerrar = () => {
+    if (saving) return;
+    if (dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onClose();
+  };
 
   const validar = (): FieldErrors => {
     const next: FieldErrors = {};
@@ -81,7 +93,62 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   };
 
   return (
-    <ModalShell onClose={onClose} labelledBy="emp-modal-title" busy={saving}>
+    <ModalShell
+      onClose={intentarCerrar}
+      labelledBy="emp-modal-title"
+      busy={saving}
+      footer={
+        confirmDiscard ? (
+          <div className="flex flex-col gap-2.5">
+            <p className="text-center text-sm font-semibold text-carbon">
+              ¿Salir sin guardar?
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDiscard(false)}
+                className="flex-1 rounded-full border border-linea py-3.5 text-sm font-semibold text-carbon"
+              >
+                Seguir
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-full bg-red-500 py-3.5 text-sm font-semibold text-white"
+              >
+                Salir sin guardar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {dirty ? (
+              <p className="text-center text-[11px] font-semibold text-marca">
+                Completá y tocá Agregar para guardar
+              </p>
+            ) : null}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={intentarCerrar}
+                disabled={saving}
+                className="min-w-[7.5rem] rounded-full border-2 border-linea bg-crema/60 px-4 py-3.5 text-sm font-semibold text-carbon disabled:opacity-50"
+              >
+                {t("qr.cerrar")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void guardar()}
+                disabled={saving}
+                className="flex-1 rounded-full bg-marca px-4 py-3.5 text-base font-bold text-crema shadow-md transition hover:bg-marca-fuerte disabled:opacity-60"
+              >
+                {saving ? "…" : t("config.guardarEmp")}
+              </button>
+            </div>
+          </div>
+        )
+      }
+    >
       <div className="mb-5 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3
@@ -94,7 +161,7 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
         </div>
         <button
           type="button"
-          onClick={onClose}
+          onClick={intentarCerrar}
           disabled={saving}
           aria-label={t("qr.cerrar")}
           className="flex size-9 shrink-0 items-center justify-center rounded-full border border-linea text-carbon/50 transition hover:bg-carbon/5 disabled:opacity-50"
@@ -161,25 +228,6 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
             <span className="text-xs text-red-500">{errors.pin}</span>
           )}
         </label>
-      </div>
-
-      <div className="mt-6 flex gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={saving}
-          className="flex-1 rounded-full border border-linea px-4 py-3 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-50"
-        >
-          {t("qr.cerrar")}
-        </button>
-        <button
-          type="button"
-          onClick={() => void guardar()}
-          disabled={saving}
-          className="flex-1 rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60"
-        >
-          {saving ? "…" : t("config.guardarEmp")}
-        </button>
       </div>
     </ModalShell>
   );

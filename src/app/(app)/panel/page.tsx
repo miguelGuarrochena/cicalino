@@ -394,9 +394,57 @@ const PanelOrdersPage = () => {
 
       {createOpen && (
         <ModalShell
-          onClose={() => setCrearOpen(false)}
+          onClose={() => {
+            if (creating) return;
+            if (refDraft.trim()) {
+              if (
+                !window.confirm(
+                  locale === "en"
+                    ? "Discard without creating the order?"
+                    : "¿Salir sin crear el pedido?",
+                )
+              ) {
+                return;
+              }
+            }
+            setCrearOpen(false);
+          }}
           labelledBy="nuevo-pedido"
           busy={creating}
+          footer={
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => {
+                  if (creating) return;
+                  if (refDraft.trim()) {
+                    if (
+                      !window.confirm(
+                        locale === "en"
+                          ? "Discard without creating the order?"
+                          : "¿Salir sin crear el pedido?",
+                      )
+                    ) {
+                      return;
+                    }
+                  }
+                  setCrearOpen(false);
+                }}
+                className="min-w-[7.5rem] rounded-full border-2 border-linea bg-crema/60 px-4 py-3.5 text-sm font-semibold text-carbon disabled:opacity-50"
+              >
+                {t("qr.cerrar")}
+              </button>
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => void confirmarCrear()}
+                className="flex-1 rounded-full bg-marca px-4 py-3.5 text-base font-bold text-crema shadow-md disabled:opacity-60"
+              >
+                {creating ? "…" : t("panel.crearYQr")}
+              </button>
+            </div>
+          }
         >
           <h3
             id="nuevo-pedido"
@@ -431,24 +479,6 @@ const PanelOrdersPage = () => {
                 : t("panel.errNombre")}
             </p>
           )}
-          <div className="mt-5 flex gap-2">
-            <button
-              type="button"
-              disabled={creating}
-              onClick={() => setCrearOpen(false)}
-              className="flex-1 rounded-full border border-linea px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50"
-            >
-              {t("qr.cerrar")}
-            </button>
-            <button
-              type="button"
-              disabled={creating}
-              onClick={() => void confirmarCrear()}
-              className="flex-1 rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema disabled:opacity-60"
-            >
-              {creating ? "…" : t("panel.crearYQr")}
-            </button>
-          </div>
         </ModalShell>
       )}
 

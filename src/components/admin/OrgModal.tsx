@@ -37,6 +37,50 @@ const required = (v: string) => v.trim().length > 0;
 const emailOk = isEmail;
 const cuilOk = (v: string) => !v.trim() || isCuil(v);
 
+type DraftOrg = {
+  nombre: string;
+  responsable: string;
+  telefono: string;
+  cuil: string;
+  direccion: string;
+  duenoEmail: string;
+  cupo: number;
+  plan: PlanTipo;
+};
+
+const draftVacio = (): DraftOrg => ({
+  nombre: "",
+  responsable: "",
+  telefono: "",
+  cuil: "",
+  direccion: "",
+  duenoEmail: "",
+  cupo: 1,
+  plan: "mensual",
+});
+
+const draftDesdeOrg = (o: OrganizationRow): DraftOrg => ({
+  nombre: o.nombre,
+  responsable: o.responsable,
+  telefono: o.telefono,
+  cuil: o.cuil,
+  direccion: o.direccion,
+  duenoEmail: o.duenoEmail,
+  cupo: o.cupo,
+  plan: o.plan,
+});
+
+const draftsIguales = (a: DraftOrg, b: DraftOrg): boolean =>
+  a.nombre.trim() === b.nombre.trim() &&
+  a.responsable.trim() === b.responsable.trim() &&
+  a.telefono.trim() === b.telefono.trim() &&
+  a.cuil.trim() === b.cuil.trim() &&
+  a.direccion.trim() === b.direccion.trim() &&
+  a.duenoEmail.trim() === b.duenoEmail.trim() &&
+  a.cupo === b.cupo &&
+  a.plan === b.plan;
+
+
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
   currency: "ARS",
@@ -151,6 +195,7 @@ export const OrgModal = ({
   const [mode, setMode] = useState<Mode>(initialMode);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const editing = mode === "crear" || mode === "editar";
 
   const [name, setName] = useState(org?.nombre ?? "");
@@ -161,6 +206,9 @@ export const OrgModal = ({
   const [ownerEmail, setOwnerEmail] = useState(org?.duenoEmail ?? "");
   const [quota, setCupo] = useState(org?.cupo ?? 1);
   const [plan, setPlan] = useState<PlanTipo>(org?.plan ?? "mensual");
+  const [baseline, setBaseline] = useState<DraftOrg>(() =>
+    initialMode === "crear" || !org ? draftVacio() : draftDesdeOrg(org),
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmDel, setConfirmDel] = useState(false);
   const [quotaError, setCupoError] = useState(false);
@@ -169,6 +217,59 @@ export const OrgModal = ({
   const [newBranch, setNuevaSuc] = useState("");
   const [nuevaTipo, setNuevaTipo] = useState<TipoNegocio>("cafeteria");
 
+  const draftActual = (): DraftOrg => ({
+    nombre: name,
+    responsable: manager,
+    telefono: phone,
+    cuil,
+    direccion: address,
+    duenoEmail: ownerEmail,
+    cupo: quota,
+    plan,
+  });
+
+  const dirty = editing && !draftsIguales(draftActual(), baseline);
+
+  const aplicarDraft = (d: DraftOrg) => {
+    setName(d.nombre);
+    setResponsable(d.responsable);
+    setTelefono(d.telefono);
+    setCuil(d.cuil);
+    setDireccion(d.direccion);
+    setOwnerEmail(d.duenoEmail);
+    setCupo(d.cupo);
+    setPlan(d.plan);
+  };
+
+  const entrarEditar = (o: OrganizationRow) => {
+    const d = draftDesdeOrg(o);
+    aplicarDraft(d);
+    setBaseline(d);
+    setConfirmDiscard(false);
+    setErrors({});
+    setMode("editar");
+  };
+
+  const salirFormLimpio = () => {
+    setConfirmDiscard(false);
+    setErrors({});
+    if (mode === "editar") setMode("ver");
+    else onClose();
+  };
+
+  const intentarSalirForm = () => {
+    if (saving) return;
+    if (dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    salirFormLimpio();
+  };
+
+  const descartarYSalir = () => {
+    aplicarDraft(baseline);
+    salirFormLimpio();
+  };
   const validate = (): boolean => {
     const e: Record<string, string> = {};
     if (!required(name)) e.nombre = t("super.errNombre");
@@ -359,11 +460,64 @@ export const OrgModal = ({
   );
   const vista = fresca ?? org;
 
+  const footerEdicion = editing ? (
+    confirmDiscard ? (
+      <div className="flex flex-col gap-2.5">
+        <p className="text-center text-sm font-semibold text-carbon">
+          ¿Salir sin guardar los cambios?
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setConfirmDiscard(false)}
+            className="flex-1 rounded-full border border-linea bg-surface py-3.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5"
+          >
+            Seguir editando
+          </button>
+          <button
+            type="button"
+            onClick={descartarYSalir}
+            className="flex-1 rounded-full bg-red-500 py-3.5 text-sm font-semibold text-white transition hover:bg-red-600"
+          >
+            Salir sin guardar
+          </button>
+        </div>
+      </div>
+    ) : (
+      <div className="flex flex-col gap-2">
+        {dirty ? (
+          <p className="text-center text-[11px] font-semibold text-marca">
+            Hay cambios sin guardar
+          </p>
+        ) : null}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={intentarSalirForm}
+            disabled={saving}
+            className="min-w-[7.5rem] rounded-full border-2 border-linea bg-crema/60 px-4 py-3.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-50"
+          >
+            {t("super.cancelar")}
+          </button>
+          <button
+            type="button"
+            onClick={() => void guardar()}
+            disabled={saving || (mode === "editar" && !dirty)}
+            className="flex-1 rounded-full bg-marca px-4 py-3.5 text-base font-bold text-crema shadow-md transition hover:bg-marca-fuerte active:scale-[0.98] disabled:opacity-50"
+          >
+            {saving ? "Guardando…" : t("super.guardar")}
+          </button>
+        </div>
+      </div>
+    )
+  ) : undefined;
+
   return (
     <ModalShell
-      onClose={onClose}
+      onClose={editing ? intentarSalirForm : onClose}
       labelledBy="org-modal-title"
       busy={saving || busy}
+      footer={footerEdicion}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -383,8 +537,9 @@ export const OrgModal = ({
         </div>
         <button
           type="button"
-          onClick={onClose}
-          className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60"
+          onClick={editing ? intentarSalirForm : onClose}
+          disabled={saving || busy}
+          className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60 disabled:opacity-50"
         >
           {t("qr.cerrar")}
         </button>
@@ -495,26 +650,6 @@ export const OrgModal = ({
               onChange={(e) => setDireccion(e.target.value)}
             />
           </Campo>
-          <div className="mt-2 flex gap-2">
-            {mode === "editar" && (
-              <button
-                type="button"
-                onClick={() => setMode("ver")}
-                disabled={saving}
-                className="flex-1 rounded-full border border-linea py-2.5 text-sm font-semibold text-carbon/70 disabled:opacity-50"
-              >
-                {t("super.cancelar")}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => void guardar()}
-              disabled={saving}
-              className="flex-1 rounded-full bg-marca py-2.5 text-sm font-semibold text-crema hover:bg-marca-fuerte disabled:opacity-60"
-            >
-              {saving ? "…" : t("super.guardar")}
-            </button>
-          </div>
         </div>
       ) : vista ? (
         <div className="mt-5 flex flex-col gap-4">
@@ -629,15 +764,7 @@ export const OrgModal = ({
               <button
                 type="button"
                 onClick={() => {
-                  setPlan(vista.plan);
-                  setName(vista.nombre);
-                  setResponsable(vista.responsable);
-                  setTelefono(vista.telefono);
-                  setCuil(vista.cuil);
-                  setDireccion(vista.direccion);
-                  setOwnerEmail(vista.duenoEmail);
-                  setCupo(vista.cupo);
-                  setMode("editar");
+                  if (vista) entrarEditar(vista);
                 }}
                 className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70"
               >

@@ -7,11 +7,14 @@ import { createPortal } from "react-dom";
 // transform (animaciones .u-in) rompa position:fixed y lo baje al final.
 export const ModalShell = ({
   children,
+  footer,
   onClose,
   labelledBy,
   busy = false,
 }: {
   children: React.ReactNode;
+  /** Acciones fijas abajo (Guardar / Cancelar) — no scrollean con el cuerpo. */
+  footer?: React.ReactNode;
   onClose: () => void;
   labelledBy?: string;
   /** Mientras guarda/verifica: no cerrar con Esc ni click afuera. */
@@ -57,6 +60,11 @@ export const ModalShell = ({
         <div className="u-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6">
           {children}
         </div>
+        {footer ? (
+          <div className="shrink-0 border-t border-linea bg-surface/95 px-5 py-3.5 backdrop-blur-sm sm:px-6 sm:py-4">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,
