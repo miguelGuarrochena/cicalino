@@ -17,6 +17,26 @@ interface Props {
   token: string;
 }
 
+/** Confeti + vibración + flash de fondo (también en re-avisos). */
+const senalListo = (opts?: {
+  referencia?: string;
+  token?: string;
+  body?: string;
+  push?: boolean;
+}) => {
+  if ("vibrate" in navigator) {
+    navigator.vibrate?.([200, 80, 200, 80, 400]);
+  }
+  void lanzarConfetiListo();
+  if (opts?.push && opts.referencia && opts.token && opts.body) {
+    void mostrarAvisoListo({
+      referencia: opts.referencia,
+      url: `/p/${opts.token}`,
+      body: opts.body,
+    });
+  }
+};
+
 // Pantalla del cliente tras escanear el QR. Con Supabase hace polling al
 // endpoint público (/api/p/[token]); en demo lee del store local.
 export const CustomerWaiting = ({ token }: Props) => {
@@ -24,7 +44,9 @@ export const CustomerWaiting = ({ token }: Props) => {
   const { ready: hydrated, order } = useCustomerOrder(token);
   const [pushActivo, setPushActivo] = useState(false);
   const [confirmado, setConfirmado] = useState(false);
-  const prevEstado = useRef<string | null>(null);
+  const [flash, setFlash] = useState(false);
+  const ultimoAviso = useRef<string | null>(null);
+  const vioEsperando = useRef(false);
 
   const marcarRetirado = async () => {
     setConfirmado(true);
@@ -35,7 +57,6 @@ export const CustomerWaiting = ({ token }: Props) => {
     }
   };
 
-  // Registrar SW temprano (habilita avisos con pestaña en segundo plano)
   useEffect(() => {
     void registrarServiceWorker();
     if ("Notification" in window && Notification.permission === "granted") {
@@ -51,7 +72,13 @@ export const CustomerWaiting = ({ token }: Props) => {
   const cerrado = esOk || esCancelado;
   const waiting = hydrated && !!order && !cerrado;
 
-  // Aviso al intentar cerrar/recargar mientras espera
+  useEffect(() => {
+    if (!order) return;
+    if (order.status === "creado" || order.status === "en_preparacion") {
+      vioEsperando.current = true;
+    }
+  }, [order]);
+
   useEffect(() => {
     if (!waiting) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -62,22 +89,29 @@ export const CustomerWaiting = ({ token }: Props) => {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [waiting]);
 
-  // Vibrar + confeti + notificación al pasar a listo
+  // Señal al pasar a listo y cada "Volver a avisar" (cambia avisado_en).
   useEffect(() => {
-    if (!order) return;
-    const prev = prevEstado.current;
-    prevEstado.current = order.status;
-    if (prev == null || prev === order.status) return;
-    if (order.status !== "listo") return;
-    if ("vibrate" in navigator) navigator.vibrate?.([200, 100, 200]);
-    void lanzarConfetiListo();
-    if (pushActivo) {
-      void mostrarAvisoListo({
-        referencia: order.referencia,
-        url: `/p/${token}`,
-        body: t("cliente.notifListo", { n: order.referencia }),
-      });
+    if (!order || order.status !== "listo") return;
+    const clave = order.avisadoEn ?? "listo";
+
+    if (ultimoAviso.current === null) {
+      ultimoAviso.current = clave;
+      // QR abierto ya en listo: no disparamos. Si venimos de esperar, sí.
+      if (!vioEsperando.current) return;
+    } else if (ultimoAviso.current === clave) {
+      return;
+    } else {
+      ultimoAviso.current = clave;
     }
+
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 900);
+    senalListo({
+      push: pushActivo,
+      referencia: order.referencia,
+      token,
+      body: t("cliente.notifListo", { n: order.referencia }),
+    });
   }, [order, pushActivo, t, token]);
 
   const activarAvisos = async () => {
@@ -111,10 +145,13 @@ export const CustomerWaiting = ({ token }: Props) => {
   }
 
   return (
-    <main className="relative flex min-h-dvh flex-col items-center px-6 pb-14 pt-16 text-center">
+    <main
+      className={`relative flex min-h-dvh flex-col items-center px-6 pb-14 pt-16 text-center transition-colors duration-500 ${
+        flash ? "bg-emerald-200/70 dark:bg-emerald-500/25" : "bg-crema"
+      }`}
+    >
       <Controls className="absolute right-4 top-4 z-20" />
 
-      {/* Aviso en el flujo (no absolute) para no tapar el nombre del local */}
       {waiting && (
         <p className="u-in mb-6 w-full max-w-sm rounded-2xl border border-amber-300/50 bg-amber-50 px-3 py-2.5 text-xs font-medium leading-snug text-amber-900/80 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100/90">
           {pushActivo ? t("cliente.noCerrarPush") : t("cliente.noCerrar")}

@@ -53,7 +53,7 @@ const matchFiltro = (status: OrderStatus, filtro: FiltroEstado): boolean => {
 };
 
 const PanelOrdersPage = () => {
-  const { t } = useApp();
+  const { t, locale } = useApp();
   const toast = useToast();
   const mode = useConfigStore((s) => s.modo);
   const tableCount = useConfigStore((s) => s.cantidadMesas);
@@ -126,7 +126,7 @@ const PanelOrdersPage = () => {
         ? t("panel.buscarNombre")
         : t("panel.buscarPedido");
 
-  // Reenvía el aviso "pasá a retirar" al cliente (push). Solo en live.
+  // Reenvía el aviso "pasá a retirar" al cliente (push + señal en la pestaña).
   const reavisar = async (id: string) => {
     try {
       const res = await fetch("/api/push/notify", {
@@ -135,8 +135,16 @@ const PanelOrdersPage = () => {
         body: JSON.stringify({ orderId: id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (data?.ok) toast("Aviso reenviado al cliente 🔔", "success");
-      else toast("No se pudo reenviar (¿el cliente activó avisos?)", "info");
+      if (data?.ok) {
+        if (data.enviados > 0) toast("Aviso reenviado al cliente 🔔", "success");
+        else
+          toast(
+            locale === "en"
+              ? "Ping sent to the open tab (no push subscription)."
+              : "Señal enviada a la pestaña abierta (sin push).",
+            "success",
+          );
+      } else toast("No se pudo reenviar el aviso", "info");
     } catch {
       toast("No se pudo reenviar el aviso", "error");
     }

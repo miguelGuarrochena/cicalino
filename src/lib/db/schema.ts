@@ -200,6 +200,9 @@ export const orders = pgTable(
     canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
     // Cuándo el cliente abrió el link del QR (para cerrar el popup en la caja).
     vistoEn: timestamp("visto_en", { withTimezone: true }),
+    // Último aviso "listo" (marcar listo o "Volver a avisar"). La vista del
+    // cliente pollea esto para repetir confeti/vibración aunque el estado no cambie.
+    avisadoEn: timestamp("avisado_en", { withTimezone: true }),
   },
   (t) => [
     // Busqueda rapida de pedidos por local + estado (vista del panel).

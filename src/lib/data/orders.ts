@@ -139,8 +139,10 @@ export const updateOrderStatus = async (
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = { estado: status };
   if (status === "en_preparacion") patch.en_preparacion_en = now;
-  else if (status === "listo") patch.listo_en = now;
-  else if (status === "retirado") patch.retirado_en = now;
+  else if (status === "listo") {
+    patch.listo_en = now;
+    patch.avisado_en = now;
+  } else if (status === "retirado") patch.retirado_en = now;
   else if (status === "cancelado") patch.cancelado_en = now;
 
   // La condición de estado va también en el WHERE: si otra caja ya cambió el

@@ -151,12 +151,13 @@ Archivos: `src/lib/actions/superadmin.ts` (crear/eliminar), `src/lib/data/supera
    VAPID_SUBJECT=mailto:info@cicalino.net
    ```
 
-2. Corré la línea nueva de `supabase/setup.sql` (habilita RLS en
-   `push_subscriptions`).
+2. Corré en el SQL Editor (si aún no está):
+   - la línea de `push_subscriptions` en `setup.sql`
+   - `supabase/avisado-en.sql` (columna para re-avisar con la pestaña abierta)
 3. Flujo: el cliente toca "Activar avisos" → se suscribe (`/api/push/subscribe`).
-   Cuando el panel marca **listo**, llama a `/api/push/notify`, que valida por la
-   sesión del dueño (RLS) y envía el push con `web-push`. El service worker
-   (`public/sw.js`) muestra la notificación aunque la pestaña esté cerrada.
+   Cuando el panel marca **listo** (o **Volver a avisar**), llama a
+   `/api/push/notify`: actualiza `avisado_en` (señal en pantalla) y, si hay
+   VAPID + suscripción, manda el push aunque esté en otra app.
 
 Archivos: `src/lib/push/server.ts`, `src/app/api/push/{subscribe,notify}/route.ts`,
 `suscribirWebPush` en `src/lib/notifications.ts`.

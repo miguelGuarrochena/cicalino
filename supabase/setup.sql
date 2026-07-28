@@ -141,6 +141,10 @@ alter table public.pedidos
 alter table public.locales
   add column if not exists hora_corte integer not null default 6;
 
+-- Último aviso al cliente (listo / volver a avisar).
+alter table public.pedidos
+  add column if not exists avisado_en timestamptz;
+
 -- 9) Endurecer RLS de facturación (revisión de seguridad) --------------------
 -- El dueño NO debe poder modificar su facturación (pagado/activo/plan/cupo/
 -- mes_gratis_hasta): eso es solo del superadmin. La policy vieja dejaba al dueño

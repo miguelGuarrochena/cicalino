@@ -73,10 +73,11 @@ export const mostrarAvisoListo = async (opts: {
     body: opts.body,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    tag: `cicalino-${opts.referencia}`,
+    tag: `cicalino-${opts.referencia}-${Date.now()}`,
     renotify: true,
+    requireInteraction: true,
     data: { url: opts.url },
-    vibrate: [200, 100, 200],
+    vibrate: [200, 80, 200, 80, 400],
   } as NotificationOptions & { renotify?: boolean; vibrate?: number[] };
 
   try {

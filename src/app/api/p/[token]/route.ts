@@ -22,10 +22,9 @@ export const GET = async (
     return NextResponse.json({ ok: false, reason: "not-found" });
   }
 
-  // Rate limit por token: el cliente legítimo consulta ~1 vez cada 4s (2-3 por
-  // cada ventana de 10s). 30 req/10s deja amplio margen para varias pestañas o
-  // reintentos, y corta a quien martille un mismo token.
-  const rl = rateLimit(`p:${token}`, 30, 10_000);
+  // Rate limit por token: el cliente pollea ~cada 1.2s. 40 req/10s deja margen
+  // para varias pestañas y reintentos, y corta martilleo.
+  const rl = rateLimit(`p:${token}`, 40, 10_000);
   if (!rl.ok) {
     return NextResponse.json(
       { ok: false, reason: "rate-limited" },
@@ -41,7 +40,7 @@ export const GET = async (
   const { data, error } = await supabase
     .from("pedidos")
     .select(
-      "id, referencia, estado, qr_expira_en, visto_en, locales(nombre, modo_identificacion)",
+      "id, referencia, estado, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
     )
     .eq("qr_token", token)
     .single();
@@ -71,6 +70,7 @@ export const GET = async (
     referencia: data.referencia,
     estado: data.estado,
     listo: data.estado === "listo" || data.estado === "retirado",
+    avisadoEn: data.avisado_en ?? null,
     nombreLocal: local?.nombre ?? "",
     modo: local?.modo_identificacion ?? "pedido",
   });

@@ -12,6 +12,8 @@ export interface CustomerOrder {
   status: OrderStatus;
   nombreLocal: string;
   modo: IdentificationMode;
+  /** ISO del último aviso "listo" / re-avisar (para repetir la señal). */
+  avisadoEn: string | null;
 }
 
 interface Result {
@@ -20,7 +22,8 @@ interface Result {
   order: CustomerOrder | null;
 }
 
-const POLL_MS = 4000;
+// ~1.2s: el cliente ve el "listo" casi al toque (antes 4s → demora típica 1–2s).
+const POLL_MS = 1200;
 
 // Estado del pedido para la pantalla del cliente. Con Supabase configurado
 // hace polling al endpoint público (/api/p/[token]); en demo lee del store
@@ -59,21 +62,17 @@ export const useCustomerOrder = (token: string): Result => {
     return () => window.removeEventListener("storage", onStorage);
   }, [live, seed]);
 
-  // Polling del endpoint público.
+  // Polling del endpoint público + refetch al volver a la pestaña.
   useEffect(() => {
     if (!live) return;
     let active = true;
     let inFlight = false;
     let id: number | undefined;
     const load = async () => {
-      // En redes lentas, evitamos apilar requests: si el anterior sigue en
-      // vuelo, saltamos este tick.
       if (inFlight) return;
       inFlight = true;
       try {
         const res = await fetch(`/api/p/${token}`, { cache: "no-store" });
-        // Límite alcanzado o error transitorio del server: mantenemos el último
-        // estado conocido y reintentamos en el próximo tick.
         if (res.status === 429 || res.status >= 500) return;
         const data = await res.json();
         if (!active) return;
@@ -83,19 +82,17 @@ export const useCustomerOrder = (token: string): Result => {
             status: data.estado as OrderStatus,
             nombreLocal: data.nombreLocal,
             modo: data.modo as IdentificationMode,
+            avisadoEn: data.avisadoEn ?? null,
           });
           setRemoteFound(true);
-          // Estado terminal: dejamos de pollear (no hay más cambios).
           if (data.estado === "retirado" || data.estado === "cancelado") {
             if (id) window.clearInterval(id);
           }
         } else if (data.reason === "not-found" || data.reason === "expired") {
-          // Solo blanqueamos si el pedido realmente no existe o venció; el resto
-          // de las razones son transitorias y conservan el último estado.
           setRemoteFound(false);
         }
       } catch {
-        // sin red: mantenemos el último estado conocido
+        /* sin red: mantenemos el último estado */
       } finally {
         inFlight = false;
         if (active) setReady(true);
@@ -103,9 +100,20 @@ export const useCustomerOrder = (token: string): Result => {
     };
     void load();
     id = window.setInterval(load, POLL_MS);
+
+    const onWake = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    window.addEventListener("online", onWake);
+
     return () => {
       active = false;
       if (id) window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+      window.removeEventListener("online", onWake);
     };
   }, [live, token]);
 
@@ -123,6 +131,7 @@ export const useCustomerOrder = (token: string): Result => {
           status: o.estado,
           nombreLocal: cfg.nombre,
           modo: cfg.modo,
+          avisadoEn: o.listoEn,
         }
       : null,
   };
