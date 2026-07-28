@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { ThemedImg } from "@/components/ui/ThemedImg";
+import { TurnstileField } from "@/components/probar/TurnstileField";
 import { crearSolicitud } from "@/lib/actions/leads";
 import { isEmail } from "@/lib/validations";
 
@@ -22,19 +23,21 @@ const ProbarPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileStatus, setTurnstileStatus] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
-  // Carga el script de Turnstile una sola vez (solo si hay site key).
-  useEffect(() => {
-    if (!TURNSTILE_SITE_KEY) return;
-    if (document.querySelector("script[data-turnstile]")) return;
-    const s = document.createElement("script");
-    s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    s.async = true;
-    s.defer = true;
-    s.setAttribute("data-turnstile", "1");
-    document.head.appendChild(s);
-  }, []);
+  const necesitaTurnstile = Boolean(TURNSTILE_SITE_KEY);
+  const turnstileOk = !necesitaTurnstile || Boolean(turnstileToken);
+
+  const recargarTurnstile = () => {
+    setTurnstileToken(null);
+    setTurnstileStatus("loading");
+    setTurnstileKey((k) => k + 1);
+    setError(null);
+  };
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,12 +46,12 @@ const ProbarPage = () => {
       setError("Completá tu nombre y un email válido.");
       return;
     }
-    // Token del widget (si Turnstile está activo).
-    const turnstileToken = formRef.current
-      ?.querySelector<HTMLInputElement>('[name="cf-turnstile-response"]')
-      ?.value;
-    if (TURNSTILE_SITE_KEY && !turnstileToken) {
-      setError("Esperá un segundo a que cargue la verificación y reintentá.");
+    if (necesitaTurnstile && !turnstileToken) {
+      setError(
+        turnstileStatus === "error"
+          ? "No se pudo cargar la verificación. Recargala e intentá de nuevo."
+          : "Esperá un segundo a que cargue la verificación y reintentá.",
+      );
       return;
     }
     setLoading(true);
@@ -57,11 +60,12 @@ const ProbarPage = () => {
       email,
       local,
       ciudad,
-      turnstileToken,
+      turnstileToken: turnstileToken ?? undefined,
     });
     setLoading(false);
     if (!res.ok) {
       setError(res.error);
+      recargarTurnstile();
       return;
     }
     setEnviado(true);
@@ -105,7 +109,6 @@ const ProbarPage = () => {
             </div>
 
             <form
-              ref={formRef}
               onSubmit={enviar}
               className="u-in mt-8 flex flex-col gap-3 rounded-[24px] border border-linea bg-surface p-5 shadow-sm"
               style={{ animationDelay: "0.05s" }}
@@ -138,21 +141,39 @@ const ProbarPage = () => {
                 placeholder="Ciudad"
               />
               {TURNSTILE_SITE_KEY && (
-                <div
-                  className="cf-turnstile mx-auto"
-                  data-sitekey={TURNSTILE_SITE_KEY}
-                  data-action="turnstile-spin-v2"
-                />
+                <div className="space-y-2">
+                  <TurnstileField
+                    key={turnstileKey}
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onToken={setTurnstileToken}
+                    onStatus={setTurnstileStatus}
+                  />
+                  {turnstileStatus === "error" && (
+                    <button
+                      type="button"
+                      onClick={recargarTurnstile}
+                      className="mx-auto block text-xs font-semibold text-marca underline"
+                    >
+                      Recargar verificación
+                    </button>
+                  )}
+                </div>
               )}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (necesitaTurnstile && !turnstileOk)}
                 className="mt-1 rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60"
               >
-                {loading ? "Enviando…" : "Quiero probar gratis"}
+                {loading
+                  ? "Enviando…"
+                  : necesitaTurnstile && turnstileStatus === "loading"
+                    ? "Cargando verificación…"
+                    : "Quiero probar gratis"}
               </button>
               {error && (
-                <p className="text-center text-xs text-red-500">{error}</p>
+                <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-600">
+                  {error}
+                </p>
               )}
             </form>
 

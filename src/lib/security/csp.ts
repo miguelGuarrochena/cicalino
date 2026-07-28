@@ -47,7 +47,8 @@ export const buildCsp = (nonce: string): string => {
     `connect-src ${conexiones.join(" ")}`,
     // El widget de Turnstile se dibuja en un iframe.
     "frame-src https://challenges.cloudflare.com",
-    "worker-src 'self'",
+    // Turnstile usa workers/blob para el challenge.
+    "worker-src 'self' blob: https://challenges.cloudflare.com",
     "manifest-src 'self'",
     // Nadie nos puede embeber (equivalente moderno de X-Frame-Options).
     "frame-ancestors 'none'",

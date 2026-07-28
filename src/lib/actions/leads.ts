@@ -60,34 +60,42 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     return { ok: false, error: "No pudimos registrar tu solicitud. Reintentá." };
   }
 
-  // Mails (best-effort, opcionales si hay Resend): aviso a Cicalino + una
-  // confirmación linda al cliente. La activación real se la mandás a mano vos.
+  // Mails (best-effort): aviso a Cicalino + confirmación al lead.
+  // Si falta RESEND_API_KEY, la solicitud igual queda en Superadmin → Solicitudes.
   const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
-  void enviarEmail({
-    to: notify,
-    subject: `Nueva solicitud de prueba — ${nombre}`,
-    replyTo: email,
-    html: emailLayout({
-      titulo: "Nueva solicitud",
-      cuerpoHtml: `<p style="margin:0 0 6px;"><b>${esc(nombre)}</b> quiere probar Cicalino.</p>
+  const avisos = await Promise.all([
+    enviarEmail({
+      to: notify,
+      subject: `Nueva solicitud de prueba — ${nombre}`,
+      replyTo: email,
+      html: emailLayout({
+        titulo: "Nueva solicitud",
+        cuerpoHtml: `<p style="margin:0 0 6px;"><b>${esc(nombre)}</b> quiere probar Cicalino.</p>
         <p style="margin:0;font-size:14px;">${esc(email)}${
           local ? ` · ${esc(local)}` : ""
         }${ciudad ? ` · ${esc(ciudad)}` : ""}</p>`,
-      cta: { label: "Activar en el panel", url: `${appUrl()}/admin` },
-      pie: "Panel de Superadmin → Solicitudes",
+        cta: { label: "Activar en el panel", url: `${appUrl()}/admin` },
+        pie: "Panel de Superadmin → Solicitudes",
+      }),
     }),
-  });
-  void enviarEmail({
-    to: email,
-    subject: "¡Recibimos tu pedido! — Cicalino",
-    html: emailLayout({
-      titulo: "¡Recibimos tu pedido!",
-      cuerpoHtml: `<p style="margin:0 0 8px;">¡Hola ${esc(nombre)}! 🎉</p>
+    enviarEmail({
+      to: email,
+      subject: "¡Recibimos tu pedido! — Cicalino",
+      html: emailLayout({
+        titulo: "¡Recibimos tu pedido!",
+        cuerpoHtml: `<p style="margin:0 0 8px;">¡Hola ${esc(nombre)}! 🎉</p>
         <p style="margin:0;">Recibimos tu pedido para probar Cicalino. Te
         escribimos a este mail para activarte <b>1 mes gratis</b>, normalmente
         en el día. Tu cliente nunca paga.</p>`,
+      }),
     }),
-  });
+  ]);
+  if (!avisos[0] || !avisos[1]) {
+    console.warn(
+      "crearSolicitud: mail no enviado (¿falta RESEND_API_KEY / dominio verificado?)",
+      { notifyOk: avisos[0], leadOk: avisos[1] },
+    );
+  }
 
   return { ok: true };
 };
