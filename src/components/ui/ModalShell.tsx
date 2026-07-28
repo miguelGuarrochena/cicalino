@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 
 // Overlay centrado en el viewport (portal a body). Evita que un padre con
 // transform (animaciones .u-in) rompa position:fixed y lo baje al final.
+// En mobile: sheet desde abajo (pulgar cerca de Guardar) + safe-area.
 export const ModalShell = ({
   children,
   footer,
@@ -37,7 +38,7 @@ export const ModalShell = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4"
+      className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4"
       role="presentation"
     >
       <button
@@ -54,17 +55,29 @@ export const ModalShell = ({
         aria-modal="true"
         aria-labelledby={labelledBy}
         aria-busy={busy || undefined}
-        className="u-pop relative z-10 flex max-h-[min(92dvh,760px)] w-full max-w-md flex-col overflow-hidden rounded-[28px] border border-linea bg-surface shadow-2xl sm:max-w-lg"
+        className="u-pop relative z-10 flex max-h-[min(92dvh,760px)] w-full max-w-none flex-col overflow-hidden rounded-t-[24px] border border-linea border-b-0 bg-surface shadow-2xl sm:max-w-lg sm:rounded-[28px] sm:border-b"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="u-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6">
+        {/* Agarire visual de sheet (solo mobile) */}
+        <div
+          className="flex shrink-0 justify-center pb-1 pt-2.5 sm:hidden"
+          aria-hidden="true"
+        >
+          <span className="h-1 w-10 rounded-full bg-carbon/20" />
+        </div>
+        <div className="u-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-2 sm:p-6 sm:pt-6">
           {children}
         </div>
         {footer ? (
-          <div className="shrink-0 border-t border-linea bg-surface/95 px-5 py-3.5 backdrop-blur-sm sm:px-6 sm:py-4">
+          <div className="shrink-0 border-t border-linea bg-surface/95 px-5 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur-sm sm:px-6 sm:pb-4 sm:pt-4">
             {footer}
           </div>
-        ) : null}
+        ) : (
+          <div
+            className="shrink-0 pb-[env(safe-area-inset-bottom)] sm:hidden"
+            aria-hidden="true"
+          />
+        )}
       </div>
     </div>,
     document.body,
