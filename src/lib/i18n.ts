@@ -185,6 +185,11 @@ const dict = {
       canceladoSub: "Este pedido ya no está activo. Consultá en el mostrador si hace falta.",
       activar: "Avisarme con una notificación",
       activados: "Avisos activados",
+      pushCargando: "Activando avisos…",
+      pushError:
+        "No se pudo activar el aviso en segundo plano. Probá de nuevo o revisá el permiso de Chrome.",
+      pushDenegado:
+        "Chrome bloqueó las notificaciones. Activálas en el candado de la barra de dirección.",
       espera: "Actualiza solo",
       noCerrar:
         "No cierres esta pestaña mientras esperás. Si te vas a WhatsApp, volvé acá o activá avisos.",
@@ -531,6 +536,11 @@ const dict = {
       canceladoSub: "This order is no longer active. Ask at the counter if you need help.",
       activar: "Notify me",
       activados: "Notifications on",
+      pushCargando: "Enabling notices…",
+      pushError:
+        "Couldn’t enable background notices. Try again or check Chrome’s permission.",
+      pushDenegado:
+        "Chrome blocked notifications. Enable them via the lock icon in the address bar.",
       espera: "Updates on its own",
       noCerrar:
         "Don't close this tab while waiting. If you leave for WhatsApp, come back or enable notices.",

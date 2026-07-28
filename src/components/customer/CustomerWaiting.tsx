@@ -43,6 +43,8 @@ export const CustomerWaiting = ({ token }: Props) => {
   const { t, locale } = useApp();
   const { ready: hydrated, order } = useCustomerOrder(token);
   const [pushActivo, setPushActivo] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+  const [pushCargando, setPushCargando] = useState(false);
   const [confirmado, setConfirmado] = useState(false);
   const [flash, setFlash] = useState(false);
   const ultimoAviso = useRef<string | null>(null);
@@ -57,12 +59,24 @@ export const CustomerWaiting = ({ token }: Props) => {
     }
   };
 
+  // Registrar SW y, si ya había permiso, re-suscribir (antes solo marcábamos
+  // "activado" sin guardar la suscripción → el push en otra app no llegaba).
   useEffect(() => {
-    void registrarServiceWorker();
-    if ("Notification" in window && Notification.permission === "granted") {
-      setPushActivo(true);
-    }
-  }, []);
+    let alive = true;
+    void (async () => {
+      await registrarServiceWorker();
+      if (!("Notification" in window) || Notification.permission !== "granted") {
+        return;
+      }
+      const r = await suscribirWebPush(token);
+      if (!alive) return;
+      setPushActivo(r.ok);
+      setPushError(r.ok ? null : t("cliente.pushError"));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [token, t]);
 
   const status = order?.status ?? "creado";
   const esListo = status === "listo";
@@ -96,7 +110,6 @@ export const CustomerWaiting = ({ token }: Props) => {
 
     if (ultimoAviso.current === null) {
       ultimoAviso.current = clave;
-      // QR abierto ya en listo: no disparamos. Si venimos de esperar, sí.
       if (!vioEsperando.current) return;
     } else if (ultimoAviso.current === clave) {
       return;
@@ -115,10 +128,20 @@ export const CustomerWaiting = ({ token }: Props) => {
   }, [order, pushActivo, t, token]);
 
   const activarAvisos = async () => {
+    setPushCargando(true);
+    setPushError(null);
     await registrarServiceWorker();
-    const ok = await pedirPermisoNotificaciones();
-    setPushActivo(ok);
-    if (ok) void suscribirWebPush(token);
+    const permiso = await pedirPermisoNotificaciones();
+    if (!permiso) {
+      setPushActivo(false);
+      setPushError(t("cliente.pushDenegado"));
+      setPushCargando(false);
+      return;
+    }
+    const r = await suscribirWebPush(token);
+    setPushActivo(r.ok);
+    setPushError(r.ok ? null : t("cliente.pushError"));
+    setPushCargando(false);
   };
 
   if (!hydrated) {
@@ -249,14 +272,23 @@ export const CustomerWaiting = ({ token }: Props) => {
         )}
 
         {!cerrado && (
-          <button
-            type="button"
-            onClick={activarAvisos}
-            disabled={pushActivo}
-            className="u-in mt-8 w-full max-w-sm rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
-          >
-            {pushActivo ? `${t("cliente.activados")} 🔔` : t("cliente.activar")}
-          </button>
+          <div className="u-in mt-8 w-full max-w-sm">
+            <button
+              type="button"
+              onClick={activarAvisos}
+              disabled={pushActivo || pushCargando}
+              className="w-full rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
+            >
+              {pushCargando
+                ? t("cliente.pushCargando")
+                : pushActivo
+                  ? `${t("cliente.activados")} 🔔`
+                  : t("cliente.activar")}
+            </button>
+            {pushError && (
+              <p className="mt-2 text-center text-xs text-red-500">{pushError}</p>
+            )}
+          </div>
         )}
       </div>
 

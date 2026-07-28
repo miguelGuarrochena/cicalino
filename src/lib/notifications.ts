@@ -1,21 +1,28 @@
 // Helpers de notificaciones del cliente (Web Push + aviso local).
-// En Android/Chrome el aviso sale en la barra del sistema pero suele
-// mostrarse como notificación de Chrome: es lo esperado en la web
-// (no es una app nativa). Con VAPID + SW también llega con la pestaña
-// en segundo plano.
+// En Android/Chrome el aviso sale en la barra del sistema (a menudo con ícono
+// de Chrome). Para que llegue en OTRA app hace falta:
+//   1) VAPID en el build (NEXT_PUBLIC_VAPID_PUBLIC_KEY)
+//   2) permiso concedido
+//   3) suscripción guardada en push_subscriptions (este módulo)
+
+export type PushSubscribeResult =
+  | { ok: true }
+  | { ok: false; reason: "no-vapid" | "unsupported" | "denied" | "server" | "error" };
 
 export const registrarServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
     return null;
   }
   try {
-    return await navigator.serviceWorker.register("/sw.js");
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    // Sin esto, pushManager.subscribe a veces corre antes de que el SW esté activo.
+    await navigator.serviceWorker.ready;
+    return reg;
   } catch {
     return null;
   }
 };
 
-// Convierte la clave pública VAPID (base64url) a Uint8Array para el navegador.
 const urlBase64ToUint8Array = (base64: string): Uint8Array => {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -25,29 +32,94 @@ const urlBase64ToUint8Array = (base64: string): Uint8Array => {
   return out;
 };
 
-// Suscribe el navegador del cliente a Web Push y manda la suscripción al server
-// (asociada al pedido por token). Best-effort: si no hay VAPID/SW, no hace nada.
-export const suscribirWebPush = async (token: string): Promise<boolean> => {
+const clavesOk = (sub: PushSubscription): boolean => {
+  const j = sub.toJSON();
+  return Boolean(j.endpoint && j.keys?.p256dh && j.keys?.auth);
+};
+
+/**
+ * Suscribe este navegador al Web Push del pedido y lo guarda en el server.
+ * Devuelve ok solo si quedó persistido (si no, el panel manda 0 pushes).
+ */
+export const suscribirWebPush = async (
+  token: string,
+): Promise<PushSubscribeResult> => {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!publicKey) return false;
-  const reg = await registrarServiceWorker();
-  if (!reg || !("pushManager" in reg)) return false;
+  if (!publicKey) return { ok: false, reason: "no-vapid" };
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return { ok: false, reason: "unsupported" };
+  }
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    return { ok: false, reason: "denied" };
+  }
+
   try {
-    const existing = await reg.pushManager.getSubscription();
-    const sub =
-      existing ??
-      (await reg.pushManager.subscribe({
+    const reg = await registrarServiceWorker();
+    if (!reg) return { ok: false, reason: "unsupported" };
+
+    let sub = await reg.pushManager.getSubscription();
+    if (sub && !clavesOk(sub)) {
+      await sub.unsubscribe().catch(() => {});
+      sub = null;
+    }
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-      }));
+      });
+    }
+
+    const json = sub.toJSON();
     const res = await fetch("/api/push/subscribe", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, subscription: sub.toJSON() }),
+      body: JSON.stringify({
+        token,
+        subscription: {
+          endpoint: json.endpoint,
+          keys: {
+            p256dh: json.keys?.p256dh ?? "",
+            auth: json.keys?.auth ?? "",
+          },
+        },
+      }),
     });
-    return res.ok;
-  } catch {
-    return false;
+    if (!res.ok) {
+      console.error("push/subscribe", res.status, await res.text().catch(() => ""));
+      return { ok: false, reason: "server" };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("suscribirWebPush", err);
+    // Suscripción vieja con otra clave VAPID: reintentar limpio.
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const old = await reg.pushManager.getSubscription();
+      if (old) await old.unsubscribe();
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+      });
+      const json = sub.toJSON();
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          token,
+          subscription: {
+            endpoint: json.endpoint,
+            keys: {
+              p256dh: json.keys?.p256dh ?? "",
+              auth: json.keys?.auth ?? "",
+            },
+          },
+        }),
+      });
+      return res.ok ? { ok: true } : { ok: false, reason: "server" };
+    } catch (err2) {
+      console.error("suscribirWebPush/retry", err2);
+      return { ok: false, reason: "error" };
+    }
   }
 };
 
@@ -75,7 +147,6 @@ export const mostrarAvisoListo = async (opts: {
     badge: "/icon-192.png",
     tag: `cicalino-${opts.referencia}-${Date.now()}`,
     renotify: true,
-    requireInteraction: true,
     data: { url: opts.url },
     vibrate: [200, 80, 200, 80, 400],
   } as NotificationOptions & { renotify?: boolean; vibrate?: number[] };

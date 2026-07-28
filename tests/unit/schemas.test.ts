@@ -178,7 +178,10 @@ describe("transicionValida", () => {
 describe("pushSubscribeSchema (anti-SSRF)", () => {
   const conEndpoint = (endpoint: string) => ({
     token: UUID,
-    subscription: { endpoint, keys: { p256dh: "abc", auth: "def" } },
+    subscription: {
+      endpoint,
+      keys: { p256dh: "BPabcdefghijklmnopqrstuv", auth: "authkey12" },
+    },
   });
 
   it("acepta endpoints de servicios de push reales", () => {
@@ -201,7 +204,10 @@ describe("pushSubscribeSchema (anti-SSRF)", () => {
   it("exige que el token del QR sea UUID", () => {
     const r = parsear(pushSubscribeSchema, {
       token: "tok-42",
-      subscription: { endpoint: "https://fcm.googleapis.com/fcm/send/xyz" },
+      subscription: {
+        endpoint: "https://fcm.googleapis.com/fcm/send/xyz",
+        keys: { p256dh: "BPabcdefghijklmnopqrstuv", auth: "authkey12" },
+      },
     });
     expect(r.ok).toBe(false);
   });

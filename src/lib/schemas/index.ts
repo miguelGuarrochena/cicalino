@@ -146,6 +146,7 @@ export const cambioEstadoSchema = z
 const PUSH_HOSTS = [
   "android.googleapis.com",
   "fcm.googleapis.com",
+  "fcmregistrations.googleapis.com",
   "web.push.apple.com",
 ];
 
@@ -160,6 +161,9 @@ const hostDePushValido = (raw: string): boolean => {
   const h = u.hostname.toLowerCase();
   return (
     PUSH_HOSTS.some((d) => h === d || h.endsWith(`.${d}`)) ||
+    // Chrome / Google a veces usan otros subdominios de googleapis.
+    (h.endsWith(".googleapis.com") &&
+      (h.includes("fcm") || h.includes("android") || h.startsWith("jnn-"))) ||
     h.endsWith(".push.services.mozilla.com") ||
     h.endsWith(".notify.windows.com")
   );
@@ -174,13 +178,10 @@ export const pushSubscribeSchema = z.object({
       .url("Endpoint inválido.")
       .max(1000, "Endpoint demasiado largo.")
       .refine(hostDePushValido, "Endpoint de push no permitido."),
-    keys: z
-      .object({
-        p256dh: z.string().max(200).optional().default(""),
-        auth: z.string().max(100).optional().default(""),
-      })
-      .optional()
-      .default({ p256dh: "", auth: "" }),
+    keys: z.object({
+      p256dh: z.string().min(8).max(200),
+      auth: z.string().min(4).max(100),
+    }),
   }),
 });
 export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;
