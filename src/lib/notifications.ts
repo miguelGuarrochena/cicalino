@@ -1,6 +1,8 @@
-// Helpers de notificaciones del prototipo (cliente).
-// Sin VAPID/servidor todavía: registramos SW y mostramos notificación local
-// cuando el pedido pasa a listo (funciona con la pestaña en segundo plano).
+// Helpers de notificaciones del cliente (Web Push + aviso local).
+// En Android/Chrome el aviso sale en la barra del sistema pero suele
+// mostrarse como notificación de Chrome: es lo esperado en la web
+// (no es una app nativa). Con VAPID + SW también llega con la pestaña
+// en segundo plano.
 
 export const registrarServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {

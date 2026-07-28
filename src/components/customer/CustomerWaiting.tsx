@@ -44,9 +44,11 @@ export const CustomerWaiting = ({ token }: Props) => {
   }, []);
 
   const status = order?.status ?? "creado";
-  const listo = status === "listo" || status === "retirado";
-  const cancelado = status === "cancelado";
-  const cerrado = listo || cancelado;
+  const esListo = status === "listo";
+  const esRetirado = status === "retirado" || confirmado;
+  const esCancelado = status === "cancelado";
+  const esOk = esListo || esRetirado;
+  const cerrado = esOk || esCancelado;
   const waiting = hydrated && !!order && !cerrado;
 
   // Aviso al intentar cerrar/recargar mientras espera
@@ -109,90 +111,96 @@ export const CustomerWaiting = ({ token }: Props) => {
   }
 
   return (
-    <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 py-14 text-center">
-      <Controls className="absolute right-4 top-4" />
+    <main className="relative flex min-h-dvh flex-col items-center px-6 pb-14 pt-16 text-center">
+      <Controls className="absolute right-4 top-4 z-20" />
 
+      {/* Aviso en el flujo (no absolute) para no tapar el nombre del local */}
       {waiting && (
-        <p className="u-in absolute inset-x-4 top-14 mx-auto max-w-sm rounded-2xl border border-amber-300/50 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900/80 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100/90">
+        <p className="u-in mb-6 w-full max-w-sm rounded-2xl border border-amber-300/50 bg-amber-50 px-3 py-2.5 text-xs font-medium leading-snug text-amber-900/80 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100/90">
           {pushActivo ? t("cliente.noCerrarPush") : t("cliente.noCerrar")}
         </p>
       )}
 
-      <div className="u-in flex flex-col items-center gap-1">
-        {order.nombreLocal && (
-          <span className="mb-1 font-display text-xl uppercase tracking-tight text-carbon sm:text-2xl">
-            {order.nombreLocal}
+      <div className="u-in flex flex-1 flex-col items-center justify-center">
+        <div className="flex flex-col items-center gap-1">
+          {order.nombreLocal && (
+            <span className="mb-1 max-w-[16rem] truncate font-display text-lg uppercase tracking-tight text-carbon/70 sm:max-w-xs sm:text-xl">
+              {order.nombreLocal}
+            </span>
+          )}
+          <span className="text-xs uppercase tracking-widest text-carbon/40">
+            {t(`modo.${order.modo}`)}
           </span>
-        )}
-        <span className="text-xs uppercase tracking-widest text-carbon/40">
-          {t(`modo.${order.modo}`)}
-        </span>
-        <span className="font-display text-6xl leading-none text-marca">
-          {order.referencia}
-        </span>
-      </div>
-
-      <div className="relative my-8 flex size-60 max-w-full items-center justify-center sm:size-64">
-        <span
-          className={`pointer-events-none absolute inset-0 m-auto size-52 rounded-full transition-colors duration-500 sm:size-56 ${
-            cancelado
-              ? "bg-red-400/10"
-              : listo
-                ? "bg-emerald-400/15"
-                : "bg-amber-400/15"
-          }`}
-        />
-        {!cerrado && (
-          <span className="pointer-events-none absolute inset-0 m-auto size-52 animate-ping rounded-full bg-amber-400/10 sm:size-56" />
-        )}
-        <div
-          key={cancelado ? "cancel" : listo ? "ok" : "chef"}
-          className={`relative z-10 flex size-full items-center justify-center ${
-            cerrado ? "u-pop" : "u-float"
-          }`}
-        >
-          <ThemedImg
-            name={listo ? "ok" : "chef"}
-            alt=""
-            className={`max-h-44 w-auto sm:max-h-48 ${cancelado ? "opacity-40 grayscale" : ""}`}
-          />
+          <span className="font-display text-6xl leading-none text-marca">
+            {order.referencia}
+          </span>
         </div>
-      </div>
 
-      <div className="u-in min-h-[92px]">
-        {cancelado ? (
-          <>
-            <p className="font-display text-3xl uppercase tracking-tight text-red-600/80">
-              {t("cliente.canceladoTitulo")}
-            </p>
-            <p className="mt-2 text-carbon/60">{t("cliente.canceladoSub")}</p>
-          </>
-        ) : listo ? (
-          <>
-            <p className="font-display text-3xl uppercase tracking-tight text-emerald-600">
-              {t("cliente.listoTitulo")}
-            </p>
-            <p className="mt-2 text-carbon/60">{t("cliente.listoSub")}</p>
-          </>
-        ) : (
-          <>
-            <p className="font-display text-2xl uppercase tracking-tight text-carbon sm:text-3xl">
-              {t("cliente.preparandoTitulo")}
-            </p>
-            <p className="mt-2 max-w-sm text-carbon/60">
-              {t("cliente.preparandoSub")}
-            </p>
-          </>
-        )}
-      </div>
+        <div className="relative my-8 flex size-60 max-w-full items-center justify-center sm:size-64">
+          <span
+            className={`pointer-events-none absolute inset-0 m-auto size-52 rounded-full transition-colors duration-500 sm:size-56 ${
+              esCancelado
+                ? "bg-red-400/10"
+                : esOk
+                  ? "bg-emerald-400/15"
+                  : "bg-amber-400/15"
+            }`}
+          />
+          {!cerrado && (
+            <span className="pointer-events-none absolute inset-0 m-auto size-52 animate-ping rounded-full bg-amber-400/10 sm:size-56" />
+          )}
+          <div
+            key={esCancelado ? "cancel" : esRetirado ? "done" : esListo ? "ok" : "chef"}
+            className={`relative z-10 flex size-full items-center justify-center ${
+              cerrado ? "u-pop" : "u-float"
+            }`}
+          >
+            <ThemedImg
+              name={esOk ? "ok" : "chef"}
+              alt=""
+              className={`max-h-44 w-auto sm:max-h-48 ${esCancelado ? "opacity-40 grayscale" : ""}`}
+            />
+          </div>
+        </div>
 
-      {status === "listo" && (
-        <div className="u-in mt-6 w-full max-w-sm">
-          {confirmado ? (
-            <p className="text-center text-sm font-semibold text-emerald-600">
-              {locale === "en" ? "Thanks! 🙌" : "¡Gracias! 🙌"}
-            </p>
+        <div className="u-in min-h-[92px]">
+          {esCancelado ? (
+            <>
+              <p className="font-display text-3xl uppercase tracking-tight text-red-600/80">
+                {t("cliente.canceladoTitulo")}
+              </p>
+              <p className="mt-2 text-carbon/60">{t("cliente.canceladoSub")}</p>
+            </>
+          ) : esRetirado ? (
+            <>
+              <p className="font-display text-3xl uppercase tracking-tight text-emerald-700">
+                {t("cliente.retiradoTitulo")}
+              </p>
+              <p className="mt-2 max-w-sm text-carbon/60">
+                {t("cliente.retiradoSub")}
+              </p>
+            </>
+          ) : esListo ? (
+            <>
+              <p className="font-display text-3xl uppercase tracking-tight text-emerald-600">
+                {t("cliente.listoTitulo")}
+              </p>
+              <p className="mt-2 text-carbon/60">{t("cliente.listoSub")}</p>
+            </>
           ) : (
+            <>
+              <p className="font-display text-2xl uppercase tracking-tight text-carbon sm:text-3xl">
+                {t("cliente.preparandoTitulo")}
+              </p>
+              <p className="mt-2 max-w-sm text-carbon/60">
+                {t("cliente.preparandoSub")}
+              </p>
+            </>
+          )}
+        </div>
+
+        {esListo && !esRetirado && (
+          <div className="u-in mt-6 w-full max-w-sm">
             <button
               type="button"
               onClick={marcarRetirado}
@@ -200,22 +208,22 @@ export const CustomerWaiting = ({ token }: Props) => {
             >
               {locale === "en" ? "I picked it up 👍" : "Ya lo retiré 👍"}
             </button>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
-      {!cerrado && (
-        <button
-          type="button"
-          onClick={activarAvisos}
-          disabled={pushActivo}
-          className="u-in mt-8 w-full max-w-sm rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
-        >
-          {pushActivo ? `${t("cliente.activados")} 🔔` : t("cliente.activar")}
-        </button>
-      )}
+        {!cerrado && (
+          <button
+            type="button"
+            onClick={activarAvisos}
+            disabled={pushActivo}
+            className="u-in mt-8 w-full max-w-sm rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
+          >
+            {pushActivo ? `${t("cliente.activados")} 🔔` : t("cliente.activar")}
+          </button>
+        )}
+      </div>
 
-      <p className="mt-12 text-xs text-carbon/35">
+      <p className="mt-8 text-xs text-carbon/35">
         {t("cliente.espera")} · cicalino.net
       </p>
     </main>
