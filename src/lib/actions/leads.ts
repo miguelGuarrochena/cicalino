@@ -5,7 +5,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { enviarEmail } from "@/lib/email/resend";
 import { emailLayout } from "@/lib/email/templates";
 import { verificarTurnstile } from "@/lib/security/turnstile";
-import { rateLimit } from "@/lib/security/rateLimit";
+import { rateLimitCompartido } from "@/lib/security/rateLimitShared";
 import { parsear, solicitudSchema } from "@/lib/schemas";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -41,7 +41,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
   }
 
   // Un mismo visitante no debería poder inundar la tabla de leads.
-  const porIp = rateLimit(`lead:ip:${ip ?? "sin-ip"}`, 5, 60 * 60_000);
+  const porIp = await rateLimitCompartido(`lead:ip:${ip ?? "sin-ip"}`, 5, 60 * 60_000);
   if (!porIp.ok) {
     return { ok: false, error: "Ya recibimos tu pedido. Te escribimos en breve." };
   }

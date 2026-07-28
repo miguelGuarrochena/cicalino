@@ -14,7 +14,11 @@ export interface EmployeeUI {
   id: string;
   nombre: string;
   rol: string;
-  pin: string;
+  /**
+   * Solo indica SI tiene PIN configurado. El PIN en sí nunca baja al navegador:
+   * se define y se verifica en el servidor (ver security-fixes-03.sql).
+   */
+  tienePin: boolean;
 }
 
 export type NewEmployeeInput = {
@@ -62,7 +66,7 @@ interface ConfigState {
   agregarEmpleado: (data: NewEmployeeInput) => void;
   actualizarEmpleado: (
     id: string,
-    campo: "nombre" | "rol" | "pin",
+    campo: "nombre" | "rol",
     valor: string,
   ) => void;
   quitarEmpleado: (id: string) => void;
@@ -92,8 +96,8 @@ const INICIAL = supabaseConfigurado
       cantidadMesas: 10,
       horaCorte: 6,
       empleados: [
-        { id: "emp-demo-1", nombre: "Lucía", rol: "Mozo", pin: "1234" },
-        { id: "emp-demo-2", nombre: "Marcos", rol: "Cocina", pin: "4321" },
+        { id: "emp-demo-1", nombre: "Lucía", rol: "Mozo", tienePin: false },
+        { id: "emp-demo-2", nombre: "Marcos", rol: "Cocina", tienePin: false },
       ] as EmployeeUI[],
     };
 
@@ -119,7 +123,8 @@ export const useConfigStore = create<ConfigState>()(
               id: crypto.randomUUID(),
               nombre: data.nombre.trim(),
               rol: (data.rol ?? "").trim(),
-              pin: (data.pin ?? "").replace(/\D/g, "").slice(0, 4),
+              // Modo demo (sin Supabase): no guardamos PINs en el navegador.
+              tienePin: Boolean((data.pin ?? "").trim()),
             },
           ],
         })),

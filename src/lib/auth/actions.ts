@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getPerfilActual } from "@/lib/auth/profile";
-import { rateLimit } from "@/lib/security/rateLimit";
+import { rateLimitCompartido } from "@/lib/security/rateLimitShared";
 import type { UserRole } from "@/lib/db/schema";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -42,8 +42,8 @@ export const signIn = async (
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || "sin-ip";
   const cuenta = email.trim().toLowerCase();
-  const porCuenta = rateLimit(`login:mail:${cuenta}`, 8, 10 * 60_000);
-  const porIp = rateLimit(`login:ip:${ip}`, 30, 10 * 60_000);
+  const porCuenta = await rateLimitCompartido(`login:mail:${cuenta}`, 8, 10 * 60_000);
+  const porIp = await rateLimitCompartido(`login:ip:${ip}`, 30, 10 * 60_000);
   if (!porCuenta.ok || !porIp.ok) {
     return {
       ok: false,

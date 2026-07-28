@@ -75,18 +75,20 @@ export const saveBranchConfig = async (
   return !error;
 };
 
+// El PIN NO viaja al navegador: la base solo expone `tiene_pin`. Definirlo y
+// verificarlo pasa por funciones del servidor (ver security-fixes-03.sql).
 type EmpRow = {
   id: string;
   nombre: string;
   rol: string | null;
-  pin: string | null;
+  tiene_pin: boolean | null;
 };
 
 const mapEmp = (r: EmpRow): EmployeeUI => ({
   id: r.id,
   nombre: r.nombre,
   rol: r.rol ?? "",
-  pin: r.pin ?? "",
+  tienePin: Boolean(r.tiene_pin),
 });
 
 export const fetchEmployees = async (
@@ -96,12 +98,46 @@ export const fetchEmployees = async (
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("empleados")
-    .select("id, nombre, rol, pin")
+    .select("id, nombre, rol, tiene_pin")
     .eq("local_id", branchId)
     .eq("activo", true)
     .order("created_at", { ascending: true });
   if (error || !data) return [];
   return (data as EmpRow[]).map(mapEmp);
+};
+
+/** Define o borra el PIN de un empleado (pasa por RPC: se guarda hasheado). */
+export const setEmployeePin = async (
+  empleadoId: string,
+  pin: string,
+): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return { ok: false, error: "Sin conexión." };
+  const { error } = await supabase.rpc("set_empleado_pin", {
+    p_empleado: empleadoId,
+    p_pin: pin || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+};
+
+/** Verifica el PIN al fichar. El cliente nunca ve el hash. */
+export const verifyEmployeePin = async (
+  empleadoId: string,
+  pin: string,
+): Promise<{ id: string; nombre: string } | null> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("verificar_pin_empleado", {
+    p_empleado: empleadoId,
+    p_pin: pin,
+  });
+  if (error) {
+    console.error("verifyEmployeePin", error.message);
+    return null;
+  }
+  const fila = Array.isArray(data) ? data[0] : data;
+  return fila ? { id: fila.id, nombre: fila.nombre } : null;
 };
 
 export const insertEmployee = async (
@@ -121,15 +157,25 @@ export const insertEmployee = async (
       local_id: branchId,
       nombre: v.data.nombre,
       rol: v.data.rol ?? null,
-      pin: v.data.pin || null,
     })
-    .select("id, nombre, rol, pin")
+    .select("id, nombre, rol, tiene_pin")
     .single();
   if (error || !row) {
     console.error("insertEmployee", error?.message);
     return null;
   }
-  return mapEmp(row as EmpRow);
+  const emp = mapEmp(row as EmpRow);
+
+  // El PIN se setea aparte, por RPC (queda hasheado del lado del servidor).
+  if (v.data.pin) {
+    const res = await setEmployeePin(emp.id, v.data.pin);
+    if (!res.ok) {
+      console.error("insertEmployee/pin", res.error);
+      return { ...emp, tienePin: false };
+    }
+    return { ...emp, tienePin: true };
+  }
+  return emp;
 };
 
 export interface BranchLite {

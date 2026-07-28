@@ -31,10 +31,5 @@ export const isPin4 = (v: string): boolean => {
   return /^\d{4}$/.test(v.trim());
 };
 
-export const pinEnUso = (pin: string, employees: { id: string; pin: string }[], exceptoId?: string): boolean => {
-  const p = pin.trim();
-  if (!p) return false;
-  return employees.some(
-    (e) => e.pin === p && (!exceptoId || e.id !== exceptoId),
-  );
-};
+// `pinEnUso` se eliminó: los PINs ya no bajan al navegador, así que el chequeo
+// de duplicados lo hace `set_empleado_pin` en la base (security-fixes-03.sql).

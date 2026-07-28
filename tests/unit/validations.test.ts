@@ -5,7 +5,6 @@ import {
   formatCuil,
   isWhatsapp,
   isPin4,
-  pinEnUso,
 } from "@/lib/validations";
 
 describe("isEmail", () => {
@@ -53,20 +52,5 @@ describe("isPin4", () => {
   });
 });
 
-describe("pinEnUso", () => {
-  const emps = [
-    { id: "a", pin: "1111" },
-    { id: "b", pin: "2222" },
-  ];
-  it("detecta PIN repetido", () => {
-    expect(pinEnUso("1111", emps)).toBe(true);
-    expect(pinEnUso("9999", emps)).toBe(false);
-  });
-  it("ignora al propio empleado", () => {
-    expect(pinEnUso("1111", emps, "a")).toBe(false);
-    expect(pinEnUso("1111", emps, "b")).toBe(true);
-  });
-  it("PIN vacío no está en uso", () => {
-    expect(pinEnUso("", emps)).toBe(false);
-  });
-});
+// El chequeo de PIN duplicado se movió a la base (`set_empleado_pin`): el
+// cliente ya no conoce los PINs, así que no se puede testear acá.

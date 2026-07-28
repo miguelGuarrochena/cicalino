@@ -6,6 +6,8 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
+import { verifyEmployeePin } from "@/lib/data/branch";
+import { supabaseConfigurado } from "@/lib/supabase/config";
 
 const inicial = (name: string) => {
   return (name.trim()[0] || "?").toUpperCase();
@@ -24,6 +26,7 @@ export const Fichaje = () => {
   const [pendiente, setPendiente] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
+  const [verificando, setVerificando] = useState(false);
   const [page, setPage] = useState(1);
 
   const withName = employees.filter((e) => e.nombre.trim());
@@ -32,25 +35,44 @@ export const Fichaje = () => {
   const elegir = (id: string) => {
         const emp = employees.find((e) => e.id === id);
         if (!emp) return;
-        if (emp.pin && emp.pin.trim()) {
+        if (emp.tienePin) {
           setPendiente(id);
           setPin("");
           setError(false);
         } else {
-          confirmar(id);
+          void confirmar(id);
         }
       };
 
-  const confirmar = (id: string, pinIngresado?: string) => {
+  // La verificación del PIN es del SERVIDOR (RPC verificar_pin_empleado).
+  // Antes se comparaba acá contra el PIN que venía en el store, así que se
+  // podía fichar como cualquiera abriendo devtools.
+  const confirmar = async (id: string, pinIngresado?: string) => {
         const emp = employees.find((e) => e.id === id);
         if (!emp) return;
-        const expected = (emp.pin ?? "").trim();
-        const ingresado = (pinIngresado ?? "").trim();
-        if (expected && expected !== ingresado) {
-          setError(true);
+
+        if (!emp.tienePin) {
+          fichar({ id: emp.id, nombre: emp.nombre });
+          cerrar();
           return;
         }
-        fichar({ id: emp.id, nombre: emp.nombre });
+
+        // Modo demo (sin Supabase): no hay backend contra el cual validar.
+        if (!supabaseConfigurado) {
+          fichar({ id: emp.id, nombre: emp.nombre });
+          cerrar();
+          return;
+        }
+
+        setVerificando(true);
+        const ok = await verifyEmployeePin(id, (pinIngresado ?? "").trim());
+        setVerificando(false);
+        if (!ok) {
+          setError(true);
+          setPin("");
+          return;
+        }
+        fichar({ id: ok.id, nombre: ok.nombre });
         cerrar();
       };
 

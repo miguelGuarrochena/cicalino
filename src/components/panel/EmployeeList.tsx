@@ -7,7 +7,7 @@ import { useSessionStore } from "@/lib/store/session-store";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/Toast";
-import { isPin4, pinEnUso } from "@/lib/validations";
+import { isPin4 } from "@/lib/validations";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { insertEmployee, removeEmployeeDb } from "@/lib/data/branch";
@@ -43,8 +43,9 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const validar = (): FieldErrors => {
         const next: FieldErrors = {};
         if (!name.trim()) next.nombre = t("config.empNombreReq");
+        // El duplicado ya no se chequea acá: los PINs no bajan al navegador.
+        // Lo valida `set_empleado_pin` en la base y el error vuelve por el RPC.
         if (!isPin4(pin)) next.pin = t("config.empPinReq");
-        else if (pinEnUso(pin, employees)) next.pin = t("config.empPinDup");
         return next;
       };
 
@@ -222,7 +223,7 @@ export const EmployeeList = () => {
                   <p className="truncate text-xs text-carbon/50">
                     {e.rol || t("config.sinRol")}
                     {" · "}
-                    {e.pin ? t("config.pinOk") : t("config.sinPin")}
+                    {e.tienePin ? t("config.pinOk") : t("config.sinPin")}
                   </p>
                 </div>
                 {confirmId === e.id ? (
