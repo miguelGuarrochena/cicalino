@@ -222,7 +222,7 @@ export const OrgModal = ({
         actualizarOrg(org.id, data);
       }
       toast(t("toast.orgGuardada"), "success");
-      setMode("ver");
+      onClose();
     }
   };
 
