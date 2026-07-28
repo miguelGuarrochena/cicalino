@@ -51,10 +51,11 @@ export const POST = async (req: Request) => {
     .select("id, endpoint, p256dh, auth")
     .eq("pedido_id", orderId);
 
-  const tag = `cicalino-${orderId}-${Date.now()}`;
+  // Tag estable por pedido: reemplaza el aviso en vez de acumular (menos spam).
+  const tag = `cicalino-${orderId}`;
   const payload = JSON.stringify({
-    titulo: "Tu pedido está listo 🔔",
-    body: `Pedido ${pedido.referencia} · pasá a retirarlo.`,
+    titulo: "Cicalino",
+    body: `Pedido ${pedido.referencia} listo para retirar.`,
     url: `/p/${pedido.qr_token}`,
     pedidoId: orderId,
     tag,

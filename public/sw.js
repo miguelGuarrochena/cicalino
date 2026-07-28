@@ -3,7 +3,7 @@
  * - Web Push: muestra el aviso cuando el pedido pasa a "listo".
  */
 
-const CACHE = "cicalino-v4";
+const CACHE = "cicalino-v5";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [
   OFFLINE_URL,
@@ -83,14 +83,16 @@ self.addEventListener("push", (event) => {
       data = {};
     }
   }
-  const titulo = data.titulo || "Tu pedido está listo 🔔";
+  // Copy calmado + tag estable: Chrome Android marca como spam emojis,
+  // urgencia y muchas notificaciones distintas del mismo sitio.
+  const titulo = data.titulo || "Cicalino";
   const opciones = {
-    body: data.body || "Podés pasar a retirarlo.",
+    body: data.body || "Tu pedido está listo para retirar.",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    vibrate: [200, 80, 200, 80, 400],
-    tag: data.tag || `cicalino-${Date.now()}`,
-    renotify: true,
+    vibrate: [200, 100, 200],
+    tag: data.tag || "cicalino-pedido",
+    renotify: Boolean(data.tag),
     data: { url: data.url || "/" },
   };
   event.waitUntil(self.registration.showNotification(titulo, opciones));

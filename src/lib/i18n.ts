@@ -86,7 +86,7 @@ const dict = {
         prev: "Anterior",
         next: "Siguiente",
         swipe: "Deslizá o usá los botones",
-        push: "¡Tu pedido 42 está listo!",
+        push: "Pedido 42 listo para retirar.",
         scan: "Escaneás el QR. Sin instalar nada.",
         espera: "Dejás la pantalla abierta mientras preparan.",
         aviso: "Llega el aviso: ya podés retirar.",
@@ -198,7 +198,7 @@ const dict = {
       noEncontradoTitulo: "Pedido no encontrado",
       noEncontradoSub:
         "Este QR ya no es válido o expiró. Pedí uno nuevo en el mostrador.",
-      notifListo: "¡Tu pedido {n} está listo!",
+      notifListo: "Pedido {n} listo para retirar.",
     },
     modo: { pedido: "Pedido", nombre: "Cliente", mesa: "Mesa" },
     toast: {
@@ -437,7 +437,7 @@ const dict = {
         prev: "Back",
         next: "Next",
         swipe: "Swipe or use the buttons",
-        push: "Order 42 is ready!",
+        push: "Order 42 is ready for pickup.",
         scan: "Scan the QR. Nothing to install.",
         espera: "Keep the screen open while they prepare.",
         aviso: "You get the ping: time to pick it up.",
@@ -549,7 +549,7 @@ const dict = {
       noEncontradoTitulo: "Order not found",
       noEncontradoSub:
         "This QR is no longer valid or expired. Ask for a new one at the counter.",
-      notifListo: "Order {n} is ready!",
+      notifListo: "Order {n} is ready for pickup.",
     },
     modo: { pedido: "Order", nombre: "Customer", mesa: "Table" },
     toast: {

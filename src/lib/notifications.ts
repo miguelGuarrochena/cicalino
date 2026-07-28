@@ -145,10 +145,11 @@ export const mostrarAvisoListo = async (opts: {
     body: opts.body,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    tag: `cicalino-${opts.referencia}-${Date.now()}`,
+    // Mismo tag por referencia: un solo aviso, no una pila de spam.
+    tag: `cicalino-${opts.referencia}`,
     renotify: true,
     data: { url: opts.url },
-    vibrate: [200, 80, 200, 80, 400],
+    vibrate: [200, 100, 200],
   } as NotificationOptions & { renotify?: boolean; vibrate?: number[] };
 
   try {

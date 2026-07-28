@@ -17,18 +17,28 @@ interface Props {
   token: string;
 }
 
-/** Confeti + vibración + flash de fondo (también en re-avisos). */
+/** Confeti + vibración + flash (también en re-avisos).
+ * Si hay Web Push activo, NO mostramos notificación local: el SW ya la
+ * entrega y duplicar avisos hace que Chrome Android marque “posible spam”. */
 const senalListo = (opts?: {
   referencia?: string;
   token?: string;
   body?: string;
-  push?: boolean;
+  /** Solo fallback local si NO hay push (permiso sí, suscripción no). */
+  notifLocal?: boolean;
 }) => {
   if ("vibrate" in navigator) {
-    navigator.vibrate?.([200, 80, 200, 80, 400]);
+    navigator.vibrate?.([200, 100, 200]);
   }
   void lanzarConfetiListo();
-  if (opts?.push && opts.referencia && opts.token && opts.body) {
+  if (
+    opts?.notifLocal &&
+    opts.referencia &&
+    opts.token &&
+    opts.body &&
+    typeof document !== "undefined" &&
+    document.visibilityState === "hidden"
+  ) {
     void mostrarAvisoListo({
       referencia: opts.referencia,
       url: `/p/${opts.token}`,
@@ -120,7 +130,8 @@ export const CustomerWaiting = ({ token }: Props) => {
     setFlash(true);
     window.setTimeout(() => setFlash(false), 900);
     senalListo({
-      push: pushActivo,
+      // Con push activo el SW avisa; local solo como respaldo.
+      notifLocal: !pushActivo,
       referencia: order.referencia,
       token,
       body: t("cliente.notifListo", { n: order.referencia }),
