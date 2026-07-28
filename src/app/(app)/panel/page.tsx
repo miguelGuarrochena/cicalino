@@ -77,6 +77,7 @@ const PanelOrdersPage = () => {
   const [q, setQ] = useState("");
   const [createOpen, setCrearOpen] = useState(false);
   const [refDraft, setRefDraft] = useState("");
+  const [creating, setCreando] = useState(false);
   const [refError, setRefError] = useState(false);
 
   useEffect(() => {
@@ -150,22 +151,28 @@ const PanelOrdersPage = () => {
     }
   };
 
-  const handleCreate = async (reference: string) => {
+  const handleCreate = async (reference: string): Promise<boolean> => {
     const created = await createOrder(reference, activeEmployee);
     if (!created) {
       toast("No se pudo crear el pedido", "error");
-      return;
+      return false;
     }
     setQrOrder(created);
     setFiltro("todos");
     setQ("");
     dingNuevo();
     toast(t("toast.creado", { n: reference }), "success");
+    return true;
   };
 
   const abrirNuevo = () => {
     if (mode === "pedido") {
-      handleCreate(String(nextNumero));
+      void (async () => {
+        if (creating) return;
+        setCreando(true);
+        await handleCreate(String(nextNumero));
+        setCreando(false);
+      })();
       return;
     }
     setRefDraft("");
@@ -185,24 +192,27 @@ const PanelOrdersPage = () => {
     }
   };
 
-  const confirmarCrear = () => {
-        const valor = refDraft.trim();
-        if (!valor) {
-          setRefError(true);
-          return;
-        }
-        if (mode === "mesa") {
-          const n = parseInt(valor, 10);
-          if (!n || n < 1 || n > tableCount) {
-            setRefError(true);
-            return;
-          }
-          handleCreate(String(n));
-        } else {
-          handleCreate(valor);
-        }
-        setCrearOpen(false);
-      };
+  const confirmarCrear = async () => {
+    if (creating) return;
+    const valor = refDraft.trim();
+    if (!valor) {
+      setRefError(true);
+      return;
+    }
+    let ref = valor;
+    if (mode === "mesa") {
+      const n = parseInt(valor, 10);
+      if (!n || n < 1 || n > tableCount) {
+        setRefError(true);
+        return;
+      }
+      ref = String(n);
+    }
+    setCreando(true);
+    const ok = await handleCreate(ref);
+    setCreando(false);
+    if (ok) setCrearOpen(false);
+  };
 
   const labelFiltro = (f: FiltroEstado) => {
         if (f === "todos") return t("panel.filtroTodos");
@@ -386,6 +396,7 @@ const PanelOrdersPage = () => {
         <ModalShell
           onClose={() => setCrearOpen(false)}
           labelledBy="nuevo-pedido"
+          busy={creating}
         >
           <h3
             id="nuevo-pedido"
@@ -398,6 +409,7 @@ const PanelOrdersPage = () => {
           </p>
           <input
             autoFocus
+            disabled={creating}
             className={`${INPUT} mt-4 ${refError ? "border-red-400" : ""}`}
             value={refDraft}
             onChange={(e) => {
@@ -408,7 +420,7 @@ const PanelOrdersPage = () => {
               );
               setRefError(false);
             }}
-            onKeyDown={(e) => e.key === "Enter" && confirmarCrear()}
+            onKeyDown={(e) => e.key === "Enter" && void confirmarCrear()}
             placeholder={mode === "mesa" ? "12" : "Sofía"}
             inputMode={mode === "mesa" ? "numeric" : "text"}
           />
@@ -422,17 +434,19 @@ const PanelOrdersPage = () => {
           <div className="mt-5 flex gap-2">
             <button
               type="button"
+              disabled={creating}
               onClick={() => setCrearOpen(false)}
-              className="flex-1 rounded-full border border-linea px-4 py-3 text-sm font-semibold text-carbon"
+              className="flex-1 rounded-full border border-linea px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50"
             >
               {t("qr.cerrar")}
             </button>
             <button
               type="button"
-              onClick={confirmarCrear}
-              className="flex-1 rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema"
+              disabled={creating}
+              onClick={() => void confirmarCrear()}
+              className="flex-1 rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema disabled:opacity-60"
             >
-              {t("panel.crearYQr")}
+              {creating ? "…" : t("panel.crearYQr")}
             </button>
           </div>
         </ModalShell>

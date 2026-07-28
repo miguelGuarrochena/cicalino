@@ -150,6 +150,7 @@ export const OrgModal = ({
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
   const editing = mode === "crear" || mode === "editar";
 
   const [name, setName] = useState(org?.nombre ?? "");
@@ -256,34 +257,42 @@ export const OrgModal = ({
   };
 
   const togglePagado = async () => {
-    if (!vista) return;
+    if (!vista || busy) return;
     const next = !vista.pagado;
-    const prox = next
-      ? sumarCicloCobro(vista.plan)
-      : new Date();
+    const prox = next ? sumarCicloCobro(vista.plan) : new Date();
     const proximoCobroEn = prox ? prox.toISOString() : null;
-    if (live) {
-      await updateOrgDb(vista.id, {
-        pagado: next,
-        proximoCobroEn,
-      });
-      await refreshOrganizations();
-    } else {
-      toggleOrgPagado(vista.id);
+    setBusy(true);
+    try {
+      if (live) {
+        await updateOrgDb(vista.id, {
+          pagado: next,
+          proximoCobroEn,
+        });
+        await refreshOrganizations();
+      } else {
+        toggleOrgPagado(vista.id);
+      }
+      toast(next ? t("toast.orgPagado") : t("toast.orgImpago"), "info");
+    } finally {
+      setBusy(false);
     }
-    toast(next ? t("toast.orgPagado") : t("toast.orgImpago"), "info");
   };
 
   const toggleActivo = async () => {
-    if (!vista) return;
+    if (!vista || busy) return;
     const next = !vista.activo;
-    if (live) {
-      await updateOrgDb(vista.id, { activo: next });
-      await refreshOrganizations();
-    } else {
-      toggleOrgActivo(vista.id);
+    setBusy(true);
+    try {
+      if (live) {
+        await updateOrgDb(vista.id, { activo: next });
+        await refreshOrganizations();
+      } else {
+        toggleOrgActivo(vista.id);
+      }
+      toast(next ? t("toast.orgActiva") : t("toast.orgPausada"), "info");
+    } finally {
+      setBusy(false);
     }
-    toast(next ? t("toast.orgActiva") : t("toast.orgPausada"), "info");
   };
 
   const borrarSuc = async (sucId: string) => {
@@ -310,22 +319,27 @@ export const OrgModal = ({
   };
 
   const darMes = async () => {
-    if (!vista) return;
-    if (live) {
-      const base = enGracia(vista)
-        ? new Date(vista.mesGratisHasta as string)
-        : new Date();
-      base.setMonth(base.getMonth() + 1);
-      const iso = base.toISOString();
-      await updateOrgDb(vista.id, {
-        mesGratisHasta: iso,
-        proximoCobroEn: iso,
-      });
-      await refreshOrganizations();
-    } else {
-      giveFreeMonth(vista.id, 1);
+    if (!vista || busy) return;
+    setBusy(true);
+    try {
+      if (live) {
+        const base = enGracia(vista)
+          ? new Date(vista.mesGratisHasta as string)
+          : new Date();
+        base.setMonth(base.getMonth() + 1);
+        const iso = base.toISOString();
+        await updateOrgDb(vista.id, {
+          mesGratisHasta: iso,
+          proximoCobroEn: iso,
+        });
+        await refreshOrganizations();
+      } else {
+        giveFreeMonth(vista.id, 1);
+      }
+      toast(t("toast.mesGratis"), "success");
+    } finally {
+      setBusy(false);
     }
-    toast(t("toast.mesGratis"), "success");
   };
 
   const enterOwner = (branchId: string, branchNameLabel: string) => {
@@ -349,6 +363,7 @@ export const OrgModal = ({
     <ModalShell
       onClose={onClose}
       labelledBy="org-modal-title"
+      busy={saving || busy}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -485,14 +500,15 @@ export const OrgModal = ({
               <button
                 type="button"
                 onClick={() => setMode("ver")}
-                className="flex-1 rounded-full border border-linea py-2.5 text-sm font-semibold text-carbon/70"
+                disabled={saving}
+                className="flex-1 rounded-full border border-linea py-2.5 text-sm font-semibold text-carbon/70 disabled:opacity-50"
               >
                 {t("super.cancelar")}
               </button>
             )}
             <button
               type="button"
-              onClick={guardar}
+              onClick={() => void guardar()}
               disabled={saving}
               className="flex-1 rounded-full bg-marca py-2.5 text-sm font-semibold text-crema hover:bg-marca-fuerte disabled:opacity-60"
             >
@@ -577,8 +593,8 @@ export const OrgModal = ({
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={togglePagado}
-                disabled={vista.plan === "gratis" || enGracia(vista)}
+                onClick={() => void togglePagado()}
+                disabled={busy || vista.plan === "gratis" || enGracia(vista)}
                 title={
                   enGracia(vista)
                     ? "Durante la cortesía no hay cobro"
@@ -596,15 +612,17 @@ export const OrgModal = ({
               </button>
               <button
                 type="button"
-                onClick={darMes}
-                className="rounded-full bg-marca/10 px-3 py-1.5 text-xs font-semibold text-marca"
+                onClick={() => void darMes()}
+                disabled={busy}
+                className="rounded-full bg-marca/10 px-3 py-1.5 text-xs font-semibold text-marca disabled:opacity-50"
               >
                 + Mes gratis
               </button>
               <button
                 type="button"
-                onClick={toggleActivo}
-                className="rounded-full bg-carbon/8 px-3 py-1.5 text-xs font-semibold text-carbon/70"
+                onClick={() => void toggleActivo()}
+                disabled={busy}
+                className="rounded-full bg-carbon/8 px-3 py-1.5 text-xs font-semibold text-carbon/70 disabled:opacity-50"
               >
                 {vista.activo ? t("super.pausar") : t("super.activar")}
               </button>

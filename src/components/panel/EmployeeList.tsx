@@ -39,44 +39,49 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const [role, setRole] = useState("");
   const [pin, setPin] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [saving, setSaving] = useState(false);
 
   const validar = (): FieldErrors => {
-        const next: FieldErrors = {};
-        if (!name.trim()) next.nombre = t("config.empNombreReq");
-        // El duplicado ya no se chequea acá: los PINs no bajan al navegador.
-        // Lo valida `set_empleado_pin` en la base y el error vuelve por el RPC.
-        if (!isPin4(pin)) next.pin = t("config.empPinReq");
-        return next;
-      };
+    const next: FieldErrors = {};
+    if (!name.trim()) next.nombre = t("config.empNombreReq");
+    // El duplicado ya no se chequea acá: los PINs no bajan al navegador.
+    // Lo valida `set_empleado_pin` en la base y el error vuelve por el RPC.
+    if (!isPin4(pin)) next.pin = t("config.empPinReq");
+    return next;
+  };
 
   const guardar = async () => {
-        const next = validar();
-        setErrors(next);
-        if (Object.keys(next).length) return;
-        try {
-          if (live && branchId) {
-            const created = await insertEmployee(branchId, {
-              nombre: name,
-              rol: role,
-              pin,
-            });
-            if (!created) {
-              toast(t("toast.empError"), "error");
-              return;
-            }
-            pushEmpleado(created);
-          } else {
-            addEmployee({ nombre: name, rol: role, pin });
-          }
-          toast(t("toast.empAgregado"), "success");
-          onClose();
-        } catch {
+    if (saving) return;
+    const next = validar();
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setSaving(true);
+    try {
+      if (live && branchId) {
+        const created = await insertEmployee(branchId, {
+          nombre: name,
+          rol: role,
+          pin,
+        });
+        if (!created) {
           toast(t("toast.empError"), "error");
+          return;
         }
-      };
+        pushEmpleado(created);
+      } else {
+        addEmployee({ nombre: name, rol: role, pin });
+      }
+      toast(t("toast.empAgregado"), "success");
+      onClose();
+    } catch {
+      toast(t("toast.empError"), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <ModalShell onClose={onClose} labelledBy="emp-modal-title">
+    <ModalShell onClose={onClose} labelledBy="emp-modal-title" busy={saving}>
       <div className="mb-5 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3
@@ -90,8 +95,9 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
         <button
           type="button"
           onClick={onClose}
+          disabled={saving}
           aria-label={t("qr.cerrar")}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-linea text-carbon/50 transition hover:bg-carbon/5"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-linea text-carbon/50 transition hover:bg-carbon/5 disabled:opacity-50"
         >
           ✕
         </button>
@@ -104,13 +110,14 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
           </span>
           <input
             autoFocus
+            disabled={saving}
             className={`${INPUT} ${errors.nombre ? "border-red-400" : ""}`}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
               setErrors((er) => ({ ...er, nombre: undefined }));
             }}
-            onKeyDown={(e) => e.key === "Enter" && guardar()}
+            onKeyDown={(e) => e.key === "Enter" && void guardar()}
             placeholder="Lucía"
           />
           {errors.nombre && (
@@ -123,10 +130,11 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
             {t("config.empRol")}
           </span>
           <input
+            disabled={saving}
             className={INPUT}
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && guardar()}
+            onKeyDown={(e) => e.key === "Enter" && void guardar()}
             placeholder={t("config.empRolPh")}
           />
         </label>
@@ -136,6 +144,7 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
             {t("config.empPin")} *
           </span>
           <input
+            disabled={saving}
             inputMode="numeric"
             maxLength={4}
             className={`${INPUT} tracking-[0.35em] ${errors.pin ? "border-red-400" : ""}`}
@@ -144,7 +153,7 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
               setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
               setErrors((er) => ({ ...er, pin: undefined }));
             }}
-            onKeyDown={(e) => e.key === "Enter" && guardar()}
+            onKeyDown={(e) => e.key === "Enter" && void guardar()}
             placeholder="••••"
           />
           <span className="text-xs text-carbon/45">{t("config.empPinHint")}</span>
@@ -158,16 +167,18 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 rounded-full border border-linea px-4 py-3 text-sm font-semibold text-carbon transition hover:bg-carbon/5"
+          disabled={saving}
+          className="flex-1 rounded-full border border-linea px-4 py-3 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-50"
         >
           {t("qr.cerrar")}
         </button>
         <button
           type="button"
-          onClick={guardar}
-          className="flex-1 rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
+          onClick={() => void guardar()}
+          disabled={saving}
+          className="flex-1 rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60"
         >
-          {t("config.guardarEmp")}
+          {saving ? "…" : t("config.guardarEmp")}
         </button>
       </div>
     </ModalShell>
@@ -183,6 +194,7 @@ export const EmployeeList = () => {
   const live = supabaseConfigurado && isRealBranchId(branchId);
   const [modal, setModal] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [borrando, setBorrando] = useState(false);
   const [page, setPage] = useState(1);
 
   const pageItems = slicePage(employees, page, PAGE_SIZE);
@@ -230,21 +242,28 @@ export const EmployeeList = () => {
                   <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row sm:items-center">
                     <button
                       type="button"
+                      disabled={borrando}
                       onClick={async () => {
-                        if (live) await removeEmployeeDb(e.id);
-                        removeEmployee(e.id);
-                        setConfirmId(null);
-                        toast(t("toast.empBorrado"), "info");
-                        const remaining = employees.length - 1;
-                        const maxPage = Math.max(
-                          1,
-                          Math.ceil(remaining / PAGE_SIZE),
-                        );
-                        if (page > maxPage) setPage(maxPage);
+                        if (borrando) return;
+                        setBorrando(true);
+                        try {
+                          if (live) await removeEmployeeDb(e.id);
+                          removeEmployee(e.id);
+                          setConfirmId(null);
+                          toast(t("toast.empBorrado"), "info");
+                          const remaining = employees.length - 1;
+                          const maxPage = Math.max(
+                            1,
+                            Math.ceil(remaining / PAGE_SIZE),
+                          );
+                          if (page > maxPage) setPage(maxPage);
+                        } finally {
+                          setBorrando(false);
+                        }
                       }}
-                      className="rounded-full bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600"
+                      className="rounded-full bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
                     >
-                      {t("config.borrar")}
+                      {borrando ? "…" : t("config.borrar")}
                     </button>
                     <button
                       type="button"

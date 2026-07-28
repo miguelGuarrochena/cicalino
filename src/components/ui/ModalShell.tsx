@@ -9,23 +9,26 @@ export const ModalShell = ({
   children,
   onClose,
   labelledBy,
+  busy = false,
 }: {
   children: React.ReactNode;
   onClose: () => void;
   labelledBy?: string;
+  /** Mientras guarda/verifica: no cerrar con Esc ni click afuera. */
+  busy?: boolean;
 }) => {
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose();
-          };
+      if (e.key === "Escape" && !busy) onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [onClose, busy]);
 
   if (typeof document === "undefined") return null;
 
@@ -37,13 +40,17 @@ export const ModalShell = ({
       <button
         type="button"
         aria-label="Cerrar"
-        className="absolute inset-0 bg-black/55 backdrop-blur-sm"
-        onClick={onClose}
+        disabled={busy}
+        className="absolute inset-0 bg-black/55 backdrop-blur-sm disabled:cursor-wait"
+        onClick={() => {
+          if (!busy) onClose();
+        }}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
+        aria-busy={busy || undefined}
         className="u-pop relative z-10 flex max-h-[min(92dvh,760px)] w-full max-w-md flex-col overflow-hidden rounded-[28px] border border-linea bg-surface shadow-2xl sm:max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >

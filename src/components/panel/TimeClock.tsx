@@ -114,7 +114,7 @@ export const Fichaje = () => {
       </button>
 
       {open && (
-        <ModalShell onClose={cerrar} labelledBy="fichaje-title">
+        <ModalShell onClose={cerrar} labelledBy="fichaje-title" busy={verificando}>
           {withName.length === 0 ? (
             <p className="py-6 text-center text-sm text-carbon/50">
               {t("fichaje.sinEmpleados")}
@@ -133,6 +133,7 @@ export const Fichaje = () => {
               <p className="mt-2 text-xs text-carbon/45">{t("fichaje.pinExplica")}</p>
               <input
                 autoFocus
+                disabled={verificando}
                 inputMode="numeric"
                 maxLength={4}
                 value={pin}
@@ -140,11 +141,13 @@ export const Fichaje = () => {
                   setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
                   setError(false);
                 }}
-                onKeyDown={(e) =>
-                  e.key === "Enter" && confirmar(pendiente, pin)
-                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !verificando) {
+                    void confirmar(pendiente, pin);
+                  }
+                }}
                 placeholder="••••"
-                className={`mt-4 w-full rounded-xl border px-4 py-3 text-center text-lg tracking-[0.45em] outline-none ${
+                className={`mt-4 w-full rounded-xl border px-4 py-3 text-center text-lg tracking-[0.45em] outline-none disabled:opacity-60 ${
                   error ? "border-red-400" : "border-linea"
                 } bg-crema/40`}
               />
@@ -156,21 +159,23 @@ export const Fichaje = () => {
               <div className="mt-4 flex gap-2">
                 <button
                   type="button"
+                  disabled={verificando}
                   onClick={() => {
                     setPendiente(null);
                     setPin("");
                     setError(false);
                   }}
-                  className="flex-1 rounded-full border border-linea px-4 py-3 text-sm font-semibold text-carbon"
+                  className="flex-1 rounded-full border border-linea px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50"
                 >
                   {t("fichaje.atras")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => confirmar(pendiente, pin)}
-                  className="flex-1 rounded-full bg-marca py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte"
+                  disabled={verificando}
+                  onClick={() => void confirmar(pendiente, pin)}
+                  className="flex-1 rounded-full bg-marca py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
                 >
-                  {t("fichaje.entrar")}
+                  {verificando ? "…" : t("fichaje.entrar")}
                 </button>
               </div>
             </div>

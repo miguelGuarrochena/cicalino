@@ -66,6 +66,7 @@ const ConfigPage = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const c = useConfigStore();
   const [guardado, setGuardado] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
   const modes: {
@@ -92,28 +93,32 @@ const ConfigPage = () => {
       };
 
   const guardar = async () => {
-        const next = validar();
-        setErrors(next);
-        if (Object.keys(next).length) return;
-        try {
-          if (supabaseConfigurado && isRealBranchId(branchId)) {
-            await saveBranchConfig(branchId, {
-              nombre: c.nombre,
-              tipo: c.tipo,
-              whatsapp: c.whatsapp,
-              direccion: c.direccion,
-              modo: c.modo,
-              cantidadMesas: c.cantidadMesas,
-              horaCorte: c.horaCorte,
-            });
-          }
-          setGuardado(true);
-          toast(t("toast.configGuardada"), "success");
-          setTimeout(() => setGuardado(false), 2200);
-        } catch {
-          toast(t("toast.configError"), "error");
-        }
-      };
+    if (saving) return;
+    const next = validar();
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setSaving(true);
+    try {
+      if (supabaseConfigurado && isRealBranchId(branchId)) {
+        await saveBranchConfig(branchId, {
+          nombre: c.nombre,
+          tipo: c.tipo,
+          whatsapp: c.whatsapp,
+          direccion: c.direccion,
+          modo: c.modo,
+          cantidadMesas: c.cantidadMesas,
+          horaCorte: c.horaCorte,
+        });
+      }
+      setGuardado(true);
+      toast(t("toast.configGuardada"), "success");
+      setTimeout(() => setGuardado(false), 2200);
+    } catch {
+      toast(t("toast.configError"), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (role === "empleado" || role === "superadmin") return <NoAccess />;
 
@@ -125,10 +130,15 @@ const ConfigPage = () => {
         </h1>
         <button
           type="button"
-          onClick={guardar}
-          className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 sm:w-auto"
+          onClick={() => void guardar()}
+          disabled={saving}
+          className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60 sm:w-auto"
         >
-          {guardado ? `✓ ${t("config.guardado")}` : t("config.guardar")}
+          {saving
+            ? "…"
+            : guardado
+              ? `✓ ${t("config.guardado")}`
+              : t("config.guardar")}
         </button>
       </div>
 
