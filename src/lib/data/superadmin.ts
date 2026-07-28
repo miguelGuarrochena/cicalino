@@ -33,6 +33,7 @@ type OrgDb = {
   activo: boolean;
   plan: string | null;
   mes_gratis_hasta: string | null;
+  proximo_cobro_en: string | null;
   creado_en: string;
   locales: BranchDb[] | null;
 };
@@ -50,6 +51,7 @@ const mapOrg = (o: OrgDb): OrganizationRow => ({
   activo: o.activo,
   plan: (o.plan as PlanTipo) ?? "mensual",
   mesGratisHasta: o.mes_gratis_hasta ?? null,
+  proximoCobroEn: o.proximo_cobro_en ?? null,
   altaEn: o.creado_en,
   sucursales: (o.locales ?? []).map((l) => ({
     id: l.id,
@@ -68,7 +70,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, creado_en, locales(id, nombre, tipo_negocio, direccion)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, creado_en, locales(id, nombre, tipo_negocio, direccion)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
@@ -98,6 +100,7 @@ export const updateOrgDb = async (
     activo: boolean;
     plan: PlanTipo;
     mesGratisHasta: string | null;
+    proximoCobroEn: string | null;
   }>,
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
@@ -114,6 +117,7 @@ export const updateOrgDb = async (
   if (patch.activo != null) db.activo = patch.activo;
   if (patch.plan != null) db.plan = patch.plan;
   if (patch.mesGratisHasta !== undefined) db.mes_gratis_hasta = patch.mesGratisHasta;
+  if (patch.proximoCobroEn !== undefined) db.proximo_cobro_en = patch.proximoCobroEn;
   const { error } = await supabase
     .from("organizaciones")
     .update(db)

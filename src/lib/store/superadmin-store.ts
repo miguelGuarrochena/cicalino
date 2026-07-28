@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { TipoNegocio } from "@/lib/store/config-store";
 import { supabaseConfigurado } from "@/lib/supabase/config";
+import { sumarCicloCobro } from "@/lib/billing";
 
 /** Precio mensual por sucursal activa (ARS). */
 export const PRECIO_POR_SUCURSAL = 20000;
@@ -34,6 +35,8 @@ export interface OrganizationRow {
   plan: PlanTipo;
   /** Fecha hasta la cual no se cobra (mes gratis / prueba). ISO o null. */
   mesGratisHasta: string | null;
+  /** Próximo cobro esperado (ISO). Null = sin fecha cargada. */
+  proximoCobroEn: string | null;
   altaEn: string;
   sucursales: BranchRow[];
 }
@@ -99,6 +102,7 @@ const seed = (): OrganizationRow[] => {
       activo: true,
       plan: "mensual",
       mesGratisHasta: null,
+      proximoCobroEn: dia(5),
       altaEn: dia(40),
       sucursales: [
         {
@@ -134,6 +138,7 @@ const seed = (): OrganizationRow[] => {
       activo: true,
       plan: "mensual",
       mesGratisHasta: null,
+      proximoCobroEn: dia(-2),
       altaEn: dia(7),
       sucursales: [
         {
@@ -195,6 +200,7 @@ export const useSuperadminStore = create<SuperadminState>()(
               activo: true,
               plan: data.plan ?? "mensual",
               mesGratisHasta: null,
+              proximoCobroEn: null,
               altaEn: new Date().toISOString(),
               sucursales: [],
             },
@@ -232,9 +238,19 @@ export const useSuperadminStore = create<SuperadminState>()(
 
       toggleOrgPagado: (id) =>
         set((s) => ({
-          organizaciones: s.organizaciones.map((o) =>
-            o.id === id ? { ...o, pagado: !o.pagado } : o,
-          ),
+          organizaciones: s.organizaciones.map((o) => {
+            if (o.id !== id) return o;
+            const next = !o.pagado;
+            if (!next) {
+              return { ...o, pagado: false, proximoCobroEn: new Date().toISOString() };
+            }
+            const prox = sumarCicloCobro(o.plan);
+            return {
+              ...o,
+              pagado: true,
+              proximoCobroEn: prox ? prox.toISOString() : null,
+            };
+          }),
         })),
 
       darMesGratis: (id, meses = 1) =>
@@ -245,7 +261,8 @@ export const useSuperadminStore = create<SuperadminState>()(
               ? new Date(o.mesGratisHasta as string)
               : new Date();
             base.setMonth(base.getMonth() + meses);
-            return { ...o, mesGratisHasta: base.toISOString() };
+            const iso = base.toISOString();
+            return { ...o, mesGratisHasta: iso, proximoCobroEn: iso };
           }),
         })),
 

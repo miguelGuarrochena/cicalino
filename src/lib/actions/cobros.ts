@@ -1,0 +1,161 @@
+"use server";
+
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { getPerfilActual } from "@/lib/auth/profile";
+import { enviarEmail } from "@/lib/email/resend";
+import { emailLayout } from "@/lib/email/templates";
+import { appBaseUrl } from "@/lib/appUrl";
+import {
+  orgCobroPendiente,
+  motivoCobro,
+  type OrgCobro,
+} from "@/lib/billing";
+
+type OrgRow = OrgCobro & {
+  id: string;
+  nombre: string;
+  dueno_email: string;
+  plan: string;
+  aviso_cobro_en: string | null;
+  mes_gratis_hasta: string | null;
+  proximo_cobro_en: string | null;
+};
+
+const mapRow = (r: {
+  id: string;
+  nombre: string;
+  dueno_email: string;
+  activo: boolean;
+  pagado: boolean;
+  plan: string;
+  mes_gratis_hasta: string | null;
+  proximo_cobro_en: string | null;
+  aviso_cobro_en: string | null;
+}): OrgRow => ({
+  id: r.id,
+  nombre: r.nombre,
+  dueno_email: r.dueno_email,
+  activo: r.activo,
+  pagado: r.pagado,
+  plan: r.plan as OrgCobro["plan"],
+  mesGratisHasta: r.mes_gratis_hasta,
+  proximoCobroEn: r.proximo_cobro_en,
+  aviso_cobro_en: r.aviso_cobro_en,
+  mes_gratis_hasta: r.mes_gratis_hasta,
+  proximo_cobro_en: r.proximo_cobro_en,
+});
+
+const avisadoHoy = (iso: string | null): boolean => {
+  if (!iso) return false;
+  const a = new Date(iso);
+  const n = new Date();
+  return (
+    a.getFullYear() === n.getFullYear() &&
+    a.getMonth() === n.getMonth() &&
+    a.getDate() === n.getDate()
+  );
+};
+
+const esc = (s: string): string =>
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+/** Lista orgs que requieren atención de cobro (para el panel). */
+export const listarCobrosPendientes = async (): Promise<
+  { id: string; nombre: string; motivo: string; email: string }[]
+> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") return [];
+  const admin = createAdminSupabase();
+  if (!admin) return [];
+
+  const { data } = await admin
+    .from("organizaciones")
+    .select(
+      "id, nombre, dueno_email, activo, pagado, plan, mes_gratis_hasta, proximo_cobro_en, aviso_cobro_en",
+    )
+    .eq("activo", true);
+
+  return (data ?? [])
+    .map(mapRow)
+    .filter(orgCobroPendiente)
+    .map((o) => ({
+      id: o.id,
+      nombre: o.nombre,
+      motivo: motivoCobro(o),
+      email: o.dueno_email,
+    }));
+};
+
+/**
+ * Manda un mail resumen a LEAD_NOTIFY_EMAIL con los cobros a revisar.
+ * Anti-spam: como máximo 1 mail por org por día (aviso_cobro_en).
+ * Lo llama el cron diario y también al abrir /admin.
+ */
+export const enviarAvisosCobro = async (): Promise<{
+  ok: boolean;
+  avisados: number;
+}> => {
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, avisados: 0 };
+
+  const { data } = await admin
+    .from("organizaciones")
+    .select(
+      "id, nombre, dueno_email, activo, pagado, plan, mes_gratis_hasta, proximo_cobro_en, aviso_cobro_en",
+    )
+    .eq("activo", true);
+
+  const pendientes = (data ?? [])
+    .map(mapRow)
+    .filter(orgCobroPendiente)
+    .filter((o) => !avisadoHoy(o.aviso_cobro_en));
+
+  if (pendientes.length === 0) return { ok: true, avisados: 0 };
+
+  const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
+  const filas = pendientes
+    .map(
+      (o) =>
+        `<li style="margin:0 0 8px;"><b>${esc(o.nombre)}</b> — ${esc(motivoCobro(o))}<br/><span style="font-size:13px;opacity:.75;">${esc(o.dueno_email)}</span></li>`,
+    )
+    .join("");
+
+  const ok = await enviarEmail({
+    to: notify,
+    subject:
+      pendientes.length === 1
+        ? `Cobro pendiente — ${pendientes[0].nombre}`
+        : `${pendientes.length} cobros para revisar — Cicalino`,
+    html: emailLayout({
+      titulo: "Cobros a revisar",
+      cuerpoHtml: `<p style="margin:0 0 12px;">Estas empresas necesitan tu atención de cobro:</p><ul style="margin:0;padding-left:18px;">${filas}</ul>`,
+      cta: { label: "Abrir Superadmin", url: `${appBaseUrl()}/admin` },
+      pie: "Aviso automático de Cicalino · cobros",
+    }),
+  });
+
+  if (ok) {
+    const ahora = new Date().toISOString();
+    await Promise.all(
+      pendientes.map((o) =>
+        admin
+          .from("organizaciones")
+          .update({ aviso_cobro_en: ahora })
+          .eq("id", o.id),
+      ),
+    );
+  }
+
+  return { ok, avisados: ok ? pendientes.length : 0 };
+};
+
+/** Superadmin abre el panel: refresca avisos por mail si hace falta. */
+export const revisarCobrosAlAbrirAdmin = async (): Promise<void> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") return;
+  await enviarAvisosCobro();
+};

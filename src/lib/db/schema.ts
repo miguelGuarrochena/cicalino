@@ -79,6 +79,10 @@ export const organizations = pgTable("organizaciones", {
   plan: text("plan").notNull().default("mensual"),
   // Si está en el futuro, no se cobra (mes gratis / prueba).
   mesGratisHasta: timestamp("mes_gratis_hasta", { withTimezone: true }),
+  // Próximo cobro esperado (manual). Se actualiza al marcar Pagado / mes gratis.
+  proximoCobroEn: timestamp("proximo_cobro_en", { withTimezone: true }),
+  // Último mail de recordatorio de cobro (anti-spam).
+  avisoCobroEn: timestamp("aviso_cobro_en", { withTimezone: true }),
   creadoEn: timestamp("creado_en", { withTimezone: true })
     .notNull()
     .defaultNow(),

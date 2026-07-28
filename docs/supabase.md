@@ -154,6 +154,7 @@ Archivos: `src/lib/actions/superadmin.ts` (crear/eliminar), `src/lib/data/supera
 2. Corré en el SQL Editor (si aún no está):
    - la línea de `push_subscriptions` en `setup.sql`
    - `supabase/avisado-en.sql` (columna para re-avisar con la pestaña abierta)
+   - `supabase/proximo-cobro.sql` (fechas de cobro + avisos al superadmin)
 3. Flujo: el cliente toca "Activar avisos" → se suscribe (`/api/push/subscribe`).
    Cuando el panel marca **listo** (o **Volver a avisar**), llama a
    `/api/push/notify`: actualiza `avisado_en` (señal en pantalla) y, si hay

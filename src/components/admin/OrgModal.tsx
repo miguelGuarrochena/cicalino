@@ -7,14 +7,15 @@ import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
   PRECIO_POR_SUCURSAL,
-  monthlyCharge,
   cobroProximo,
+  montoMensual,
   enGracia,
   type OrganizationRow,
   type OrgInput,
   type BranchInput,
   type PlanTipo,
 } from "@/lib/store/superadmin-store";
+import { sumarCicloCobro } from "@/lib/billing";
 import type { TipoNegocio } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { isEmail, isCuil, isWhatsapp } from "@/lib/validations";
@@ -56,12 +57,49 @@ const PLAN_LABEL: Record<PlanTipo, string> = {
   gratis: "Gratis",
 };
 
+const PLAN_HELP: Record<PlanTipo, string> = {
+  mensual: "Cobro cada mes por sucursal contratada.",
+  anual: "Un solo cobro por año (precio de 10 meses: 2 de regalo).",
+  gratis: "Sin cobro. Cortesía permanente, no es el mes de prueba.",
+};
+
 const fechaCorta = (iso: string): string =>
   new Date(iso).toLocaleDateString("es-AR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
+
+/** Texto del próximo cobro según plan / cortesía / pagado. */
+const textoProximoCobro = (org: OrganizationRow): string => {
+  if (org.plan === "gratis") return "Sin próximo cobro (plan gratis).";
+  if (enGracia(org) && org.mesGratisHasta) {
+    const ciclo = org.plan === "anual" ? "anual" : "mensual";
+    return `Cortesía hasta el ${fechaCorta(org.mesGratisHasta)}. Después empieza el ciclo ${ciclo}.`;
+  }
+  if (!org.activo) return "Cuenta pausada: no se cobra.";
+  if (org.proximoCobroEn) {
+    const fecha = fechaCorta(org.proximoCobroEn);
+    if (!org.pagado) return `Pendiente de cobro · vencía el ${fecha}.`;
+    return org.plan === "anual"
+      ? `Próximo cobro anual: ${fecha}.`
+      : `Próximo cobro mensual: ${fecha}.`;
+  }
+  if (org.pagado) {
+    return org.plan === "anual"
+      ? "Al día. Marcá Pagado de nuevo al cobrar el próximo año (queda cargada la fecha)."
+      : "Al día. Marcá Pagado al cobrar el próximo mes (queda cargada la fecha).";
+  }
+  return org.plan === "anual"
+    ? "Pendiente: cobrá el año completo."
+    : "Pendiente: cobrá el mes en curso.";
+};
+
+const montoPlanPreview = (plan: PlanTipo, cupo: number): number => {
+  if (plan === "gratis") return 0;
+  const mes = cupo * PRECIO_POR_SUCURSAL;
+  return plan === "anual" ? mes * 10 : mes;
+};
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-3 py-2.5 text-sm text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20";
@@ -220,8 +258,15 @@ export const OrgModal = ({
   const togglePagado = async () => {
     if (!vista) return;
     const next = !vista.pagado;
+    const prox = next
+      ? sumarCicloCobro(vista.plan)
+      : new Date();
+    const proximoCobroEn = prox ? prox.toISOString() : null;
     if (live) {
-      await updateOrgDb(vista.id, { pagado: next });
+      await updateOrgDb(vista.id, {
+        pagado: next,
+        proximoCobroEn,
+      });
       await refreshOrganizations();
     } else {
       toggleOrgPagado(vista.id);
@@ -271,7 +316,11 @@ export const OrgModal = ({
         ? new Date(vista.mesGratisHasta as string)
         : new Date();
       base.setMonth(base.getMonth() + 1);
-      await updateOrgDb(vista.id, { mesGratisHasta: base.toISOString() });
+      const iso = base.toISOString();
+      await updateOrgDb(vista.id, {
+        mesGratisHasta: iso,
+        proximoCobroEn: iso,
+      });
       await refreshOrganizations();
     } else {
       giveFreeMonth(vista.id, 1);
@@ -378,17 +427,52 @@ export const OrgModal = ({
               />
             </Campo>
           </div>
-          <Campo label="Plan / ciclo de cobro">
-            <Select
-              value={plan}
-              onChange={(v) => setPlan(v as PlanTipo)}
-              options={[
-                { value: "mensual", label: "Mensual" },
-                { value: "anual", label: "Anual (2 meses gratis)" },
-                { value: "gratis", label: "Gratis (cortesía)" },
-              ]}
-            />
-          </Campo>
+          <div className="rounded-2xl border border-linea bg-crema/50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
+              Plan / ciclo de cobro
+            </p>
+            <div className="mt-2 flex flex-col gap-2">
+              {(["mensual", "anual", "gratis"] as PlanTipo[]).map((p) => {
+                const activo = plan === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPlan(p)}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                      activo
+                        ? "border-marca bg-marca/10 ring-2 ring-marca/20"
+                        : "border-linea bg-surface hover:bg-carbon/5"
+                    }`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-carbon">
+                        {p === "anual"
+                          ? "Anual (2 meses gratis)"
+                          : p === "gratis"
+                            ? "Gratis (cortesía)"
+                            : "Mensual"}
+                      </span>
+                      <span className="text-xs font-semibold text-marca">
+                        {money.format(montoPlanPreview(p, quota))}
+                        {p === "anual" ? "/año" : p === "mensual" ? "/mes" : ""}
+                      </span>
+                    </span>
+                    <span className="mt-0.5 block text-xs text-carbon/55">
+                      {PLAN_HELP[p]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-carbon/50">
+              {plan === "anual"
+                ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, quota))} una vez al año.`
+                : plan === "mensual"
+                  ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, quota))} cada mes.`
+                  : "Al guardar: sin cobro recurrente."}
+            </p>
+          </div>
           <Campo label={t("super.direccion")}>
             <input
               className={INPUT}
@@ -396,18 +480,6 @@ export const OrgModal = ({
               onChange={(e) => setDireccion(e.target.value)}
             />
           </Campo>
-          <p className="text-xs text-carbon/50">
-            {t("super.cobroEstimado", {
-              n: money.format(
-                plan === "gratis"
-                  ? 0
-                  : plan === "anual"
-                    ? quota * PRECIO_POR_SUCURSAL * 10
-                    : quota * PRECIO_POR_SUCURSAL,
-              ),
-            })}
-            {plan === "anual" ? " /año" : plan === "mensual" ? " /mes" : ""}
-          </p>
           <div className="mt-2 flex gap-2">
             {mode === "editar" && (
               <button
@@ -442,57 +514,119 @@ export const OrgModal = ({
               label={t("super.cupo")}
               value={`${vista.sucursales.length} / ${vista.cupo}`}
             />
-            <Dato label="Plan" value={PLAN_LABEL[vista.plan]} />
-            <Dato
-              label={vista.plan === "anual" ? "Cobro / año" : "Cobro / mes"}
-              value={money.format(cobroProximo(vista))}
-            />
             <Dato
               label={t("super.direccion")}
               value={vista.direccion || "—"}
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={togglePagado}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                vista.pagado
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-red-100 text-red-600"
-              }`}
-            >
-              {vista.pagado ? t("super.pagado") : t("super.impago")}
-            </button>
-            <button
-              type="button"
-              onClick={toggleActivo}
-              className="rounded-full bg-carbon/8 px-3 py-1.5 text-xs font-semibold text-carbon/70"
-            >
-              {vista.activo ? t("super.pausar") : t("super.activar")}
-            </button>
-            <button
-              type="button"
-              onClick={darMes}
-              className="rounded-full bg-marca/10 px-3 py-1.5 text-xs font-semibold text-marca"
-            >
-              + Mes gratis
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("editar")}
-              className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70"
-            >
-              {t("super.editar")}
-            </button>
-          </div>
+          {/* Bloque de cobro: lo más importante para el superadmin */}
+          <div className="rounded-2xl border border-linea bg-crema/50 p-3.5">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-carbon/45">
+                  Cobro
+                </p>
+                <p className="mt-1 font-display text-xl uppercase tracking-tight text-carbon">
+                  {PLAN_LABEL[vista.plan]}
+                  {vista.plan !== "gratis" && (
+                    <span className="ml-2 font-sans text-sm font-semibold normal-case tracking-normal text-marca">
+                      {money.format(
+                        enGracia(vista)
+                          ? montoPlanPreview(vista.plan, vista.cupo)
+                          : cobroProximo(vista) || montoMensual(vista),
+                      )}
+                      {vista.plan === "anual" ? "/año" : "/mes"}
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 max-w-sm text-xs leading-snug text-carbon/55">
+                  {textoProximoCobro(vista)}
+                </p>
+              </div>
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                  !vista.activo
+                    ? "bg-carbon/10 text-carbon/55"
+                    : enGracia(vista)
+                      ? "bg-sky-100 text-sky-800"
+                      : vista.pagado
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-red-100 text-red-600"
+                }`}
+              >
+                {!vista.activo
+                  ? "Pausada"
+                  : enGracia(vista)
+                    ? "En prueba"
+                    : vista.pagado
+                      ? "Pagado"
+                      : "Impago"}
+              </span>
+            </div>
 
-          {enGracia(vista) && vista.mesGratisHasta && (
-            <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-              En cortesía (sin cobro) hasta el {fechaCorta(vista.mesGratisHasta)}.
-            </p>
-          )}
+            {enGracia(vista) && vista.mesGratisHasta && (
+              <p className="mt-3 rounded-xl bg-sky-50 px-3 py-2 text-xs font-medium text-sky-900 dark:bg-sky-500/10 dark:text-sky-100">
+                Mes gratis / cortesía hasta el{" "}
+                <b>{fechaCorta(vista.mesGratisHasta)}</b>. El plan{" "}
+                {PLAN_LABEL[vista.plan].toLowerCase()} ya está cargado; el cobro
+                arranca cuando termine la prueba.
+              </p>
+            )}
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={togglePagado}
+                disabled={vista.plan === "gratis" || enGracia(vista)}
+                title={
+                  enGracia(vista)
+                    ? "Durante la cortesía no hay cobro"
+                    : vista.plan === "gratis"
+                      ? "Plan gratis: no aplica"
+                      : undefined
+                }
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
+                  vista.pagado
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-red-100 text-red-600"
+                }`}
+              >
+                {vista.pagado ? "Marcar impago" : "Marcar pagado"}
+              </button>
+              <button
+                type="button"
+                onClick={darMes}
+                className="rounded-full bg-marca/10 px-3 py-1.5 text-xs font-semibold text-marca"
+              >
+                + Mes gratis
+              </button>
+              <button
+                type="button"
+                onClick={toggleActivo}
+                className="rounded-full bg-carbon/8 px-3 py-1.5 text-xs font-semibold text-carbon/70"
+              >
+                {vista.activo ? t("super.pausar") : t("super.activar")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlan(vista.plan);
+                  setName(vista.nombre);
+                  setResponsable(vista.responsable);
+                  setTelefono(vista.telefono);
+                  setCuil(vista.cuil);
+                  setDireccion(vista.direccion);
+                  setOwnerEmail(vista.duenoEmail);
+                  setCupo(vista.cupo);
+                  setMode("editar");
+                }}
+                className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70"
+              >
+                Editar / cambiar plan
+              </button>
+            </div>
+          </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">

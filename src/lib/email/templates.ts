@@ -1,11 +1,9 @@
 import "server-only";
 
-import { appBaseUrl } from "@/lib/appUrl";
+import { assetUrl } from "@/lib/appUrl";
 
 // Layout de email branded (mascota + colores/tipografía de Cicalino).
 // HTML con estilos inline y tablas para compatibilidad con clientes de mail.
-
-const SITE = appBaseUrl();
 
 const MARCA = "#2536d4";
 const MARCA_FUERTE = "#1b28a8";
@@ -28,7 +26,10 @@ export const emailLayout = ({
   cuerpoHtml,
   cta,
   pie,
-}: EmailOpts): string => `<!doctype html>
+}: EmailOpts): string => {
+  // URL absoluta al momento del envío (no al import del módulo).
+  const logo = assetUrl("/bell-light.png");
+  return `<!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
@@ -42,7 +43,7 @@ export const emailLayout = ({
           <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:${SURFACE};border:1px solid ${LINEA};border-radius:24px;overflow:hidden;">
             <tr>
               <td align="center" style="padding:36px 32px 8px;">
-                <img src="${SITE}/bell-light.png" width="92" height="92" alt="Cicalino" style="display:block;border:0;outline:none;" />
+                <img src="${logo}" width="92" height="92" alt="Cicalino" style="display:block;border:0;outline:none;width:92px;height:92px;" />
               </td>
             </tr>
             <tr>
@@ -69,3 +70,4 @@ export const emailLayout = ({
     </table>
   </body>
 </html>`;
+};

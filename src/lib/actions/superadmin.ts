@@ -49,10 +49,12 @@ const crearOrganizacionValidada = async (
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
 
   let mesGratisHasta: string | null = null;
+  let proximoCobroEn: string | null = null;
   if (data.mesGratis) {
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
     mesGratisHasta = d.toISOString();
+    proximoCobroEn = mesGratisHasta;
   }
 
   // El cupo contratado tiene que alcanzar para las sucursales que se dan de
@@ -76,6 +78,7 @@ const crearOrganizacionValidada = async (
       cupo: data.cupo,
       plan: data.plan,
       mes_gratis_hasta: mesGratisHasta,
+      proximo_cobro_en: proximoCobroEn,
     })
     .select("id")
     .single();
