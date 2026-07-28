@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { webpush, vapidConfigurado } from "@/lib/push/server";
+import { parsear, pushNotifySchema } from "@/lib/schemas";
 
 // POST /api/push/notify  Body: { orderId }
 // Lo llama el panel al marcar un pedido "listo". Autoriza vía la sesión del
@@ -13,11 +14,11 @@ export const POST = async (req: Request) => {
   if (!vapidConfigurado) {
     return NextResponse.json({ ok: false, reason: "no-vapid" });
   }
-  const body = (await req.json().catch(() => null)) as { orderId?: string } | null;
-  const orderId = body?.orderId;
-  if (!orderId) {
+  const v = parsear(pushNotifySchema, await req.json().catch(() => null));
+  if (!v.ok) {
     return NextResponse.json({ ok: false, reason: "bad-request" }, { status: 400 });
   }
+  const { orderId } = v.data;
 
   // Autorización: el usuario logueado debe poder ver el pedido (RLS).
   const supabase = await createServerSupabase();

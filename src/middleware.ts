@@ -1,26 +1,52 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { buildCsp, cspEnforce } from "@/lib/security/csp";
 
 type CookieItem = { name: string; value: string; options?: CookieOptions };
+
+// Nonce por request para la CSP (Next lo aplica a sus scripts de hidratación).
+const nuevoNonce = (): string => {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes));
+};
 
 // Refresca la sesión de Supabase en (casi) todas las rutas para que la cookie
 // no expire al navegar a landing/precios/etc. Solo redirige a /login en áreas
 // protegidas sin usuario.
 export const middleware = async (req: NextRequest) => {
+  const nonce = nuevoNonce();
+  const csp = buildCsp(nonce);
+  const cspHeader = cspEnforce()
+    ? "Content-Security-Policy"
+    : "Content-Security-Policy-Report-Only";
+
+  // Next lee la CSP del REQUEST para saber qué nonce ponerle a sus scripts.
+  const reqHeaders = new Headers(req.headers);
+  reqHeaders.set("x-nonce", nonce);
+  reqHeaders.set("Content-Security-Policy", csp);
+
+  const conCsp = <T extends NextResponse>(r: T): T => {
+    r.headers.set(cspHeader, csp);
+    return r;
+  };
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) return NextResponse.next();
+  if (!url || !anon) {
+    return conCsp(NextResponse.next({ request: { headers: reqHeaders } }));
+  }
 
-  let res = NextResponse.next({ request: req });
+  let res = NextResponse.next({ request: { headers: reqHeaders } });
 
   const supabase = createServerClient(url, anon, {
     cookies: {
       getAll: () => req.cookies.getAll(),
       setAll: (list: CookieItem[]) => {
         list.forEach(({ name, value }) => req.cookies.set(name, value));
-        res = NextResponse.next({ request: req });
+        res = NextResponse.next({ request: { headers: reqHeaders } });
         list.forEach(({ name, value, options }) =>
           res.cookies.set({ name, value, ...options }),
         );
@@ -40,7 +66,7 @@ export const middleware = async (req: NextRequest) => {
     const login = req.nextUrl.clone();
     login.pathname = "/login";
     login.searchParams.set("next", path);
-    return NextResponse.redirect(login);
+    return conCsp(NextResponse.redirect(login));
   }
 
   // Si ya hay sesión y entra a /login, mandarlo a su área (según rol).
@@ -53,10 +79,10 @@ export const middleware = async (req: NextRequest) => {
     const dest = req.nextUrl.clone();
     dest.pathname = perfil?.rol === "superadmin" ? "/admin" : "/panel";
     dest.search = "";
-    return NextResponse.redirect(dest);
+    return conCsp(NextResponse.redirect(dest));
   }
 
-  return res;
+  return conCsp(res);
 };
 
 export const config = {

@@ -3,6 +3,7 @@
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { inicioJornada, finJornada } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
+import { nuevoPedidoSchema, parsear, transicionValida } from "@/lib/schemas";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -94,13 +95,20 @@ export const insertOrder = async (args: {
 }): Promise<OrderView | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
+  // Mismo esquema que usa el servidor: la referencia se imprime en el QR, así
+  // que va acotada. Los CHECK de la base son la última línea de defensa.
+  const v = parsear(nuevoPedidoSchema, args);
+  if (!v.ok) {
+    console.error("insertOrder", v.error);
+    return null;
+  }
   const { data, error } = await supabase
     .from("pedidos")
     .insert({
-      local_id: args.branchId,
-      referencia: args.reference,
+      local_id: v.data.branchId,
+      referencia: v.data.reference,
       estado: "creado",
-      empleado_id: args.employeeId ?? null,
+      empleado_id: v.data.employeeId ?? null,
       qr_token: crypto.randomUUID(),
       qr_expira_en: finDelDia(),
     })
@@ -117,16 +125,29 @@ export const insertOrder = async (args: {
 export const updateOrderStatus = async (
   id: string,
   status: OrderStatus,
+  desde?: OrderStatus,
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;
+  // Solo transiciones válidas del flujo (creado → listo → retirado, o cancelar).
+  // Antes cualquier estado saltaba a cualquier otro: se podía "des-retirar" un
+  // pedido o marcarlo listo después de cancelado.
+  if (desde && !transicionValida(desde, status)) {
+    console.error("updateOrderStatus: transición inválida", desde, "→", status);
+    return;
+  }
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = { estado: status };
   if (status === "en_preparacion") patch.en_preparacion_en = now;
   else if (status === "listo") patch.listo_en = now;
   else if (status === "retirado") patch.retirado_en = now;
   else if (status === "cancelado") patch.cancelado_en = now;
-  const { error } = await supabase.from("pedidos").update(patch).eq("id", id);
+
+  // La condición de estado va también en el WHERE: si otra caja ya cambió el
+  // pedido, este update no pisa nada (evita la carrera entre dispositivos).
+  let q = supabase.from("pedidos").update(patch).eq("id", id);
+  if (desde) q = q.eq("estado", desde);
+  const { error } = await q;
   if (error) console.error("updateOrderStatus", error.message);
 };
 

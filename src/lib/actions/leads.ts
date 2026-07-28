@@ -5,7 +5,8 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { enviarEmail } from "@/lib/email/resend";
 import { emailLayout } from "@/lib/email/templates";
 import { verificarTurnstile } from "@/lib/security/turnstile";
-import { isEmail } from "@/lib/validations";
+import { rateLimit } from "@/lib/security/rateLimit";
+import { parsear, solicitudSchema } from "@/lib/schemas";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -25,35 +26,31 @@ const esc = (s: string): string =>
 
 // Alta de una solicitud de prueba desde el formulario público "Probá gratis".
 // Es pública (sin login): inserta con service_role. Manda mails si hay Resend.
-export const crearSolicitud = async (input: {
-  nombre: string;
-  email: string;
-  local?: string;
-  ciudad?: string;
-  turnstileToken?: string;
-}): Promise<Resultado> => {
-  const nombre = input.nombre?.trim();
-  const email = input.email?.trim();
-  if (!nombre || !isEmail(email)) {
-    return { ok: false, error: "Completá tu nombre y un email válido." };
-  }
-  // Anti-bot (Cloudflare Turnstile). Si no está configurado, no bloquea.
+export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
+  // Validación de esquema: rechaza por defecto, acota longitudes y normaliza.
+  const v = parsear(solicitudSchema, input);
+  if (!v.ok) return { ok: false, error: v.error };
+  const { nombre, email, turnstileToken } = v.data;
+
+  // Anti-bot (Cloudflare Turnstile).
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined;
-  const humano = await verificarTurnstile(input.turnstileToken, ip);
+  const humano = await verificarTurnstile(turnstileToken, ip);
   if (!humano) {
     return { ok: false, error: "No pudimos verificar que sos humano. Reintentá." };
   }
-  // Límites de longitud (defensa básica contra payloads gigantes).
-  if (nombre.length > 120 || email.length > 160) {
-    return { ok: false, error: "Datos demasiado largos." };
+
+  // Un mismo visitante no debería poder inundar la tabla de leads.
+  const porIp = rateLimit(`lead:ip:${ip ?? "sin-ip"}`, 5, 60 * 60_000);
+  if (!porIp.ok) {
+    return { ok: false, error: "Ya recibimos tu pedido. Te escribimos en breve." };
   }
 
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Backend no configurado." };
 
-  const local = input.local?.trim() || null;
-  const ciudad = input.ciudad?.trim() || null;
+  const local = v.data.local ?? null;
+  const ciudad = v.data.ciudad ?? null;
 
   const { error } = await admin
     .from("solicitudes")

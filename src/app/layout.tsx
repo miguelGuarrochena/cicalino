@@ -37,16 +37,15 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-// Evita el flash de tema: aplica data-theme antes de pintar.
-const noFlash = `(function(){try{var t=localStorage.getItem('cicalino-theme');if(t&&t!=='system')document.documentElement.setAttribute('data-theme',t);var l=localStorage.getItem('cicalino-lang');if(l)document.documentElement.lang=l==='en'?'en':'es-AR';}catch(e){}})();`;
-
 const RootLayout = ({
   children,
 }: Readonly<{ children: React.ReactNode }>) => {
   return (
     <html lang="es-AR" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: noFlash }} />
+        {/* Anti-flash de tema. Externo (no inline) para que la CSP pueda
+            prohibir scripts inline sin excepciones. */}
+        <script src="/theme-init.js" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

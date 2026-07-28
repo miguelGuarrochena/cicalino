@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/security/rateLimit";
+import { qrTokenSchema } from "@/lib/schemas";
 
 // POST /api/p/[token]/retirado
 // El cliente confirma que retiró su pedido. Pasa de "listo" a "retirado"
@@ -12,6 +13,10 @@ export const POST = async (
   { params }: { params: Promise<{ token: string }> },
 ) => {
   const { token } = await params;
+
+  if (!qrTokenSchema.safeParse(token).success) {
+    return NextResponse.json({ ok: false, reason: "not-found" }, { status: 400 });
+  }
 
   // Acción puntual: 5 por minuto por token es más que suficiente.
   const rl = rateLimit(`retirado:${token}`, 5, 60_000);

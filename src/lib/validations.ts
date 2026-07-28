@@ -1,4 +1,8 @@
-// Validaciones compartidas (front). En prod el back vuelve a validar.
+// Validaciones de UX para los formularios (feedback en vivo mientras se tipea).
+//
+// ⚠️ NO son un control de seguridad. La validación que importa vive en
+// `src/lib/schemas` (Zod, en el servidor) y en los CHECK de la base. Si cambiás
+// una regla acá, cambiala también allá.
 
 export const isEmail = (v: string): boolean => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());

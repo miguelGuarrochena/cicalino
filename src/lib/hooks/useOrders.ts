@@ -117,10 +117,14 @@ export const useOrders = (branchId: string | null): UseOrders => {
         demoChange(id, status);
         return;
       }
-      setLiveOrders((cur) =>
-        cur.map((o) => (o.id === id ? { ...o, estado: status } : o)),
-      );
-      await updateOrderStatus(id, status);
+      // Estado actual, para validar la transición y para el WHERE optimista
+      // (si otra caja ya lo movió, este update no pisa nada).
+      let desde: OrderStatus | undefined;
+      setLiveOrders((cur) => {
+        desde = cur.find((o) => o.id === id)?.estado;
+        return cur.map((o) => (o.id === id ? { ...o, estado: status } : o));
+      });
+      await updateOrderStatus(id, status, desde);
       if (status === "listo") {
         // Aviso Web Push al cliente (best-effort; requiere VAPID configurado).
         void fetch("/api/push/notify", {

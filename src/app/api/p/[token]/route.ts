@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/security/rateLimit";
+import { qrTokenSchema } from "@/lib/schemas";
 
 // GET /api/p/[token] -> estado público del pedido para la vista del cliente.
 // El cliente no está autenticado, así que leemos con el service_role (saltea
@@ -14,6 +15,12 @@ export const GET = async (
   { params }: { params: Promise<{ token: string }> },
 ) => {
   const { token } = await params;
+
+  // El qr_token es un UUID v4 que generamos nosotros: cualquier otra cosa ni
+  // llega a tocar la base.
+  if (!qrTokenSchema.safeParse(token).success) {
+    return NextResponse.json({ ok: false, reason: "not-found" });
+  }
 
   // Rate limit por token: el cliente legítimo consulta ~1 vez cada 4s (2-3 por
   // cada ventana de 10s). 30 req/10s deja amplio margen para varias pestañas o

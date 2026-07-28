@@ -2,12 +2,16 @@
 
 import { getPerfilActual } from "@/lib/auth/profile";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import {
+  crearOrganizacionSchema,
+  idSchema,
+  parsear,
+  type CrearOrganizacionInput,
+} from "@/lib/schemas";
 import type { Solicitud } from "@/lib/db/schema";
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 type SimpleResult = { ok: true } | { ok: false; error: string };
-
-type SucursalInput = { nombre: string; tipo: string; direccion?: string };
 
 const slugify = (s: string): string =>
   s
@@ -18,66 +22,82 @@ const slugify = (s: string): string =>
     .replace(/(^-|-$)/g, "")
     .slice(0, 40) || "sucursal";
 
+// Sufijo del slug con randomness criptográfica (Math.random es predecible).
+const sufijoAleatorio = (): string => {
+  const b = new Uint8Array(4);
+  crypto.getRandomValues(b);
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+};
+
 // Solo superadmin. Crea la organización + sucursales e invita al dueño por email.
 // Usa service_role porque organizaciones no tiene policy de INSERT para anon.
-export const crearOrganizacion = async (input: {
-  nombre: string;
-  responsable: string;
-  telefono: string;
-  cuil: string;
-  direccion: string;
-  duenoEmail: string;
-  cupo: number;
-  plan?: string;
-  mesGratis?: boolean;
-  sucursales: SucursalInput[];
-}): Promise<Resultado> => {
+export const crearOrganizacion = async (input: unknown): Promise<Resultado> => {
   const perfil = await getPerfilActual();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
+  const v = parsear(crearOrganizacionSchema, input);
+  if (!v.ok) return { ok: false, error: v.error };
+  return crearOrganizacionValidada(v.data);
+};
+
+// Alta ya validada. Se reutiliza desde activarSolicitud sin re-parsear.
+const crearOrganizacionValidada = async (
+  data: CrearOrganizacionInput,
+): Promise<Resultado> => {
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
 
   let mesGratisHasta: string | null = null;
-  if (input.mesGratis) {
+  if (data.mesGratis) {
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
     mesGratisHasta = d.toISOString();
   }
 
+  // El cupo contratado tiene que alcanzar para las sucursales que se dan de
+  // alta: antes se podía crear una empresa con cupo 1 y 10 sucursales.
+  if (data.sucursales.length > data.cupo) {
+    return {
+      ok: false,
+      error: `El cupo (${data.cupo}) no alcanza para ${data.sucursales.length} sucursales.`,
+    };
+  }
+
   const { data: org, error } = await admin
     .from("organizaciones")
     .insert({
-      nombre: input.nombre.trim(),
-      responsable: input.responsable.trim() || null,
-      telefono: input.telefono.trim() || null,
-      cuil: input.cuil.trim() || null,
-      direccion: input.direccion.trim() || null,
-      dueno_email: input.duenoEmail.trim(),
-      cupo: Math.max(1, input.cupo || 1),
-      plan: input.plan ?? "mensual",
+      nombre: data.nombre,
+      responsable: data.responsable,
+      telefono: data.telefono || null,
+      cuil: data.cuil || null,
+      direccion: data.direccion ?? null,
+      dueno_email: data.duenoEmail,
+      cupo: data.cupo,
+      plan: data.plan,
       mes_gratis_hasta: mesGratisHasta,
     })
     .select("id")
     .single();
   if (error || !org) {
-    return { ok: false, error: error?.message ?? "No se pudo crear" };
+    console.error("crearOrganizacion", error?.message);
+    return { ok: false, error: "No se pudo crear la empresa." };
   }
 
-  if (input.sucursales.length) {
-    const rows = input.sucursales.map((b) => ({
+  if (data.sucursales.length) {
+    const rows = data.sucursales.map((b) => ({
       organizacion_id: org.id,
-      nombre: b.nombre.trim(),
+      nombre: b.nombre,
       tipo_negocio: b.tipo,
-      direccion: b.direccion?.trim() || null,
-      slug: `${slugify(b.nombre)}-${Math.random().toString(36).slice(2, 7)}`,
+      direccion: b.direccion ?? null,
+      slug: `${slugify(b.nombre)}-${sufijoAleatorio()}`,
     }));
-    await admin.from("locales").insert(rows);
+    const { error: errSuc } = await admin.from("locales").insert(rows);
+    if (errSuc) console.error("crearOrganizacion/locales", errSuc.message);
   }
 
   // Invitar al dueño (si el mail ya existe, ignoramos el error).
-  await admin.auth.admin.inviteUserByEmail(input.duenoEmail.trim(), {
+  await admin.auth.admin.inviteUserByEmail(data.duenoEmail, {
     data: { rol: "admin", organizacion_id: org.id },
   });
 
@@ -92,10 +112,18 @@ export const eliminarOrganizacion = async (
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
-  const { error } = await admin.from("organizaciones").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  const { error } = await admin
+    .from("organizaciones")
+    .delete()
+    .eq("id", v.data.id);
+  if (error) {
+    console.error("eliminarOrganizacion", error.message);
+    return { ok: false, error: "No se pudo eliminar la empresa." };
+  }
   return { ok: true };
 };
 
@@ -229,17 +257,21 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
 
   const { data: sol } = await admin
     .from("solicitudes")
     .select("*")
-    .eq("id", id)
+    .eq("id", v.data.id)
     .single();
   if (!sol) return { ok: false, error: "Solicitud no encontrada" };
 
-  const res = await crearOrganizacion({
+  // La solicitud viene de un formulario público: la revalidamos con el mismo
+  // esquema que un alta manual antes de convertirla en empresa.
+  const alta = parsear(crearOrganizacionSchema, {
     nombre: sol.local || sol.nombre,
     responsable: sol.nombre,
     telefono: "",
@@ -253,9 +285,15 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
       { nombre: sol.local || "Principal", tipo: "otro", direccion: sol.ciudad || "" },
     ],
   });
+  if (!alta.ok) return { ok: false, error: alta.error };
+
+  const res = await crearOrganizacionValidada(alta.data);
   if (!res.ok) return res;
 
-  await admin.from("solicitudes").update({ estado: "atendida" }).eq("id", id);
+  await admin
+    .from("solicitudes")
+    .update({ estado: "atendida" })
+    .eq("id", v.data.id);
   return res;
 };
 
@@ -266,8 +304,13 @@ export const descartarSolicitud = async (
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
-  await admin.from("solicitudes").update({ estado: "descartada" }).eq("id", id);
+  await admin
+    .from("solicitudes")
+    .update({ estado: "descartada" })
+    .eq("id", v.data.id);
   return { ok: true };
 };

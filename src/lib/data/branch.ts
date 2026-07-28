@@ -1,6 +1,7 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
+import { branchConfigSchema, empleadoSchema, parsear } from "@/lib/schemas";
 import type {
   EmployeeUI,
   IdentificationMode,
@@ -52,16 +53,21 @@ export const saveBranchConfig = async (
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
+  const v = parsear(branchConfigSchema, cfg);
+  if (!v.ok) {
+    console.error("saveBranchConfig", v.error);
+    return false;
+  }
   const { error } = await supabase
     .from("locales")
     .update({
-      nombre: cfg.nombre,
-      tipo_negocio: cfg.tipo,
-      whatsapp: cfg.whatsapp,
-      direccion: cfg.direccion,
-      modo_identificacion: cfg.modo,
-      cantidad_mesas: cfg.cantidadMesas,
-      hora_corte: cfg.horaCorte,
+      nombre: v.data.nombre,
+      tipo_negocio: v.data.tipo,
+      whatsapp: v.data.whatsapp,
+      direccion: v.data.direccion ?? null,
+      modo_identificacion: v.data.modo,
+      cantidad_mesas: v.data.cantidadMesas,
+      hora_corte: v.data.horaCorte,
       updated_at: new Date().toISOString(),
     })
     .eq("id", branchId);
@@ -104,13 +110,18 @@ export const insertEmployee = async (
 ): Promise<EmployeeUI | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
+  const v = parsear(empleadoSchema, data);
+  if (!v.ok) {
+    console.error("insertEmployee", v.error);
+    return null;
+  }
   const { data: row, error } = await supabase
     .from("empleados")
     .insert({
       local_id: branchId,
-      nombre: data.nombre.trim(),
-      rol: (data.rol ?? "").trim() || null,
-      pin: (data.pin ?? "").replace(/\D/g, "").slice(0, 4) || null,
+      nombre: v.data.nombre,
+      rol: v.data.rol ?? null,
+      pin: v.data.pin || null,
     })
     .select("id, nombre, rol, pin")
     .single();
