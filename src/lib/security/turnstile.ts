@@ -9,7 +9,15 @@ export const verificarTurnstile = async (
   // Nombre canónico del skill (TURNSTILE_SECRET), con fallback al viejo.
   const secret =
     process.env.TURNSTILE_SECRET ?? process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true; // no configurado → no exige captcha
+  if (!secret) {
+    // Fail-open SOLO fuera de producción. En prod, si falta la clave el
+    // formulario público queda abierto a bots: mejor fallar cerrado.
+    if (process.env.NODE_ENV === "production") {
+      console.error("turnstile: falta TURNSTILE_SECRET en producción");
+      return false;
+    }
+    return true;
+  }
   if (!token) return false;
   try {
     const res = await fetch(

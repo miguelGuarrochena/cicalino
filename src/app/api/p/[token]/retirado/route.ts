@@ -31,7 +31,9 @@ export const POST = async (
     .eq("qr_token", token)
     .eq("estado", "listo"); // solo desde "listo"
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    // El detalle va al log del server, no al cliente.
+    console.error("p/retirado", error.message);
+    return NextResponse.json({ ok: false, reason: "db-error" }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 };

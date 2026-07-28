@@ -1,9 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getPerfilActual } from "@/lib/auth/profile";
+import { rateLimit } from "@/lib/security/rateLimit";
 import type { UserRole } from "@/lib/db/schema";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -22,7 +24,9 @@ const traducirError = (m: string): string => {
     return "Email o contraseña incorrectos.";
   if (/email not confirmed/i.test(m))
     return "Falta confirmar el email de la invitación.";
-  return m;
+  // Mensaje genérico: no exponemos detalle interno de Supabase al cliente
+  // (evita enumeración de usuarios y fuga de información).
+  return "No pudimos iniciar sesión. Revisá los datos e intentá de nuevo.";
 };
 
 // Login con email + contraseña (usuarios ya invitados por el superadmin/admin).
@@ -32,6 +36,21 @@ export const signIn = async (
 ): Promise<LoginResultado> => {
   const supabase = await createServerSupabase();
   if (!supabase) return { ok: false, error: "Supabase no configurado" };
+
+  // Anti fuerza bruta: por email y por IP. Sin esto, el action de login es un
+  // oráculo de contraseñas sin límite.
+  const hdrs = await headers();
+  const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || "sin-ip";
+  const cuenta = email.trim().toLowerCase();
+  const porCuenta = rateLimit(`login:mail:${cuenta}`, 8, 10 * 60_000);
+  const porIp = rateLimit(`login:ip:${ip}`, 30, 10 * 60_000);
+  if (!porCuenta.ok || !porIp.ok) {
+    return {
+      ok: false,
+      error: "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
+    };
+  }
+
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: traducirError(error.message) };
 
@@ -57,11 +76,21 @@ export const invitarAdmin = async (
   email: string,
   organizationId: string,
 ): Promise<Resultado> => {
+  // AUTORIZACIÓN: cada export de un archivo "use server" es un endpoint RPC
+  // público. Sin este chequeo, cualquiera —incluso sin sesión— podía invitarse
+  // a sí mismo como admin de cualquier organización usando el service_role.
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SERVICE_ROLE_KEY" };
   const { error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { rol: "admin", organizacion_id: organizationId },
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("invitarAdmin", error.message);
+    return { ok: false, error: "No se pudo enviar la invitación." };
+  }
   return { ok: true };
 };

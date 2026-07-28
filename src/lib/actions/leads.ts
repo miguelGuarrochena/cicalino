@@ -58,7 +58,10 @@ export const crearSolicitud = async (input: {
   const { error } = await admin
     .from("solicitudes")
     .insert({ nombre, email, local, ciudad });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("crearSolicitud", error.message);
+    return { ok: false, error: "No pudimos registrar tu solicitud. Reintentá." };
+  }
 
   // Mails (best-effort, opcionales si hay Resend): aviso a Cicalino + una
   // confirmación linda al cliente. La activación real se la mandás a mano vos.

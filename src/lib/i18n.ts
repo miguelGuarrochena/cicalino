@@ -702,7 +702,8 @@ export const translate = (locale: Locale, key: string, vars?: Record<string, str
   const parts = key.split(".");
   let node: unknown = dict[locale];
   for (const p of parts) {
-    if (node && typeof node === "object" && p in (node as object)) {
+    if (p === "__proto__" || p === "constructor" || p === "prototype") return key;
+    if (node && typeof node === "object" && Object.prototype.hasOwnProperty.call(node, p)) {
       node = (node as Record<string, unknown>)[p];
     } else {
       return key;
