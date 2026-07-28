@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { appBaseUrl } from "@/lib/appUrl";
 import { enviarEmail } from "@/lib/email/resend";
 import { emailLayout } from "@/lib/email/templates";
 import { verificarTurnstile } from "@/lib/security/turnstile";
@@ -9,11 +10,6 @@ import { rateLimitCompartido } from "@/lib/security/rateLimitShared";
 import { parsear, solicitudSchema } from "@/lib/schemas";
 
 type Resultado = { ok: true } | { ok: false; error: string };
-
-const appUrl = (): string => {
-  const u = process.env.NEXT_PUBLIC_APP_URL;
-  return u && !u.includes("localhost") ? u : "https://cicalino.net";
-};
 
 // Escapa el input del usuario antes de meterlo en el HTML del email.
 const esc = (s: string): string =>
@@ -74,7 +70,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
         <p style="margin:0;font-size:14px;">${esc(email)}${
           local ? ` · ${esc(local)}` : ""
         }${ciudad ? ` · ${esc(ciudad)}` : ""}</p>`,
-        cta: { label: "Activar en el panel", url: `${appUrl()}/admin` },
+        cta: { label: "Activar en el panel", url: `${appBaseUrl()}/admin` },
         pie: "Panel de Superadmin → Solicitudes",
       }),
     }),

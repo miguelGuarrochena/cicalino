@@ -1,12 +1,11 @@
 import "server-only";
 
+import { appBaseUrl } from "@/lib/appUrl";
+
 // Layout de email branded (mascota + colores/tipografía de Cicalino).
 // HTML con estilos inline y tablas para compatibilidad con clientes de mail.
 
-const rawSite = process.env.NEXT_PUBLIC_APP_URL ?? "";
-// En los mails las imágenes deben ser URLs absolutas públicas (no localhost).
-const SITE =
-  rawSite && !rawSite.includes("localhost") ? rawSite : "https://cicalino.net";
+const SITE = appBaseUrl();
 
 const MARCA = "#2536d4";
 const MARCA_FUERTE = "#1b28a8";
