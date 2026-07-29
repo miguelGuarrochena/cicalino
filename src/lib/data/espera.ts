@@ -78,20 +78,58 @@ const mapMesa = (r: MesaRow): MesaView => ({
   reservaId: r.reserva_id ?? null,
 });
 
-const mapReserva = (r: ReservaRow): ReservaView => ({
-  id: r.id,
-  nombre: r.nombre,
-  personas: r.personas,
-  mesaNumero: r.mesa_numero,
-  horario: r.horario,
-  graciaMinutos: r.gracia_minutos === 20 ? 20 : 15,
-  estado: r.estado,
-  creadoEn: r.creado_en,
-  sentadoEn: r.sentado_en,
-  canceladoEn: r.cancelado_en,
-  expiradoEn: r.expirado_en,
-  empleado: r.empleados?.nombre ?? null,
-});
+const mapReserva = (
+  r: ReservaRow,
+  mesasNumeros?: number[],
+): ReservaView => {
+  const nums =
+    mesasNumeros && mesasNumeros.length
+      ? [...new Set(mesasNumeros)].sort((a, b) => a - b)
+      : [r.mesa_numero];
+  return {
+    id: r.id,
+    nombre: r.nombre,
+    personas: r.personas,
+    mesaNumero: nums[0] ?? r.mesa_numero,
+    mesasNumeros: nums,
+    horario: r.horario,
+    graciaMinutos: r.gracia_minutos === 20 ? 20 : 15,
+    estado: r.estado,
+    creadoEn: r.creado_en,
+    sentadoEn: r.sentado_en,
+    canceladoEn: r.cancelado_en,
+    expiradoEn: r.expirado_en,
+    empleado: r.empleados?.nombre ?? null,
+  };
+};
+
+/** Completa mesasNumeros mirando qué mesas apuntan a cada reserva. */
+export const attachMesasAReservas = (
+  reservas: ReservaView[],
+  mesas: MesaView[],
+): ReservaView[] => {
+  const byReserva = new Map<string, number[]>();
+  for (const m of mesas) {
+    if (!m.reservaId) continue;
+    const list = byReserva.get(m.reservaId) ?? [];
+    list.push(m.numero);
+    byReserva.set(m.reservaId, list);
+  }
+  return reservas.map((r) => {
+    const nums = byReserva.get(r.id);
+    if (!nums?.length) {
+      return r.mesasNumeros?.length
+        ? r
+        : { ...r, mesasNumeros: [r.mesaNumero] };
+    }
+    const sorted = [...new Set(nums)].sort((a, b) => a - b);
+    return {
+      ...r,
+      mesaNumero: sorted[0] ?? r.mesaNumero,
+      mesasNumeros: sorted,
+    };
+  });
+};
 
 const SELECT_ESPERA = "*, empleados(nombre)";
 const SELECT_RESERVA = "*, empleados(nombre)";
@@ -191,7 +229,7 @@ export const fetchTodayReservas = async (
     console.error("fetchTodayReservas", error.message);
     return [];
   }
-  return ((data as unknown as ReservaRow[]) ?? []).map(mapReserva);
+  return ((data as unknown as ReservaRow[]) ?? []).map((r) => mapReserva(r));
 };
 
 /** Libera mesas de reservas activas cuyo horario + gracia ya pasó. */
@@ -237,7 +275,6 @@ export const expirarReservasVencidas = async (
         actualizado_en: nowIso,
       })
       .eq("local_id", branchId)
-      .eq("numero", r.mesa_numero)
       .eq("estado", "reservada")
       .eq("reserva_id", r.id);
   }
@@ -277,7 +314,7 @@ export const insertReserva = async (args: {
   branchId: string;
   nombre: string;
   personas: number;
-  mesaNumero: number;
+  mesaNumeros: number[];
   horario: string;
   graciaMinutos: 15 | 20;
   employeeId?: string | null;
@@ -286,25 +323,42 @@ export const insertReserva = async (args: {
   if (!supabase) return null;
   const nombre = args.nombre.trim().slice(0, 80) || "Reserva";
   const personas = Math.max(1, Math.min(50, args.personas || 2));
-
-  const { data: mesa } = await supabase
-    .from("mesas")
-    .select(SELECT_MESA)
-    .eq("local_id", args.branchId)
-    .eq("numero", args.mesaNumero)
-    .maybeSingle();
-  if (!mesa || (mesa as MesaRow).estado !== "libre") {
-    console.error("insertReserva: mesa no libre");
+  const nums = [...new Set(args.mesaNumeros)]
+    .filter((n) => n >= 1)
+    .sort((a, b) => a - b);
+  if (!nums.length) {
+    console.error("insertReserva: sin mesas");
     return null;
   }
 
+  const { data: mesasRows } = await supabase
+    .from("mesas")
+    .select(SELECT_MESA)
+    .eq("local_id", args.branchId)
+    .in("numero", nums);
+  const mesasPick = ((mesasRows as MesaRow[] | null) ?? []).map(mapMesa);
+  if (mesasPick.length !== nums.length) {
+    console.error("insertReserva: mesa inexistente");
+    return null;
+  }
+  if (mesasPick.some((m) => m.estado !== "libre")) {
+    console.error("insertReserva: mesa no libre");
+    return null;
+  }
+  const cap = mesasPick.reduce((s, m) => s + m.capacidad, 0);
+  if (cap < personas) {
+    console.error("insertReserva: capacidad insuficiente");
+    return null;
+  }
+
+  const primaria = nums[0];
   const { data, error } = await supabase
     .from("reservas")
     .insert({
       local_id: args.branchId,
       nombre,
       personas,
-      mesa_numero: args.mesaNumero,
+      mesa_numero: primaria,
       horario: args.horario,
       gracia_minutos: args.graciaMinutos,
       estado: "activa",
@@ -316,22 +370,42 @@ export const insertReserva = async (args: {
     console.error("insertReserva", error.message);
     return null;
   }
-  const reserva = mapReserva(data as unknown as ReservaRow);
-  const { error: mesaErr } = await supabase
-    .from("mesas")
-    .update({
-      estado: "reservada",
-      reserva_id: reserva.id,
-      espera_id: null,
-      actualizado_en: new Date().toISOString(),
-    })
-    .eq("local_id", args.branchId)
-    .eq("numero", args.mesaNumero)
-    .eq("estado", "libre");
-  if (mesaErr) {
-    console.error("insertReserva mesa", mesaErr.message);
-    await supabase.from("reservas").delete().eq("id", reserva.id);
-    return null;
+  const reserva = mapReserva(data as unknown as ReservaRow, nums);
+  const nowIso = new Date().toISOString();
+  const marcadas: number[] = [];
+  for (const n of nums) {
+    const { error: mesaErr, data: updated } = await supabase
+      .from("mesas")
+      .update({
+        estado: "reservada",
+        reserva_id: reserva.id,
+        espera_id: null,
+        actualizado_en: nowIso,
+      })
+      .eq("local_id", args.branchId)
+      .eq("numero", n)
+      .eq("estado", "libre")
+      .select("id")
+      .maybeSingle();
+    if (mesaErr || !updated) {
+      console.error("insertReserva mesa", mesaErr?.message ?? "no libre");
+      // Rollback: liberar las ya marcadas y borrar la reserva.
+      if (marcadas.length) {
+        await supabase
+          .from("mesas")
+          .update({
+            estado: "libre",
+            reserva_id: null,
+            actualizado_en: nowIso,
+          })
+          .eq("local_id", args.branchId)
+          .in("numero", marcadas)
+          .eq("reserva_id", reserva.id);
+      }
+      await supabase.from("reservas").delete().eq("id", reserva.id);
+      return null;
+    }
+    marcadas.push(n);
   }
   return reserva;
 };

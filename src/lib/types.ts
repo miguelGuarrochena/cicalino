@@ -116,7 +116,10 @@ export interface ReservaView {
   id: string;
   nombre: string;
   personas: number;
+  /** Mesa principal (compat / primera elegida). */
   mesaNumero: number;
+  /** Todas las mesas de la reserva (puede ser varias juntadas). */
+  mesasNumeros: number[];
   horario: string;
   graciaMinutos: 15 | 20;
   estado: ReservaStatus;
@@ -146,3 +149,9 @@ export const esperaClosed = (status: EsperaStatus): boolean =>
 
 export const reservaClosed = (status: ReservaStatus): boolean =>
   status === "sentada" || status === "cancelada" || status === "expirada";
+
+/** Etiqueta corta: "3" o "1+5". */
+export const labelMesas = (nums: number[]): string => {
+  const sorted = [...new Set(nums)].filter((n) => n >= 1).sort((a, b) => a - b);
+  return sorted.join("+") || "—";
+};

@@ -10,6 +10,7 @@ import {
   fetchTodayReservas,
   fetchMesas,
   syncMesas,
+  attachMesasAReservas,
   insertEspera,
   insertReserva,
   updateEsperaStatus,
@@ -38,7 +39,7 @@ export interface UseEsperas {
   crearReserva: (args: {
     nombre: string;
     personas: number;
-    mesaNumero: number;
+    mesaNumeros: number[];
     horario: string;
     graciaMinutos: 15 | 20;
     employee?: EmployeeRef;
@@ -87,7 +88,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     ]);
     setLiveEsperas(e);
     setLiveMesas(m);
-    setLiveReservas(r);
+    setLiveReservas(attachMesasAReservas(r, m));
     setReady(true);
   }, [live, branchId]);
 
@@ -164,7 +165,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
   const crearReserva = async (args: {
     nombre: string;
     personas: number;
-    mesaNumero: number;
+    mesaNumeros: number[];
     horario: string;
     graciaMinutos: 15 | 20;
     employee?: EmployeeRef;
@@ -179,7 +180,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       branchId,
       nombre: args.nombre,
       personas: args.personas,
-      mesaNumero: args.mesaNumero,
+      mesaNumeros: args.mesaNumeros,
       horario: args.horario,
       graciaMinutos: args.graciaMinutos,
       employeeId: args.employee?.id,
@@ -238,10 +239,16 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     const reserva = liveReservas.find((r) => r.id === id);
     if (!reserva) return;
     await updateReservaStatus(id, "sentada");
-    await setMesaEstado(branchId, reserva.mesaNumero, "ocupada", {
-      reservaId: id,
-      esperaId: null,
-    });
+    const nums =
+      reserva.mesasNumeros?.length > 0
+        ? reserva.mesasNumeros
+        : [reserva.mesaNumero];
+    for (const n of nums) {
+      await setMesaEstado(branchId, n, "ocupada", {
+        reservaId: id,
+        esperaId: null,
+      });
+    }
     await reload();
   };
 
@@ -253,10 +260,16 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     const reserva = liveReservas.find((r) => r.id === id);
     await updateReservaStatus(id, "cancelada");
     if (reserva) {
-      await setMesaEstado(branchId, reserva.mesaNumero, "libre", {
-        reservaId: null,
-        esperaId: null,
-      });
+      const nums =
+        reserva.mesasNumeros?.length > 0
+          ? reserva.mesasNumeros
+          : [reserva.mesaNumero];
+      for (const n of nums) {
+        await setMesaEstado(branchId, n, "libre", {
+          reservaId: null,
+          esperaId: null,
+        });
+      }
     }
     await reload();
   };
@@ -268,8 +281,17 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     }
     const mesa = liveMesas.find((m) => m.numero === numero);
     if (mesa?.reservaId && mesa.estado === "reservada") {
-      await updateReservaStatus(mesa.reservaId, "cancelada");
-      await setMesaEstado(branchId, numero, "libre");
+      const reservaId = mesa.reservaId;
+      await updateReservaStatus(reservaId, "cancelada");
+      const mismas = liveMesas.filter(
+        (m) => m.reservaId === reservaId && m.estado === "reservada",
+      );
+      for (const m of mismas) {
+        await setMesaEstado(branchId, m.numero, "libre", {
+          reservaId: null,
+          esperaId: null,
+        });
+      }
       await reload();
       return;
     }
@@ -277,6 +299,17 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     if (mesa?.esperaId && mesa.estado === "ocupada") {
       const mismas = liveMesas.filter(
         (m) => m.esperaId === mesa.esperaId && m.estado === "ocupada",
+      );
+      for (const m of mismas) {
+        await setMesaEstado(branchId, m.numero, "libre");
+      }
+      await reload();
+      return;
+    }
+    // Reserva sentada: varias mesas con el mismo reservaId.
+    if (mesa?.reservaId && mesa.estado === "ocupada") {
+      const mismas = liveMesas.filter(
+        (m) => m.reservaId === mesa.reservaId && m.estado === "ocupada",
       );
       for (const m of mismas) {
         await setMesaEstado(branchId, m.numero, "libre");

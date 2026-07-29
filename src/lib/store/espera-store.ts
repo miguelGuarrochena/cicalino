@@ -32,7 +32,7 @@ interface EsperaState {
   agregarReserva: (args: {
     nombre: string;
     personas: number;
-    mesaNumero: number;
+    mesaNumeros: number[];
     horario: string;
     graciaMinutos: 15 | 20;
     empleado?: string | null;
@@ -84,6 +84,7 @@ export const useEsperaStore = create<EsperaState>()(
           nombre: "Martínez",
           personas: 3,
           mesaNumero: 5,
+          mesasNumeros: [5],
           horario: new Date(Date.now() + 90 * 60_000).toISOString(),
           graciaMinutos: 15,
           estado: "activa",
@@ -205,15 +206,16 @@ export const useEsperaStore = create<EsperaState>()(
           let reservas = s.reservas;
           if (mesa?.reservaId && mesa.estado === "reservada") {
             const now = new Date().toISOString();
+            const reservaId = mesa.reservaId;
             reservas = s.reservas.map((r) =>
-              r.id === mesa.reservaId && r.estado === "activa"
+              r.id === reservaId && r.estado === "activa"
                 ? { ...r, estado: "cancelada" as const, canceladoEn: now }
                 : r,
             );
             return {
               reservas,
               mesas: s.mesas.map((m) =>
-                m.numero === numero
+                m.reservaId === reservaId
                   ? {
                       ...m,
                       estado: "libre" as const,
@@ -226,10 +228,14 @@ export const useEsperaStore = create<EsperaState>()(
           }
           const esperaId =
             mesa?.estado === "ocupada" ? mesa.esperaId : null;
+          const reservaOcupadaId =
+            mesa?.estado === "ocupada" ? mesa.reservaId : null;
           return {
             reservas,
             mesas: s.mesas.map((m) =>
-              (esperaId && m.esperaId === esperaId) || m.numero === numero
+              (esperaId && m.esperaId === esperaId) ||
+              (reservaOcupadaId && m.reservaId === reservaOcupadaId) ||
+              m.numero === numero
                 ? {
                     ...m,
                     estado: "libre" as const,
@@ -270,18 +276,27 @@ export const useEsperaStore = create<EsperaState>()(
       agregarReserva: ({
         nombre,
         personas,
-        mesaNumero,
+        mesaNumeros,
         horario,
         graciaMinutos,
         empleado = null,
       }) => {
-        const mesa = get().mesas.find((m) => m.numero === mesaNumero);
-        if (!mesa || mesa.estado !== "libre") return null;
+        const nums = [...new Set(mesaNumeros)]
+          .filter((n) => n >= 1)
+          .sort((a, b) => a - b);
+        if (!nums.length) return null;
+        const pick = get().mesas.filter((m) => nums.includes(m.numero));
+        if (pick.length !== nums.length) return null;
+        if (pick.some((m) => m.estado !== "libre")) return null;
+        const cap = pick.reduce((s, m) => s + (m.capacidad ?? 4), 0);
+        if (cap < Math.max(1, personas)) return null;
+        const primaria = nums[0];
         const r: ReservaView = {
           id: crypto.randomUUID(),
           nombre: nombre.trim() || "Reserva",
           personas: Math.max(1, personas),
-          mesaNumero,
+          mesaNumero: primaria,
+          mesasNumeros: nums,
           horario,
           graciaMinutos,
           estado: "activa",
@@ -291,12 +306,13 @@ export const useEsperaStore = create<EsperaState>()(
           expiradoEn: null,
           empleado,
         };
+        const setNums = new Set(nums);
         set((s) => ({
           reservas: [...s.reservas, r].sort((a, b) =>
             a.horario.localeCompare(b.horario),
           ),
           mesas: s.mesas.map((m) =>
-            m.numero === mesaNumero
+            setNums.has(m.numero)
               ? {
                   ...m,
                   estado: "reservada" as const,
@@ -314,6 +330,10 @@ export const useEsperaStore = create<EsperaState>()(
           const r = s.reservas.find((x) => x.id === id);
           if (!r || r.estado !== "activa") return s;
           const now = new Date().toISOString();
+          const nums = new Set(
+            r.mesasNumeros?.length ? r.mesasNumeros : [r.mesaNumero],
+          );
+          // También por reservaId (por si mesasNumeros quedó viejo).
           return {
             reservas: s.reservas.map((x) =>
               x.id === id
@@ -321,7 +341,7 @@ export const useEsperaStore = create<EsperaState>()(
                 : x,
             ),
             mesas: s.mesas.map((m) =>
-              m.numero === r.mesaNumero
+              nums.has(m.numero) || m.reservaId === id
                 ? {
                     ...m,
                     estado: "ocupada" as const,
@@ -345,7 +365,7 @@ export const useEsperaStore = create<EsperaState>()(
                 : x,
             ),
             mesas: s.mesas.map((m) =>
-              m.numero === r.mesaNumero && m.estado === "reservada"
+              m.reservaId === id && m.estado === "reservada"
                 ? {
                     ...m,
                     estado: "libre" as const,

@@ -15,6 +15,7 @@ import {
   ETIQUETA_ESPERA,
   ETIQUETA_RESERVA,
   esperaClosed,
+  labelMesas,
   type EsperaView,
   type ReservaView,
 } from "@/lib/types";
@@ -383,7 +384,7 @@ const EsperaPanelPage = () => {
   const [creating, setCreating] = useState(false);
   const [reservaNombre, setReservaNombre] = useState("");
   const [reservaPersonas, setReservaPersonas] = useState(2);
-  const [reservaMesa, setReservaMesa] = useState<number | null>(null);
+  const [reservaMesas, setReservaMesas] = useState<number[]>([]);
   const [reservaHorario, setReservaHorario] = useState(defaultHorarioInput);
   const [reservaGracia, setReservaGracia] = useState<15 | 20>(15);
   const [creatingReserva, setCreatingReserva] = useState(false);
@@ -474,9 +475,11 @@ const EsperaPanelPage = () => {
   const paginated = slicePage(cola, page, PAGE_SIZE);
   const sentarEspera = esperas.find((e) => e.id === sentarId);
   const mesasLibres = mesas.filter((m) => m.estado === "libre");
-  const mesasLibresParaReserva = mesasLibres.filter(
-    (m) => (m.capacidad ?? 4) >= reservaPersonas,
-  );
+  const reservaCapSeleccionada = mesas
+    .filter((m) => reservaMesas.includes(m.numero))
+    .reduce((s, m) => s + (m.capacidad ?? 4), 0);
+  const reservaMesasOk =
+    reservaMesas.length > 0 && reservaCapSeleccionada >= reservaPersonas;
   const confirmCancelEspera = esperas.find(
     (e) => e.id === confirmCancelEsperaId,
   );
@@ -544,8 +547,13 @@ const EsperaPanelPage = () => {
       toast(locale === "en" ? "Enter a name" : "Ingresá un nombre", "error");
       return;
     }
-    if (!reservaMesa) {
-      toast(locale === "en" ? "Pick a table" : "Elegí una mesa", "error");
+    if (!reservaMesasOk) {
+      toast(
+        locale === "en"
+          ? "Pick free tables that fit the party"
+          : "Elegí mesas libres que entren al grupo",
+        "error",
+      );
       return;
     }
     const horario = new Date(reservaHorario);
@@ -558,7 +566,7 @@ const EsperaPanelPage = () => {
       const created = await crearReserva({
         nombre: reservaNombre,
         personas: reservaPersonas,
-        mesaNumero: reservaMesa,
+        mesaNumeros: reservaMesas,
         horario: horario.toISOString(),
         graciaMinutos: reservaGracia,
         employee: employeeRef,
@@ -567,13 +575,14 @@ const EsperaPanelPage = () => {
         setReservaOpen(false);
         setReservaNombre("");
         setReservaPersonas(2);
-        setReservaMesa(null);
+        setReservaMesas([]);
         setReservaHorario(defaultHorarioInput());
         setReservaGracia(15);
+        const label = labelMesas(created.mesasNumeros);
         toast(
           locale === "en"
-            ? `Table ${created.mesaNumero} reserved`
-            : `Mesa ${created.mesaNumero} reservada`,
+            ? `Table ${label} reserved`
+            : `Mesa ${label} reservada`,
           "success",
         );
       } else {
@@ -616,13 +625,7 @@ const EsperaPanelPage = () => {
           <button
             type="button"
             onClick={() => {
-              const firstFit =
-                mesas.find(
-                  (m) =>
-                    m.estado === "libre" &&
-                    (m.capacidad ?? 4) >= reservaPersonas,
-                )?.numero ?? null;
-              setReservaMesa(firstFit);
+              setReservaMesas([]);
               setReservaHorario(defaultHorarioInput());
               setReservaOpen(true);
             }}
@@ -865,7 +868,8 @@ const EsperaPanelPage = () => {
                       {ETIQUETA_RESERVA[r.estado]}
                     </span>
                     <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
-                      {locale === "en" ? "Table" : "Mesa"} {r.mesaNumero}
+                      {locale === "en" ? "Table" : "Mesa"}{" "}
+                      {labelMesas(r.mesasNumeros ?? [r.mesaNumero])}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-carbon/55">
@@ -882,8 +886,8 @@ const EsperaPanelPage = () => {
                       void sentarReserva(r.id).then(() =>
                         toast(
                           locale === "en"
-                            ? `Seated at table ${r.mesaNumero}`
-                            : `Sentados en mesa ${r.mesaNumero}`,
+                            ? `Seated at table ${labelMesas(r.mesasNumeros ?? [r.mesaNumero])}`
+                            : `Sentados en mesa ${labelMesas(r.mesasNumeros ?? [r.mesaNumero])}`,
                           "success",
                         ),
                       );
@@ -1159,7 +1163,7 @@ const EsperaPanelPage = () => {
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                disabled={creatingReserva || !mesasLibresParaReserva.length}
+                disabled={creatingReserva || !reservaMesasOk}
                 onClick={() => void onCrearReserva()}
                 className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
               >
@@ -1214,22 +1218,6 @@ const EsperaPanelPage = () => {
                 value={reservaPersonas}
                 onChange={(n) => {
                   setReservaPersonas(n);
-                  const stillOk =
-                    reservaMesa != null &&
-                    mesas.some(
-                      (m) =>
-                        m.numero === reservaMesa &&
-                        m.estado === "libre" &&
-                        (m.capacidad ?? 4) >= n,
-                    );
-                  if (!stillOk) {
-                    setReservaMesa(
-                      mesas.find(
-                        (m) =>
-                          m.estado === "libre" && (m.capacidad ?? 4) >= n,
-                      )?.numero ?? null,
-                    );
-                  }
                 }}
               />
             </div>
@@ -1249,25 +1237,52 @@ const EsperaPanelPage = () => {
               </legend>
               <p className="mb-2 text-xs text-carbon/45">
                 {locale === "en"
-                  ? "Only free tables that fit the party."
-                  : "Solo mesas libres que entren al grupo."}
+                  ? "Pick one table or join free ones until the party fits."
+                  : "Elegí una mesa o juntá libres hasta que entren."}
               </p>
+              {(() => {
+                const ok = reservaMesasOk;
+                return (
+                  <p
+                    className={`mb-3 text-sm font-semibold ${
+                      ok ? "text-espera" : "text-amber-700"
+                    }`}
+                  >
+                    {locale === "en"
+                      ? `${reservaCapSeleccionada} / ${reservaPersonas} seats selected`
+                      : `${reservaCapSeleccionada} / ${reservaPersonas} plazas elegidas`}
+                    {reservaMesas.length > 1
+                      ? locale === "en"
+                        ? ` · tables ${labelMesas(reservaMesas)}`
+                        : ` · mesas ${labelMesas(reservaMesas)}`
+                      : ""}
+                  </p>
+                );
+              })()}
               {mesas.length ? (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                   {mesas.map((m) => {
                     const libre = m.estado === "libre";
-                    const entra = (m.capacidad ?? 4) >= reservaPersonas;
-                    const pickable = libre && entra;
+                    const selected = reservaMesas.includes(m.numero);
+                    const cap = m.capacidad ?? 4;
+                    const oversized = libre && cap > reservaPersonas;
                     return (
                       <button
                         key={m.id}
                         type="button"
-                        disabled={!pickable}
-                        onClick={() => setReservaMesa(m.numero)}
+                        disabled={!libre}
+                        onClick={() => {
+                          if (!libre) return;
+                          setReservaMesas((prev) =>
+                            prev.includes(m.numero)
+                              ? prev.filter((n) => n !== m.numero)
+                              : [...prev, m.numero].sort((a, b) => a - b),
+                          );
+                        }}
                         className={mesaTileClass(m.estado, {
-                          pickable,
-                          selected: pickable && reservaMesa === m.numero,
-                          tooSmall: libre && !entra,
+                          pickable: libre,
+                          selected: libre && selected,
+                          oversized,
                         })}
                       >
                         <span className="font-display text-xl leading-none">
@@ -1275,9 +1290,13 @@ const EsperaPanelPage = () => {
                         </span>
                         <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
                           {libre
-                            ? locale === "en"
-                              ? "Free"
-                              : "Libre"
+                            ? oversized
+                              ? locale === "en"
+                                ? "Big"
+                                : "Grande"
+                              : locale === "en"
+                                ? "Free"
+                                : "Libre"
                             : m.estado === "reservada"
                               ? "Res."
                               : locale === "en"
@@ -1285,7 +1304,7 @@ const EsperaPanelPage = () => {
                                 : "Ocup."}
                         </span>
                         <span className="mt-0.5 text-[9px] font-semibold opacity-80">
-                          {m.capacidad ?? 4}p
+                          {cap}p
                         </span>
                       </button>
                     );
@@ -1379,8 +1398,8 @@ const EsperaPanelPage = () => {
           </h2>
           <p className="mt-2 text-sm text-carbon/60">
             {locale === "en"
-              ? `Table ${confirmCancelReserva.mesaNumero} · ${confirmCancelReserva.nombre} will be freed.`
-              : `Mesa ${confirmCancelReserva.mesaNumero} · ${confirmCancelReserva.nombre} se libera.`}
+              ? `Table ${labelMesas(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero])} · ${confirmCancelReserva.nombre} will be freed.`
+              : `Mesa ${labelMesas(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero])} · ${confirmCancelReserva.nombre} se libera.`}
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <button
