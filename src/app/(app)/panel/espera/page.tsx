@@ -514,19 +514,31 @@ const EsperaPanelPage = () => {
     for (const r of reservas) map.set(r.id, r);
     return map;
   }, [reservas]);
+  const esperaById = useMemo(() => {
+    const map = new Map<string, EsperaView>();
+    for (const e of esperas) map.set(e.id, e);
+    return map;
+  }, [esperas]);
 
   const libres = mesas.filter((m) => m.estado === "libre").length;
   const ocupadas = mesas.filter((m) => m.estado === "ocupada").length;
   const reservadas = mesas.filter((m) => m.estado === "reservada").length;
   const personasEnCola = cola.reduce((sum, e) => sum + e.personas, 0);
   const mesasFiltradas = useMemo(() => {
-    const needle = qMesa.trim();
+    const needle = qMesa.trim().toLowerCase();
     return mesas.filter((m) => {
       if (filtroMesa !== "todas" && m.estado !== filtroMesa) return false;
       if (!needle) return true;
-      return String(m.numero).includes(needle);
+      if (String(m.numero).includes(needle)) return true;
+      const reserva =
+        m.reservaId != null ? reservaById.get(m.reservaId) : undefined;
+      if (reserva?.nombre.toLowerCase().includes(needle)) return true;
+      const espera =
+        m.esperaId != null ? esperaById.get(m.esperaId) : undefined;
+      if (espera?.nombre.toLowerCase().includes(needle)) return true;
+      return false;
     });
-  }, [mesas, filtroMesa, qMesa]);
+  }, [mesas, filtroMesa, qMesa, reservaById, esperaById]);
   const paginated = slicePage(cola, page, PAGE_SIZE);
   const sentarEspera = esperas.find((e) => e.id === sentarId);
   const mesasLibres = mesas.filter((m) => m.estado === "libre");
@@ -785,7 +797,9 @@ const EsperaPanelPage = () => {
           value={qMesa}
           onChange={(e) => setQMesa(e.target.value)}
           placeholder={
-            locale === "en" ? "Search table nº…" : "Buscar mesa nº…"
+            locale === "en"
+              ? "Search table nº or name…"
+              : "Buscar mesa nº o apellido…"
           }
           className={INPUT}
         />
