@@ -60,6 +60,7 @@ const ConfigPage = () => {
   const toast = useToast();
   const role = useSessionStore((s) => s.rol);
   const branchId = useSessionStore((s) => s.sucursalId);
+  const empleadoActivo = useSessionStore((s) => s.empleadoActivo);
   const c = useConfigStore();
   const [guardado, setGuardado] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -122,7 +123,9 @@ const ConfigPage = () => {
     }
   };
 
-  if (role === "empleado" || role === "superadmin") return <NoAccess />;
+  if (role === "empleado" || role === "superadmin" || empleadoActivo) {
+    return <NoAccess />;
+  }
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">

@@ -21,7 +21,8 @@ const PAGE_SIZE = 8;
 export const Fichaje = () => {
   const { t } = useApp();
   const employees = useConfigStore((s) => s.empleados);
-  const { empleadoActivo: activeEmployee, fichar, salir: leave } = useSessionStore();
+  const { empleadoActivo: activeEmployee, fichar, salir: leave } =
+    useSessionStore();
 
   const [open, setOpen] = useState(false);
   const [pendiente, setPendiente] = useState<string | null>(null);
@@ -34,56 +35,53 @@ export const Fichaje = () => {
   const pageItems = slicePage(withName, page, PAGE_SIZE);
 
   const elegir = (id: string) => {
-        const emp = employees.find((e) => e.id === id);
-        if (!emp) return;
-        if (emp.tienePin) {
-          setPendiente(id);
-          setPin("");
-          setError(false);
-        } else {
-          void confirmar(id);
-        }
-      };
+    const emp = employees.find((e) => e.id === id);
+    if (!emp) return;
+    if (emp.tienePin) {
+      setPendiente(id);
+      setPin("");
+      setError(false);
+    } else {
+      void confirmar(id);
+    }
+  };
 
   // La verificación del PIN es del SERVIDOR (RPC verificar_pin_empleado).
-  // Antes se comparaba acá contra el PIN que venía en el store, así que se
-  // podía fichar como cualquiera abriendo devtools.
   const confirmar = async (id: string, pinIngresado?: string) => {
-        const emp = employees.find((e) => e.id === id);
-        if (!emp) return;
+    const emp = employees.find((e) => e.id === id);
+    if (!emp) return;
 
-        if (!emp.tienePin) {
-          fichar({ id: emp.id, nombre: emp.nombre });
-          cerrar();
-          return;
-        }
+    if (!emp.tienePin) {
+      fichar({ id: emp.id, nombre: emp.nombre });
+      cerrar();
+      return;
+    }
 
-        // Modo demo (sin Supabase): no hay backend contra el cual validar.
-        if (!supabaseConfigurado) {
-          fichar({ id: emp.id, nombre: emp.nombre });
-          cerrar();
-          return;
-        }
+    if (!supabaseConfigurado) {
+      fichar({ id: emp.id, nombre: emp.nombre });
+      cerrar();
+      return;
+    }
 
-        setVerificando(true);
-        const ok = await verifyEmployeePin(id, (pinIngresado ?? "").trim());
-        setVerificando(false);
-        if (!ok) {
-          setError(true);
-          setPin("");
-          return;
-        }
-        fichar({ id: ok.id, nombre: ok.nombre });
-        cerrar();
-      };
+    setVerificando(true);
+    const ok = await verifyEmployeePin(id, (pinIngresado ?? "").trim());
+    setVerificando(false);
+    if (!ok) {
+      setError(true);
+      setPin("");
+      return;
+    }
+    fichar({ id: ok.id, nombre: ok.nombre });
+    cerrar();
+  };
 
   const cerrar = () => {
-        setOpen(false);
-        setPendiente(null);
-        setPin("");
-        setError(false);
-        setPage(1);
-      };
+    setOpen(false);
+    setPendiente(null);
+    setPin("");
+    setError(false);
+    setPage(1);
+  };
 
   const pendingName =
     employees.find((e) => e.id === pendiente)?.nombre || "";
@@ -115,23 +113,47 @@ export const Fichaje = () => {
       </button>
 
       {open && (
-        <ModalShell onClose={cerrar} labelledBy="fichaje-title" busy={verificando}>
+        <ModalShell
+          onClose={cerrar}
+          labelledBy="fichaje-title"
+          busy={verificando}
+        >
           {withName.length === 0 ? (
-            <p className="py-6 text-center text-sm text-carbon/50">
-              {t("fichaje.sinEmpleados")}
-            </p>
+            <div>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <h3
+                  id="fichaje-title"
+                  className="font-display text-2xl uppercase tracking-tight text-carbon"
+                >
+                  {t("fichaje.elegi")}
+                </h3>
+                <ModalCloseBtn onClick={cerrar} label={t("qr.cerrar")} />
+              </div>
+              <p className="py-6 text-center text-sm text-carbon/50">
+                {t("fichaje.sinEmpleados")}
+              </p>
+            </div>
           ) : pendiente ? (
             <div>
-              <h3
-                id="fichaje-title"
-                className="font-display text-2xl uppercase tracking-tight text-carbon"
-              >
-                {t("fichaje.pin")}
-              </h3>
-              <p className="mt-1 text-sm text-carbon/55">
-                {t("fichaje.ingresaPin", { n: pendingName })}
-              </p>
-              <p className="mt-2 text-xs text-carbon/45">{t("fichaje.pinExplica")}</p>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3
+                    id="fichaje-title"
+                    className="font-display text-2xl uppercase tracking-tight text-carbon"
+                  >
+                    {t("fichaje.pin")}
+                  </h3>
+                  <p className="mt-1 text-sm text-carbon/55">
+                    {t("fichaje.ingresaPin", { n: pendingName })}
+                  </p>
+                </div>
+                <ModalCloseBtn
+                  onClick={cerrar}
+                  disabled={verificando}
+                  label={t("qr.cerrar")}
+                />
+              </div>
+              <p className="text-xs text-carbon/45">{t("fichaje.pinExplica")}</p>
               <input
                 autoFocus
                 disabled={verificando}
@@ -182,6 +204,20 @@ export const Fichaje = () => {
             </div>
           ) : (
             <div>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3
+                    id="fichaje-title"
+                    className="font-display text-2xl uppercase tracking-tight text-carbon"
+                  >
+                    {activeEmployee ? t("fichaje.cambiar") : t("fichaje.elegi")}
+                  </h3>
+                  <p className="mt-1 text-xs text-carbon/45">
+                    {t("fichaje.elegiSub")}
+                  </p>
+                </div>
+                <ModalCloseBtn onClick={cerrar} label={t("qr.cerrar")} />
+              </div>
               {activeEmployee && (
                 <div className="mb-3 flex items-center justify-between gap-2 rounded-2xl border border-linea bg-crema/40 px-3 py-2.5">
                   <span className="flex min-w-0 items-center gap-2">
@@ -209,20 +245,6 @@ export const Fichaje = () => {
                   </button>
                 </div>
               )}
-              <div className="mb-3 flex items-start justify-between gap-2">
-                <div>
-                  <h3
-                    id="fichaje-title"
-                    className="font-display text-2xl uppercase tracking-tight text-carbon"
-                  >
-                    {activeEmployee ? t("fichaje.cambiar") : t("fichaje.elegi")}
-                  </h3>
-                  <p className="mt-1 text-xs text-carbon/45">
-                    {t("fichaje.elegiSub")}
-                  </p>
-                </div>
-                <ModalCloseBtn onClick={cerrar} label={t("qr.cerrar")} />
-              </div>
               <ul className="flex flex-col gap-1.5">
                 {pageItems.map((e) => (
                   <li key={e.id}>

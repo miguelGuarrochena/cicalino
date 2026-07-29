@@ -72,6 +72,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
   const path = usePathname();
   const { t } = useApp();
   const role = useSessionStore((s) => s.rol);
+  const empleadoActivo = useSessionStore((s) => s.empleadoActivo);
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
   const dispositivo = useSyncExternalStore(
@@ -86,8 +87,14 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
     { pedidos: moduloPedidos, espera: moduloEspera },
     dispositivo,
   );
+  // Con alguien fichado la tablet queda en operación (Pedidos / Espera).
+  // Config y métricas: el dueño sale del fichaje primero.
+  const soloOperacion = Boolean(empleadoActivo);
   const links = LINKS.filter((l) => {
     if (!l.roles.includes(role)) return false;
+    if (soloOperacion && (l.href === "/panel/config" || l.href === "/panel/metrics")) {
+      return false;
+    }
     if (l.href === "/panel" && !visibles.pedidos) return false;
     if (l.href === "/panel/espera" && !visibles.espera) return false;
     return true;
