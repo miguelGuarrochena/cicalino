@@ -57,9 +57,16 @@ const TerminosPage = () => {
                 (transferencia / Mercado Pago al alias indicado). La falta de
                 pago puede implicar pausa del servicio. El plan anual se abona
                 por adelantado según la cotización vigente al momento del pago.
-                En plan mensual, una sucursal agregada a mitad de ciclo se suma
-                al <b>próximo</b> cobro. En plan anual, cada sucursal nueva es un
-                cobro anual aparte (desde la fecha de alta de esa sucursal).
+              </p>
+              <p>
+                <b className="text-carbon">Sucursales nuevas y cobro.</b>{" "}
+                <b>Plan mensual:</b> si agregás una sucursal a mitad de mes, esa
+                sucursal puede usarse ya, pero <b>no se cobra en el ciclo
+                actual</b>. Su precio se suma recién en el <b>próximo</b> cobro
+                mensual (no hay cobro proporcional por los días que faltan del
+                mes en curso). <b>Plan anual:</b> cada sucursal nueva se cobra
+                aparte, por un año completo, desde la fecha de alta de esa
+                sucursal (no se prorratea con el aniversario de las demás).
               </p>
               <p>
                 <b className="text-carbon">Arrepentimiento y reintegros.</b>{" "}
@@ -118,9 +125,18 @@ const TerminosPage = () => {
               <p>
                 <b className="text-carbon">Payment.</b> Billing is currently
                 manual (transfer / Mercado Pago). Non-payment may pause the
-                service. On a monthly plan, a branch added mid-cycle is billed
-                from the <b>next</b> cycle. On a yearly plan, each new branch is
-                a separate yearly charge (from that branch&apos;s start date).
+                service. Yearly plans are paid in advance at the rate in force
+                when paid.
+              </p>
+              <p>
+                <b className="text-carbon">New branches and billing.</b>{" "}
+                <b>Monthly plan:</b> if you add a branch mid-cycle, you can use
+                it right away, but it is <b>not charged in the current
+                cycle</b>. Its price is added only on the <b>next</b> monthly
+                bill (no prorated charge for the remaining days of the current
+                month). <b>Yearly plan:</b> each new branch is a separate
+                full-year charge from that branch&apos;s start date (not
+                prorated against the anniversary of other branches).
               </p>
               <p>
                 <b className="text-carbon">Cooling-off and refunds.</b> You have{" "}

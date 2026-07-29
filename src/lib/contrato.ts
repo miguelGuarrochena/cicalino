@@ -1,7 +1,7 @@
 import { PRECIO_POR_SUCURSAL } from "@/lib/precios";
 
 /** Versión publicada de los términos (subí la fecha al cambiar el texto legal). */
-export const TERMINOS_VERSION = "2026-07-29c";
+export const TERMINOS_VERSION = "2026-07-29d";
 
 export type PlanCobroUI = "mensual" | "anual" | "gratis";
 
