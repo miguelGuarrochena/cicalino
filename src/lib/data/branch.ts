@@ -1,7 +1,7 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { branchConfigSchema, empleadoSchema, parsear } from "@/lib/schemas";
+import { branchOperacionSchema, empleadoSchema, parsear } from "@/lib/schemas";
 import type {
   EmployeeUI,
   IdentificationMode,
@@ -54,25 +54,23 @@ export const fetchBranchConfig = async (
 
 export const saveBranchConfig = async (
   branchId: string,
-  cfg: BranchConfig,
+  cfg: Pick<BranchConfig, "modo" | "cantidadMesas" | "horaCorte">,
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
-  const v = parsear(branchConfigSchema, {
-    ...cfg,
+  const v = parsear(branchOperacionSchema, {
+    modo: cfg.modo,
+    cantidadMesas: cfg.cantidadMesas,
+    horaCorte: cfg.horaCorte,
   });
   if (!v.ok) {
     console.error("saveBranchConfig", v.error);
     return false;
   }
-  // Los módulos contratados los define el superadmin: no se pisan acá.
+  // Identidad del local (nombre, tipo, whatsapp, dirección, módulos): solo superadmin.
   const { error } = await supabase
     .from("locales")
     .update({
-      nombre: v.data.nombre,
-      tipo_negocio: v.data.tipo,
-      whatsapp: v.data.whatsapp,
-      direccion: v.data.direccion ?? null,
       modo_identificacion: v.data.modo,
       cantidad_mesas: v.data.cantidadMesas,
       hora_corte: v.data.horaCorte,

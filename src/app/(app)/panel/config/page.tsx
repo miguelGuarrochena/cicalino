@@ -9,14 +9,14 @@ import {
   useConfigStore,
   type IdentificationMode,
 } from "@/lib/store/config-store";
-import { isWhatsapp } from "@/lib/validations";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { saveBranchConfig } from "@/lib/data/branch";
+import { syncMesas } from "@/lib/data/espera";
 import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
-import { TIPOS_NEGOCIO, TIPO_NEGOCIO_LABEL } from "@/lib/types";
+import { TIPO_NEGOCIO_LABEL } from "@/lib/types";
 import {
   guardarDispositivoModo,
   leerDispositivoModo,
@@ -27,11 +27,6 @@ const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 const CARD =
   "rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6";
-
-const TIPOS = TIPOS_NEGOCIO.map((value) => ({
-  value,
-  label: TIPO_NEGOCIO_LABEL[value],
-}));
 
 const HORAS_CORTE = Array.from({ length: 24 }).map((_, h) => ({
   value: String(h),
@@ -57,9 +52,6 @@ const Campo = ({
 };
 
 type FormErrors = {
-  nombre?: string;
-  whatsapp?: string;
-  direccion?: string;
   mesas?: string;
 };
 
@@ -89,23 +81,15 @@ const ConfigPage = () => {
   ];
 
   const validar = (): FormErrors => {
-        const next: FormErrors = {};
-        if (role === "admin") {
-          if (!c.nombre.trim()) next.nombre = t("config.errNombre");
-          if (!isWhatsapp(c.whatsapp)) next.whatsapp = t("config.errWhatsapp");
-          if (!c.direccion.trim()) next.direccion = t("config.errDireccion");
-        }
-        if (c.modo === "mesa" && (!c.cantidadMesas || c.cantidadMesas < 1)) {
-          next.mesas = t("config.errMesas");
-        }
-        if (
-          c.moduloEspera &&
-          (!c.cantidadMesas || c.cantidadMesas < 1)
-        ) {
-          next.mesas = t("config.errMesas");
-        }
-        return next;
-      };
+    const next: FormErrors = {};
+    if (c.modo === "mesa" && (!c.cantidadMesas || c.cantidadMesas < 1)) {
+      next.mesas = t("config.errMesas");
+    }
+    if (c.moduloEspera && (!c.cantidadMesas || c.cantidadMesas < 1)) {
+      next.mesas = t("config.errMesas");
+    }
+    return next;
+  };
 
   const guardar = async () => {
     if (saving) return;
@@ -115,17 +99,18 @@ const ConfigPage = () => {
     setSaving(true);
     try {
       if (supabaseConfigurado && isRealBranchId(branchId)) {
-        await saveBranchConfig(branchId, {
-          nombre: c.nombre,
-          tipo: c.tipo,
-          whatsapp: c.whatsapp,
-          direccion: c.direccion,
+        const ok = await saveBranchConfig(branchId, {
           modo: c.modo,
           cantidadMesas: c.cantidadMesas,
           horaCorte: c.horaCorte,
-          moduloPedidos: c.moduloPedidos,
-          moduloEspera: c.moduloEspera,
         });
+        if (!ok) {
+          toast(t("toast.configError"), "error");
+          return;
+        }
+        if (c.moduloEspera || c.modo === "mesa") {
+          await syncMesas(branchId, c.cantidadMesas);
+        }
       }
       setGuardado(true);
       toast(t("toast.configGuardada"), "success");
@@ -161,51 +146,46 @@ const ConfigPage = () => {
 
       {role === "admin" && (
         <section className={CARD}>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-carbon/60">
+          <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-carbon/60">
             {t("config.seccionLocal")}
           </h2>
+          <p className="mb-4 text-sm text-carbon/55">
+            Datos del local (solo el administrador de Cicalino los puede
+            cambiar).
+          </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Campo label={`${t("config.nombre")} *`} error={errors.nombre}>
-              <input
-                className={`${INPUT} ${errors.nombre ? "border-red-400" : ""}`}
-                value={c.nombre}
-                onChange={(e) => {
-                  c.setCampo("nombre", e.target.value);
-                  setErrors((er) => ({ ...er, nombre: undefined }));
-                }}
-                placeholder="Café Demo"
-              />
-            </Campo>
-            <Campo label={t("config.tipo")}>
-              <Select
-                value={c.tipo}
-                onChange={(v) => c.setCampo("tipo", v)}
-                options={[...TIPOS]}
-                triggerClassName="px-4 py-3"
-              />
-            </Campo>
-            <Campo label={t("config.whatsapp")} error={errors.whatsapp}>
-              <input
-                className={`${INPUT} ${errors.whatsapp ? "border-red-400" : ""}`}
-                value={c.whatsapp}
-                onChange={(e) => {
-                  c.setCampo("whatsapp", e.target.value);
-                  setErrors((er) => ({ ...er, whatsapp: undefined }));
-                }}
-                placeholder="+54 9 11 5555 5555"
-              />
-            </Campo>
-            <Campo label={`${t("config.direccion")} *`} error={errors.direccion}>
-              <input
-                className={`${INPUT} ${errors.direccion ? "border-red-400" : ""}`}
-                value={c.direccion}
-                onChange={(e) => {
-                  c.setCampo("direccion", e.target.value);
-                  setErrors((er) => ({ ...er, direccion: undefined }));
-                }}
-                placeholder="Av. Siempreviva 742"
-              />
-            </Campo>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-carbon/70">
+                {t("config.nombre")}
+              </span>
+              <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
+                {c.nombre.trim() || "—"}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-carbon/70">
+                {t("config.tipo")}
+              </span>
+              <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
+                {TIPO_NEGOCIO_LABEL[c.tipo] ?? c.tipo}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-carbon/70">
+                {t("config.whatsapp")}
+              </span>
+              <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
+                {c.whatsapp.trim() || "—"}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-carbon/70">
+                {t("config.direccion")}
+              </span>
+              <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
+                {c.direccion.trim() || "—"}
+              </p>
+            </div>
           </div>
         </section>
       )}
@@ -266,6 +246,9 @@ const ConfigPage = () => {
                 }}
               />
             </Campo>
+            <p className="mt-1.5 text-xs text-carbon/50">
+              Tocá Guardar para aplicar el cambio en el mapa de mesas.
+            </p>
           </div>
         )}
       </section>

@@ -156,18 +156,25 @@ export const useConfigStore = create<ConfigState>()(
     {
       name: "cicalino-config",
       skipHydration: true,
-      partialize: (s) => ({
-        nombre: s.nombre,
-        tipo: s.tipo,
-        whatsapp: s.whatsapp,
-        direccion: s.direccion,
-        modo: s.modo,
-        cantidadMesas: s.cantidadMesas,
-        horaCorte: s.horaCorte,
-        moduloPedidos: s.moduloPedidos,
-        moduloEspera: s.moduloEspera,
-        empleados: s.empleados,
-      }),
+      partialize: (s) => {
+        const operacion = {
+          modo: s.modo,
+          cantidadMesas: s.cantidadMesas,
+          horaCorte: s.horaCorte,
+          moduloPedidos: s.moduloPedidos,
+          moduloEspera: s.moduloEspera,
+          empleados: s.empleados,
+        };
+        // En live, la identidad del local viene de la base (no del localStorage).
+        if (supabaseConfigurado) return operacion;
+        return {
+          ...operacion,
+          nombre: s.nombre,
+          tipo: s.tipo,
+          whatsapp: s.whatsapp,
+          direccion: s.direccion,
+        };
+      },
     },
   ),
 );

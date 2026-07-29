@@ -50,6 +50,8 @@ export interface UseEsperas {
   cancelarReserva: (id: string) => Promise<void>;
   liberarMesa: (numero: number) => Promise<void>;
   setCapacidad: (numero: number, capacidad: number) => Promise<void>;
+  /** Reaplica cantidad_mesas de config al mapa (tras Guardar). */
+  sincronizarCantidadMesas: () => Promise<void>;
 }
 
 export const useEsperas = (branchId: string | null): UseEsperas => {
@@ -102,6 +104,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     }
     setReady(false);
     void (async () => {
+      // Solo al cargar la sucursal: la cantidad la fija Config → Guardar.
       await syncMesas(branchId, cantidadMesas);
       await reload();
     })();
@@ -120,15 +123,25 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       window.removeEventListener("online", onWake);
       window.clearInterval(iv);
     };
+    // cantidadMesas a propósito fuera: no re-sincronizar el mapa al tipear en Config.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync solo al montar/cambiar sucursal
   }, [
     live,
     branchId,
     seed,
     reload,
-    cantidadMesas,
     setMesasCount,
     demoExpirar,
   ]);
+
+  const sincronizarCantidadMesas = async () => {
+    if (!live || !branchId) {
+      setMesasCount(cantidadMesas);
+      return;
+    }
+    await syncMesas(branchId, cantidadMesas);
+    await reload();
+  };
 
   const crearEspera = async (
     nombre: string,
@@ -299,6 +312,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     cancelarReserva,
     liberarMesa,
     setCapacidad,
+    sincronizarCantidadMesas,
   };
 };
 

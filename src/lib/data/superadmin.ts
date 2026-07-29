@@ -192,6 +192,7 @@ export const insertBranchDb = async (
     nombre: string;
     tipo: TipoNegocio;
     direccion: string;
+    whatsapp?: string;
     moduloPedidos?: boolean;
     moduloEspera?: boolean;
   },
@@ -212,12 +213,35 @@ export const insertBranchDb = async (
     nombre: data.nombre.trim(),
     tipo_negocio: data.tipo,
     direccion: data.direccion.trim() || null,
+    whatsapp: data.whatsapp?.trim() || null,
     slug,
     modulo_pedidos: mods.pedidos,
     modulo_espera: mods.espera,
   });
   if (error) console.error("insertBranchDb", error.message);
   else await syncOrgModulosFromLocales(orgId);
+};
+
+export const updateBranchIdentityDb = async (
+  branchId: string,
+  data: {
+    nombre?: string;
+    tipo?: TipoNegocio;
+    direccion?: string;
+    whatsapp?: string;
+  },
+): Promise<void> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return;
+  const db: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (data.nombre != null) db.nombre = data.nombre.trim();
+  if (data.tipo != null) db.tipo_negocio = data.tipo;
+  if (data.direccion != null) db.direccion = data.direccion.trim() || null;
+  if (data.whatsapp != null) db.whatsapp = data.whatsapp.trim() || null;
+  const { error } = await supabase.from("locales").update(db).eq("id", branchId);
+  if (error) console.error("updateBranchIdentityDb", error.message);
 };
 
 export const updateBranchModulesDb = async (

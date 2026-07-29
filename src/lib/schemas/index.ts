@@ -152,6 +152,27 @@ export const branchConfigSchema = z
   });
 export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 
+/** Lo que el dueño puede guardar desde Config (no toca identidad del local). */
+export const branchOperacionSchema = z
+  .object({
+    modo: modoIdentificacion,
+    cantidadMesas: z.coerce
+      .number()
+      .int()
+      .min(1, "Tiene que haber al menos 1 mesa.")
+      .max(500, "Máximo 500 mesas."),
+    horaCorte: z.coerce
+      .number()
+      .int()
+      .min(0, "La hora de corte va de 0 a 23.")
+      .max(23, "La hora de corte va de 0 a 23."),
+  })
+  .refine((v) => v.modo !== "mesa" || v.cantidadMesas >= 1, {
+    message: "Con modo 'mesa' necesitás definir la cantidad de mesas.",
+    path: ["cantidadMesas"],
+  });
+export type BranchOperacionInput = z.infer<typeof branchOperacionSchema>;
+
 // ---------------------------------------------------------------------------
 // Empleados.
 // ---------------------------------------------------------------------------
