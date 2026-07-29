@@ -20,6 +20,7 @@ import {
   subscribeEsperas,
 } from "@/lib/data/espera";
 import type { EsperaView, MesaView, ReservaView } from "@/lib/types";
+import { staffEsperaCancelIds } from "@/lib/store/espera-alerts-store";
 
 type EmployeeRef = { id: string; nombre: string } | null;
 
@@ -111,7 +112,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
     window.addEventListener("online", onWake);
-    const iv = window.setInterval(() => void reload(), 30_000);
+    const iv = window.setInterval(() => void reload(), 5_000);
     return () => {
       unsub();
       document.removeEventListener("visibilitychange", onWake);
@@ -207,6 +208,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
   };
 
   const cancelar = async (id: string) => {
+    staffEsperaCancelIds.add(id);
     if (!live) {
       demoChange(id, "cancelado");
       return;

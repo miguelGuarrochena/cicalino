@@ -434,11 +434,12 @@ export const setMesaEstado = async (
 export const subscribeEsperas = (
   branchId: string,
   onChange: () => void,
+  channelSuffix = "",
 ): (() => void) => {
   const supabase = createBrowserSupabase();
   if (!supabase) return () => undefined;
   const ch = supabase
-    .channel(`esperas-${branchId}`)
+    .channel(`esperas-${branchId}${channelSuffix}`)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "esperas", filter: `local_id=eq.${branchId}` },

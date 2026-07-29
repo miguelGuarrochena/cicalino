@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { QrModal } from "@/components/panel/QrModal";
 import { ModalShell } from "@/components/ui/ModalShell";
@@ -11,12 +11,10 @@ import { useEsperas } from "@/lib/hooks/useEsperas";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
-import { dingCancelado } from "@/lib/sound";
 import {
   ETIQUETA_ESPERA,
   ETIQUETA_RESERVA,
   esperaClosed,
-  type EsperaStatus,
   type EsperaView,
   type ReservaView,
 } from "@/lib/types";
@@ -407,10 +405,6 @@ const EsperaPanelPage = () => {
   >("todas");
   const [qMesa, setQMesa] = useState("");
   const [page, setPage] = useState(1);
-  /** IDs cancelados desde el panel (vs. desde el celular del cliente). */
-  const staffCancelIds = useRef(new Set<string>());
-  const prevEstado = useRef<Map<string, EsperaStatus>>(new Map());
-  const cancelBootstrapped = useRef(false);
 
   useEffect(() => {
     // Esperar config real: al refrescar el store arranca con espera=false y
@@ -424,38 +418,6 @@ const EsperaPanelPage = () => {
     const fresh = esperas.find((e) => e.id === qr.id);
     if (fresh?.vistoEn) setQr(null);
   }, [esperas, qr]);
-
-  useEffect(() => {
-    const next = new Map(esperas.map((e) => [e.id, e.estado]));
-    if (!cancelBootstrapped.current) {
-      prevEstado.current = next;
-      cancelBootstrapped.current = true;
-      return;
-    }
-    for (const e of esperas) {
-      const before = prevEstado.current.get(e.id);
-      if (!before || before === "cancelado" || e.estado !== "cancelado") continue;
-      const fromStaff = staffCancelIds.current.has(e.id);
-      staffCancelIds.current.delete(e.id);
-      if (fromStaff) {
-        toast(
-          locale === "en"
-            ? `Cancelled: ${e.nombre}`
-            : `Cancelado: ${e.nombre}`,
-          "info",
-        );
-      } else {
-        dingCancelado();
-        toast(
-          locale === "en"
-            ? `${e.nombre} cancelled their wait`
-            : `${e.nombre} canceló la espera`,
-          "error",
-        );
-      }
-    }
-    prevEstado.current = next;
-  }, [esperas, locale, toast]);
 
   const cola = useMemo(
     () =>
@@ -1095,7 +1057,6 @@ const EsperaPanelPage = () => {
           pathPrefix="/e"
           accent="espera"
           onCancelar={() => {
-            staffCancelIds.current.add(qr.id);
             void cancelar(qr.id);
             setQr(null);
           }}
@@ -1373,7 +1334,6 @@ const EsperaPanelPage = () => {
             <button
               type="button"
               onClick={() => {
-                staffCancelIds.current.add(confirmCancelEsperaId);
                 void cancelar(confirmCancelEsperaId);
                 setConfirmCancelEsperaId(null);
               }}

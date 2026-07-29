@@ -51,6 +51,9 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
     useSessionStore.persist.rehydrate();
     useSuperadminStore.persist.rehydrate();
     useOrdersStore.persist.rehydrate();
+    void import("@/lib/store/espera-store").then(({ useEsperaStore }) => {
+      useEsperaStore.persist.rehydrate();
+    });
     // PWA: registrar el service worker (solo en producción).
     if (
       process.env.NODE_ENV === "production" &&

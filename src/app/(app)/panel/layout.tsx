@@ -13,6 +13,7 @@ import { useSessionStore } from "@/lib/store/session-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { useRouter } from "next/navigation";
+import { EsperaCancelBanner } from "@/components/panel/EsperaCancelBanner";
 
 /** Superadmin en /panel sin impersonar: volver a /admin sin flash de pantalla intermedia. */
 const SuperadminRedirect = () => {
@@ -72,6 +73,7 @@ const PanelLayout = ({
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
       <BannerImpersonacion />
+      {role !== "superadmin" && <EsperaCancelBanner />}
       <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md">
         <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-8 sm:py-3">
           <Logo href="/panel" className="h-9 sm:h-12" />
