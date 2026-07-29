@@ -43,7 +43,7 @@ export interface UseEsperas {
     employee?: EmployeeRef;
   }) => Promise<ReservaView | null>;
   avisar: (id: string) => Promise<void>;
-  sentar: (id: string, mesaNumero: number) => Promise<void>;
+  sentar: (id: string, mesasNumeros: number[]) => Promise<void>;
   cancelar: (id: string) => Promise<void>;
   sentarReserva: (id: string) => Promise<void>;
   cancelarReserva: (id: string) => Promise<void>;
@@ -188,16 +188,21 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     await reload();
   };
 
-  const sentar = async (id: string, mesaNumero: number) => {
+  const sentar = async (id: string, mesasNumeros: number[]) => {
+    const nums = [...new Set(mesasNumeros)].filter((n) => n >= 1).sort((a, b) => a - b);
+    if (!nums.length) return;
+    const primaria = nums[0];
     if (!live || !branchId) {
-      demoChange(id, "sentado", mesaNumero);
+      demoChange(id, "sentado", primaria, nums);
       return;
     }
-    await updateEsperaStatus(id, "sentado", mesaNumero);
-    await setMesaEstado(branchId, mesaNumero, "ocupada", {
-      esperaId: id,
-      reservaId: null,
-    });
+    await updateEsperaStatus(id, "sentado", primaria);
+    for (const n of nums) {
+      await setMesaEstado(branchId, n, "ocupada", {
+        esperaId: id,
+        reservaId: null,
+      });
+    }
     await reload();
   };
 
@@ -249,6 +254,20 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     const mesa = liveMesas.find((m) => m.numero === numero);
     if (mesa?.reservaId && mesa.estado === "reservada") {
       await updateReservaStatus(mesa.reservaId, "cancelada");
+      await setMesaEstado(branchId, numero, "libre");
+      await reload();
+      return;
+    }
+    // Si el grupo ocupaba varias mesas, liberar todas las del mismo espera.
+    if (mesa?.esperaId && mesa.estado === "ocupada") {
+      const mismas = liveMesas.filter(
+        (m) => m.esperaId === mesa.esperaId && m.estado === "ocupada",
+      );
+      for (const m of mismas) {
+        await setMesaEstado(branchId, m.numero, "libre");
+      }
+      await reload();
+      return;
     }
     await setMesaEstado(branchId, numero, "libre");
     await reload();

@@ -24,6 +24,7 @@ interface EsperaState {
     id: string,
     estado: EsperaStatus,
     mesaNumero?: number | null,
+    mesasExtra?: number[],
   ) => void;
   liberarMesa: (numero: number) => void;
   ocuparMesa: (numero: number, esperaId: string) => void;
@@ -167,7 +168,7 @@ export const useEsperaStore = create<EsperaState>()(
         return e;
       },
 
-      cambiarEstado: (id, estado, mesaNumero = null) =>
+      cambiarEstado: (id, estado, mesaNumero = null, mesasExtra = []) =>
         set((s) => {
           const now = new Date().toISOString();
           const esperas = s.esperas.map((e) => {
@@ -183,8 +184,9 @@ export const useEsperaStore = create<EsperaState>()(
           });
           let mesas = s.mesas;
           if (estado === "sentado" && mesaNumero) {
+            const nums = new Set([mesaNumero, ...mesasExtra]);
             mesas = s.mesas.map((m) =>
-              m.numero === mesaNumero
+              nums.has(m.numero)
                 ? {
                     ...m,
                     estado: "ocupada" as const,
@@ -208,11 +210,26 @@ export const useEsperaStore = create<EsperaState>()(
                 ? { ...r, estado: "cancelada" as const, canceladoEn: now }
                 : r,
             );
+            return {
+              reservas,
+              mesas: s.mesas.map((m) =>
+                m.numero === numero
+                  ? {
+                      ...m,
+                      estado: "libre" as const,
+                      esperaId: null,
+                      reservaId: null,
+                    }
+                  : m,
+              ),
+            };
           }
+          const esperaId =
+            mesa?.estado === "ocupada" ? mesa.esperaId : null;
           return {
             reservas,
             mesas: s.mesas.map((m) =>
-              m.numero === numero
+              (esperaId && m.esperaId === esperaId) || m.numero === numero
                 ? {
                     ...m,
                     estado: "libre" as const,

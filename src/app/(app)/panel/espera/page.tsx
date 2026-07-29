@@ -39,24 +39,77 @@ const PersonasChips = ({
 }: {
   value: number;
   onChange: (n: number) => void;
-}) => (
-  <div className="flex flex-wrap gap-2">
-    {PERSONAS_CHIPS.map((n) => (
-      <button
-        key={n}
-        type="button"
-        onClick={() => onChange(n)}
-        className={`flex size-11 items-center justify-center rounded-xl text-sm font-bold transition active:scale-95 ${
-          value === n
-            ? "bg-espera text-crema"
-            : "border border-linea bg-crema/40 text-carbon hover:border-espera/40"
-        }`}
-      >
-        {n}
-      </button>
-    ))}
-  </div>
-);
+}) => {
+  const [otro, setOtro] = useState(value > 8);
+  const [otroTexto, setOtroTexto] = useState(value > 8 ? String(value) : "");
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        {PERSONAS_CHIPS.map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => {
+              setOtro(false);
+              setOtroTexto("");
+              onChange(n);
+            }}
+            className={`flex size-11 items-center justify-center rounded-xl text-sm font-bold transition active:scale-95 ${
+              !otro && value === n
+                ? "bg-espera text-crema"
+                : "border border-linea bg-crema/40 text-carbon hover:border-espera/40"
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => {
+            setOtro(true);
+            if (value <= 8) {
+              setOtroTexto("");
+              onChange(9);
+            }
+          }}
+          className={`flex h-11 min-w-11 items-center justify-center rounded-xl px-3 text-sm font-bold transition active:scale-95 ${
+            otro
+              ? "bg-espera text-crema"
+              : "border border-linea bg-crema/40 text-carbon hover:border-espera/40"
+          }`}
+        >
+          {otro && value > 8 ? value : "9+"}
+        </button>
+      </div>
+      {otro && (
+        <input
+          type="number"
+          min={9}
+          max={50}
+          inputMode="numeric"
+          className={INPUT}
+          placeholder="9, 10, 12…"
+          value={otroTexto}
+          autoFocus
+          onChange={(e) => {
+            const raw = e.target.value;
+            setOtroTexto(raw);
+            if (raw === "") return;
+            const n = Number(raw);
+            if (Number.isFinite(n) && n >= 1) onChange(Math.min(50, Math.max(1, n)));
+          }}
+          onBlur={() => {
+            if (otroTexto === "" || Number(otroTexto) < 9) {
+              setOtroTexto("9");
+              onChange(9);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+};
 
 const mesaTileClass = (
   estado: "libre" | "ocupada" | "reservada",
@@ -169,6 +222,7 @@ const EsperaPanelPage = () => {
   );
   const [editCapacidadValue, setEditCapacidadValue] = useState(4);
   const [liberarNumero, setLiberarNumero] = useState<number | null>(null);
+  const [sentarMesas, setSentarMesas] = useState<number[]>([]);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -222,10 +276,20 @@ const EsperaPanelPage = () => {
       : undefined;
   const CAPACIDADES_RAPIDAS = [2, 4, 6, 8, 10] as const;
 
-  const hayMesaPara = (personasGrupo: number) =>
-    mesas.some(
-      (m) => m.estado === "libre" && (m.capacidad ?? 4) >= personasGrupo,
-    );
+  const hayMesaPara = (personasGrupo: number) => {
+    const libresCap = mesas
+      .filter((m) => m.estado === "libre")
+      .map((m) => m.capacidad ?? 4)
+      .sort((a, b) => b - a);
+    if (!libresCap.length) return false;
+    if (libresCap.some((c) => c >= personasGrupo)) return true;
+    let sum = 0;
+    for (const c of libresCap) {
+      sum += c;
+      if (sum >= personasGrupo) return true;
+    }
+    return false;
+  };
 
   const employeeRef = activeEmployee
     ? { id: activeEmployee.id, nombre: activeEmployee.nombre }
@@ -597,7 +661,10 @@ const EsperaPanelPage = () => {
                   {(e.estado === "esperando" || e.estado === "avisado") && (
                     <button
                       type="button"
-                      onClick={() => setSentarId(e.id)}
+                      onClick={() => {
+                        setSentarMesas([]);
+                        setSentarId(e.id);
+                      }}
                       disabled={!puedeSentar}
                       className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90 disabled:opacity-40 sm:flex-1`}
                     >
@@ -952,7 +1019,13 @@ const EsperaPanelPage = () => {
       )}
 
       {sentarId && (
-        <ModalShell onClose={() => setSentarId(null)} labelledBy="sentar-title">
+        <ModalShell
+          onClose={() => {
+            setSentarId(null);
+            setSentarMesas([]);
+          }}
+          labelledBy="sentar-title"
+        >
           <h2
             id="sentar-title"
             className="font-display text-xl uppercase tracking-tight text-carbon"
@@ -961,11 +1034,34 @@ const EsperaPanelPage = () => {
               ? `Seat ${sentarEspera?.nombre ?? ""}`
               : `Sentar a ${sentarEspera?.nombre ?? ""}`}
           </h2>
-          <p className="mt-2 mb-3 text-sm text-carbon/55">
+          <p className="mt-2 mb-1 text-sm text-carbon/55">
             {locale === "en"
-              ? `Party of ${sentarEspera?.personas ?? "?"}. Only free tables that fit.`
-              : `Grupo de ${sentarEspera?.personas ?? "?"}. Solo mesas libres que entren.`}
+              ? `Party of ${sentarEspera?.personas ?? "?"}. Tap one or more free tables.`
+              : `Grupo de ${sentarEspera?.personas ?? "?"}. Tocá una o más mesas libres.`}
           </p>
+          {(() => {
+            const need = sentarEspera?.personas ?? 1;
+            const selectedCap = mesas
+              .filter((m) => sentarMesas.includes(m.numero))
+              .reduce((s, m) => s + (m.capacidad ?? 4), 0);
+            const ok = selectedCap >= need;
+            return (
+              <p
+                className={`mb-3 text-sm font-semibold ${
+                  ok ? "text-espera" : "text-amber-700"
+                }`}
+              >
+                {locale === "en"
+                  ? `${selectedCap} / ${need} seats selected`
+                  : `${selectedCap} / ${need} plazas elegidas`}
+                {sentarMesas.length > 1
+                  ? locale === "en"
+                    ? ` · tables ${sentarMesas.join("+")}`
+                    : ` · mesas ${sentarMesas.join("+")}`
+                  : ""}
+              </p>
+            );
+          })()}
           <div className="mb-3 flex flex-wrap gap-3 text-[10px] font-semibold uppercase tracking-wide text-carbon/50">
             <span className="inline-flex items-center gap-1.5">
               <span className="size-2.5 rounded-sm bg-espera" />
@@ -983,29 +1079,24 @@ const EsperaPanelPage = () => {
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
             {mesas.map((m) => {
               const libre = m.estado === "libre";
-              const entra =
-                (m.capacidad ?? 4) >= (sentarEspera?.personas ?? 1);
-              const pickable = libre && entra;
+              const selected = sentarMesas.includes(m.numero);
               return (
                 <button
                   key={m.id}
                   type="button"
-                  disabled={!pickable}
+                  disabled={!libre}
                   onClick={() => {
-                    if (!sentarId || !pickable) return;
-                    void sentar(sentarId, m.numero).then(() => {
-                      setSentarId(null);
-                      toast(
-                        locale === "en"
-                          ? `Seated at table ${m.numero}`
-                          : `Sentados en mesa ${m.numero}`,
-                        "success",
-                      );
-                    });
+                    if (!libre) return;
+                    setSentarMesas((prev) =>
+                      prev.includes(m.numero)
+                        ? prev.filter((n) => n !== m.numero)
+                        : [...prev, m.numero].sort((a, b) => a - b),
+                    );
                   }}
                   className={mesaTileClass(m.estado, {
-                    pickable,
-                    tooSmall: libre && !entra,
+                    pickable: libre,
+                    selected: libre && selected,
+                    tooSmall: false,
                   })}
                 >
                   <span className="font-display text-xl leading-none">
@@ -1029,6 +1120,33 @@ const EsperaPanelPage = () => {
               );
             })}
           </div>
+          <button
+            type="button"
+            disabled={
+              !sentarMesas.length ||
+              mesas
+                .filter((m) => sentarMesas.includes(m.numero))
+                .reduce((s, m) => s + (m.capacidad ?? 4), 0) <
+                (sentarEspera?.personas ?? 1)
+            }
+            onClick={() => {
+              if (!sentarId || !sentarMesas.length) return;
+              void sentar(sentarId, sentarMesas).then(() => {
+                const label = sentarMesas.join("+");
+                setSentarId(null);
+                setSentarMesas([]);
+                toast(
+                  locale === "en"
+                    ? `Seated at table ${label}`
+                    : `Sentados en mesa ${label}`,
+                  "success",
+                );
+              });
+            }}
+            className="mt-4 w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-40"
+          >
+            {locale === "en" ? "Confirm seat" : "Confirmar asiento"}
+          </button>
         </ModalShell>
       )}
 
@@ -1050,9 +1168,25 @@ const EsperaPanelPage = () => {
               ? locale === "en"
                 ? `Cancels the reservation${liberarReserva ? ` for ${liberarReserva.nombre}` : ""}.`
                 : `Cancela la reserva${liberarReserva ? ` de ${liberarReserva.nombre}` : ""}.`
-              : locale === "en"
-                ? "Marks the table as free again."
-                : "La mesa vuelve a quedar libre."}
+              : (() => {
+                  const linked =
+                    liberarMesaView.esperaId
+                      ? mesas.filter(
+                          (m) =>
+                            m.esperaId === liberarMesaView.esperaId &&
+                            m.estado === "ocupada",
+                        )
+                      : [liberarMesaView];
+                  if (linked.length > 1) {
+                    const nums = linked.map((m) => m.numero).join("+");
+                    return locale === "en"
+                      ? `Also frees joined tables ${nums}.`
+                      : `También libera las mesas juntas ${nums}.`;
+                  }
+                  return locale === "en"
+                    ? "Marks the table as free again."
+                    : "La mesa vuelve a quedar libre.";
+                })()}
           </p>
           <div className="mt-5 flex flex-col gap-2">
             <button
