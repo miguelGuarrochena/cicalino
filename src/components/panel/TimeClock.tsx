@@ -202,6 +202,37 @@ export const Fichaje = () => {
                 </button>
               </div>
             </div>
+          ) : activeEmployee ? (
+            <div>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3
+                    id="fichaje-title"
+                    className="font-display text-2xl uppercase tracking-tight text-carbon"
+                  >
+                    {t("fichaje.cambiar")}
+                  </h3>
+                </div>
+                <ModalCloseBtn onClick={cerrar} label={t("qr.cerrar")} />
+              </div>
+              <div className="flex items-center justify-between gap-2 rounded-2xl border border-linea bg-crema/40 px-3 py-3">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marca text-xs font-semibold text-crema">
+                    {inicial(activeEmployee.nombre)}
+                  </span>
+                  <span className="truncate font-semibold text-carbon">
+                    {activeEmployee.nombre}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => leave()}
+                  className="shrink-0 rounded-full bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                >
+                  {t("fichaje.salir")}
+                </button>
+              </div>
+            </div>
           ) : (
             <div>
               <div className="mb-3 flex items-start justify-between gap-3">
@@ -210,7 +241,7 @@ export const Fichaje = () => {
                     id="fichaje-title"
                     className="font-display text-2xl uppercase tracking-tight text-carbon"
                   >
-                    {activeEmployee ? t("fichaje.cambiar") : t("fichaje.elegi")}
+                    {t("fichaje.elegi")}
                   </h3>
                   <p className="mt-1 text-xs text-carbon/45">
                     {t("fichaje.elegiSub")}
@@ -218,33 +249,6 @@ export const Fichaje = () => {
                 </div>
                 <ModalCloseBtn onClick={cerrar} label={t("qr.cerrar")} />
               </div>
-              {activeEmployee && (
-                <div className="mb-3 flex items-center justify-between gap-2 rounded-2xl border border-linea bg-crema/40 px-3 py-2.5">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marca text-xs font-semibold text-crema">
-                      {inicial(activeEmployee.nombre)}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-xs text-carbon/50">
-                        {t("fichaje.atiende")}
-                      </span>
-                      <span className="block truncate font-semibold text-carbon">
-                        {activeEmployee.nombre}
-                      </span>
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      leave();
-                      cerrar();
-                    }}
-                    className="shrink-0 rounded-full bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
-                  >
-                    {t("fichaje.salir")}
-                  </button>
-                </div>
-              )}
               <ul className="flex flex-col gap-1.5">
                 {pageItems.map((e) => (
                   <li key={e.id}>
