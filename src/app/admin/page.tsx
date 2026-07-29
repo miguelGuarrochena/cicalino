@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import {
@@ -71,6 +71,11 @@ const SuperadminPage = () => {
   const [modal, setModal] = useState<
     { mode: "crear" } | { mode: "ver"; org: OrganizationRow } | null
   >(null);
+
+  useEffect(() => {
+    const max = Math.max(1, Math.ceil(organizations.length / PAGE_SIZE) || 1);
+    if (page > max) setPage(max);
+  }, [organizations.length, page]);
 
   const abrirDemo = async () => {
     setAbriendoDemo(true);

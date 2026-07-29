@@ -1,12 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import {
-  listarCobrosPendientes,
-  revisarCobrosAlAbrirAdmin,
-} from "@/lib/actions/cobros";
-
-type Item = { id: string; nombre: string; motivo: string; email: string };
+import { useEffect, useMemo } from "react";
+import { revisarCobrosAlAbrirAdmin } from "@/lib/actions/cobros";
+import { motivoCobro, orgCobroPendiente } from "@/lib/billing";
+import { useSuperadminStore } from "@/lib/store/superadmin-store";
 
 /** Avisos de cobro / fin de prueba en el panel de Superadmin. */
 export const CobrosPanel = ({
@@ -14,17 +11,39 @@ export const CobrosPanel = ({
 }: {
   onAbrir?: (orgId: string) => void;
 }) => {
-  const [items, setItems] = useState<Item[]>([]);
+  const organizations = useSuperadminStore((s) => s.organizaciones);
 
-  const load = useCallback(async () => {
-    setItems(await listarCobrosPendientes());
-  }, []);
+  const items = useMemo(
+    () =>
+      organizations
+        .filter((o) =>
+          orgCobroPendiente({
+            activo: o.activo,
+            pagado: o.pagado,
+            plan: o.plan,
+            mesGratisHasta: o.mesGratisHasta,
+            proximoCobroEn: o.proximoCobroEn,
+          }),
+        )
+        .map((o) => ({
+          id: o.id,
+          nombre: o.nombre,
+          motivo: motivoCobro({
+            activo: o.activo,
+            pagado: o.pagado,
+            plan: o.plan,
+            mesGratisHasta: o.mesGratisHasta,
+            proximoCobroEn: o.proximoCobroEn,
+          }),
+          email: o.duenoEmail,
+        })),
+    [organizations],
+  );
 
   useEffect(() => {
-    void load();
     // Mail diario (anti-spam adentro de la action).
     void revisarCobrosAlAbrirAdmin();
-  }, [load]);
+  }, []);
 
   if (items.length === 0) return null;
 

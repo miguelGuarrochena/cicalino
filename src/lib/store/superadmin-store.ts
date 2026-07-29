@@ -363,8 +363,13 @@ export const useSuperadminStore = create<SuperadminState>()(
         })),
     }),
     {
-      name: "cicalino-superadmin-v2",
+      // v3: en live no persistimos orgs (la base es la fuente).
+      name: "cicalino-superadmin-v3",
       skipHydration: true,
+      partialize: (state) =>
+        supabaseConfigurado
+          ? {}
+          : { organizaciones: state.organizaciones },
     },
   ),
 );

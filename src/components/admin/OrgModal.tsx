@@ -437,6 +437,7 @@ export const OrgModal = ({
     }
     await conBusy(next ? "Marcando pagado…" : "Marcando impago…", async () => {
       if (live) {
+        toggleOrgPagado(vista.id);
         await updateOrgDb(vista.id, {
           pagado: next,
           proximoCobroEn,
@@ -467,16 +468,19 @@ export const OrgModal = ({
         if (live) {
           if (next) {
             const r = await activarOrganizacion(vista.id);
-            await refreshOrganizations();
             if (!r.ok) {
+              await refreshOrganizations();
               toast(r.error, "error");
               return;
             }
+            toggleOrgActivo(vista.id);
             toast("Cuenta activada · invitación de alta enviada", "success");
-          } else {
-            await updateOrgDb(vista.id, { activo: false });
             await refreshOrganizations();
+          } else {
+            toggleOrgActivo(vista.id);
+            await updateOrgDb(vista.id, { activo: false });
             toast(t("toast.orgPausada"), "info");
+            await refreshOrganizations();
           }
         } else {
           toggleOrgActivo(vista.id);
@@ -490,6 +494,11 @@ export const OrgModal = ({
     if (!vista || busy) return;
     await conBusy("Eliminando sucursal…", async () => {
       if (live) {
+        // Front primero para que la lista no espere el round-trip.
+        removeBranch(vista.id, sucId);
+        actualizarOrg(vista.id, {
+          cupo: Math.max(1, vista.sucursales.length - 1),
+        });
         await deleteBranchDb(sucId);
         const quedan = Math.max(1, vista.sucursales.length - 1);
         await updateOrgDb(vista.id, { cupo: quedan });
@@ -506,13 +515,21 @@ export const OrgModal = ({
 
   const borrarOrg = async () => {
     if (!vista || busy) return;
+    const id = vista.id;
     await conBusy("Eliminando empresa…", async () => {
       if (live) {
-        await eliminarOrganizacion(vista.id);
+        const r = await eliminarOrganizacion(id);
+        if (!r.ok) {
+          toast(r.error, "error");
+          return;
+        }
+        quitarOrg(id);
+        toast(t("toast.orgBorrada"), "info");
+        onClose();
         await refreshOrganizations();
-      } else {
-        quitarOrg(vista.id);
+        return;
       }
+      quitarOrg(id);
       toast(t("toast.orgBorrada"), "info");
       onClose();
     });
@@ -522,6 +539,7 @@ export const OrgModal = ({
     if (!vista || busy) return;
     await conBusy("Otorgando mes gratis…", async () => {
       if (live) {
+        giveFreeMonth(vista.id, 1);
         const base = enGracia(vista)
           ? new Date(vista.mesGratisHasta as string)
           : new Date();

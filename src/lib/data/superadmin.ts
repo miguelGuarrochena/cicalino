@@ -82,9 +82,14 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   return (data as unknown as OrgDb[]).map(mapOrg);
 };
 
+// Evita que un fetch lento (poll / realtime) pise uno más nuevo.
+let refreshGen = 0;
+
 // Recarga las orgs de la base al store (fuente de la UI del /admin).
 export const refreshOrganizations = async (): Promise<void> => {
+  const gen = ++refreshGen;
   const orgs = await fetchOrganizations();
+  if (gen !== refreshGen) return;
   useSuperadminStore.getState().setOrganizaciones(orgs);
 };
 
