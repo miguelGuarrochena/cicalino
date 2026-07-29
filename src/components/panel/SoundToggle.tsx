@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
-import { isSoundMuted, setSoundMuted } from "@/lib/sound";
+import {
+  dingPrueba,
+  isSoundMuted,
+  setSoundMuted,
+  unlockAudio,
+} from "@/lib/sound";
 
-// Silenciar / activar el sonido de avisos del mostrador.
+// Silenciar / activar el sonido de avisos del mostrador (PC o tablet del local).
 export const SoundToggle = () => {
   const { locale } = useApp();
   const [muted, setMuted] = useState(false);
@@ -15,6 +20,10 @@ export const SoundToggle = () => {
     const next = !muted;
     setMuted(next);
     setSoundMuted(next);
+    // El click desbloquea WebAudio; al activar, un beep confirma que se oye.
+    void unlockAudio().then((ok) => {
+      if (ok && !next) dingPrueba();
+    });
   };
 
   const label = muted

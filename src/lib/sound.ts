@@ -1,6 +1,6 @@
 // Sonidos y vibración de avisos del mostrador (sin archivos: WebAudio).
-// Se dispara siempre desde un gesto del usuario (click), así respeta el
-// autoplay policy de los navegadores.
+// El navegador deja AudioContext en "suspended" hasta un gesto del usuario.
+// Por eso el toggle de sonido (y cualquier click del panel) llama unlockAudio().
 
 let ctx: AudioContext | null = null;
 
@@ -20,24 +20,48 @@ export const setSoundMuted = (m: boolean) => {
   }
 };
 
-const tono = (freq: number, ms: number, delay = 0) => {
-  if (isSoundMuted() || typeof window === "undefined") return;
+const getCtx = (): AudioContext | null => {
+  if (typeof window === "undefined") return null;
   try {
     const AC =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext })
         .webkitAudioContext;
     ctx = ctx || new AC();
-    const t0 = ctx.currentTime + delay;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
+    return ctx;
+  } catch {
+    return null;
+  }
+};
+
+/** Desbloquea WebAudio (llamar desde un click). */
+export const unlockAudio = async (): Promise<boolean> => {
+  const c = getCtx();
+  if (!c) return false;
+  try {
+    if (c.state === "suspended") await c.resume();
+    return c.state === "running";
+  } catch {
+    return false;
+  }
+};
+
+const tono = (freq: number, ms: number, delay = 0) => {
+  if (isSoundMuted() || typeof window === "undefined") return;
+  try {
+    const c = getCtx();
+    if (!c) return;
+    if (c.state === "suspended") void c.resume();
+    const t0 = c.currentTime + delay;
+    const o = c.createOscillator();
+    const g = c.createGain();
     o.type = "sine";
     o.frequency.value = freq;
     g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + ms / 1000);
     o.connect(g);
-    g.connect(ctx.destination);
+    g.connect(c.destination);
     o.start(t0);
     o.stop(t0 + ms / 1000);
   } catch {
@@ -51,6 +75,11 @@ export const vibrate = (pattern: number | number[] = 120) => {
   } catch {
     /* noop */
   }
+};
+
+/** Beep corto para probar / confirmar que el audio está activo. */
+export const dingPrueba = () => {
+  tono(880, 100);
 };
 
 // Pedido nuevo: un "ding" corto.
