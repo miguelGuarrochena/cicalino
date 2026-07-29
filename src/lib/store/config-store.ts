@@ -80,6 +80,12 @@ interface ConfigState {
     valor: string,
   ) => void;
   quitarEmpleado: (id: string) => void;
+  /**
+   * true cuando ya cargamos config de la sucursal (o no hace falta).
+   * Evita que /panel/espera redirija a pedidos antes del fetch.
+   */
+  branchConfigReady: boolean;
+  setBranchConfigReady: (v: boolean) => void;
 }
 
 // Store de configuracion del local. Persistido en localStorage para el
@@ -100,6 +106,7 @@ const INICIAL = supabaseConfigurado
       orgModuloPedidos: true,
       orgModuloEspera: false,
       empleados: [] as EmployeeUI[],
+      branchConfigReady: false,
     }
   : {
       nombre: "La Esquina — Centro",
@@ -117,6 +124,7 @@ const INICIAL = supabaseConfigurado
         { id: "emp-demo-1", nombre: "Lucía", rol: "Mozo", tienePin: false },
         { id: "emp-demo-2", nombre: "Marcos", rol: "Cocina", tienePin: false },
       ] as EmployeeUI[],
+      branchConfigReady: true,
     };
 
 export const useConfigStore = create<ConfigState>()(
@@ -143,7 +151,8 @@ export const useConfigStore = create<ConfigState>()(
           if (!moduloEspera && !moduloPedidos) moduloPedidos = true;
           return { moduloPedidos, moduloEspera };
         }),
-      hydrate: (partial) => set(partial),
+      hydrate: (partial) => set({ ...partial, branchConfigReady: true }),
+      setBranchConfigReady: (v) => set({ branchConfigReady: v }),
       setEmpleados: (list) => set({ empleados: list }),
       pushEmpleado: (emp) => set((s) => ({ empleados: [...s.empleados, emp] })),
 
@@ -169,7 +178,24 @@ export const useConfigStore = create<ConfigState>()(
       quitarEmpleado: (id) =>
         set((s) => ({ empleados: s.empleados.filter((e) => e.id !== id) })),
     }),
-    { name: "cicalino-config", skipHydration: true },
+    {
+      name: "cicalino-config",
+      skipHydration: true,
+      partialize: (s) => ({
+        nombre: s.nombre,
+        tipo: s.tipo,
+        whatsapp: s.whatsapp,
+        direccion: s.direccion,
+        modo: s.modo,
+        cantidadMesas: s.cantidadMesas,
+        horaCorte: s.horaCorte,
+        moduloPedidos: s.moduloPedidos,
+        moduloEspera: s.moduloEspera,
+        orgModuloPedidos: s.orgModuloPedidos,
+        orgModuloEspera: s.orgModuloEspera,
+        empleados: s.empleados,
+      }),
+    },
   ),
 );
 

@@ -31,6 +31,37 @@ const INPUT =
 const BTN_MOBILE =
   "w-full rounded-full px-4 py-3.5 text-sm font-semibold transition active:scale-[0.98] sm:w-auto sm:px-4 sm:py-2.5";
 
+const ModalCloseBtn = ({
+  onClick,
+  disabled,
+  label,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  label: string;
+}) => (
+  <button
+    type="button"
+    disabled={disabled}
+    onClick={onClick}
+    aria-label={label}
+    className="flex size-10 shrink-0 items-center justify-center rounded-full border border-linea text-carbon/60 transition hover:bg-crema hover:text-carbon disabled:opacity-60"
+  >
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  </button>
+);
+
 /** Contador − / + usable en mobile (sin input number nativo). */
 const NumberStepper = ({
   value,
@@ -340,6 +371,7 @@ const EsperaPanelPage = () => {
   const cantidadMesas = useConfigStore((s) => s.cantidadMesas);
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
+  const branchConfigReady = useConfigStore((s) => s.branchConfigReady);
   const dispositivo = useSyncExternalStore(
     (cb) => {
       window.addEventListener("storage", cb);
@@ -400,8 +432,11 @@ const EsperaPanelPage = () => {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
+    // Esperar config real: al refrescar el store arranca con espera=false y
+    // si no, te manda a pedidos aunque estés en /panel/espera.
+    if (!branchConfigReady) return;
     if (!visibles.espera && visibles.pedidos) router.replace("/panel");
-  }, [visibles, router]);
+  }, [branchConfigReady, visibles, router]);
 
   useEffect(() => {
     if (!qr) return;
@@ -1001,13 +1036,46 @@ const EsperaPanelPage = () => {
             if (!creating) setCreateOpen(false);
           }}
           labelledBy="espera-crear-title"
+          busy={creating}
+          busyLabel={locale === "en" ? "Creating…" : "Creando…"}
+          footer={
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => void onCrear()}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
+              >
+                {creating
+                  ? "…"
+                  : locale === "en"
+                    ? "Create & show QR"
+                    : "Crear y mostrar QR"}
+              </button>
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => setCreateOpen(false)}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-60"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
+          }
         >
-          <h2
-            id="espera-crear-title"
-            className="font-display text-xl uppercase tracking-tight text-carbon"
-          >
-            {locale === "en" ? "Add to waitlist" : "Agregar a la espera"}
-          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2
+              id="espera-crear-title"
+              className="font-display text-xl uppercase tracking-tight text-carbon"
+            >
+              {locale === "en" ? "Add to waitlist" : "Agregar a la espera"}
+            </h2>
+            <ModalCloseBtn
+              disabled={creating}
+              onClick={() => setCreateOpen(false)}
+              label={locale === "en" ? "Close" : "Cerrar"}
+            />
+          </div>
           <div className="mt-4 flex flex-col gap-3">
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-carbon/70">
@@ -1030,18 +1098,6 @@ const EsperaPanelPage = () => {
               </span>
               <PersonasChips value={personas} onChange={setPersonas} />
             </div>
-            <button
-              type="button"
-              disabled={creating}
-              onClick={() => void onCrear()}
-              className="mt-2 w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
-            >
-              {creating
-                ? "…"
-                : locale === "en"
-                  ? "Create & show QR"
-                  : "Crear y mostrar QR"}
-            </button>
           </div>
         </ModalShell>
       )}
@@ -1052,13 +1108,46 @@ const EsperaPanelPage = () => {
             if (!creatingReserva) setReservaOpen(false);
           }}
           labelledBy="reserva-crear-title"
+          busy={creatingReserva}
+          busyLabel={locale === "en" ? "Saving…" : "Guardando…"}
+          footer={
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={creatingReserva || !mesasLibresParaReserva.length}
+                onClick={() => void onCrearReserva()}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
+              >
+                {creatingReserva
+                  ? "…"
+                  : locale === "en"
+                    ? "Save reservation"
+                    : "Guardar reserva"}
+              </button>
+              <button
+                type="button"
+                disabled={creatingReserva}
+                onClick={() => setReservaOpen(false)}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-60"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
+          }
         >
-          <h2
-            id="reserva-crear-title"
-            className="font-display text-xl uppercase tracking-tight text-carbon"
-          >
-            {locale === "en" ? "New reservation" : "Nueva reserva"}
-          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2
+              id="reserva-crear-title"
+              className="font-display text-xl uppercase tracking-tight text-carbon"
+            >
+              {locale === "en" ? "New reservation" : "Nueva reserva"}
+            </h2>
+            <ModalCloseBtn
+              disabled={creatingReserva}
+              onClick={() => setReservaOpen(false)}
+              label={locale === "en" ? "Close" : "Cerrar"}
+            />
+          </div>
           <div className="mt-4 flex flex-col gap-3">
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-carbon/70">
@@ -1188,18 +1277,6 @@ const EsperaPanelPage = () => {
                 ))}
               </div>
             </fieldset>
-            <button
-              type="button"
-              disabled={creatingReserva || !mesasLibresParaReserva.length}
-              onClick={() => void onCrearReserva()}
-              className="mt-2 rounded-full bg-espera px-5 py-3 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
-            >
-              {creatingReserva
-                ? "…"
-                : locale === "en"
-                  ? "Save reservation"
-                  : "Guardar reserva"}
-            </button>
           </div>
         </ModalShell>
       )}
@@ -1289,15 +1366,65 @@ const EsperaPanelPage = () => {
             setSentarMesas([]);
           }}
           labelledBy="sentar-title"
+          footer={
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={
+                  !sentarMesas.length ||
+                  mesas
+                    .filter((m) => sentarMesas.includes(m.numero))
+                    .reduce((s, m) => s + (m.capacidad ?? 4), 0) <
+                    (sentarEspera?.personas ?? 1)
+                }
+                onClick={() => {
+                  if (!sentarId || !sentarMesas.length) return;
+                  void sentar(sentarId, sentarMesas).then(() => {
+                    const label = sentarMesas.join("+");
+                    setSentarId(null);
+                    setSentarMesas([]);
+                    toast(
+                      locale === "en"
+                        ? `Seated at table ${label}`
+                        : `Sentados en mesa ${label}`,
+                      "success",
+                    );
+                  });
+                }}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-40"
+              >
+                {locale === "en" ? "Confirm seat" : "Confirmar asiento"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSentarId(null);
+                  setSentarMesas([]);
+                }}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
+          }
         >
-          <h2
-            id="sentar-title"
-            className="font-display text-xl uppercase tracking-tight text-carbon"
-          >
-            {locale === "en"
-              ? `Seat ${sentarEspera?.nombre ?? ""}`
-              : `Sentar a ${sentarEspera?.nombre ?? ""}`}
-          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2
+              id="sentar-title"
+              className="font-display text-xl uppercase tracking-tight text-carbon"
+            >
+              {locale === "en"
+                ? `Seat ${sentarEspera?.nombre ?? ""}`
+                : `Sentar a ${sentarEspera?.nombre ?? ""}`}
+            </h2>
+            <ModalCloseBtn
+              onClick={() => {
+                setSentarId(null);
+                setSentarMesas([]);
+              }}
+              label={locale === "en" ? "Close" : "Cerrar"}
+            />
+          </div>
           <p className="mt-2 mb-1 text-sm text-carbon/55">
             {locale === "en"
               ? `Party of ${sentarEspera?.personas ?? "?"}. Tap one or more free tables.`
@@ -1384,33 +1511,6 @@ const EsperaPanelPage = () => {
               );
             })}
           </div>
-          <button
-            type="button"
-            disabled={
-              !sentarMesas.length ||
-              mesas
-                .filter((m) => sentarMesas.includes(m.numero))
-                .reduce((s, m) => s + (m.capacidad ?? 4), 0) <
-                (sentarEspera?.personas ?? 1)
-            }
-            onClick={() => {
-              if (!sentarId || !sentarMesas.length) return;
-              void sentar(sentarId, sentarMesas).then(() => {
-                const label = sentarMesas.join("+");
-                setSentarId(null);
-                setSentarMesas([]);
-                toast(
-                  locale === "en"
-                    ? `Seated at table ${label}`
-                    : `Sentados en mesa ${label}`,
-                  "success",
-                );
-              });
-            }}
-            className="mt-4 w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-40"
-          >
-            {locale === "en" ? "Confirm seat" : "Confirmar asiento"}
-          </button>
         </ModalShell>
       )}
 
@@ -1418,15 +1518,49 @@ const EsperaPanelPage = () => {
         <ModalShell
           onClose={() => setLiberarNumero(null)}
           labelledBy="liberar-title"
+          footer={
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void liberarMesa(liberarNumero).then(() => {
+                    setLiberarNumero(null);
+                    toast(
+                      locale === "en"
+                        ? `Table ${liberarNumero} free`
+                        : `Mesa ${liberarNumero} libre`,
+                      "success",
+                    );
+                  });
+                }}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+              >
+                {locale === "en" ? "Yes, free it" : "Sí, liberar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLiberarNumero(null)}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
+          }
         >
-          <h2
-            id="liberar-title"
-            className="font-display text-xl uppercase tracking-tight text-carbon"
-          >
-            {locale === "en"
-              ? `Free table ${liberarNumero}?`
-              : `¿Liberar mesa ${liberarNumero}?`}
-          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2
+              id="liberar-title"
+              className="font-display text-xl uppercase tracking-tight text-carbon"
+            >
+              {locale === "en"
+                ? `Free table ${liberarNumero}?`
+                : `¿Liberar mesa ${liberarNumero}?`}
+            </h2>
+            <ModalCloseBtn
+              onClick={() => setLiberarNumero(null)}
+              label={locale === "en" ? "Close" : "Cerrar"}
+            />
+          </div>
           <p className="mt-2 text-sm text-carbon/60">
             {liberarMesaView.estado === "reservada"
               ? locale === "en"
@@ -1452,32 +1586,6 @@ const EsperaPanelPage = () => {
                     : "La mesa vuelve a quedar libre.";
                 })()}
           </p>
-          <div className="mt-5 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                void liberarMesa(liberarNumero).then(() => {
-                  setLiberarNumero(null);
-                  toast(
-                    locale === "en"
-                      ? `Table ${liberarNumero} free`
-                      : `Mesa ${liberarNumero} libre`,
-                    "success",
-                  );
-                });
-              }}
-              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
-            >
-              {locale === "en" ? "Yes, free it" : "Sí, liberar"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setLiberarNumero(null)}
-              className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
-            >
-              {locale === "en" ? "Back" : "Volver"}
-            </button>
-          </div>
         </ModalShell>
       )}
 
@@ -1485,15 +1593,51 @@ const EsperaPanelPage = () => {
         <ModalShell
           onClose={() => setEditCapacidadNumero(null)}
           labelledBy="capacidad-title"
+          footer={
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void setCapacidad(editCapacidadNumero, editCapacidadValue).then(
+                    () => {
+                      setEditCapacidadNumero(null);
+                      toast(
+                        locale === "en"
+                          ? `Table ${editCapacidadNumero}: ${editCapacidadValue} seats`
+                          : `Mesa ${editCapacidadNumero}: ${editCapacidadValue} plazas`,
+                        "success",
+                      );
+                    },
+                  );
+                }}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+              >
+                {locale === "en" ? "Save" : "Guardar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditCapacidadNumero(null)}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
+          }
         >
-          <h2
-            id="capacidad-title"
-            className="font-display text-xl uppercase tracking-tight text-carbon"
-          >
-            {locale === "en"
-              ? `Table ${editCapacidadNumero} seats`
-              : `Plazas mesa ${editCapacidadNumero}`}
-          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2
+              id="capacidad-title"
+              className="font-display text-xl uppercase tracking-tight text-carbon"
+            >
+              {locale === "en"
+                ? `Table ${editCapacidadNumero} seats`
+                : `Plazas mesa ${editCapacidadNumero}`}
+            </h2>
+            <ModalCloseBtn
+              onClick={() => setEditCapacidadNumero(null)}
+              label={locale === "en" ? "Close" : "Cerrar"}
+            />
+          </div>
           <p className="mt-2 text-sm text-carbon/55">
             {locale === "en"
               ? "How many guests fit at this table?"
@@ -1523,25 +1667,6 @@ const EsperaPanelPage = () => {
               max={50}
             />
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              void setCapacidad(editCapacidadNumero, editCapacidadValue).then(
-                () => {
-                  setEditCapacidadNumero(null);
-                  toast(
-                    locale === "en"
-                      ? `Table ${editCapacidadNumero}: ${editCapacidadValue} seats`
-                      : `Mesa ${editCapacidadNumero}: ${editCapacidadValue} plazas`,
-                    "success",
-                  );
-                },
-              );
-            }}
-            className="mt-4 w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
-          >
-            {locale === "en" ? "Save" : "Guardar"}
-          </button>
         </ModalShell>
       )}
     </div>
