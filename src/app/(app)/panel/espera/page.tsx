@@ -31,6 +31,52 @@ const INPUT =
 const BTN_MOBILE =
   "w-full rounded-full px-4 py-3.5 text-sm font-semibold transition active:scale-[0.98] sm:w-auto sm:px-4 sm:py-2.5";
 
+/** Contador − / + usable en mobile (sin input number nativo). */
+const NumberStepper = ({
+  value,
+  onChange,
+  min = 1,
+  max = 50,
+  accent = "espera",
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  min?: number;
+  max?: number;
+  accent?: "espera" | "marca";
+}) => {
+  const btn =
+    accent === "espera"
+      ? "border-espera/40 text-espera active:bg-espera active:text-crema"
+      : "border-marca/40 text-marca active:bg-marca active:text-crema";
+  const clamp = (n: number) => Math.min(max, Math.max(min, n));
+  return (
+    <div className="flex w-full items-center gap-3">
+      <button
+        type="button"
+        aria-label="−"
+        disabled={value <= min}
+        onClick={() => onChange(clamp(value - 1))}
+        className={`flex size-12 shrink-0 items-center justify-center rounded-2xl border-2 text-2xl font-bold transition disabled:opacity-30 ${btn}`}
+      >
+        −
+      </button>
+      <div className="flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-linea bg-crema/50 font-display text-3xl text-carbon">
+        {value}
+      </div>
+      <button
+        type="button"
+        aria-label="+"
+        disabled={value >= max}
+        onClick={() => onChange(clamp(value + 1))}
+        className={`flex size-12 shrink-0 items-center justify-center rounded-2xl border-2 text-2xl font-bold transition disabled:opacity-30 ${btn}`}
+      >
+        +
+      </button>
+    </div>
+  );
+};
+
 const PERSONAS_CHIPS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 
 const PersonasChips = ({
@@ -40,21 +86,16 @@ const PersonasChips = ({
   value: number;
   onChange: (n: number) => void;
 }) => {
-  const [otro, setOtro] = useState(value > 8);
-  const [otroTexto, setOtroTexto] = useState(value > 8 ? String(value) : "");
+  const otro = value > 8;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
         {PERSONAS_CHIPS.map((n) => (
           <button
             key={n}
             type="button"
-            onClick={() => {
-              setOtro(false);
-              setOtroTexto("");
-              onChange(n);
-            }}
+            onClick={() => onChange(n)}
             className={`flex size-11 items-center justify-center rounded-xl text-sm font-bold transition active:scale-95 ${
               !otro && value === n
                 ? "bg-espera text-crema"
@@ -66,46 +107,18 @@ const PersonasChips = ({
         ))}
         <button
           type="button"
-          onClick={() => {
-            setOtro(true);
-            if (value <= 8) {
-              setOtroTexto("");
-              onChange(9);
-            }
-          }}
+          onClick={() => onChange(Math.max(9, value > 8 ? value : 9))}
           className={`flex h-11 min-w-11 items-center justify-center rounded-xl px-3 text-sm font-bold transition active:scale-95 ${
             otro
               ? "bg-espera text-crema"
               : "border border-linea bg-crema/40 text-carbon hover:border-espera/40"
           }`}
         >
-          {otro && value > 8 ? value : "9+"}
+          9+
         </button>
       </div>
       {otro && (
-        <input
-          type="number"
-          min={9}
-          max={50}
-          inputMode="numeric"
-          className={INPUT}
-          placeholder="9, 10, 12…"
-          value={otroTexto}
-          autoFocus
-          onChange={(e) => {
-            const raw = e.target.value;
-            setOtroTexto(raw);
-            if (raw === "") return;
-            const n = Number(raw);
-            if (Number.isFinite(n) && n >= 1) onChange(Math.min(50, Math.max(1, n)));
-          }}
-          onBlur={() => {
-            if (otroTexto === "" || Number(otroTexto) < 9) {
-              setOtroTexto("9");
-              onChange(9);
-            }
-          }}
-        />
+        <NumberStepper value={value} onChange={onChange} min={9} max={50} />
       )}
     </div>
   );
@@ -1241,7 +1254,7 @@ const EsperaPanelPage = () => {
                 key={n}
                 type="button"
                 onClick={() => setEditCapacidadValue(n)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                className={`rounded-full px-4 py-2.5 text-sm font-semibold transition ${
                   editCapacidadValue === n
                     ? "bg-espera text-crema"
                     : "border border-linea text-carbon/70 hover:bg-crema"
@@ -1251,21 +1264,14 @@ const EsperaPanelPage = () => {
               </button>
             ))}
           </div>
-          <label className="mt-4 flex flex-col gap-1.5 text-sm">
-            <span className="font-medium text-carbon/70">
-              {locale === "en" ? "Custom" : "Otro"}
-            </span>
-            <input
-              type="number"
+          <div className="mt-4">
+            <NumberStepper
+              value={editCapacidadValue}
+              onChange={setEditCapacidadValue}
               min={1}
               max={50}
-              className={INPUT}
-              value={editCapacidadValue}
-              onChange={(e) =>
-                setEditCapacidadValue(Number(e.target.value) || 1)
-              }
             />
-          </label>
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -1281,7 +1287,7 @@ const EsperaPanelPage = () => {
                 },
               );
             }}
-            className="mt-4 w-full rounded-full bg-espera px-5 py-3 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+            className="mt-4 w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
           >
             {locale === "en" ? "Save" : "Guardar"}
           </button>
