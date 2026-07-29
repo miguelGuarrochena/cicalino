@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { QrModal } from "@/components/panel/QrModal";
 import { ModalShell } from "@/components/ui/ModalShell";
@@ -687,15 +688,15 @@ const EsperaPanelPage = () => {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-espera">
-            {locale === "en" ? "Table wait" : "Espera de mesa"}
-          </p>
-          <div className="flex items-center gap-2">
-            <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-              {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
-            </h1>
-            <HelpLink seccion="espera" />
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-espera">
+              {locale === "en" ? "Table wait" : "Espera de mesa"}
+            </p>
+            <HelpLink seccion="espera" accent="espera" />
           </div>
+          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+            {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
+          </h1>
           <p className="mt-1 text-sm text-carbon/55">
             {cola.length}{" "}
             {locale === "en" ? "parties waiting" : "grupos esperando"}
@@ -1183,6 +1184,18 @@ const EsperaPanelPage = () => {
           </div>
         </section>
       )}
+
+      <p className="text-center text-xs text-carbon/45">
+        {locale === "en"
+          ? "How does this screen work?"
+          : "¿Cómo funciona esta pantalla?"}{" "}
+        <Link
+          href="/panel/ayuda#espera"
+          className="font-semibold text-espera underline-offset-2 hover:underline"
+        >
+          {locale === "en" ? "Help" : "Ayuda"}
+        </Link>
+      </p>
 
       {qr && (
         <QrModal
