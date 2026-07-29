@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import {
@@ -21,9 +21,12 @@ import { refreshOrganizations } from "@/lib/data/superadmin";
 import { useToast } from "@/components/ui/Toast";
 import { Spinner } from "@/components/ui/Spinner";
 
-type Periodo = "dia" | "semana" | "mes" | "ano";
-const MULT: Record<Periodo, number> = { dia: 1, semana: 6.5, mes: 28, ano: 330 };
 const PAGE_SIZE = 8;
+
+type FiltroOrg = "todas" | "activas" | "impagos" | "pausadas";
+
+const INPUT =
+  "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -65,17 +68,37 @@ const SuperadminPage = () => {
   const organizations = useSuperadminStore((s) => s.organizaciones);
   const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
 
-  const [periodo, setPeriodo] = useState<Periodo>("dia");
+  const [q, setQ] = useState("");
+  const [filtro, setFiltro] = useState<FiltroOrg>("todas");
   const [page, setPage] = useState(1);
   const [abriendoDemo, setAbriendoDemo] = useState(false);
   const [modal, setModal] = useState<
     { mode: "crear" } | { mode: "ver"; org: OrganizationRow } | null
   >(null);
 
+  const filtradas = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return organizations.filter((o) => {
+      if (filtro === "activas" && !o.activo) return false;
+      if (filtro === "pausadas" && o.activo) return false;
+      if (filtro === "impagos" && (o.pagado || !o.activo)) return false;
+      if (!needle) return true;
+      const hay = [o.nombre, o.responsable, o.telefono, o.duenoEmail, o.cuil]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [organizations, q, filtro]);
+
   useEffect(() => {
-    const max = Math.max(1, Math.ceil(organizations.length / PAGE_SIZE) || 1);
+    setPage(1);
+  }, [q, filtro]);
+
+  useEffect(() => {
+    const max = Math.max(1, Math.ceil(filtradas.length / PAGE_SIZE) || 1);
     if (page > max) setPage(max);
-  }, [organizations.length, page]);
+  }, [filtradas.length, page]);
 
   const abrirDemo = async () => {
     setAbriendoDemo(true);
@@ -110,14 +133,21 @@ const SuperadminPage = () => {
     (a, o) => a + o.sucursales.filter((s) => s.activo).length,
     0,
   );
-  const orders = Math.round(
-    organizations.reduce(
-      (a, o) => a + o.sucursales.reduce((b, s) => b + s.pedidosHoy, 0),
-      0,
-    ) * MULT[periodo],
-  );
-  const pageItems = slicePage(organizations, page, PAGE_SIZE);
-  const periodos: Periodo[] = ["dia", "semana", "mes", "ano"];
+  const pageItems = slicePage(filtradas, page, PAGE_SIZE);
+
+  const countFiltro = (f: FiltroOrg) => {
+    if (f === "todas") return organizations.length;
+    if (f === "activas") return organizations.filter((o) => o.activo).length;
+    if (f === "pausadas") return organizations.filter((o) => !o.activo).length;
+    return organizations.filter((o) => o.activo && !o.pagado).length;
+  };
+
+  const filtros: { key: FiltroOrg; label: string }[] = [
+    { key: "todas", label: t("super.filtroTodas") },
+    { key: "activas", label: t("super.filtroActivas") },
+    { key: "impagos", label: t("super.filtroImpagos") },
+    { key: "pausadas", label: t("super.filtroPausadas") },
+  ];
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
@@ -133,29 +163,12 @@ const SuperadminPage = () => {
           Cargando empresas…
         </div>
       )}
-      <div className="flex flex-col gap-3">
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <h1 className="font-display text-2xl uppercase tracking-tight text-carbon sm:text-4xl">
           {t("super.subtitulo")}
         </h1>
-
-        <div className="flex w-full overflow-x-auto rounded-full border border-linea bg-surface p-1">
-          {periodos.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPeriodo(p)}
-              className={`min-w-0 flex-1 rounded-full px-2 py-2.5 text-xs font-semibold transition sm:px-4 ${
-                periodo === p
-                  ? "bg-marca text-crema"
-                  : "text-carbon/55 hover:text-carbon"
-              }`}
-            >
-              {t(`metricas.periodo.${p}`)}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
             type="button"
             onClick={() => void abrirDemo()}
@@ -201,12 +214,6 @@ const SuperadminPage = () => {
         />
       </div>
 
-      <p className="text-center text-xs text-carbon/45 sm:text-left">
-        {t("super.pedidosPeriodo", {
-          n: orders.toLocaleString("es-AR"),
-        })}
-      </p>
-
       <SolicitudesPanel />
       <PedidosSucursalPanel
         onAbrir={(id) => {
@@ -222,9 +229,49 @@ const SuperadminPage = () => {
       />
 
       <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            {filtros.map(({ key, label }) => {
+              const active = filtro === key;
+              const n = countFiltro(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setFiltro(key)}
+                  className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold transition sm:text-sm ${
+                    active
+                      ? "bg-marca text-crema"
+                      : "border border-linea bg-surface text-carbon/60 hover:bg-carbon/5"
+                  }`}
+                >
+                  {label}
+                  <span
+                    className={`ml-1.5 ${active ? "opacity-80" : "opacity-50"}`}
+                  >
+                    {n}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("super.buscarPh")}
+            className={INPUT}
+          />
+        </div>
+
         {organizations.length === 0 && (
           <p className="rounded-[24px] border border-linea bg-surface px-6 py-12 text-center text-sm text-carbon/45">
             {t("super.sinOrgs")}
+          </p>
+        )}
+        {organizations.length > 0 && filtradas.length === 0 && (
+          <p className="rounded-[24px] border border-linea bg-surface px-6 py-12 text-center text-sm text-carbon/45">
+            {t("super.sinResultados")}
           </p>
         )}
         {pageItems.map((o) => {
@@ -283,7 +330,7 @@ const SuperadminPage = () => {
         <Pagination
           page={page}
           pageSize={PAGE_SIZE}
-          total={organizations.length}
+          total={filtradas.length}
           onChange={setPage}
         />
       </div>
