@@ -3,8 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { Controls } from "@/components/ui/Controls";
+import { ModalShell } from "@/components/ui/ModalShell";
 import { useApp } from "@/components/providers/Providers";
 import { useCustomerEspera } from "@/lib/hooks/useCustomerEspera";
+import { useEsperaStore } from "@/lib/store/espera-store";
+import { supabaseConfigurado } from "@/lib/supabase/config";
 import {
   mostrarAvisoListo,
   pedirPermisoNotificaciones,
@@ -46,10 +49,13 @@ const senalMesa = (opts?: {
 export const CustomerEsperaWaiting = ({ token }: Props) => {
   const { t, locale } = useApp();
   const { ready, found, espera } = useCustomerEspera(token);
+  const demoCancelar = useEsperaStore((s) => s.cambiarEstado);
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
   const [flash, setFlash] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
   const ultimoAviso = useRef<string | null>(null);
   const vioEsperando = useRef(false);
 
@@ -80,6 +86,9 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const cancelado = espera?.status === "cancelado";
   const cerrado = sentado || cancelado;
   const waiting = ready && found && !!espera && !cerrado && !avisado;
+  const puedeCancelar =
+    !!espera &&
+    (espera.status === "esperando" || espera.status === "avisado");
 
   useEffect(() => {
     if (!waiting) return;
@@ -132,6 +141,24 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     setPushCargando(false);
   };
 
+  const confirmarCancelar = async () => {
+    if (cancelando) return;
+    setCancelando(true);
+    try {
+      if (!supabaseConfigurado) {
+        const demo = useEsperaStore
+          .getState()
+          .esperas.find((e) => e.qrToken === token);
+        if (demo) demoCancelar(demo.id, "cancelado");
+      } else {
+        await fetch(`/api/e/${token}/cancelar`, { method: "POST" });
+      }
+      setConfirmCancel(false);
+    } finally {
+      setCancelando(false);
+    }
+  };
+
   if (!ready) {
     return (
       <main className="flex min-h-dvh items-center justify-center px-6">
@@ -166,7 +193,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
       <Controls className="absolute right-4 top-4 z-20" />
 
       {waiting && (
-        <p className="u-in mb-6 w-full max-w-sm rounded-2xl border border-espera/40 bg-espera/10 px-3 py-2.5 text-xs font-medium leading-snug text-espera">
+        <p className="u-in mb-6 w-full rounded-2xl border border-espera/40 bg-espera/10 px-3 py-2.5 text-xs font-medium leading-snug text-espera sm:max-w-sm">
           {pushActivo
             ? t("clienteMesa.noCerrarPush")
             : t("clienteMesa.noCerrar")}
@@ -219,14 +246,14 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
                   ? "sentado"
                   : avisado
                     ? "ok"
-                    : "espera"
+                    : "bell"
             }
             className={`relative z-10 flex size-full items-center justify-center ${
               cerrado || avisado ? "u-pop" : "u-float"
             }`}
           >
             <ThemedImg
-              name={esOk ? "ok" : "espera"}
+              name={esOk ? "ok" : "bell"}
               alt=""
               className={`max-h-44 w-auto sm:max-h-48 ${cancelado ? "opacity-40 grayscale" : ""}`}
             />
@@ -273,8 +300,43 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
           )}
         </div>
 
+        {waiting && espera.cola && (
+          <div className="u-in mt-6 w-full rounded-2xl border border-espera/25 bg-espera/10 px-4 py-3 text-sm text-espera sm:max-w-sm">
+            <p className="font-semibold">
+              {espera.cola.gruposDelante === 0
+                ? t("clienteMesa.colaPrimero")
+                : t("clienteMesa.colaDelante", {
+                    g: String(espera.cola.gruposDelante),
+                    gLabel:
+                      espera.cola.gruposDelante === 1
+                        ? t("clienteMesa.colaGrupo")
+                        : t("clienteMesa.colaGrupos"),
+                    p: String(espera.cola.personasDelante),
+                    pLabel:
+                      espera.cola.personasDelante === 1
+                        ? t("clienteMesa.colaPersona")
+                        : t("clienteMesa.colaPersonas"),
+                  })}
+            </p>
+            <p className="mt-1 text-xs opacity-80">
+              {t("clienteMesa.colaTotal", {
+                g: String(espera.cola.gruposEnCola),
+                gLabel:
+                  espera.cola.gruposEnCola === 1
+                    ? t("clienteMesa.colaGrupo")
+                    : t("clienteMesa.colaGrupos"),
+                p: String(espera.cola.personasEnCola),
+                pLabel:
+                  espera.cola.personasEnCola === 1
+                    ? t("clienteMesa.colaPersona")
+                    : t("clienteMesa.colaPersonas"),
+              })}
+            </p>
+          </div>
+        )}
+
         {!cerrado && (
-          <div className="u-in mt-8 w-full max-w-sm">
+          <div className="u-in mt-8 flex w-full flex-col gap-3 sm:max-w-sm">
             <button
               type="button"
               onClick={() => void activarAvisos()}
@@ -288,7 +350,16 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
                   : t("clienteMesa.activar")}
             </button>
             {pushError && (
-              <p className="mt-2 text-center text-xs text-red-500">{pushError}</p>
+              <p className="text-center text-xs text-red-500">{pushError}</p>
+            )}
+            {puedeCancelar && (
+              <button
+                type="button"
+                onClick={() => setConfirmCancel(true)}
+                className="w-full rounded-full px-6 py-3 text-sm font-semibold text-red-600/80 transition hover:bg-red-50 active:scale-95"
+              >
+                {t("clienteMesa.cancelarBtn")}
+              </button>
             )}
           </div>
         )}
@@ -297,6 +368,44 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
       <p className="mt-8 text-xs text-carbon/35">
         {t("clienteMesa.espera")} · cicalino.net
       </p>
+
+      {confirmCancel && (
+        <ModalShell
+          onClose={() => {
+            if (!cancelando) setConfirmCancel(false);
+          }}
+          labelledBy="cancel-mesa-title"
+          busy={cancelando}
+        >
+          <h2
+            id="cancel-mesa-title"
+            className="font-display text-xl uppercase tracking-tight text-carbon"
+          >
+            {t("clienteMesa.confirmarCancelTitulo")}
+          </h2>
+          <p className="mt-2 text-sm text-carbon/60">
+            {t("clienteMesa.confirmarCancelSub")}
+          </p>
+          <div className="mt-5 flex flex-col gap-2">
+            <button
+              type="button"
+              disabled={cancelando}
+              onClick={() => void confirmarCancelar()}
+              className="w-full rounded-full bg-red-500 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
+            >
+              {cancelando ? "…" : t("clienteMesa.confirmarCancelSi")}
+            </button>
+            <button
+              type="button"
+              disabled={cancelando}
+              onClick={() => setConfirmCancel(false)}
+              className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-60"
+            >
+              {t("clienteMesa.confirmarCancelNo")}
+            </button>
+          </div>
+        </ModalShell>
+      )}
     </main>
   );
 };

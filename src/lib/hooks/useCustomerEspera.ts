@@ -6,6 +6,13 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { useEsperaStore } from "@/lib/store/espera-store";
 import type { EsperaStatus } from "@/lib/types";
 
+export interface CustomerEsperaCola {
+  gruposDelante: number;
+  personasDelante: number;
+  gruposEnCola: number;
+  personasEnCola: number;
+}
+
 export interface CustomerEspera {
   nombre: string;
   personas: number;
@@ -13,6 +20,7 @@ export interface CustomerEspera {
   mesaNumero: number | null;
   nombreLocal: string;
   avisadoEn: string | null;
+  cola: CustomerEsperaCola;
 }
 
 interface Result {
@@ -22,6 +30,40 @@ interface Result {
 }
 
 const POLL_MS = 1200;
+
+const emptyCola = (): CustomerEsperaCola => ({
+  gruposDelante: 0,
+  personasDelante: 0,
+  gruposEnCola: 0,
+  personasEnCola: 0,
+});
+
+const colaFromDemo = (
+  token: string,
+  esperas: { id: string; qrToken: string; personas: number; estado: string; creadoEn: string }[],
+): CustomerEsperaCola => {
+  const yo = esperas.find((e) => e.qrToken === token);
+  const activos = esperas.filter(
+    (e) => e.estado === "esperando" || e.estado === "avisado",
+  );
+  if (!yo) return emptyCola();
+  const miCreado = new Date(yo.creadoEn).getTime();
+  let gruposDelante = 0;
+  let personasDelante = 0;
+  let gruposEnCola = 0;
+  let personasEnCola = 0;
+  for (const row of activos) {
+    gruposEnCola += 1;
+    personasEnCola += row.personas;
+    if (row.id === yo.id) continue;
+    const t = new Date(row.creadoEn).getTime();
+    if (t < miCreado || (t === miCreado && row.id < yo.id)) {
+      gruposDelante += 1;
+      personasDelante += row.personas;
+    }
+  }
+  return { gruposDelante, personasDelante, gruposEnCola, personasEnCola };
+};
 
 export const useCustomerEspera = (token: string): Result => {
   const live = supabaseConfigurado;
@@ -75,6 +117,7 @@ export const useCustomerEspera = (token: string): Result => {
             mesaNumero: data.mesaNumero,
             nombreLocal: data.nombreLocal,
             avisadoEn: data.avisadoEn,
+            cola: data.cola ?? emptyCola(),
           });
           setRemoteFound(true);
         } else {
@@ -117,6 +160,7 @@ export const useCustomerEspera = (token: string): Result => {
           mesaNumero: demo.mesaNumero,
           nombreLocal: cfg.nombre || "Local",
           avisadoEn: demo.avisadoEn,
+          cola: colaFromDemo(token, demoEsperas),
         }
       : null,
   };

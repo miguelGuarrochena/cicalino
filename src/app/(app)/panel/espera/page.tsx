@@ -28,6 +28,33 @@ const PAGE_SIZE = 8;
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-espera focus:ring-2 focus:ring-espera/20 placeholder:text-carbon/40";
 
+const BTN_MOBILE =
+  "w-full rounded-full px-4 py-3 text-sm font-semibold transition sm:w-auto sm:px-3 sm:py-1.5 sm:text-xs";
+
+const mesaTileClass = (
+  estado: "libre" | "ocupada" | "reservada",
+  opts?: { pickable?: boolean; selected?: boolean },
+) => {
+  const base =
+    "flex aspect-square flex-col items-center justify-center rounded-2xl border-2 text-center transition";
+  if (opts?.selected) {
+    return `${base} border-espera bg-espera text-crema ring-2 ring-espera/40`;
+  }
+  if (estado === "libre") {
+    return `${base} border-espera bg-espera text-crema ${
+      opts?.pickable ? "hover:bg-espera-fuerte active:scale-95" : ""
+    }`;
+  }
+  if (estado === "reservada") {
+    return `${base} border-amber-600 bg-amber-400 text-amber-950 ${
+      opts?.pickable === false ? "cursor-not-allowed opacity-70" : ""
+    }`;
+  }
+  return `${base} border-rose-700 bg-rose-600 text-white ${
+    opts?.pickable === false ? "cursor-not-allowed opacity-70" : ""
+  }`;
+};
+
 const minsAgo = (iso: string) =>
   Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
 
@@ -100,6 +127,12 @@ const EsperaPanelPage = () => {
   const [reservaGracia, setReservaGracia] = useState<15 | 20>(15);
   const [creatingReserva, setCreatingReserva] = useState(false);
   const [sentarId, setSentarId] = useState<string | null>(null);
+  const [confirmCancelEsperaId, setConfirmCancelEsperaId] = useState<
+    string | null
+  >(null);
+  const [confirmCancelReservaId, setConfirmCancelReservaId] = useState<
+    string | null
+  >(null);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -135,6 +168,12 @@ const EsperaPanelPage = () => {
   const paginated = slicePage(cola, page, PAGE_SIZE);
   const sentarEspera = esperas.find((e) => e.id === sentarId);
   const mesasLibres = mesas.filter((m) => m.estado === "libre");
+  const confirmCancelEspera = esperas.find(
+    (e) => e.id === confirmCancelEsperaId,
+  );
+  const confirmCancelReserva = reservas.find(
+    (r) => r.id === confirmCancelReservaId,
+  );
 
   const employeeRef = activeEmployee
     ? { id: activeEmployee.id, nombre: activeEmployee.nombre }
@@ -237,7 +276,7 @@ const EsperaPanelPage = () => {
             {cantidadMesas ? ` · ${cantidadMesas} mesas` : ""}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
           <button
             type="button"
             onClick={() => {
@@ -245,14 +284,14 @@ const EsperaPanelPage = () => {
               setReservaHorario(defaultHorarioInput());
               setReservaOpen(true);
             }}
-            className="rounded-full border border-espera/40 bg-espera/10 px-5 py-2.5 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema"
+            className="w-full rounded-full border border-espera/40 bg-espera/10 px-5 py-3 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema sm:w-auto sm:py-2.5"
           >
             {locale === "en" ? "+ Reservation" : "+ Reserva"}
           </button>
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="rounded-full bg-espera px-5 py-2.5 text-sm font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte"
+            className="w-full rounded-full bg-espera px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte sm:w-auto sm:py-2.5"
           >
             {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
           </button>
@@ -267,15 +306,15 @@ const EsperaPanelPage = () => {
           </h2>
           <div className="flex flex-wrap gap-3 text-[10px] font-semibold uppercase tracking-wide text-carbon/50">
             <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-espera" />
+              <span className="size-2.5 rounded-sm bg-espera" />
               {locale === "en" ? "Free" : "Libre"}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-amber-500" />
+              <span className="size-2.5 rounded-sm bg-amber-400" />
               {locale === "en" ? "Reserved" : "Reservada"}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-carbon/45" />
+              <span className="size-2.5 rounded-sm bg-rose-600" />
               {locale === "en" ? "Busy" : "Ocupada"}
             </span>
           </div>
@@ -307,18 +346,12 @@ const EsperaPanelPage = () => {
                         ? "Tap to free"
                         : "Tocar para liberar"
                 }
-                className={`flex aspect-square flex-col items-center justify-center rounded-2xl border text-center transition ${
-                  libre
-                    ? "border-espera/50 bg-espera/20 text-espera shadow-[inset_0_0_0_1px_rgba(15,118,110,0.12)]"
-                    : reservada
-                      ? "border-amber-500/50 bg-amber-400/25 text-amber-950 hover:border-amber-600 hover:bg-amber-400/40 dark:bg-amber-400/20 dark:text-amber-100"
-                      : "border-carbon/25 bg-carbon/15 text-carbon shadow-sm hover:border-espera/40 hover:bg-espera/10 dark:bg-carbon/40 dark:text-crema/80"
-                }`}
+                className={mesaTileClass(m.estado)}
               >
                 <span className="font-display text-lg leading-none">
                   {m.numero}
                 </span>
-                <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide opacity-80">
+                <span className="mt-1 text-[10px] font-bold uppercase tracking-wide opacity-90">
                   {libre
                     ? locale === "en"
                       ? "Free"
@@ -332,7 +365,7 @@ const EsperaPanelPage = () => {
                         : "Ocup."}
                 </span>
                 {reservada && reserva && (
-                  <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-70">
+                  <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-80">
                     {reserva.nombre}
                   </span>
                 )}
@@ -390,7 +423,7 @@ const EsperaPanelPage = () => {
                     {r.empleado ? ` · ${r.empleado}` : ""}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={() => {
@@ -403,14 +436,14 @@ const EsperaPanelPage = () => {
                         ),
                       );
                     }}
-                    className="rounded-full bg-carbon px-3 py-1.5 text-xs font-semibold text-crema transition hover:opacity-90"
+                    className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90`}
                   >
                     {locale === "en" ? "Seat" : "Sentar"}
                   </button>
                   <button
                     type="button"
-                    onClick={() => void cancelarReserva(r.id)}
-                    className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600/80 transition hover:bg-red-50"
+                    onClick={() => setConfirmCancelReservaId(r.id)}
+                    className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50`}
                   >
                     {locale === "en" ? "Cancel" : "Cancelar"}
                   </button>
@@ -470,11 +503,11 @@ const EsperaPanelPage = () => {
                     {e.empleado ? ` · ${e.empleado}` : ""}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={() => setQr(e)}
-                    className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70 transition hover:bg-crema"
+                    className={`${BTN_MOBILE} border border-linea text-carbon/70 hover:bg-crema`}
                   >
                     QR
                   </button>
@@ -482,7 +515,7 @@ const EsperaPanelPage = () => {
                     <button
                       type="button"
                       onClick={() => void avisar(e.id)}
-                      className="rounded-full bg-espera px-3 py-1.5 text-xs font-semibold text-crema transition hover:bg-espera-fuerte"
+                      className={`${BTN_MOBILE} bg-espera text-crema hover:bg-espera-fuerte`}
                     >
                       {locale === "en" ? "Notify" : "Avisar"}
                     </button>
@@ -492,7 +525,7 @@ const EsperaPanelPage = () => {
                       type="button"
                       onClick={() => setSentarId(e.id)}
                       disabled={!mesasLibres.length}
-                      className="rounded-full bg-carbon px-3 py-1.5 text-xs font-semibold text-crema transition hover:opacity-90 disabled:opacity-40"
+                      className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90 disabled:opacity-40`}
                     >
                       {locale === "en" ? "Seat" : "Sentar"}
                     </button>
@@ -500,8 +533,8 @@ const EsperaPanelPage = () => {
                   {!esperaClosed(e.estado) && (
                     <button
                       type="button"
-                      onClick={() => void cancelar(e.id)}
-                      className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600/80 transition hover:bg-red-50"
+                      onClick={() => setConfirmCancelEsperaId(e.id)}
+                      className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50`}
                     >
                       {locale === "en" ? "Cancel" : "Cancelar"}
                     </button>
@@ -657,28 +690,49 @@ const EsperaPanelPage = () => {
               <legend className="mb-1.5 text-sm font-medium text-carbon/70">
                 {locale === "en" ? "Table" : "Mesa"}
               </legend>
-              {mesasLibres.length ? (
+              <p className="mb-2 text-xs text-carbon/45">
+                {locale === "en"
+                  ? "Only free tables can be chosen."
+                  : "Solo se pueden elegir mesas libres."}
+              </p>
+              {mesas.length ? (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-                  {mesasLibres.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setReservaMesa(m.numero)}
-                      className={`flex aspect-square items-center justify-center rounded-2xl border font-display text-xl transition ${
-                        reservaMesa === m.numero
-                          ? "border-espera bg-espera text-crema"
-                          : "border-espera/30 bg-espera/10 text-espera hover:bg-espera hover:text-crema"
-                      }`}
-                    >
-                      {m.numero}
-                    </button>
-                  ))}
+                  {mesas.map((m) => {
+                    const libre = m.estado === "libre";
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        disabled={!libre}
+                        onClick={() => setReservaMesa(m.numero)}
+                        className={mesaTileClass(m.estado, {
+                          pickable: libre,
+                          selected: libre && reservaMesa === m.numero,
+                        })}
+                      >
+                        <span className="font-display text-xl leading-none">
+                          {m.numero}
+                        </span>
+                        <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
+                          {libre
+                            ? locale === "en"
+                              ? "Free"
+                              : "Libre"
+                            : m.estado === "reservada"
+                              ? "Res."
+                              : locale === "en"
+                                ? "Busy"
+                                : "Ocup."}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-carbon/50">
                   {locale === "en"
-                    ? "No free tables right now."
-                    : "No hay mesas libres ahora."}
+                    ? "No tables configured."
+                    : "No hay mesas configuradas."}
                 </p>
               )}
             </fieldset>
@@ -721,6 +775,84 @@ const EsperaPanelPage = () => {
         </ModalShell>
       )}
 
+      {confirmCancelEsperaId && confirmCancelEspera && (
+        <ModalShell
+          onClose={() => setConfirmCancelEsperaId(null)}
+          labelledBy="cancel-espera-title"
+        >
+          <h2
+            id="cancel-espera-title"
+            className="font-display text-xl uppercase tracking-tight text-carbon"
+          >
+            {locale === "en" ? "Cancel this wait?" : "¿Cancelar esta espera?"}
+          </h2>
+          <p className="mt-2 text-sm text-carbon/60">
+            {locale === "en"
+              ? `${confirmCancelEspera.nombre} will leave the queue.`
+              : `${confirmCancelEspera.nombre} sale de la cola.`}
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => {
+                void cancelar(confirmCancelEsperaId);
+                setConfirmCancelEsperaId(null);
+              }}
+              className="w-full rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
+            >
+              {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmCancelEsperaId(null)}
+              className="w-full rounded-full border border-linea px-5 py-3 text-sm font-semibold text-carbon transition hover:bg-crema"
+            >
+              {locale === "en" ? "Keep waiting" : "Seguir en cola"}
+            </button>
+          </div>
+        </ModalShell>
+      )}
+
+      {confirmCancelReservaId && confirmCancelReserva && (
+        <ModalShell
+          onClose={() => setConfirmCancelReservaId(null)}
+          labelledBy="cancel-reserva-title"
+        >
+          <h2
+            id="cancel-reserva-title"
+            className="font-display text-xl uppercase tracking-tight text-carbon"
+          >
+            {locale === "en"
+              ? "Cancel this reservation?"
+              : "¿Cancelar esta reserva?"}
+          </h2>
+          <p className="mt-2 text-sm text-carbon/60">
+            {locale === "en"
+              ? `Table ${confirmCancelReserva.mesaNumero} · ${confirmCancelReserva.nombre} will be freed.`
+              : `Mesa ${confirmCancelReserva.mesaNumero} · ${confirmCancelReserva.nombre} se libera.`}
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => {
+                void cancelarReserva(confirmCancelReservaId);
+                setConfirmCancelReservaId(null);
+              }}
+              className="w-full rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
+            >
+              {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmCancelReservaId(null)}
+              className="w-full rounded-full border border-linea px-5 py-3 text-sm font-semibold text-carbon transition hover:bg-crema"
+            >
+              {locale === "en" ? "Keep it" : "Mantener"}
+            </button>
+          </div>
+        </ModalShell>
+      )}
+
       {sentarId && (
         <ModalShell onClose={() => setSentarId(null)} labelledBy="sentar-title">
           <h2
@@ -732,30 +864,63 @@ const EsperaPanelPage = () => {
               : `Sentar a ${sentarEspera?.nombre ?? ""}`}
           </h2>
           <p className="mt-2 mb-3 text-sm text-carbon/55">
-            {locale === "en" ? "Pick a free table" : "Elegí una mesa libre"}
+            {locale === "en"
+              ? "Pick a free table. Busy and reserved can’t be chosen."
+              : "Elegí una mesa libre. Ocupadas y reservadas no se pueden elegir."}
           </p>
+          <div className="mb-3 flex flex-wrap gap-3 text-[10px] font-semibold uppercase tracking-wide text-carbon/50">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-espera" />
+              {locale === "en" ? "Free" : "Libre"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-amber-400" />
+              {locale === "en" ? "Reserved" : "Reservada"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-rose-600" />
+              {locale === "en" ? "Busy" : "Ocupada"}
+            </span>
+          </div>
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-            {mesasLibres.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => {
-                  if (!sentarId) return;
-                  void sentar(sentarId, m.numero).then(() => {
-                    setSentarId(null);
-                    toast(
-                      locale === "en"
-                        ? `Seated at table ${m.numero}`
-                        : `Sentados en mesa ${m.numero}`,
-                      "success",
-                    );
-                  });
-                }}
-                className="flex aspect-square items-center justify-center rounded-2xl border border-espera/30 bg-espera/10 font-display text-xl text-espera transition hover:bg-espera hover:text-crema"
-              >
-                {m.numero}
-              </button>
-            ))}
+            {mesas.map((m) => {
+              const libre = m.estado === "libre";
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  disabled={!libre}
+                  onClick={() => {
+                    if (!sentarId || !libre) return;
+                    void sentar(sentarId, m.numero).then(() => {
+                      setSentarId(null);
+                      toast(
+                        locale === "en"
+                          ? `Seated at table ${m.numero}`
+                          : `Sentados en mesa ${m.numero}`,
+                        "success",
+                      );
+                    });
+                  }}
+                  className={mesaTileClass(m.estado, { pickable: libre })}
+                >
+                  <span className="font-display text-xl leading-none">
+                    {m.numero}
+                  </span>
+                  <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
+                    {libre
+                      ? locale === "en"
+                        ? "Free"
+                        : "Libre"
+                      : m.estado === "reservada"
+                        ? "Res."
+                        : locale === "en"
+                          ? "Busy"
+                          : "Ocup."}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </ModalShell>
       )}

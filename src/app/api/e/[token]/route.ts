@@ -32,7 +32,7 @@ export const GET = async (
   const { data, error } = await supabase
     .from("esperas")
     .select(
-      "id, nombre, personas, estado, mesa_numero, qr_expira_en, visto_en, avisado_en, locales(nombre)",
+      "id, local_id, nombre, personas, estado, mesa_numero, qr_expira_en, visto_en, avisado_en, creado_en, locales(nombre)",
     )
     .eq("qr_token", token)
     .single();
@@ -54,6 +54,31 @@ export const GET = async (
 
   const local = Array.isArray(data.locales) ? data.locales[0] : data.locales;
 
+  let gruposDelante = 0;
+  let personasDelante = 0;
+  let gruposEnCola = 0;
+  let personasEnCola = 0;
+
+  const { data: cola } = await supabase
+    .from("esperas")
+    .select("id, personas, creado_en, estado")
+    .eq("local_id", data.local_id)
+    .in("estado", ["esperando", "avisado"]);
+
+  if (cola?.length) {
+    const miCreado = new Date(data.creado_en).getTime();
+    for (const row of cola) {
+      gruposEnCola += 1;
+      personasEnCola += row.personas ?? 0;
+      if (row.id === data.id) continue;
+      const t = new Date(row.creado_en).getTime();
+      if (t < miCreado || (t === miCreado && row.id < data.id)) {
+        gruposDelante += 1;
+        personasDelante += row.personas ?? 0;
+      }
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     nombre: data.nombre,
@@ -63,5 +88,11 @@ export const GET = async (
     avisado: data.estado === "avisado" || data.estado === "sentado",
     avisadoEn: data.avisado_en ?? null,
     nombreLocal: local?.nombre ?? "",
+    cola: {
+      gruposDelante,
+      personasDelante,
+      gruposEnCola,
+      personasEnCola,
+    },
   });
 };

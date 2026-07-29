@@ -138,7 +138,7 @@ export const OrderCard = ({
         <button
           type="button"
           onClick={() => onCambiarEstado(order.id, "listo")}
-          className="w-full rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.97]"
+          className="w-full rounded-full bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.97] sm:py-3"
         >
           {t("card.marcarListo")}
         </button>
@@ -156,7 +156,7 @@ export const OrderCard = ({
         <button
           type="button"
           onClick={() => onCambiarEstado(order.id, "retirado")}
-          className="w-full rounded-full border border-linea px-4 py-3 text-sm font-semibold text-carbon transition hover:bg-carbon/5 active:scale-[0.97]"
+          className="w-full rounded-full border border-linea px-4 py-3.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 active:scale-[0.97] sm:py-3"
         >
           {t("card.marcarRetirado")}
         </button>

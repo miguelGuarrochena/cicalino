@@ -187,7 +187,7 @@ export const CustomerWaiting = ({ token }: Props) => {
       <Controls className="absolute right-4 top-4 z-20" />
 
       {waiting && (
-        <p className="u-in mb-6 w-full max-w-sm rounded-2xl border border-amber-300/80 bg-amber-100 px-3 py-2.5 text-xs font-medium leading-snug text-amber-950">
+        <p className="u-in mb-6 w-full rounded-2xl border border-amber-300/80 bg-amber-100 px-3 py-2.5 text-xs font-medium leading-snug text-amber-950 sm:max-w-sm">
           {pushActivo ? t("cliente.noCerrarPush") : t("cliente.noCerrar")}
         </p>
       )}
@@ -271,11 +271,11 @@ export const CustomerWaiting = ({ token }: Props) => {
         </div>
 
         {esListo && !esRetirado && (
-          <div className="u-in mt-6 w-full max-w-sm">
+          <div className="u-in mt-6 w-full sm:max-w-sm">
             <button
               type="button"
               onClick={marcarRetirado}
-              className="w-full rounded-full border border-emerald-400 bg-emerald-100 px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200 active:scale-95"
+              className="w-full rounded-full border border-emerald-400 bg-emerald-100 px-6 py-3.5 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200 active:scale-95"
             >
               {locale === "en" ? "I picked it up 👍" : "Ya lo retiré 👍"}
             </button>
@@ -283,7 +283,7 @@ export const CustomerWaiting = ({ token }: Props) => {
         )}
 
         {!cerrado && (
-          <div className="u-in mt-8 w-full max-w-sm">
+          <div className="u-in mt-8 w-full sm:max-w-sm">
             <button
               type="button"
               onClick={activarAvisos}

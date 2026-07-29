@@ -264,6 +264,20 @@ const dict = {
       noEncontradoSub:
         "Este QR ya no es válido o expiró. Pedí uno nuevo en la recepción.",
       notifListo: "¡{n}, tu mesa está lista!",
+      cancelarBtn: "Cancelar espera",
+      confirmarCancelTitulo: "¿Cancelar la espera?",
+      confirmarCancelSub:
+        "Si te vas, perdés el lugar en la cola. ¿Estás seguro?",
+      confirmarCancelSi: "Sí, cancelar",
+      confirmarCancelNo: "Seguir esperando",
+      colaPrimero: "Sos el próximo grupo",
+      colaDelante:
+        "{g} {gLabel} delante · {p} {pLabel} esperando",
+      colaGrupo: "grupo",
+      colaGrupos: "grupos",
+      colaPersona: "persona",
+      colaPersonas: "personas",
+      colaTotal: "En cola: {g} {gLabel} · {p} {pLabel}",
     },
     modo: { pedido: "Pedido", nombre: "Cliente", mesa: "Mesa" },
     toast: {
@@ -680,6 +694,20 @@ const dict = {
       noEncontradoSub:
         "This QR is no longer valid or expired. Ask for a new one at the host stand.",
       notifListo: "{n}, your table is ready!",
+      cancelarBtn: "Cancel wait",
+      confirmarCancelTitulo: "Cancel your wait?",
+      confirmarCancelSub:
+        "If you leave, you’ll lose your place in line. Are you sure?",
+      confirmarCancelSi: "Yes, cancel",
+      confirmarCancelNo: "Keep waiting",
+      colaPrimero: "You’re next",
+      colaDelante:
+        "{g} {gLabel} ahead · {p} {pLabel} waiting",
+      colaGrupo: "party",
+      colaGrupos: "parties",
+      colaPersona: "person",
+      colaPersonas: "people",
+      colaTotal: "In line: {g} {gLabel} · {p} {pLabel}",
     },
     modo: { pedido: "Order", nombre: "Customer", mesa: "Table" },
     toast: {
