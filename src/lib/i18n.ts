@@ -30,7 +30,7 @@ const dict = {
       flujoTitulo: "Ciclo de un pedido",
       flujoSub: "Estados del pedido. Lo opera el mostrador o la caja.",
       flujoNota:
-        "Al crear el pedido ya está «en curso» y le pasás el QR al cliente. Cuando esté listo, el mozo/caja toca «Listo · avisar» (push al celular). Después «Retirado». Si el cliente cancela o no lo busca, marcás «Cancelado». Cocina no necesita la app.",
+        "Al crear el pedido ya está «en curso» y le pasás el QR al cliente. Cuando esté listo, el mozo/caja toca «Listo · avisar» (push al celular). Después «Retirado». Si el cliente cancela o no lo busca, marcás «Cancelado».",
       paso: {
         creado: "Tomás el pedido y le pasás el QR",
         listo: "Está listo: avisamos al cliente",
@@ -81,13 +81,13 @@ const dict = {
       kicker: "Cicalino",
       h1a: "Avisá al cliente",
       h1b: "cuando el pedido",
-      h1c: "está listo — o hay mesa",
+      h1c: "está listo o hay mesa",
       sub: "Sin buzzers, sin apps. Pedidos listos y espera de mesa, en un solo lugar.",
       cta1: "Entrar a la app",
       ctaWalk: "¿Cómo lo ve el cliente?",
       queTitulo: "Avisos por QR para tu local",
       queSub:
-        "Dos módulos, mismo ADN: el mostrador avisa por QR. Pedido listo o mesa libre. Cocina no necesita la app.",
+        "Dos módulos, mismo ADN: el mostrador avisa por QR. Pedido listo o mesa libre.",
       localKicker: "Para el local",
       localTitulo: "Tres toques en el mostrador",
       localSub:
@@ -410,7 +410,7 @@ const dict = {
       flujoTitulo: "Order lifecycle",
       flujoSub: "Order statuses. Run by counter or cashier.",
       flujoNota:
-        "When you create the order it’s already “in progress” and you hand over the QR. When it’s ready, staff taps “Ready · notify” (push to the phone). Then “Picked up”. If the customer cancels or never picks up, mark “Cancelled”. Kitchen doesn’t need the app.",
+        "When you create the order it’s already “in progress” and you hand over the QR. When it’s ready, staff taps “Ready · notify” (push to the phone). Then “Picked up”. If the customer cancels or never picks up, mark “Cancelled”.",
       paso: {
         creado: "Take the order and hand over the QR",
         listo: "It’s ready — we notify the customer",
@@ -467,7 +467,7 @@ const dict = {
       ctaWalk: "How does the customer see it?",
       queTitulo: "QR notices for your venue",
       queSub:
-        "Counter creates the order, the customer scans a QR and stays on their phone. When it’s ready, Cicalino pings them. Kitchen doesn’t need the app.",
+        "Counter creates the order, the customer scans a QR and stays on their phone. When it’s ready, Cicalino pings them.",
       localKicker: "For the venue",
       localTitulo: "Three taps at the counter",
       localSub:
