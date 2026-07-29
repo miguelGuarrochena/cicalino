@@ -62,6 +62,16 @@ const TerminosPage = () => {
                 cobro anual aparte (desde la fecha de alta de esa sucursal).
               </p>
               <p>
+                <b className="text-carbon">Arrepentimiento y reintegros.</b>{" "}
+                Tenés <b>72 horas</b> desde el pago (mensual o anual) para
+                arrepentirte: escribinos a info@cicalino.net y, si el servicio
+                no tuvo uso relevante (casi sin pedidos operados), te devolvemos
+                el importe. Pasado ese plazo no hay reintegro: el período
+                abonado sigue vigente hasta su vencimiento aunque dejes de usar
+                el servicio. Tampoco hay reintegros proporcionales por baja
+                anticipada, salvo pacto distinto por escrito.
+              </p>
+              <p>
                 <b className="text-carbon">Responsabilidades del local.</b> El
                 local es responsable de los datos que carga (empleados, pedidos,
                 datos fiscales), del uso del panel y de cumplir la normativa
@@ -111,6 +121,16 @@ const TerminosPage = () => {
                 service. On a monthly plan, a branch added mid-cycle is billed
                 from the <b>next</b> cycle. On a yearly plan, each new branch is
                 a separate yearly charge (from that branch&apos;s start date).
+              </p>
+              <p>
+                <b className="text-carbon">Cooling-off and refunds.</b> You have{" "}
+                <b>72 hours</b> from payment (monthly or yearly) to change your
+                mind: email info@cicalino.net and, if there was no meaningful
+                use (almost no live orders), we refund in full. After that there
+                is no refund: the paid period remains available until it ends
+                even if you stop using the service. There are also no
+                proportional refunds for early cancellation, unless agreed
+                otherwise in writing.
               </p>
               <p>
                 <b className="text-carbon">Venue responsibilities.</b> The venue
