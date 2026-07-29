@@ -107,6 +107,14 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
   });
   if (error) {
     console.error("crearSolicitud", error.message);
+    // Si falta una migración (tipo/plan/cuil/…), el mensaje de PostgREST ayuda.
+    if (/column|schema cache|does not exist/i.test(error.message)) {
+      return {
+        ok: false,
+        error:
+          "El alta aún no está lista en el servidor. Escribinos a info@cicalino.net.",
+      };
+    }
     return { ok: false, error: "No pudimos registrar tu solicitud. Reintentá." };
   }
 

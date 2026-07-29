@@ -21,9 +21,23 @@ const PRECIO_MENSUAL = PRECIO_POR_SUCURSAL;
 const PRECIO_ANUAL = PRECIO_MENSUAL * 10;
 
 const INPUT =
-  "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-sm text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
+  "w-full rounded-xl border bg-crema/40 px-4 py-3 text-sm text-carbon outline-none transition focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
+const inputCls = (err?: string) =>
+  `${INPUT} ${
+    err
+      ? "border-red-400 focus:border-red-500"
+      : "border-linea focus:border-marca"
+  }`;
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+type FieldErrors = {
+  local?: string;
+  nombre?: string;
+  telefono?: string;
+  email?: string;
+  cuil?: string;
+};
 
 const PreciosPage = () => {
   const { locale } = useApp();
@@ -38,6 +52,7 @@ const PreciosPage = () => {
   const [cuil, setCuil] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [enviado, setEnviado] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileStatus, setTurnstileStatus] = useState<
@@ -64,79 +79,113 @@ const PreciosPage = () => {
         "1 branch included",
       ];
 
+  const msg = {
+    local: es
+      ? "Completá el nombre del local o empresa."
+      : "Enter the business name.",
+    nombre: es ? "Completá el nombre del responsable." : "Enter the contact name.",
+    email: es ? "Completá un email válido." : "Enter a valid email.",
+    telefono: es
+      ? "Completá un teléfono válido (mín. 8 dígitos)."
+      : "Enter a valid phone (min. 8 digits).",
+    cuil: es
+      ? "Completá un CUIL/CUIT válido (11 dígitos)."
+      : "Enter a valid tax ID (11 digits).",
+    turnstileWait: es
+      ? "Esperá a que cargue la verificación y reintentá."
+      : "Wait for verification to finish, then try again.",
+    turnstileErr: es
+      ? "No se pudo cargar la verificación. Tocá «Recargar» e intentá de nuevo."
+      : "Verification failed. Reload it and try again.",
+    generico: es
+      ? "Algo falló al enviar. Reintentá en un momento."
+      : "Something went wrong. Try again shortly.",
+  };
+
   const recargarTurnstile = () => {
     setTurnstileToken(null);
     setTurnstileStatus("loading");
     setTurnstileKey((k) => k + 1);
-    setError(null);
+  };
+
+  const validar = (): FieldErrors => {
+    const e: FieldErrors = {};
+    if (!local.trim()) e.local = msg.local;
+    if (!nombre.trim()) e.nombre = msg.nombre;
+    if (!isEmail(email)) e.email = msg.email;
+    if (!telefono.trim() || !isWhatsapp(telefono) || telefono.replace(/\D/g, "").length < 8) {
+      e.telefono = msg.telefono;
+    }
+    if (!isCuil(cuil)) e.cuil = msg.cuil;
+    return e;
   };
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!nombre.trim() || !isEmail(email)) {
+
+    const campos = validar();
+    setFieldErrors(campos);
+    if (Object.keys(campos).length > 0) {
       setError(
         es
-          ? "Completá tu nombre y un email válido."
-          : "Enter your name and a valid email.",
+          ? "Revisá los campos marcados."
+          : "Check the highlighted fields.",
       );
       return;
     }
-    if (!local.trim()) {
-      setError(
-        es
-          ? "Completá el nombre del local o empresa."
-          : "Enter the business name.",
-      );
-      return;
-    }
-    if (!telefono.trim() || !isWhatsapp(telefono)) {
-      setError(
-        es
-          ? "Completá un teléfono válido (mín. 8 dígitos)."
-          : "Enter a valid phone (min. 8 digits).",
-      );
-      return;
-    }
-    if (!isCuil(cuil)) {
-      setError(
-        es
-          ? "Completá un CUIL/CUIT válido (11 dígitos)."
-          : "Enter a valid tax ID (11 digits).",
-      );
-      return;
-    }
+
     if (necesitaTurnstile && !turnstileToken) {
       setError(
-        turnstileStatus === "error"
-          ? es
-            ? "No se pudo cargar la verificación. Recargala."
-            : "Verification failed. Reload it."
-          : es
-            ? "Esperá un segundo a que cargue la verificación."
-            : "Wait for verification to load.",
+        turnstileStatus === "error" ? msg.turnstileErr : msg.turnstileWait,
       );
       return;
     }
+
     setLoading(true);
-    const res = await crearSolicitud({
-      nombre,
-      email,
-      telefono,
-      local,
-      direccion,
-      cuil,
-      tipo: "contrato",
-      plan,
-      turnstileToken: turnstileToken ?? undefined,
-    });
-    setLoading(false);
-    if (!res.ok) {
-      setError(res.error);
+    try {
+      const res = await crearSolicitud({
+        nombre: nombre.trim(),
+        email: email.trim(),
+        telefono: telefono.trim(),
+        local: local.trim(),
+        direccion: direccion.trim() || undefined,
+        cuil,
+        tipo: "contrato",
+        plan,
+        turnstileToken: turnstileToken ?? undefined,
+      });
+      if (!res.ok) {
+        setError(res.error || msg.generico);
+        recargarTurnstile();
+        return;
+      }
+      setEnviado(true);
+    } catch (err) {
+      console.error("contratar plan", err);
+      setError(msg.generico);
       recargarTurnstile();
-      return;
+    } finally {
+      setLoading(false);
     }
-    setEnviado(true);
+  };
+
+  const abrirForm = () => {
+    setFormOpen(true);
+    setError(null);
+    setFieldErrors({});
+    recargarTurnstile();
+  };
+
+  const labelSubmit = () => {
+    if (loading) return es ? "Enviando…" : "Sending…";
+    if (necesitaTurnstile && turnstileStatus === "loading" && !turnstileToken) {
+      return es ? "Cargando verificación…" : "Loading verification…";
+    }
+    if (necesitaTurnstile && turnstileStatus === "error") {
+      return es ? "Recargar verificación" : "Reload verification";
+    }
+    return es ? "Enviar y contratar" : "Submit";
   };
 
   return (
@@ -259,7 +308,7 @@ const PreciosPage = () => {
                 <div className="mt-6 flex flex-col gap-2">
                   <button
                     type="button"
-                    onClick={() => setFormOpen(true)}
+                    onClick={abrirForm}
                     className="rounded-full bg-marca px-5 py-3 text-center text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
                   >
                     {es
@@ -274,7 +323,23 @@ const PreciosPage = () => {
                   </Link>
                 </div>
               ) : (
-                <form onSubmit={enviar} className="mt-6 flex flex-col gap-3">
+                <form
+                  onSubmit={(ev) => {
+                    if (
+                      necesitaTurnstile &&
+                      turnstileStatus === "error" &&
+                      !turnstileToken
+                    ) {
+                      ev.preventDefault();
+                      recargarTurnstile();
+                      setError(null);
+                      return;
+                    }
+                    void enviar(ev);
+                  }}
+                  className="mt-6 flex flex-col gap-3"
+                  noValidate
+                >
                   <p className="text-xs font-semibold text-marca">
                     {es
                       ? `Plan elegido: ${anual ? "Anual" : "Mensual"} · ${money.format(
@@ -284,49 +349,99 @@ const PreciosPage = () => {
                           anual ? PRECIO_ANUAL : PRECIO_MENSUAL,
                         )}`}
                   </p>
+                  <div>
+                    <input
+                      className={inputCls(fieldErrors.local)}
+                      value={local}
+                      onChange={(e) => {
+                        setLocal(e.target.value);
+                        if (fieldErrors.local)
+                          setFieldErrors((f) => ({ ...f, local: undefined }));
+                      }}
+                      placeholder={
+                        es ? "Nombre del local / empresa *" : "Business name *"
+                      }
+                      aria-invalid={Boolean(fieldErrors.local)}
+                    />
+                    {fieldErrors.local && (
+                      <p className="mt-1 text-xs text-red-600">{fieldErrors.local}</p>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      className={inputCls(fieldErrors.nombre)}
+                      value={nombre}
+                      onChange={(e) => {
+                        setNombre(e.target.value);
+                        if (fieldErrors.nombre)
+                          setFieldErrors((f) => ({ ...f, nombre: undefined }));
+                      }}
+                      placeholder={es ? "Responsable *" : "Contact person *"}
+                      autoComplete="name"
+                      aria-invalid={Boolean(fieldErrors.nombre)}
+                    />
+                    {fieldErrors.nombre && (
+                      <p className="mt-1 text-xs text-red-600">{fieldErrors.nombre}</p>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      className={inputCls(fieldErrors.telefono)}
+                      type="tel"
+                      value={telefono}
+                      onChange={(e) => {
+                        setTelefono(e.target.value);
+                        if (fieldErrors.telefono)
+                          setFieldErrors((f) => ({ ...f, telefono: undefined }));
+                      }}
+                      placeholder={
+                        es ? "Teléfono / WhatsApp *" : "Phone / WhatsApp *"
+                      }
+                      autoComplete="tel"
+                      aria-invalid={Boolean(fieldErrors.telefono)}
+                    />
+                    {fieldErrors.telefono && (
+                      <p className="mt-1 text-xs text-red-600">{fieldErrors.telefono}</p>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      className={inputCls(fieldErrors.email)}
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (fieldErrors.email)
+                          setFieldErrors((f) => ({ ...f, email: undefined }));
+                      }}
+                      placeholder={es ? "Email *" : "Email *"}
+                      autoComplete="email"
+                      aria-invalid={Boolean(fieldErrors.email)}
+                    />
+                    {fieldErrors.email && (
+                      <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      className={inputCls(fieldErrors.cuil)}
+                      inputMode="numeric"
+                      value={cuil}
+                      onChange={(e) => {
+                        setCuil(formatCuil(e.target.value));
+                        if (fieldErrors.cuil)
+                          setFieldErrors((f) => ({ ...f, cuil: undefined }));
+                      }}
+                      placeholder={es ? "CUIL / CUIT *" : "Tax ID *"}
+                      autoComplete="off"
+                      aria-invalid={Boolean(fieldErrors.cuil)}
+                    />
+                    {fieldErrors.cuil && (
+                      <p className="mt-1 text-xs text-red-600">{fieldErrors.cuil}</p>
+                    )}
+                  </div>
                   <input
-                    className={INPUT}
-                    value={local}
-                    onChange={(e) => setLocal(e.target.value)}
-                    placeholder={
-                      es ? "Nombre del local / empresa *" : "Business name *"
-                    }
-                  />
-                  <input
-                    className={INPUT}
-                    value={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
-                    placeholder={es ? "Responsable *" : "Contact person *"}
-                    autoComplete="name"
-                  />
-                  <input
-                    className={INPUT}
-                    type="tel"
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
-                    placeholder={
-                      es ? "Teléfono / WhatsApp *" : "Phone / WhatsApp *"
-                    }
-                    autoComplete="tel"
-                  />
-                  <input
-                    className={INPUT}
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={es ? "Email *" : "Email *"}
-                    autoComplete="email"
-                  />
-                  <input
-                    className={INPUT}
-                    inputMode="numeric"
-                    value={cuil}
-                    onChange={(e) => setCuil(formatCuil(e.target.value))}
-                    placeholder={es ? "CUIL / CUIT *" : "Tax ID *"}
-                    autoComplete="off"
-                  />
-                  <input
-                    className={INPUT}
+                    className={inputCls()}
                     value={direccion}
                     onChange={(e) => setDireccion(e.target.value)}
                     placeholder={es ? "Dirección" : "Address"}
@@ -337,13 +452,17 @@ const PreciosPage = () => {
                       <TurnstileField
                         key={turnstileKey}
                         siteKey={TURNSTILE_SITE_KEY}
+                        action="contratar"
                         onToken={setTurnstileToken}
                         onStatus={setTurnstileStatus}
                       />
                       {turnstileStatus === "error" && (
                         <button
                           type="button"
-                          onClick={recargarTurnstile}
+                          onClick={() => {
+                            recargarTurnstile();
+                            setError(null);
+                          }}
                           className="mx-auto block text-xs font-semibold text-marca underline"
                         >
                           {es ? "Recargar verificación" : "Reload verification"}
@@ -353,28 +472,26 @@ const PreciosPage = () => {
                   )}
                   <button
                     type="submit"
-                    disabled={
-                      loading ||
-                      (necesitaTurnstile && !turnstileToken)
-                    }
-                    className="rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema disabled:opacity-60"
+                    disabled={loading}
+                    className="rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60"
                   >
-                    {loading
-                      ? es
-                        ? "Enviando…"
-                        : "Sending…"
-                      : es
-                        ? "Enviar y contratar"
-                        : "Submit"}
+                    {labelSubmit()}
                   </button>
                   {error && (
-                    <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-600">
+                    <p
+                      role="alert"
+                      className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-600"
+                    >
                       {error}
                     </p>
                   )}
                   <button
                     type="button"
-                    onClick={() => setFormOpen(false)}
+                    onClick={() => {
+                      setFormOpen(false);
+                      setError(null);
+                      setFieldErrors({});
+                    }}
                     className="text-center text-xs text-carbon/45 hover:underline"
                   >
                     {es ? "Cancelar" : "Cancel"}

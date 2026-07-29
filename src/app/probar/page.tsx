@@ -30,7 +30,6 @@ const ProbarPage = () => {
   const [turnstileKey, setTurnstileKey] = useState(0);
 
   const necesitaTurnstile = Boolean(TURNSTILE_SITE_KEY);
-  const turnstileOk = !necesitaTurnstile || Boolean(turnstileToken);
 
   const recargarTurnstile = () => {
     setTurnstileToken(null);
@@ -55,20 +54,28 @@ const ProbarPage = () => {
       return;
     }
     setLoading(true);
-    const res = await crearSolicitud({
-      nombre,
-      email,
-      local,
-      ciudad,
-      turnstileToken: turnstileToken ?? undefined,
-    });
-    setLoading(false);
-    if (!res.ok) {
-      setError(res.error);
+    try {
+      const res = await crearSolicitud({
+        nombre,
+        email,
+        local,
+        ciudad,
+        tipo: "prueba",
+        turnstileToken: turnstileToken ?? undefined,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        recargarTurnstile();
+        return;
+      }
+      setEnviado(true);
+    } catch (err) {
+      console.error("probar", err);
+      setError("Algo falló al enviar. Reintentá en un momento.");
       recargarTurnstile();
-      return;
+    } finally {
+      setLoading(false);
     }
-    setEnviado(true);
   };
 
   return (
@@ -145,6 +152,7 @@ const ProbarPage = () => {
                   <TurnstileField
                     key={turnstileKey}
                     siteKey={TURNSTILE_SITE_KEY}
+                    action="probar"
                     onToken={setTurnstileToken}
                     onStatus={setTurnstileStatus}
                   />
@@ -161,17 +169,20 @@ const ProbarPage = () => {
               )}
               <button
                 type="submit"
-                disabled={loading || (necesitaTurnstile && !turnstileOk)}
+                disabled={loading}
                 className="mt-1 rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60"
               >
                 {loading
                   ? "Enviando…"
-                  : necesitaTurnstile && turnstileStatus === "loading"
+                  : necesitaTurnstile && turnstileStatus === "loading" && !turnstileToken
                     ? "Cargando verificación…"
                     : "Quiero probar gratis"}
               </button>
               {error && (
-                <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-600">
+                <p
+                  role="alert"
+                  className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-600"
+                >
                   {error}
                 </p>
               )}

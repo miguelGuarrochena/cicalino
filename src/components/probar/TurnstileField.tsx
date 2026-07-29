@@ -26,14 +26,22 @@ declare global {
 
 type Props = {
   siteKey: string;
+  /** Acción de Turnstile (analytics / reglas). */
+  action?: string;
   onToken: (token: string | null) => void;
   onStatus: (status: "loading" | "ready" | "error") => void;
 };
 
 const SCRIPT_ID = "cf-turnstile-script";
+const LOAD_TIMEOUT_MS = 12_000;
 
 /** Carga el script una vez y renderiza el widget de forma explícita (SPA-safe). */
-export const TurnstileField = ({ siteKey, onToken, onStatus }: Props) => {
+export const TurnstileField = ({
+  siteKey,
+  action = "lead",
+  onToken,
+  onStatus,
+}: Props) => {
   const boxRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
   const onTokenRef = useRef(onToken);
@@ -43,72 +51,24 @@ export const TurnstileField = ({ siteKey, onToken, onStatus }: Props) => {
 
   useEffect(() => {
     let cancelled = false;
+    let loadTimer: number | undefined;
+    let pollTimer: number | undefined;
+
     onStatusRef.current("loading");
     onTokenRef.current(null);
 
-    const mount = () => {
-      if (cancelled || !boxRef.current || !window.turnstile) return;
-      if (widgetId.current != null) {
-        try {
-          window.turnstile.remove(widgetId.current);
-        } catch {
-          /* ignore */
-        }
-        widgetId.current = null;
-      }
-      boxRef.current.innerHTML = "";
-      try {
-        widgetId.current = window.turnstile.render(boxRef.current, {
-          sitekey: siteKey,
-          action: "probar",
-          theme: "auto",
-          callback: (token) => {
-            onTokenRef.current(token);
-            onStatusRef.current("ready");
-          },
-          "error-callback": () => {
-            onTokenRef.current(null);
-            onStatusRef.current("error");
-          },
-          "expired-callback": () => {
-            onTokenRef.current(null);
-            onStatusRef.current("loading");
-          },
-        });
-      } catch {
-        onStatusRef.current("error");
-      }
+    const fail = () => {
+      if (cancelled) return;
+      onTokenRef.current(null);
+      onStatusRef.current("error");
     };
 
-    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-    if (window.turnstile) {
-      mount();
-    } else if (existing) {
-      existing.addEventListener("load", mount);
-      // Si ya estaba cargado pero window.turnstile aún no (race), reintentar.
-      const t = window.setInterval(() => {
-        if (window.turnstile) {
-          window.clearInterval(t);
-          mount();
-        }
-      }, 100);
-      window.setTimeout(() => window.clearInterval(t), 8000);
-    } else {
-      const s = document.createElement("script");
-      s.id = SCRIPT_ID;
-      s.src =
-        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      s.async = true;
-      s.defer = true;
-      s.onload = () => mount();
-      s.onerror = () => {
-        if (!cancelled) onStatusRef.current("error");
-      };
-      document.head.appendChild(s);
-    }
+    const armTimeout = () => {
+      window.clearTimeout(loadTimer);
+      loadTimer = window.setTimeout(fail, LOAD_TIMEOUT_MS);
+    };
 
-    return () => {
-      cancelled = true;
+    const clearWidget = () => {
       if (widgetId.current != null && window.turnstile) {
         try {
           window.turnstile.remove(widgetId.current);
@@ -117,8 +77,83 @@ export const TurnstileField = ({ siteKey, onToken, onStatus }: Props) => {
         }
         widgetId.current = null;
       }
+      if (boxRef.current) boxRef.current.innerHTML = "";
     };
-  }, [siteKey]);
+
+    const mount = () => {
+      if (cancelled || !boxRef.current || !window.turnstile) return;
+      clearWidget();
+      armTimeout();
+      try {
+        widgetId.current = window.turnstile.render(boxRef.current, {
+          sitekey: siteKey,
+          action,
+          theme: "light",
+          callback: (token) => {
+            if (cancelled) return;
+            window.clearTimeout(loadTimer);
+            onTokenRef.current(token);
+            onStatusRef.current("ready");
+          },
+          "error-callback": () => {
+            window.clearTimeout(loadTimer);
+            fail();
+          },
+          "expired-callback": () => {
+            if (cancelled) return;
+            onTokenRef.current(null);
+            onStatusRef.current("loading");
+            armTimeout();
+          },
+        });
+      } catch {
+        window.clearTimeout(loadTimer);
+        fail();
+      }
+    };
+
+    armTimeout();
+
+    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+    if (window.turnstile) {
+      mount();
+    } else if (existing) {
+      // Si el script ya cargó, `load` no vuelve a disparar: poll + listener.
+      const onLoad = () => mount();
+      existing.addEventListener("load", onLoad);
+      pollTimer = window.setInterval(() => {
+        if (window.turnstile) {
+          window.clearInterval(pollTimer);
+          mount();
+        }
+      }, 100);
+      window.setTimeout(() => window.clearInterval(pollTimer), LOAD_TIMEOUT_MS);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(loadTimer);
+        window.clearInterval(pollTimer);
+        existing.removeEventListener("load", onLoad);
+        clearWidget();
+      };
+    } else {
+      const s = document.createElement("script");
+      s.id = SCRIPT_ID;
+      s.src =
+        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      s.async = true;
+      s.defer = true;
+      s.onload = () => mount();
+      s.onerror = () => fail();
+      document.head.appendChild(s);
+    }
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(loadTimer);
+      window.clearInterval(pollTimer);
+      clearWidget();
+    };
+  }, [siteKey, action]);
 
   return <div ref={boxRef} className="flex min-h-[65px] justify-center" />;
 };
