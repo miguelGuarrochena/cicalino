@@ -1,11 +1,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { TipoNegocio } from "@/lib/store/config-store";
-import { PRECIO_POR_SUCURSAL } from "@/lib/precios";
+import {
+  PRECIO_POR_SUCURSAL,
+  precioMensualPorSucursal,
+  type ModulosFlags,
+} from "@/lib/precios";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { sumarCicloCobro } from "@/lib/billing";
 
-export { PRECIO_POR_SUCURSAL };
+export { PRECIO_POR_SUCURSAL, precioMensualPorSucursal };
+export type { ModulosFlags };
 
 export interface BranchRow {
   id: string;
@@ -39,6 +44,9 @@ export interface OrganizationRow {
   proximoCobroEn: string | null;
   /** Cuándo el dueño aceptó bases y condiciones. Null = pendiente. */
   contratoAceptadoEn: string | null;
+  /** Módulos contratados (definen el precio por sucursal). */
+  moduloPedidos: boolean;
+  moduloEspera: boolean;
   altaEn: string;
   sucursales: BranchRow[];
 }
@@ -56,6 +64,8 @@ export type OrgInput = {
   duenoEmail: string;
   cupo: number;
   plan: PlanTipo;
+  moduloPedidos?: boolean;
+  moduloEspera?: boolean;
 };
 
 export type BranchInput = {
@@ -110,6 +120,8 @@ const seed = (): OrganizationRow[] => {
       mesGratisHasta: null,
       proximoCobroEn: dia(5),
       contratoAceptadoEn: dia(40),
+      moduloPedidos: true,
+      moduloEspera: true,
       altaEn: dia(40),
       sucursales: [
         {
@@ -147,6 +159,8 @@ const seed = (): OrganizationRow[] => {
       mesGratisHasta: null,
       proximoCobroEn: dia(-2),
       contratoAceptadoEn: dia(7),
+      moduloPedidos: true,
+      moduloEspera: false,
       altaEn: dia(7),
       sucursales: [
         {
@@ -167,9 +181,17 @@ const seed = (): OrganizationRow[] => {
 export const enGracia = (org: OrganizationRow): boolean =>
   !!org.mesGratisHasta && new Date(org.mesGratisHasta).getTime() > Date.now();
 
-/** Monto mensual recurrente (cupo × precio); 0 si el plan es gratis. */
-export const montoMensual = (org: OrganizationRow): number =>
-  org.plan === "gratis" ? 0 : org.cupo * PRECIO_POR_SUCURSAL;
+/** Monto mensual recurrente (cupo × precio del pack); 0 si el plan es gratis. */
+export const montoMensual = (org: OrganizationRow): number => {
+  if (org.plan === "gratis") return 0;
+  return (
+    org.cupo *
+    precioMensualPorSucursal({
+      pedidos: org.moduloPedidos !== false,
+      espera: Boolean(org.moduloEspera),
+    })
+  );
+};
 
 // Cobro mensual efectivo: 0 si está pausada, es gratis o está en cortesía.
 export const monthlyCharge = (org: OrganizationRow): number => {
@@ -210,6 +232,8 @@ export const useSuperadminStore = create<SuperadminState>()(
               mesGratisHasta: null,
               proximoCobroEn: null,
               contratoAceptadoEn: null,
+              moduloPedidos: data.moduloPedidos !== false,
+              moduloEspera: Boolean(data.moduloEspera),
               altaEn: new Date().toISOString(),
               sucursales: [],
             },
@@ -234,6 +258,11 @@ export const useSuperadminStore = create<SuperadminState>()(
               next.duenoEmail = data.duenoEmail.trim();
             if (data.cupo != null) next.cupo = Math.max(1, data.cupo);
             if (data.plan != null) next.plan = data.plan;
+            if (data.moduloPedidos != null) next.moduloPedidos = data.moduloPedidos;
+            if (data.moduloEspera != null) next.moduloEspera = data.moduloEspera;
+            if (!next.moduloPedidos && !next.moduloEspera) {
+              next.moduloPedidos = true;
+            }
             return next;
           }),
         })),

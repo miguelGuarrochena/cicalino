@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { NoAccess } from "@/components/ui/NoAccess";
@@ -17,6 +17,11 @@ import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { TIPOS_NEGOCIO, TIPO_NEGOCIO_LABEL } from "@/lib/types";
+import {
+  guardarDispositivoModo,
+  leerDispositivoModo,
+  type DispositivoModo,
+} from "@/lib/modulos";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
@@ -67,6 +72,11 @@ const ConfigPage = () => {
   const [guardado, setGuardado] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [dispositivo, setDispositivo] = useState<DispositivoModo>("ambos");
+
+  useEffect(() => {
+    setDispositivo(leerDispositivoModo());
+  }, []);
 
   const modes: {
     id: IdentificationMode;
@@ -88,6 +98,15 @@ const ConfigPage = () => {
         if (c.modo === "mesa" && (!c.cantidadMesas || c.cantidadMesas < 1)) {
           next.mesas = t("config.errMesas");
         }
+        if (
+          c.moduloEspera &&
+          (!c.cantidadMesas || c.cantidadMesas < 1)
+        ) {
+          next.mesas = t("config.errMesas");
+        }
+        if (!c.moduloPedidos && !c.moduloEspera) {
+          next.mesas = "Activá al menos un módulo.";
+        }
         return next;
       };
 
@@ -107,6 +126,10 @@ const ConfigPage = () => {
           modo: c.modo,
           cantidadMesas: c.cantidadMesas,
           horaCorte: c.horaCorte,
+          moduloPedidos: c.moduloPedidos,
+          moduloEspera: c.moduloEspera,
+          orgModuloPedidos: c.orgModuloPedidos,
+          orgModuloEspera: c.orgModuloEspera,
         });
       }
       setGuardado(true);
@@ -198,6 +221,113 @@ const ConfigPage = () => {
 
       <section className={CARD}>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
+          Módulos de la sucursal
+        </h2>
+        <p className="mb-4 mt-1 text-sm text-carbon/55">
+          Activá lo que usás acá. Solo podés encender lo contratado en la
+          empresa.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            disabled={!c.orgModuloPedidos && !c.moduloPedidos}
+            onClick={() => {
+              if (!c.orgModuloPedidos) return;
+              c.setModuloPedidos(!c.moduloPedidos);
+            }}
+            className={`rounded-2xl border p-4 text-left transition ${
+              c.moduloPedidos
+                ? "border-marca bg-marca/10 ring-2 ring-marca/30"
+                : "border-linea bg-crema/30"
+            } ${!c.orgModuloPedidos ? "opacity-50" : ""}`}
+          >
+            <span className="font-semibold text-carbon">Pedidos listos</span>
+            <span className="mt-1 block text-xs text-carbon/55">
+              {c.orgModuloPedidos
+                ? "Aviso cuando el pedido está listo"
+                : "No contratado en la empresa"}
+            </span>
+          </button>
+          <button
+            type="button"
+            disabled={!c.orgModuloEspera && !c.moduloEspera}
+            onClick={() => {
+              if (!c.orgModuloEspera) return;
+              c.setModuloEspera(!c.moduloEspera);
+            }}
+            className={`rounded-2xl border p-4 text-left transition ${
+              c.moduloEspera
+                ? "border-espera bg-espera/10 ring-2 ring-espera/30"
+                : "border-linea bg-crema/30"
+            } ${!c.orgModuloEspera ? "opacity-50" : ""}`}
+          >
+            <span className="font-semibold text-carbon">Espera de mesa</span>
+            <span className="mt-1 block text-xs text-carbon/55">
+              {c.orgModuloEspera
+                ? "Cola y mapa de mesas"
+                : "No contratado en la empresa"}
+            </span>
+          </button>
+        </div>
+        {(c.moduloEspera || c.modo === "mesa") && (
+          <div className="mt-4 max-w-xs">
+            <Campo label={t("config.cantidadMesas")} error={errors.mesas}>
+              <input
+                type="number"
+                min={1}
+                className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
+                value={c.cantidadMesas}
+                onChange={(e) => {
+                  c.setCantidadMesas(parseInt(e.target.value, 10));
+                  setErrors((er) => ({ ...er, mesas: undefined }));
+                }}
+              />
+            </Campo>
+          </div>
+        )}
+      </section>
+
+      {(c.moduloPedidos && c.moduloEspera) && (
+        <section className={CARD}>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
+            Este dispositivo
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-carbon/55">
+            Ideal si tenés una tablet en recepción y otra en el mostrador. Se
+            guarda solo en este aparato.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {(
+              [
+                ["ambos", "Ambos módulos"],
+                ["pedidos", "Solo pedidos"],
+                ["espera", "Solo espera"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setDispositivo(id);
+                  guardarDispositivoModo(id);
+                }}
+                className={`rounded-2xl border p-4 text-left transition ${
+                  dispositivo === id
+                    ? id === "espera"
+                      ? "border-espera bg-espera/10 ring-2 ring-espera/30"
+                      : "border-marca bg-marca/10 ring-2 ring-marca/30"
+                    : "border-linea bg-crema/30"
+                }`}
+              >
+                <span className="font-semibold text-carbon">{label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className={CARD}>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
           {t("config.seccionId")}
         </h2>
         <p className="mb-4 mt-1 text-sm text-carbon/55">
@@ -225,7 +355,7 @@ const ConfigPage = () => {
             );
           })}
         </div>
-        {c.modo === "mesa" && (
+        {c.modo === "mesa" && !c.moduloEspera && (
           <div className="mt-4 max-w-xs">
             <Campo label={t("config.cantidadMesas")} error={errors.mesas}>
               <input

@@ -77,3 +77,43 @@ export const ETIQUETA_ESTADO: Record<OrderStatus, string> = {
 export const orderClosed = (status: OrderStatus): boolean => {
   return status === "retirado" || status === "cancelado";
 };
+
+// ---------------------------------------------------------------------------
+// Espera de mesa
+// ---------------------------------------------------------------------------
+
+export type EsperaStatus = "esperando" | "avisado" | "sentado" | "cancelado";
+
+export type MesaEstado = "libre" | "ocupada";
+
+export interface EsperaView {
+  id: string;
+  nombre: string;
+  personas: number;
+  estado: EsperaStatus;
+  mesaNumero: number | null;
+  qrToken: string;
+  creadoEn: string;
+  avisadoEn: string | null;
+  sentadoEn: string | null;
+  canceladoEn: string | null;
+  vistoEn: string | null;
+  empleado?: string | null;
+}
+
+export interface MesaView {
+  id: string;
+  numero: number;
+  estado: MesaEstado;
+  esperaId: string | null;
+}
+
+export const ETIQUETA_ESPERA: Record<EsperaStatus, string> = {
+  esperando: "Esperando",
+  avisado: "Avisado",
+  sentado: "Sentado",
+  cancelado: "Cancelado",
+};
+
+export const esperaClosed = (status: EsperaStatus): boolean =>
+  status === "sentado" || status === "cancelado";

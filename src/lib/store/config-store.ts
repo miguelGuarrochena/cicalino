@@ -33,6 +33,12 @@ interface ConfigState {
   modo: IdentificationMode;
   cantidadMesas: number;
   horaCorte: number;
+  /** Módulos activos en esta sucursal. */
+  moduloPedidos: boolean;
+  moduloEspera: boolean;
+  /** Lo contratado a nivel org (tope de lo que se puede activar). */
+  orgModuloPedidos: boolean;
+  orgModuloEspera: boolean;
   empleados: EmployeeUI[];
 
   setCampo: (
@@ -42,6 +48,8 @@ interface ConfigState {
   setModo: (mode: IdentificationMode) => void;
   setCantidadMesas: (n: number) => void;
   setHoraCorte: (n: number) => void;
+  setModuloPedidos: (v: boolean) => void;
+  setModuloEspera: (v: boolean) => void;
   /** Sobrescribe varios campos de config de una (al cargar desde la base). */
   hydrate: (
     partial: Partial<
@@ -54,6 +62,10 @@ interface ConfigState {
         | "modo"
         | "cantidadMesas"
         | "horaCorte"
+        | "moduloPedidos"
+        | "moduloEspera"
+        | "orgModuloPedidos"
+        | "orgModuloEspera"
       >
     >,
   ) => void;
@@ -83,6 +95,10 @@ const INICIAL = supabaseConfigurado
       modo: "pedido" as IdentificationMode,
       cantidadMesas: 10,
       horaCorte: 6,
+      moduloPedidos: true,
+      moduloEspera: false,
+      orgModuloPedidos: true,
+      orgModuloEspera: false,
       empleados: [] as EmployeeUI[],
     }
   : {
@@ -93,6 +109,10 @@ const INICIAL = supabaseConfigurado
       modo: "pedido" as IdentificationMode,
       cantidadMesas: 10,
       horaCorte: 6,
+      moduloPedidos: true,
+      moduloEspera: true,
+      orgModuloPedidos: true,
+      orgModuloEspera: true,
       empleados: [
         { id: "emp-demo-1", nombre: "Lucía", rol: "Mozo", tienePin: false },
         { id: "emp-demo-2", nombre: "Marcos", rol: "Cocina", tienePin: false },
@@ -109,6 +129,20 @@ export const useConfigStore = create<ConfigState>()(
       setCantidadMesas: (n) => set({ cantidadMesas: Math.max(1, n || 1) }),
       setHoraCorte: (n) =>
         set({ horaCorte: Math.min(23, Math.max(0, Math.floor(n) || 0)) }),
+      setModuloPedidos: (v) =>
+        set((s) => {
+          const moduloPedidos = v;
+          let moduloEspera = s.moduloEspera;
+          if (!moduloPedidos && !moduloEspera) moduloEspera = true;
+          return { moduloPedidos, moduloEspera };
+        }),
+      setModuloEspera: (v) =>
+        set((s) => {
+          const moduloEspera = v;
+          let moduloPedidos = s.moduloPedidos;
+          if (!moduloEspera && !moduloPedidos) moduloPedidos = true;
+          return { moduloPedidos, moduloEspera };
+        }),
       hydrate: (partial) => set(partial),
       setEmpleados: (list) => set({ empleados: list }),
       pushEmpleado: (emp) => set((s) => ({ empleados: [...s.empleados, emp] })),

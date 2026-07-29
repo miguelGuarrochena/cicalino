@@ -4,8 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore, type CurrentRole } from "@/lib/store/session-store";
+import { useConfigStore } from "@/lib/store/config-store";
+import {
+  leerDispositivoModo,
+  modulosVisibles,
+} from "@/lib/modulos";
+import { useSyncExternalStore } from "react";
 
-type IconKey = "orders" | "chart" | "settings";
+type IconKey = "orders" | "espera" | "chart" | "settings";
 
 const LINKS: {
   href: string;
@@ -14,6 +20,7 @@ const LINKS: {
   icon: IconKey;
 }[] = [
   { href: "/panel", key: "nav.pedidos", roles: ["admin", "supervisor", "empleado"], icon: "orders" },
+  { href: "/panel/espera", key: "nav.espera", roles: ["admin", "supervisor", "empleado"], icon: "espera" },
   { href: "/panel/metrics", key: "nav.metricas", roles: ["admin"], icon: "chart" },
   { href: "/panel/config", key: "nav.config", roles: ["admin", "supervisor"], icon: "settings" },
 ];
@@ -37,6 +44,15 @@ const Icon = ({ k }: { k: IconKey }) => {
         <path d="M4 6h16M4 12h16M4 18h10" />
       </svg>
     );
+  if (k === "espera")
+    return (
+      <svg {...common}>
+        <rect x="4" y="4" width="6" height="6" rx="1" />
+        <rect x="14" y="4" width="6" height="6" rx="1" />
+        <rect x="4" y="14" width="6" height="6" rx="1" />
+        <rect x="14" y="14" width="6" height="6" rx="1" />
+      </svg>
+    );
   if (k === "chart")
     return (
       <svg {...common}>
@@ -56,7 +72,26 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
   const path = usePathname();
   const { t } = useApp();
   const role = useSessionStore((s) => s.rol);
-  const links = LINKS.filter((l) => l.roles.includes(role));
+  const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
+  const moduloEspera = useConfigStore((s) => s.moduloEspera);
+  const dispositivo = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("storage", cb);
+      return () => window.removeEventListener("storage", cb);
+    },
+    leerDispositivoModo,
+    () => "ambos" as const,
+  );
+  const visibles = modulosVisibles(
+    { pedidos: moduloPedidos, espera: moduloEspera },
+    dispositivo,
+  );
+  const links = LINKS.filter((l) => {
+    if (!l.roles.includes(role)) return false;
+    if (l.href === "/panel" && !visibles.pedidos) return false;
+    if (l.href === "/panel/espera" && !visibles.espera) return false;
+    return true;
+  });
 
   if (variant === "bottom") {
     return (

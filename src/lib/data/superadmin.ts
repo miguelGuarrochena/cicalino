@@ -35,6 +35,8 @@ type OrgDb = {
   mes_gratis_hasta: string | null;
   proximo_cobro_en: string | null;
   contrato_aceptado_en: string | null;
+  modulo_pedidos: boolean | null;
+  modulo_espera: boolean | null;
   creado_en: string;
   locales: BranchDb[] | null;
 };
@@ -54,6 +56,8 @@ const mapOrg = (o: OrgDb): OrganizationRow => ({
   mesGratisHasta: o.mes_gratis_hasta ?? null,
   proximoCobroEn: o.proximo_cobro_en ?? null,
   contratoAceptadoEn: o.contrato_aceptado_en ?? null,
+  moduloPedidos: o.modulo_pedidos !== false,
+  moduloEspera: Boolean(o.modulo_espera),
   altaEn: o.creado_en,
   sucursales: (o.locales ?? []).map((l) => ({
     id: l.id,
@@ -72,7 +76,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, creado_en, locales(id, nombre, tipo_negocio, direccion)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, locales(id, nombre, tipo_negocio, direccion)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
@@ -108,6 +112,8 @@ export const updateOrgDb = async (
     plan: PlanTipo;
     mesGratisHasta: string | null;
     proximoCobroEn: string | null;
+    moduloPedidos?: boolean;
+    moduloEspera?: boolean;
   }>,
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
@@ -125,6 +131,8 @@ export const updateOrgDb = async (
   if (patch.plan != null) db.plan = patch.plan;
   if (patch.mesGratisHasta !== undefined) db.mes_gratis_hasta = patch.mesGratisHasta;
   if (patch.proximoCobroEn !== undefined) db.proximo_cobro_en = patch.proximoCobroEn;
+  if (patch.moduloPedidos != null) db.modulo_pedidos = patch.moduloPedidos;
+  if (patch.moduloEspera != null) db.modulo_espera = patch.moduloEspera;
   const { error } = await supabase
     .from("organizaciones")
     .update(db)

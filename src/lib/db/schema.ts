@@ -87,6 +87,9 @@ export const organizations = pgTable("organizaciones", {
   proximoCobroEn: timestamp("proximo_cobro_en", { withTimezone: true }),
   // Último mail de recordatorio de cobro (anti-spam).
   avisoCobroEn: timestamp("aviso_cobro_en", { withTimezone: true }),
+  // Módulos contratados (cobro = cupo × precio según pack).
+  moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
+  moduloEspera: boolean("modulo_espera").notNull().default(false),
   // Aceptación de bases y condiciones (link /aceptar/[token]).
   contratoToken: text("contrato_token"),
   contratoAceptadoEn: timestamp("contrato_aceptado_en", { withTimezone: true }),
@@ -115,10 +118,13 @@ export const locales = pgTable("locales", {
   modoIdentificacion: identificationModeEnum("modo_identificacion")
     .notNull()
     .default("pedido"),
-  // Cantidad de mesas (solo aplica si modoIdentificacion = "mesa").
+  // Cantidad de mesas (modo identificación "mesa" Y/O módulo espera).
   cantidadMesas: integer("cantidad_mesas"),
   // Hora a la que corta la jornada operativa (0-23). Default 6:00.
   horaCorte: integer("hora_corte").notNull().default(6),
+  // Módulos activos en esta sucursal (subset de lo contratado en la org).
+  moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
+  moduloEspera: boolean("modulo_espera").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -295,6 +301,70 @@ export const pedidosSucursal = pgTable("pedidos_sucursal", {
 });
 
 export type PedidoSucursal = typeof pedidosSucursal.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Espera de mesa (módulo aparte de pedidos)
+// ---------------------------------------------------------------------------
+
+export const esperaStatusEnum = pgEnum("espera_estado", [
+  "esperando",
+  "avisado",
+  "sentado",
+  "cancelado",
+]);
+
+export const esperas = pgTable(
+  "esperas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => locales.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    personas: integer("personas").notNull().default(2),
+    estado: esperaStatusEnum("estado").notNull().default("esperando"),
+    mesaNumero: integer("mesa_numero"),
+    qrToken: text("qr_token").notNull(),
+    qrExpiraEn: timestamp("qr_expira_en", { withTimezone: true }).notNull(),
+    empleadoId: uuid("empleado_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+    creadoEn: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    avisadoEn: timestamp("avisado_en", { withTimezone: true }),
+    sentadoEn: timestamp("sentado_en", { withTimezone: true }),
+    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
+    vistoEn: timestamp("visto_en", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_esperas_local_estado").on(t.localId, t.estado),
+    uniqueIndex("uq_esperas_qr_token").on(t.qrToken),
+    index("idx_esperas_local_creado").on(t.localId, t.creadoEn),
+  ],
+);
+
+export const mesas = pgTable(
+  "mesas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => locales.id, { onDelete: "cascade" }),
+    numero: integer("numero").notNull(),
+    estado: text("estado").notNull().default("libre"),
+    esperaId: uuid("espera_id").references(() => esperas.id, {
+      onDelete: "set null",
+    }),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("idx_mesas_local").on(t.localId),
+    uniqueIndex("uq_mesas_local_numero").on(t.localId, t.numero),
+  ],
+);
 
 // ---------------------------------------------------------------------------
 // Relaciones

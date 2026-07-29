@@ -1,14 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 
-const STEPS = [
+type Tab = "pedidos" | "espera";
+
+const STEPS_PEDIDOS = [
   { key: "creado", color: "bg-amber-100 text-amber-800", ring: "ring-amber-200" },
   { key: "listo", color: "bg-emerald-100 text-emerald-800", ring: "ring-emerald-200" },
   { key: "retirado", color: "bg-carbon/5 text-carbon/55", ring: "ring-carbon/10" },
 ] as const;
 
-const BLOQUES = [
+const STEPS_ESPERA = [
+  { key: "esperando", color: "bg-amber-100 text-amber-800", ring: "ring-amber-200" },
+  { key: "avisado", color: "bg-espera/15 text-espera", ring: "ring-espera/25" },
+  { key: "sentado", color: "bg-carbon/5 text-carbon/55", ring: "ring-carbon/10" },
+] as const;
+
+const FAQ_PEDIDOS = [
   { q: "faq.q1", a: "faq.a1" },
   { q: "faq.q2", a: "faq.a2" },
   { q: "faq.q3", a: "faq.a3" },
@@ -18,7 +27,15 @@ const BLOQUES = [
   { q: "faq.q7", a: "faq.a7" },
 ] as const;
 
-/** Ciclo de pedido + accordion de preguntas (landing y /faq). */
+const FAQ_ESPERA = [
+  { q: "faq.e.q1", a: "faq.e.a1" },
+  { q: "faq.e.q2", a: "faq.e.a2" },
+  { q: "faq.e.q3", a: "faq.e.a3" },
+  { q: "faq.e.q4", a: "faq.e.a4" },
+  { q: "faq.e.q5", a: "faq.e.a5" },
+] as const;
+
+/** Ciclo + accordion. Tabs Pedidos | Espera de mesa. */
 export const FaqContent = ({
   showFlow = true,
   className = "",
@@ -27,18 +44,60 @@ export const FaqContent = ({
   className?: string;
 }) => {
   const { t } = useApp();
+  const [tab, setTab] = useState<Tab>("pedidos");
+  const steps = tab === "pedidos" ? STEPS_PEDIDOS : STEPS_ESPERA;
+  const bloques = tab === "pedidos" ? FAQ_PEDIDOS : FAQ_ESPERA;
 
   return (
     <div className={className}>
+      <div
+        className="mb-6 flex rounded-2xl border border-linea bg-surface p-1 shadow-sm"
+        role="tablist"
+        aria-label="FAQ"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "pedidos"}
+          onClick={() => setTab("pedidos")}
+          className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+            tab === "pedidos"
+              ? "bg-marca text-crema"
+              : "text-carbon/55 hover:bg-carbon/5"
+          }`}
+        >
+          {t("faq.tabPedidos")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "espera"}
+          onClick={() => setTab("espera")}
+          className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+            tab === "espera"
+              ? "bg-espera text-crema"
+              : "text-carbon/55 hover:bg-carbon/5"
+          }`}
+        >
+          {t("faq.tabEspera")}
+        </button>
+      </div>
+
       {showFlow && (
-        <section className="rounded-[28px] border border-linea bg-surface p-5 shadow-sm sm:p-8">
+        <section
+          className={`rounded-[28px] border bg-surface p-5 shadow-sm sm:p-8 ${
+            tab === "espera" ? "border-espera/25" : "border-linea"
+          }`}
+        >
           <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/55">
-            {t("faq.flujoTitulo")}
+            {t(tab === "pedidos" ? "faq.flujoTitulo" : "faq.e.flujoTitulo")}
           </h2>
-          <p className="mt-1 text-sm text-carbon/50">{t("faq.flujoSub")}</p>
+          <p className="mt-1 text-sm text-carbon/50">
+            {t(tab === "pedidos" ? "faq.flujoSub" : "faq.e.flujoSub")}
+          </p>
 
           <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-            {STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <div key={s.key} className="flex flex-1 flex-col items-center sm:min-w-0">
                 <div
                   className={`flex w-full flex-col items-center rounded-2xl px-3 py-4 text-center ring-2 ${s.color} ${s.ring}`}
@@ -47,13 +106,17 @@ export const FaqContent = ({
                     {i + 1}
                   </span>
                   <span className="mt-1 font-display text-lg uppercase leading-none tracking-tight sm:text-xl">
-                    {t(`estado.${s.key}`)}
+                    {tab === "pedidos"
+                      ? t(`estado.${s.key}`)
+                      : t(`faq.e.estado.${s.key}`)}
                   </span>
                   <span className="mt-2 text-[11px] leading-snug opacity-80">
-                    {t(`faq.paso.${s.key}`)}
+                    {tab === "pedidos"
+                      ? t(`faq.paso.${s.key}`)
+                      : t(`faq.e.paso.${s.key}`)}
                   </span>
                 </div>
-                {i < STEPS.length - 1 && (
+                {i < steps.length - 1 && (
                   <div
                     className="my-1 flex h-6 w-px bg-linea sm:hidden"
                     aria-hidden
@@ -72,13 +135,13 @@ export const FaqContent = ({
           </div>
 
           <p className="mt-6 rounded-2xl bg-crema/60 px-4 py-3 text-sm leading-relaxed text-carbon/65">
-            {t("faq.flujoNota")}
+            {t(tab === "pedidos" ? "faq.flujoNota" : "faq.e.flujoNota")}
           </p>
         </section>
       )}
 
       <section className={`flex flex-col gap-3 ${showFlow ? "mt-8" : ""}`}>
-        {BLOQUES.map((b) => (
+        {bloques.map((b) => (
           <details
             key={b.q}
             className="group rounded-2xl border border-linea bg-surface px-5 py-4 shadow-sm open:shadow-md"

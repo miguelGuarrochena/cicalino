@@ -9,7 +9,11 @@ import { SiteFooter } from "@/components/ui/SiteFooter";
 import { TurnstileField } from "@/components/probar/TurnstileField";
 import { crearSolicitud } from "@/lib/actions/leads";
 import { isCuil, isEmail, formatCuil, isWhatsapp } from "@/lib/validations";
-import { PRECIO_POR_SUCURSAL } from "@/lib/precios";
+import {
+  PRECIO_PEDIDOS,
+  PRECIO_ESPERA,
+  PRECIO_PACK,
+} from "@/lib/precios";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -17,8 +21,13 @@ const money = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-const PRECIO_MENSUAL = PRECIO_POR_SUCURSAL;
-const PRECIO_ANUAL = PRECIO_MENSUAL * 10;
+type PackId = "pedidos" | "espera" | "pack";
+
+const PACK_PRECIO: Record<PackId, number> = {
+  pedidos: PRECIO_PEDIDOS,
+  espera: PRECIO_ESPERA,
+  pack: PRECIO_PACK,
+};
 
 const INPUT =
   "w-full rounded-xl border bg-crema/40 px-4 py-3 text-sm text-carbon outline-none transition focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
@@ -43,6 +52,7 @@ const PreciosPage = () => {
   const { locale } = useApp();
   const es = locale !== "en";
   const [anual, setAnual] = useState(false);
+  const [pack, setPack] = useState<PackId>("pack");
   const [formOpen, setFormOpen] = useState(false);
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
@@ -62,22 +72,57 @@ const PreciosPage = () => {
 
   const necesitaTurnstile = Boolean(TURNSTILE_SITE_KEY);
   const plan = anual ? "anual" : "mensual";
+  const precioMes = PACK_PRECIO[pack];
+  const precioMostrar = anual ? precioMes * 10 : precioMes;
 
-  const features = es
-    ? [
-        "Pedidos ilimitados",
-        "QR + aviso al celular del cliente",
-        "Mostrador, empleados con PIN",
-        "Métricas del día",
-        "1 sucursal incluida",
-      ]
-    : [
-        "Unlimited orders",
-        "QR + notice to the customer’s phone",
-        "Counter app, staff with PIN",
-        "Daily metrics",
-        "1 branch included",
-      ];
+  const featuresByPack: Record<PackId, string[]> = es
+    ? {
+        pedidos: [
+          "Pedidos ilimitados",
+          "QR + aviso al celular",
+          "Mostrador y PIN",
+          "Métricas de pedidos",
+          "1 sucursal incluida",
+        ],
+        espera: [
+          "Cola de espera de mesa",
+          "Mapa de mesas libres/ocupadas",
+          "QR + aviso al celular",
+          "Métricas de espera",
+          "1 sucursal incluida",
+        ],
+        pack: [
+          "Pedidos + Espera de mesa",
+          "QR + aviso en ambos flujos",
+          "Pestañas claras en el panel",
+          "Métricas separadas",
+          "1 sucursal incluida",
+        ],
+      }
+    : {
+        pedidos: [
+          "Unlimited orders",
+          "QR + phone notice",
+          "Counter + staff PIN",
+          "Order metrics",
+          "1 branch included",
+        ],
+        espera: [
+          "Table waitlist",
+          "Free/busy floor map",
+          "QR + phone notice",
+          "Wait metrics",
+          "1 branch included",
+        ],
+        pack: [
+          "Orders + Table wait",
+          "QR notice for both flows",
+          "Clear panel tabs",
+          "Separate metrics",
+          "1 branch included",
+        ],
+      };
+  const features = featuresByPack[pack];
 
   const msg = {
     local: es
@@ -195,7 +240,7 @@ const PreciosPage = () => {
         <Controls />
       </header>
 
-      <main className="mx-auto w-full max-w-xl flex-1 px-5 py-10 sm:py-14">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10 sm:py-14">
         {enviado ? (
           <div className="u-in text-center">
             <h1 className="font-display text-4xl uppercase tracking-tight text-marca">
@@ -222,17 +267,80 @@ const PreciosPage = () => {
               </h1>
               <p className="mx-auto mt-3 max-w-md text-carbon/60">
                 {es
-                  ? "Una tarifa fija por sucursal. Elegí mensual o anual, y lo activamos."
-                  : "A flat fee per branch. Pick monthly or yearly, and we set it up."}
+                  ? "Pedidos listos, espera de mesa, o los dos. Precio fijo por sucursal."
+                  : "Order ready, table wait, or both. Flat fee per branch."}
               </p>
             </div>
 
             <div
-              className="u-in mt-10 rounded-[28px] border border-marca bg-surface p-7 shadow-sm ring-2 ring-marca/25"
+              className="u-in mt-8 grid gap-3 sm:grid-cols-3"
+              style={{ animationDelay: "0.05s" }}
+            >
+              {(
+                [
+                  {
+                    id: "pedidos" as const,
+                    label: es ? "Solo pedidos" : "Orders only",
+                    accent: "border-marca/40",
+                    active: "border-marca ring-2 ring-marca/25",
+                    priceColor: "text-marca",
+                  },
+                  {
+                    id: "espera" as const,
+                    label: es ? "Solo espera" : "Wait only",
+                    accent: "border-espera/40",
+                    active: "border-espera ring-2 ring-espera/25",
+                    priceColor: "text-espera",
+                  },
+                  {
+                    id: "pack" as const,
+                    label: es ? "Pack (los dos)" : "Pack (both)",
+                    accent: "border-marca/40",
+                    active: "border-marca ring-2 ring-marca/25",
+                    priceColor: "text-marca",
+                  },
+                ] as const
+              ).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPack(p.id)}
+                  className={`rounded-2xl border bg-surface p-4 text-left transition ${
+                    pack === p.id ? p.active : p.accent
+                  }`}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-carbon/50">
+                    {p.label}
+                  </p>
+                  <p className={`mt-1 font-display text-2xl ${p.priceColor}`}>
+                    {money.format(PACK_PRECIO[p.id])}
+                  </p>
+                  <p className="text-[11px] text-carbon/45">
+                    {es ? "/mes · sucursal" : "/mo · branch"}
+                  </p>
+                  {p.id === "pack" && (
+                    <p className="mt-2 text-[11px] font-semibold text-emerald-700">
+                      {es ? "Ahorrás $5.000" : "Save vs buying both"}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div
+              className={`u-in mt-6 rounded-[28px] border bg-surface p-7 shadow-sm ${
+                pack === "espera"
+                  ? "border-espera ring-2 ring-espera/25"
+                  : "border-marca ring-2 ring-marca/25"
+              }`}
               style={{ animationDelay: "0.08s" }}
             >
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-marca">
+                <p
+                  className={`text-xs font-semibold uppercase tracking-[0.3em] ${
+                    pack === "espera" ? "text-espera" : "text-marca"
+                  }`}
+                >
                   Cicalino
                 </p>
                 <div className="flex rounded-full border border-linea bg-crema/50 p-0.5 text-xs font-semibold">
@@ -240,7 +348,11 @@ const PreciosPage = () => {
                     type="button"
                     onClick={() => setAnual(false)}
                     className={`rounded-full px-3 py-1.5 transition ${
-                      !anual ? "bg-marca text-crema" : "text-carbon/55"
+                      !anual
+                        ? pack === "espera"
+                          ? "bg-espera text-crema"
+                          : "bg-marca text-crema"
+                        : "text-carbon/55"
                     }`}
                   >
                     {es ? "Mensual" : "Monthly"}
@@ -249,7 +361,11 @@ const PreciosPage = () => {
                     type="button"
                     onClick={() => setAnual(true)}
                     className={`rounded-full px-3 py-1.5 transition ${
-                      anual ? "bg-marca text-crema" : "text-carbon/55"
+                      anual
+                        ? pack === "espera"
+                          ? "bg-espera text-crema"
+                          : "bg-marca text-crema"
+                        : "text-carbon/55"
                     }`}
                   >
                     {es ? "Anual" : "Yearly"}
@@ -258,8 +374,12 @@ const PreciosPage = () => {
               </div>
 
               <div className="mt-4 flex items-baseline gap-1.5">
-                <span className="font-display text-5xl text-marca">
-                  {money.format(anual ? PRECIO_ANUAL : PRECIO_MENSUAL)}
+                <span
+                  className={`font-display text-5xl ${
+                    pack === "espera" ? "text-espera" : "text-marca"
+                  }`}
+                >
+                  {money.format(precioMostrar)}
                 </span>
                 <span className="text-sm text-carbon/50">
                   {anual
@@ -273,7 +393,7 @@ const PreciosPage = () => {
               </div>
               {anual && (
                 <p className="mt-2 inline-block rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                  {es ? "2 meses gratis 🎉" : "2 months free 🎉"}
+                  {es ? "2 meses gratis" : "2 months free"}
                 </p>
               )}
 
@@ -292,10 +412,10 @@ const PreciosPage = () => {
               <p className="mt-5 text-sm text-carbon/55">
                 {es
                   ? `¿Varias sucursales? Se suma ${money.format(
-                      anual ? PRECIO_ANUAL : PRECIO_MENSUAL,
+                      precioMostrar,
                     )} por cada una.`
                   : `Several branches? Add ${money.format(
-                      anual ? PRECIO_ANUAL : PRECIO_MENSUAL,
+                      precioMostrar,
                     )} per branch.`}
               </p>
               <p className="mt-2 text-xs leading-relaxed text-carbon/45">
@@ -343,10 +463,10 @@ const PreciosPage = () => {
                   <p className="text-xs font-semibold text-marca">
                     {es
                       ? `Plan elegido: ${anual ? "Anual" : "Mensual"} · ${money.format(
-                          anual ? PRECIO_ANUAL : PRECIO_MENSUAL,
+                          precioMostrar,
                         )}`
                       : `Selected: ${anual ? "Yearly" : "Monthly"} · ${money.format(
-                          anual ? PRECIO_ANUAL : PRECIO_MENSUAL,
+                          precioMostrar,
                         )}`}
                   </p>
                   <div>

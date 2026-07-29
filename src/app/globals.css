@@ -25,6 +25,9 @@
   --text: #20264f;
   --brand: #2536d4;
   --brand-strong: #1b29b0;
+  /* Módulo Espera de mesa — teal dentro de la gama (hermano del cobalto) */
+  --espera: #0f766e;
+  --espera-strong: #0d9488;
   --line: #e4dfc2;
   --mascota: #2536d4;
   color-scheme: light;
@@ -38,6 +41,8 @@
     --text: #ede9ce;
     --brand: #7d8bff;
     --brand-strong: #9aa4ff;
+    --espera: #2dd4bf;
+    --espera-strong: #5eead4;
     --line: #2a2f5c;
     --mascota: #ede9ce;
     color-scheme: dark;
@@ -51,6 +56,8 @@
   --text: #ede9ce;
   --brand: #7d8bff;
   --brand-strong: #9aa4ff;
+  --espera: #2dd4bf;
+  --espera-strong: #5eead4;
   --line: #2a2f5c;
   --mascota: #ede9ce;
   color-scheme: dark;
@@ -62,6 +69,8 @@
   --color-carbon: var(--text);
   --color-marca: var(--brand);
   --color-marca-fuerte: var(--brand-strong);
+  --color-espera: var(--espera);
+  --color-espera-fuerte: var(--espera-strong);
   --color-linea: var(--line);
   --color-listo: #16a34a;
   --color-prep: #f59e0b;

@@ -82,6 +82,8 @@ const crearOrganizacionValidada = async (
       activo: false,
       mes_gratis_hasta: mesGratisHasta,
       proximo_cobro_en: proximoCobroEn,
+      modulo_pedidos: data.moduloPedidos !== false,
+      modulo_espera: Boolean(data.moduloEspera),
     })
     .select("id")
     .single();
@@ -97,6 +99,8 @@ const crearOrganizacionValidada = async (
       tipo_negocio: b.tipo,
       direccion: b.direccion ?? null,
       slug: `${slugify(b.nombre)}-${sufijoAleatorio()}`,
+      modulo_pedidos: data.moduloPedidos !== false,
+      modulo_espera: Boolean(data.moduloEspera),
     }));
     const { error: errSuc } = await admin.from("locales").insert(rows);
     if (errSuc) console.error("crearOrganizacion/locales", errSuc.message);

@@ -21,6 +21,10 @@ export interface BranchConfig {
   modo: IdentificationMode;
   cantidadMesas: number;
   horaCorte: number;
+  moduloPedidos: boolean;
+  moduloEspera: boolean;
+  orgModuloPedidos: boolean;
+  orgModuloEspera: boolean;
 }
 
 export const fetchBranchConfig = async (
@@ -31,11 +35,16 @@ export const fetchBranchConfig = async (
   const { data, error } = await supabase
     .from("locales")
     .select(
-      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas, hora_corte",
+      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas, hora_corte, modulo_pedidos, modulo_espera, organizacion_id, organizaciones(modulo_pedidos, modulo_espera)",
     )
     .eq("id", branchId)
     .single();
   if (error || !data) return null;
+  const orgRaw = data.organizaciones as
+    | { modulo_pedidos?: boolean; modulo_espera?: boolean }
+    | { modulo_pedidos?: boolean; modulo_espera?: boolean }[]
+    | null;
+  const org = Array.isArray(orgRaw) ? orgRaw[0] : orgRaw;
   return {
     nombre: data.nombre ?? "",
     tipo: (data.tipo_negocio as TipoNegocio) ?? "otro",
@@ -44,6 +53,10 @@ export const fetchBranchConfig = async (
     modo: (data.modo_identificacion as IdentificationMode) ?? "pedido",
     cantidadMesas: data.cantidad_mesas ?? 10,
     horaCorte: data.hora_corte ?? 6,
+    moduloPedidos: data.modulo_pedidos !== false,
+    moduloEspera: Boolean(data.modulo_espera),
+    orgModuloPedidos: org?.modulo_pedidos !== false,
+    orgModuloEspera: Boolean(org?.modulo_espera),
   };
 };
 
@@ -53,7 +66,11 @@ export const saveBranchConfig = async (
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
-  const v = parsear(branchConfigSchema, cfg);
+  const v = parsear(branchConfigSchema, {
+    ...cfg,
+    moduloPedidos: cfg.moduloPedidos,
+    moduloEspera: cfg.moduloEspera,
+  });
   if (!v.ok) {
     console.error("saveBranchConfig", v.error);
     return false;
@@ -68,6 +85,8 @@ export const saveBranchConfig = async (
       modo_identificacion: v.data.modo,
       cantidad_mesas: v.data.cantidadMesas,
       hora_corte: v.data.horaCorte,
+      modulo_pedidos: cfg.moduloPedidos !== false,
+      modulo_espera: Boolean(cfg.moduloEspera),
       updated_at: new Date().toISOString(),
     })
     .eq("id", branchId);

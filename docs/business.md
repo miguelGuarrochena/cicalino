@@ -23,10 +23,12 @@ el celular que el cliente ya tiene.
 
 ## Modelo de cobro
 
-- **Un producto:** $20.000 ARS / mes / sucursal.
-- **Unidad de cobro:** la **organización (empresa)**. Paga `cupo × $20.000`
-  (cupo = sucursales contratadas).
-- **Unidad operativa:** la **sucursal** (mostrador, pedidos, personal).
+- **Módulos por sucursal:**
+  - Solo pedidos: **$20.000** ARS / mes
+  - Solo espera de mesa: **$10.000** ARS / mes
+  - Pack (ambos): **$25.000** ARS / mes
+- **Unidad de cobro:** la **organización (empresa)**. Paga `cupo × precio del pack contratado`.
+- **Unidad operativa:** la **sucursal** (mostrador, pedidos / espera, personal).
 - **Cobro actual:** contacto (email / WhatsApp). Sin pasarela por ahora —
   evita comisiones y fricción de onboarding.
 - **Gratis para el cliente final** (nunca paga ni se registra).

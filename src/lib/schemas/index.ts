@@ -93,10 +93,20 @@ export const crearOrganizacionSchema = z.object({
     .max(500, "El cupo máximo es 500."),
   plan: plan.optional().default("mensual"),
   mesGratis: z.boolean().optional().default(false),
+  moduloPedidos: z.boolean().optional().default(true),
+  moduloEspera: z.boolean().optional().default(false),
   sucursales: z
     .array(sucursalInputSchema)
     .max(500, "Demasiadas sucursales en un solo alta.")
     .default([]),
+}).superRefine((v, ctx) => {
+  if (!v.moduloPedidos && !v.moduloEspera) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Elegí al menos un módulo (Pedidos o Espera).",
+      path: ["moduloPedidos"],
+    });
+  }
 });
 export type CrearOrganizacionInput = z.infer<typeof crearOrganizacionSchema>;
 
@@ -123,10 +133,16 @@ export const branchConfigSchema = z
       .int()
       .min(0, "La hora de corte va de 0 a 23.")
       .max(23, "La hora de corte va de 0 a 23."),
+    moduloPedidos: z.boolean().optional().default(true),
+    moduloEspera: z.boolean().optional().default(false),
   })
   .refine((v) => v.modo !== "mesa" || v.cantidadMesas >= 1, {
     message: "Con modo 'mesa' necesitás definir la cantidad de mesas.",
     path: ["cantidadMesas"],
+  })
+  .refine((v) => v.moduloPedidos || v.moduloEspera, {
+    message: "Activá al menos un módulo en la sucursal.",
+    path: ["moduloPedidos"],
   });
 export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 

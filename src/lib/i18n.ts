@@ -9,6 +9,7 @@ const dict = {
   es: {
     nav: {
       pedidos: "Pedidos",
+      espera: "Espera",
       metricas: "Métricas",
       config: "Configuración",
       precios: "Precios",
@@ -24,6 +25,8 @@ const dict = {
       titulo: "Preguntas frecuentes",
       sub: "Cómo funciona Cicalino para el local y para el cliente.",
       volver: "Volver a pedidos",
+      tabPedidos: "Pedidos listos",
+      tabEspera: "Espera de mesa",
       flujoTitulo: "Ciclo de un pedido",
       flujoSub: "Estados del pedido. Lo opera el mostrador o la caja.",
       flujoNota:
@@ -38,7 +41,7 @@ const dict = {
       q2: "¿Qué es el PIN del empleado?",
       a2: "En el dispositivo del mostrador, cada persona ficha con su nombre + PIN único de 4 dígitos. Así queda registrado quién atendió cada pedido.",
       q3: "¿Pedido, nombre o mesa?",
-      a3: "Lo elegís en Configuración. Cambia solo la etiqueta (N° de turno, nombre o mesa). El flujo de estados es el mismo.",
+      a3: "Lo elegís en Configuración. Cambia solo la etiqueta (N° de turno, nombre o mesa). El flujo de estados es el mismo. No confundir con el módulo Espera de mesa.",
       q4: "¿Quién marca los estados?",
       a4: "El mostrador o la caja: crear, listo, retirado y cancelado. No hace falta que cocina use Cicalino.",
       q5: "¿Se borran los pedidos?",
@@ -47,22 +50,48 @@ const dict = {
       a6: "Filtros: en curso, listo, retirado, cancelado. Más el buscador por mesa, nombre o N° según tu modo.",
       q7: "¿Se puede cancelar un pedido?",
       a7: "Sí. Desde el panel, en curso o listo, tocás «Cancelar pedido». Sirve si el cliente se arrepiente o nunca lo retira. Queda en el historial como cancelado.",
+      e: {
+        flujoTitulo: "Ciclo de espera de mesa",
+        flujoSub: "Cola de grupos y mapa de mesas. Ideal en recepción.",
+        flujoNota:
+          "Agregás el grupo, le pasás el QR y queda en cola. Cuando hay mesa libre, tocás «Avisar». Después «Sentar» eligiendo la mesa. Al irse, liberás la mesa con un toque. Podés usar un dispositivo solo para Espera y otro para Pedidos.",
+        estado: {
+          esperando: "Esperando",
+          avisado: "Avisado",
+          sentado: "Sentado",
+        },
+        paso: {
+          esperando: "Anotás el grupo y le pasás el QR",
+          avisado: "Hay mesa: avisamos al celular",
+          sentado: "Los sentás y liberás cuando se van",
+        },
+        q1: "¿Es lo mismo que el modo «mesa» de pedidos?",
+        a1: "No. El modo mesa en pedidos solo etiqueta el retiro en mostrador. Espera de mesa es un módulo aparte: cola de grupos + mapa de mesas libres/ocupadas.",
+        q2: "¿Puedo tener Pedidos y Espera juntos?",
+        a2: "Sí. Contratás el pack y en el panel cambiás de módulo con las pestañas. En Configuración podés dejar un dispositivo solo en Pedidos, solo en Espera, o ambos.",
+        q3: "¿Cómo configuro cuántas mesas tengo?",
+        a3: "En Configuración, cantidad de mesas. Se arman solas en el mapa (libres/ocupadas).",
+        q4: "¿El cliente instala algo?",
+        a4: "No. Escanea el QR, deja la pantalla abierta y recibe el aviso cuando hay mesa.",
+        q5: "¿Las métricas se mezclan con los pedidos?",
+        a5: "No. Métricas tiene pestañas separadas: Pedidos y Espera.",
+      },
     },
     home: {
       kicker: "Cicalino",
       h1a: "Avisá al cliente",
       h1b: "cuando el pedido",
-      h1c: "está listo",
-      sub: "Sin buzzers, sin apps. Escaneás un QR y listo.",
+      h1c: "está listo — o hay mesa",
+      sub: "Sin buzzers, sin apps. Pedidos listos y espera de mesa, en un solo lugar.",
       cta1: "Entrar a la app",
       ctaWalk: "¿Cómo lo ve el cliente?",
       queTitulo: "Avisos por QR para tu local",
       queSub:
-        "El mostrador crea el pedido, el cliente escanea un QR y se queda en el celular. Cuando está listo, Cicalino avisa. Cocina no necesita la app.",
+        "Dos módulos, mismo ADN: el mostrador avisa por QR. Pedido listo o mesa libre. Cocina no necesita la app.",
       localKicker: "Para el local",
       localTitulo: "Tres toques en el mostrador",
       localSub:
-        "Pedidos en curso, listos, retirados o cancelados. Quien atiende ficha con PIN y queda registrado.",
+        "Pedidos en curso, listos, retirados o cancelados. Quien atiende ficha con PIN y queda registrado. Si contratás Espera, también manejás la cola de mesas.",
       paso1Titulo: "Creás el pedido",
       paso1Sub:
         "Ingresás mesa, nombre o N° de turno. Se genera un QR y se lo pasás al cliente.",
@@ -75,7 +104,7 @@ const dict = {
       cliKicker: "Para el cliente",
       cliTitulo: "Escanea el QR y espera el aviso",
       cliSub:
-        "No instala nada. Deja la pantalla abierta (o activa notificaciones) y recibe el aviso cuando corresponde.",
+        "No instala nada. Deja la pantalla abierta (o activa notificaciones) y recibe el aviso cuando corresponde — pedido o mesa.",
       faqKicker: "Dudas",
       cierreTitulo: "Listo para probar",
       cierreSub: "Mirá el recorrido del cliente antes de arrancar.",
@@ -360,6 +389,7 @@ const dict = {
   en: {
     nav: {
       pedidos: "Orders",
+      espera: "Wait",
       metricas: "Metrics",
       config: "Settings",
       precios: "Pricing",
@@ -375,6 +405,8 @@ const dict = {
       titulo: "FAQ",
       sub: "How Cicalino works for the venue and the customer.",
       volver: "Back to orders",
+      tabPedidos: "Order ready",
+      tabEspera: "Table wait",
       flujoTitulo: "Order lifecycle",
       flujoSub: "Order statuses. Run by counter or cashier.",
       flujoNota:
@@ -389,7 +421,7 @@ const dict = {
       q2: "What is the staff PIN?",
       a2: "On the shared counter device, each person clocks in with their name + unique 4-digit PIN. That records who handled each order.",
       q3: "Order #, name or table?",
-      a3: "You choose in Settings. It only changes the label. The status flow is the same.",
+      a3: "You choose in Settings. It only changes the label. The status flow is the same. Not the same as the Table wait module.",
       q4: "Who marks the statuses?",
       a4: "Counter or cashier: create, ready, picked up and cancelled. Kitchen doesn’t need to use Cicalino.",
       q5: "Are orders deleted?",
@@ -398,6 +430,32 @@ const dict = {
       a6: "Filters: in progress, ready, picked up, cancelled — plus search by table, name or #.",
       q7: "Can I cancel an order?",
       a7: "Yes. From the panel, while in progress or ready, tap “Cancel order”. Use it if the customer changes their mind or never picks up. It stays in history as cancelled.",
+      e: {
+        flujoTitulo: "Table wait lifecycle",
+        flujoSub: "Party queue and floor map. Great at the host stand.",
+        flujoNota:
+          "Add the party, hand over the QR, they’re in the queue. When a table frees up, tap Notify. Then Seat and pick the table. When they leave, free the table with one tap. You can dedicate one device to Wait and another to Orders.",
+        estado: {
+          esperando: "Waiting",
+          avisado: "Notified",
+          sentado: "Seated",
+        },
+        paso: {
+          esperando: "Add the party and hand over the QR",
+          avisado: "Table ready — we ping their phone",
+          sentado: "Seat them; free the table when they leave",
+        },
+        q1: "Is this the same as “table” order mode?",
+        a1: "No. Table mode on orders only labels counter pickup. Table wait is a separate module: party queue + free/busy floor map.",
+        q2: "Can I have Orders and Wait together?",
+        a2: "Yes. Subscribe to the pack and switch modules with the tabs. In Settings you can lock a device to Orders, Wait, or both.",
+        q3: "How do I set how many tables I have?",
+        a3: "In Settings, table count. The floor map builds itself (free/busy).",
+        q4: "Does the guest install anything?",
+        a4: "No. They scan the QR, keep the screen open, and get notified when a table is ready.",
+        q5: "Are metrics mixed with orders?",
+        a5: "No. Metrics has separate tabs: Orders and Wait.",
+      },
     },
     home: {
       kicker: "Cicalino",

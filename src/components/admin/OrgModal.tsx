@@ -11,11 +11,13 @@ import {
   montoMensual,
   enGracia,
   pendienteContrato,
+  precioMensualPorSucursal,
   type OrganizationRow,
   type OrgInput,
   type BranchInput,
   type PlanTipo,
 } from "@/lib/store/superadmin-store";
+import { etiquetaModulos } from "@/lib/precios";
 import { sumarCicloCobro } from "@/lib/billing";
 import type { TipoNegocio } from "@/lib/store/config-store";
 import { TIPO_NEGOCIO_LABEL, TIPOS_NEGOCIO } from "@/lib/store/config-store";
@@ -50,6 +52,8 @@ type DraftOrg = {
   duenoEmail: string;
   cupo: number;
   plan: PlanTipo;
+  moduloPedidos: boolean;
+  moduloEspera: boolean;
 };
 
 const draftVacio = (): DraftOrg => ({
@@ -61,6 +65,8 @@ const draftVacio = (): DraftOrg => ({
   duenoEmail: "",
   cupo: 1,
   plan: "mensual",
+  moduloPedidos: true,
+  moduloEspera: false,
 });
 
 const draftDesdeOrg = (o: OrganizationRow): DraftOrg => ({
@@ -72,6 +78,8 @@ const draftDesdeOrg = (o: OrganizationRow): DraftOrg => ({
   duenoEmail: o.duenoEmail,
   cupo: o.cupo,
   plan: o.plan,
+  moduloPedidos: o.moduloPedidos !== false,
+  moduloEspera: Boolean(o.moduloEspera),
 });
 
 const draftsIguales = (a: DraftOrg, b: DraftOrg): boolean =>
@@ -82,7 +90,9 @@ const draftsIguales = (a: DraftOrg, b: DraftOrg): boolean =>
   a.direccion.trim() === b.direccion.trim() &&
   a.duenoEmail.trim() === b.duenoEmail.trim() &&
   a.cupo === b.cupo &&
-  a.plan === b.plan;
+  a.plan === b.plan &&
+  a.moduloPedidos === b.moduloPedidos &&
+  a.moduloEspera === b.moduloEspera;
 
 
 const money = new Intl.NumberFormat("es-AR", {
@@ -140,9 +150,16 @@ const textoProximoCobro = (org: OrganizationRow): string => {
     : "Pendiente: cobrá el mes en curso.";
 };
 
-const montoPlanPreview = (plan: PlanTipo, cupo: number): number => {
+const montoPlanPreview = (
+  plan: PlanTipo,
+  cupo: number,
+  modulos: { pedidos: boolean; espera: boolean } = {
+    pedidos: true,
+    espera: false,
+  },
+): number => {
   if (plan === "gratis") return 0;
-  const mes = cupo * PRECIO_POR_SUCURSAL;
+  const mes = cupo * precioMensualPorSucursal(modulos);
   return plan === "anual" ? mes * 10 : mes;
 };
 
@@ -217,6 +234,10 @@ export const OrgModal = ({
   const [ownerEmail, setOwnerEmail] = useState(org?.duenoEmail ?? "");
   const [quota, setCupo] = useState(org?.cupo ?? 1);
   const [plan, setPlan] = useState<PlanTipo>(org?.plan ?? "mensual");
+  const [moduloPedidos, setModuloPedidos] = useState(
+    org?.moduloPedidos !== false,
+  );
+  const [moduloEspera, setModuloEspera] = useState(Boolean(org?.moduloEspera));
   const [baseline, setBaseline] = useState<DraftOrg>(() =>
     initialMode === "crear" || !org ? draftVacio() : draftDesdeOrg(org),
   );
@@ -237,6 +258,8 @@ export const OrgModal = ({
     duenoEmail: ownerEmail,
     cupo: quota,
     plan,
+    moduloPedidos,
+    moduloEspera,
   });
 
   const dirty = editing && !draftsIguales(draftActual(), baseline);
@@ -250,6 +273,8 @@ export const OrgModal = ({
     setOwnerEmail(d.duenoEmail);
     setCupo(d.cupo);
     setPlan(d.plan);
+    setModuloPedidos(d.moduloPedidos);
+    setModuloEspera(d.moduloEspera);
   };
 
   const entrarEditar = (o: OrganizationRow) => {
@@ -310,6 +335,9 @@ export const OrgModal = ({
     if (cuil && !cuilOk(cuil)) e.cuil = t("super.errCuil");
     if (quota < 1) e.cupo = t("super.errCupo");
     if (org && quota < org.sucursales.length) e.cupo = t("super.errCupoBajo");
+    if (!moduloPedidos && !moduloEspera) {
+      e.modulos = "Elegí al menos un módulo.";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -325,6 +353,8 @@ export const OrgModal = ({
       duenoEmail: ownerEmail,
       cupo: quota,
       plan,
+      moduloPedidos,
+      moduloEspera,
     };
     if (mode === "crear") {
       if (live) {
@@ -369,7 +399,10 @@ export const OrgModal = ({
     const usadas = vista?.sucursales.length ?? 0;
     const nuevoCupo = usadas + 1;
     const plan = vista?.plan ?? "mensual";
-    const anualUna = montoPlanPreview("anual", 1);
+    const anualUna = montoPlanPreview("anual", 1, {
+      pedidos: vista?.moduloPedidos !== false,
+      espera: Boolean(vista?.moduloEspera),
+    });
 
     if (live) {
       await conBusy("Agregando sucursal…", async () => {
@@ -751,6 +784,71 @@ export const OrgModal = ({
               </div>
             )}
           </div>
+          {/* Módulos */}
+          <div className="rounded-2xl border border-linea bg-crema/50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
+              Módulos contratados
+            </p>
+            <div className="mt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !moduloPedidos;
+                  if (!next && !moduloEspera) return;
+                  setModuloPedidos(next);
+                }}
+                className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                  moduloPedidos
+                    ? "border-marca bg-marca/10 ring-2 ring-marca/20"
+                    : "border-linea bg-surface hover:bg-carbon/5"
+                }`}
+              >
+                <span className="text-sm font-semibold text-carbon">
+                  Pedidos listos
+                </span>
+                <span className="mt-0.5 block text-xs text-carbon/55">
+                  Aviso QR cuando el pedido está listo
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !moduloEspera;
+                  if (!next && !moduloPedidos) return;
+                  setModuloEspera(next);
+                }}
+                className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                  moduloEspera
+                    ? "border-espera bg-espera/10 ring-2 ring-espera/20"
+                    : "border-linea bg-surface hover:bg-carbon/5"
+                }`}
+              >
+                <span className="text-sm font-semibold text-carbon">
+                  Espera de mesa
+                </span>
+                <span className="mt-0.5 block text-xs text-carbon/55">
+                  Cola + mapa de mesas
+                </span>
+              </button>
+            </div>
+            {errors.modulos && (
+              <p className="mt-2 text-xs text-red-500">{errors.modulos}</p>
+            )}
+            <p className="mt-2 text-xs text-carbon/50">
+              {etiquetaModulos({
+                pedidos: moduloPedidos,
+                espera: moduloEspera,
+              })}{" "}
+              ·{" "}
+              {money.format(
+                precioMensualPorSucursal({
+                  pedidos: moduloPedidos,
+                  espera: moduloEspera,
+                }),
+              )}
+              /mes por sucursal
+            </p>
+          </div>
           <div className="rounded-2xl border border-linea bg-crema/50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
               Plan / ciclo de cobro
@@ -760,6 +858,10 @@ export const OrgModal = ({
                 const activo = plan === p;
                 const cupoPreview =
                   mode === "editar" ? (org?.cupo ?? quota) : quota;
+                const mods = {
+                  pedidos: moduloPedidos,
+                  espera: moduloEspera,
+                };
                 return (
                   <button
                     key={p}
@@ -780,7 +882,7 @@ export const OrgModal = ({
                             : "Mensual"}
                       </span>
                       <span className="text-xs font-semibold text-marca">
-                        {money.format(montoPlanPreview(p, cupoPreview))}
+                        {money.format(montoPlanPreview(p, cupoPreview, mods))}
                         {p === "anual" ? "/año" : p === "mensual" ? "/mes" : ""}
                       </span>
                     </span>
@@ -793,9 +895,9 @@ export const OrgModal = ({
             </div>
             <p className="mt-2 text-xs text-carbon/50">
               {plan === "anual"
-                ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, mode === "editar" ? (org?.cupo ?? quota) : quota))} una vez al año.`
+                ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, mode === "editar" ? (org?.cupo ?? quota) : quota, { pedidos: moduloPedidos, espera: moduloEspera }))} una vez al año.`
                 : plan === "mensual"
-                  ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, mode === "editar" ? (org?.cupo ?? quota) : quota))} cada mes.`
+                  ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, mode === "editar" ? (org?.cupo ?? quota) : quota, { pedidos: moduloPedidos, espera: moduloEspera }))} cada mes.`
                   : "Al guardar: sin cobro recurrente."}
             </p>
           </div>
@@ -836,7 +938,10 @@ export const OrgModal = ({
                     <span className="ml-2 font-sans text-sm font-semibold normal-case tracking-normal text-marca">
                       {money.format(
                         enGracia(vista)
-                          ? montoPlanPreview(vista.plan, vista.cupo)
+                          ? montoPlanPreview(vista.plan, vista.cupo, {
+                              pedidos: vista.moduloPedidos !== false,
+                              espera: Boolean(vista.moduloEspera),
+                            })
                           : cobroProximo(vista) || montoMensual(vista),
                       )}
                       {vista.plan === "anual" ? "/año" : "/mes"}
@@ -970,7 +1075,10 @@ export const OrgModal = ({
                   {" "}
                   · cobro{" "}
                   {money.format(
-                    montoPlanPreview(vista.plan, vista.sucursales.length || 1),
+                    montoPlanPreview(vista.plan, vista.sucursales.length || 1, {
+                      pedidos: vista.moduloPedidos !== false,
+                      espera: Boolean(vista.moduloEspera),
+                    }),
                   )}
                   {vista.plan === "anual" ? "/año" : "/mes"}
                 </span>

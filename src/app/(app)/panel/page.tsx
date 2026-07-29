@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
+import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { useApp } from "@/components/providers/Providers";
@@ -225,6 +226,7 @@ const PanelOrdersPage = () => {
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
+      <ModuleSwitcher />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           {branchNameLabel && (
