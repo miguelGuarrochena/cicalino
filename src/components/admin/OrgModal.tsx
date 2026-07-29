@@ -344,18 +344,15 @@ export const OrgModal = ({
     if (org) {
       if (live) {
         setSaving(true);
-        await updateOrgDb(org.id, data);
+        // Cupo se maneja en el detalle (sucursales), no en este formulario.
+        await updateOrgDb(org.id, { ...data, cupo: org.cupo });
         await refreshOrganizations();
         setSaving(false);
       } else {
-        actualizarOrg(org.id, data);
+        actualizarOrg(org.id, { ...data, cupo: org.cupo });
       }
-      // Queda en detalle para poder agregar sucursales sin reabrir.
-      const d = draftActual();
-      setBaseline(d);
-      setErrors({});
-      setMode("ver");
       toast(t("toast.orgGuardada"), "success");
+      onClose();
     }
   };
 
@@ -386,6 +383,7 @@ export const OrgModal = ({
             : t("toast.sucAgregada"),
           "success",
         );
+        onClose();
       } finally {
         setBusy(false);
       }
@@ -405,6 +403,7 @@ export const OrgModal = ({
       necesitaCupo ? "Cupo +1 y sucursal agregada" : t("toast.sucAgregada"),
       "success",
     );
+    onClose();
   };
 
   /** Sube el cupo en 1 sin salir del detalle. */
@@ -694,15 +693,27 @@ export const OrgModal = ({
                 onChange={(e) => setCuil(e.target.value)}
               />
             </Campo>
-            <Campo label={t("super.cupo")} error={errors.cupo}>
-              <input
-                className={INPUT}
-                type="number"
-                min={1}
-                value={quota}
-                onChange={(e) => setCupo(parseInt(e.target.value, 10) || 1)}
-              />
-            </Campo>
+            {mode === "crear" ? (
+              <Campo label={t("super.cupo")} error={errors.cupo}>
+                <input
+                  className={INPUT}
+                  type="number"
+                  min={1}
+                  value={quota}
+                  onChange={(e) => setCupo(parseInt(e.target.value, 10) || 1)}
+                />
+              </Campo>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-carbon/70">
+                  {t("super.cupo")}
+                </span>
+                <p className="rounded-xl border border-linea bg-crema/40 px-4 py-3 text-sm text-carbon/55">
+                  {org?.sucursales.length ?? 0} / {org?.cupo ?? quota} · se
+                  gestiona abajo, en Sucursales
+                </p>
+              </div>
+            )}
           </div>
           <div className="rounded-2xl border border-linea bg-crema/50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
@@ -711,6 +722,8 @@ export const OrgModal = ({
             <div className="mt-2 flex flex-col gap-2">
               {(["mensual", "anual", "gratis"] as PlanTipo[]).map((p) => {
                 const activo = plan === p;
+                const cupoPreview =
+                  mode === "editar" ? (org?.cupo ?? quota) : quota;
                 return (
                   <button
                     key={p}
@@ -731,7 +744,7 @@ export const OrgModal = ({
                             : "Mensual"}
                       </span>
                       <span className="text-xs font-semibold text-marca">
-                        {money.format(montoPlanPreview(p, quota))}
+                        {money.format(montoPlanPreview(p, cupoPreview))}
                         {p === "anual" ? "/año" : p === "mensual" ? "/mes" : ""}
                       </span>
                     </span>
@@ -744,9 +757,9 @@ export const OrgModal = ({
             </div>
             <p className="mt-2 text-xs text-carbon/50">
               {plan === "anual"
-                ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, quota))} una vez al año.`
+                ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, mode === "editar" ? (org?.cupo ?? quota) : quota))} una vez al año.`
                 : plan === "mensual"
-                  ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, quota))} cada mes.`
+                  ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, mode === "editar" ? (org?.cupo ?? quota) : quota))} cada mes.`
                   : "Al guardar: sin cobro recurrente."}
             </p>
           </div>
@@ -769,31 +782,10 @@ export const OrgModal = ({
             <Dato label={t("super.emailDueno")} value={vista.duenoEmail} />
             <Dato label={t("super.cuil")} value={vista.cuil || "—"} />
             <Dato
-              label={t("super.cupo")}
-              value={`${vista.sucursales.length} / ${vista.cupo}`}
-            />
-            <Dato
               label={t("super.direccion")}
               value={vista.direccion || "—"}
             />
           </div>
-
-          {vista.sucursales.length >= vista.cupo && (
-            <div className="flex flex-col gap-2 rounded-2xl border border-amber-300/60 bg-amber-50 px-3 py-3 dark:border-amber-500/30 dark:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs font-medium text-amber-950 dark:text-amber-100">
-                Cupo completo ({vista.cupo}). Sumá 1 contratada o agregá una
-                sucursal abajo (también sube el cupo).
-              </p>
-              <button
-                type="button"
-                onClick={() => void sumarCupo()}
-                disabled={busy}
-                className="shrink-0 rounded-full bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-800 disabled:opacity-50"
-              >
-                +1 cupo
-              </button>
-            </div>
-          )}
 
           {/* Bloque de cobro: lo más importante para el superadmin */}
           <div className="rounded-2xl border border-linea bg-crema/50 p-3.5">
@@ -925,20 +917,40 @@ export const OrgModal = ({
                 }}
                 className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70"
               >
-                Editar / cambiar plan
+                Editar datos / plan
               </button>
             </div>
           </div>
 
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
-              {t("super.sucursales")}
-            </p>
-            <ul className="mt-2 flex flex-col gap-2">
+          <div className="rounded-2xl border border-linea bg-crema/40 p-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
+                  {t("super.sucursales")}
+                </p>
+                <p className="mt-1 text-sm text-carbon/70">
+                  <b>{vista.sucursales.length}</b> de <b>{vista.cupo}</b>{" "}
+                  contratadas
+                  {vista.sucursales.length >= vista.cupo
+                    ? " · cupo completo"
+                    : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void sumarCupo()}
+                disabled={busy}
+                className="shrink-0 rounded-full border border-linea bg-surface px-3 py-1.5 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5 disabled:opacity-50"
+              >
+                +1 cupo
+              </button>
+            </div>
+
+            <ul className="mt-3 flex flex-col gap-2">
               {vista.sucursales.map((suc) => (
                 <li
                   key={suc.id}
-                  className="flex flex-col gap-2 rounded-2xl border border-linea bg-crema/40 px-3 py-3 sm:flex-row sm:items-center"
+                  className="flex flex-col gap-2 rounded-2xl border border-linea bg-surface px-3 py-3 sm:flex-row sm:items-center"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-carbon">{suc.nombre}</p>
@@ -983,11 +995,11 @@ export const OrgModal = ({
               )}
             </ul>
 
-            <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-dashed border-linea p-3">
+            <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-dashed border-linea bg-surface/80 p-3">
               <p className="text-xs font-semibold text-carbon/55">
-                {t("super.agregarSucursal")}
+                Agregar sucursal
                 {vista.sucursales.length >= vista.cupo
-                  ? " · suma 1 al cupo al agregar"
+                  ? " (incluye +1 cupo)"
                   : ""}
               </p>
               {quotaError && (
@@ -1017,17 +1029,30 @@ export const OrgModal = ({
                   )}
                   className="sm:min-w-[9.5rem]"
                 />
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNuevaSuc("");
+                    setCupoError(false);
+                  }}
+                  disabled={busy || !newBranch.trim()}
+                  className="w-full rounded-full border border-linea px-4 py-2.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-40 sm:flex-1"
+                >
+                  {t("super.cancelar")}
+                </button>
                 <button
                   type="button"
                   onClick={() => void agregarSuc()}
                   disabled={busy || !newBranch.trim()}
-                  className="rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema disabled:opacity-50"
+                  className="w-full rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema disabled:opacity-50 sm:flex-1"
                 >
                   {busy
                     ? "…"
                     : vista.sucursales.length >= vista.cupo
-                      ? "+ cupo y sucursal"
-                      : "+"}
+                      ? "Guardar (+1 cupo)"
+                      : "Guardar sucursal"}
                 </button>
               </div>
             </div>
