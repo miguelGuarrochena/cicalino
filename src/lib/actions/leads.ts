@@ -47,10 +47,54 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
 
   const local = v.data.local ?? null;
   const ciudad = v.data.ciudad ?? null;
+  const mail = email.trim().toLowerCase();
+
+  // Una sola prueba autoservicio por email. Más locales / otra cortesía = a mano.
+  const porMail = await rateLimitCompartido(`lead:mail:${mail}`, 3, 24 * 60 * 60_000);
+  if (!porMail.ok) {
+    return {
+      ok: false,
+      error: "Ya pediste una prueba con este mail. Escribinos a info@cicalino.net.",
+    };
+  }
+
+  const { data: orgExistente } = await admin
+    .from("organizaciones")
+    .select("id")
+    .ilike("dueno_email", mail)
+    .limit(1)
+    .maybeSingle();
+  if (orgExistente) {
+    return {
+      ok: false,
+      error:
+        "Este mail ya tiene una cuenta Cicalino. Si querés otra sucursal o un mes de cortesía, escribinos a info@cicalino.net.",
+    };
+  }
+
+  const { data: solPrevias } = await admin
+    .from("solicitudes")
+    .select("id, estado")
+    .ilike("email", mail)
+    .in("estado", ["nueva", "atendida"])
+    .limit(5);
+  if (solPrevias?.some((s) => s.estado === "nueva")) {
+    return {
+      ok: false,
+      error: "Ya recibimos tu pedido con este mail. Te escribimos en breve.",
+    };
+  }
+  if (solPrevias?.some((s) => s.estado === "atendida")) {
+    return {
+      ok: false,
+      error:
+        "Este mail ya usó la prueba gratis. Para otro local escribinos a info@cicalino.net y lo vemos.",
+    };
+  }
 
   const { error } = await admin
     .from("solicitudes")
-    .insert({ nombre, email, local, ciudad });
+    .insert({ nombre, email: mail, local, ciudad });
   if (error) {
     console.error("crearSolicitud", error.message);
     return { ok: false, error: "No pudimos registrar tu solicitud. Reintentá." };
@@ -67,7 +111,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
       html: emailLayout({
         titulo: "Nueva solicitud",
         cuerpoHtml: `<p style="margin:0 0 6px;"><b>${esc(nombre)}</b> quiere probar Cicalino.</p>
-        <p style="margin:0;font-size:14px;">${esc(email)}${
+        <p style="margin:0;font-size:14px;">${esc(mail)}${
           local ? ` · ${esc(local)}` : ""
         }${ciudad ? ` · ${esc(ciudad)}` : ""}</p>`,
         cta: { label: "Activar en el panel", url: `${appBaseUrl()}/admin` },
@@ -75,7 +119,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
       }),
     }),
     enviarEmail({
-      to: email,
+      to: mail,
       subject: "¡Recibimos tu pedido! — Cicalino",
       html: emailLayout({
         titulo: "¡Recibimos tu pedido!",

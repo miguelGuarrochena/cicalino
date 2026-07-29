@@ -272,6 +272,20 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
     .single();
   if (!sol) return { ok: false, error: "Solicitud no encontrada" };
 
+  const mail = String(sol.email ?? "").trim().toLowerCase();
+  const { data: orgExistente } = await admin
+    .from("organizaciones")
+    .select("id, nombre")
+    .ilike("dueno_email", mail)
+    .limit(1)
+    .maybeSingle();
+  if (orgExistente) {
+    return {
+      ok: false,
+      error: `Este mail ya tiene la empresa «${orgExistente.nombre}». Sumá una sucursal o usá «+ Mes gratis» a mano si corresponde.`,
+    };
+  }
+
   // La solicitud viene de un formulario público: la revalidamos con el mismo
   // esquema que un alta manual antes de convertirla en empresa.
   const alta = parsear(crearOrganizacionSchema, {
@@ -280,7 +294,7 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
     telefono: "",
     cuil: "",
     direccion: sol.ciudad || "",
-    duenoEmail: sol.email,
+    duenoEmail: mail,
     cupo: 1,
     plan: "mensual",
     mesGratis: true,

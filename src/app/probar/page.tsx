@@ -104,7 +104,7 @@ const ProbarPage = () => {
               </h1>
               <p className="mx-auto mt-3 max-w-sm text-carbon/60">
                 Dejanos tus datos y te activamos 1 mes gratis. Tu cliente nunca
-                paga.
+                paga. Una prueba por mail; si querés otro local, escribinos.
               </p>
             </div>
 
