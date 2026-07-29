@@ -332,6 +332,24 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
                     : t("clienteMesa.colaPersonas"),
               })}
             </p>
+            <p className="mt-2 text-xs font-medium opacity-90">
+              {espera.cola.mesasQueEntran === 0
+                ? t("clienteMesa.mesasLibresCero")
+                : (
+                    <>
+                      {espera.cola.mesasQueEntran === 1
+                        ? t("clienteMesa.mesasQueEntranUno")
+                        : t("clienteMesa.mesasQueEntran", {
+                            n: String(espera.cola.mesasQueEntran),
+                          })}
+                      {espera.cola.mesasLibres > espera.cola.mesasQueEntran
+                        ? ` ${t("clienteMesa.mesasLibresOtras", {
+                            t: String(espera.cola.mesasLibres),
+                          })}`
+                        : ""}
+                    </>
+                  )}
+            </p>
           </div>
         )}
 
