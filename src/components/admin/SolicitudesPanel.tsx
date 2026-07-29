@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
+import { Spinner } from "@/components/ui/Spinner";
 import {
   listarSolicitudes,
   activarSolicitud,
@@ -69,6 +70,7 @@ export const SolicitudesPanel = () => {
           const esContrato = s.tipo === "contrato";
           const planLbl =
             s.plan === "anual" ? "Anual" : s.plan === "mensual" ? "Mensual" : "";
+          const trabajando = busy === s.id;
           return (
             <li
               key={s.id}
@@ -78,7 +80,9 @@ export const SolicitudesPanel = () => {
                 <p className="truncate font-semibold text-carbon">
                   {s.local || s.nombre}
                   <span className="ml-2 rounded-full bg-carbon/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/55">
-                    {esContrato ? `Contrato${planLbl ? ` · ${planLbl}` : ""}` : "Prueba"}
+                    {esContrato
+                      ? `Contrato${planLbl ? ` · ${planLbl}` : ""}`
+                      : "Prueba"}
                   </span>
                 </p>
                 <p className="truncate text-xs text-carbon/55">
@@ -92,20 +96,25 @@ export const SolicitudesPanel = () => {
               <div className="flex shrink-0 gap-1.5">
                 <button
                   type="button"
-                  onClick={() => activar(s.id)}
-                  disabled={busy === s.id}
-                  className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
+                  onClick={() => void activar(s.id)}
+                  disabled={busy !== null}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
                 >
-                  {busy === s.id
-                    ? "…"
-                    : esContrato
-                      ? "Preparar cuenta"
-                      : "Preparar (1 mes gratis)"}
+                  {trabajando ? (
+                    <>
+                      <Spinner className="size-3.5 border-crema border-r-transparent" />
+                      Preparando…
+                    </>
+                  ) : esContrato ? (
+                    "Preparar cuenta"
+                  ) : (
+                    "Preparar (1 mes gratis)"
+                  )}
                 </button>
                 <button
                   type="button"
-                  onClick={() => descartar(s.id)}
-                  disabled={busy === s.id}
+                  onClick={() => void descartar(s.id)}
+                  disabled={busy !== null}
                   className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/55 transition hover:bg-carbon/5 disabled:opacity-60"
                 >
                   Descartar

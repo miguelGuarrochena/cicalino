@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { Spinner } from "@/components/ui/Spinner";
 import {
   listarPedidosSucursal,
   aprobarPedidoSucursal,
@@ -99,16 +100,23 @@ export const PedidosSucursalPanel = ({
                 <button
                   type="button"
                   onClick={() => void aprobar(p.id)}
-                  disabled={busy === p.id}
-                  className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
+                  disabled={busy !== null}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
                 >
-                  {busy === p.id ? "…" : "Aprobar (pago OK)"}
+                  {busy === p.id ? (
+                    <>
+                      <Spinner className="size-3.5 border-crema border-r-transparent" />
+                      Aprobando…
+                    </>
+                  ) : (
+                    "Aprobar (pago OK)"
+                  )}
                 </button>
                 {onAbrir && (
                   <button
                     type="button"
                     onClick={() => onAbrir(p.organizacionId)}
-                    disabled={busy === p.id}
+                    disabled={busy !== null}
                     className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5 disabled:opacity-60"
                   >
                     Ver
@@ -117,7 +125,7 @@ export const PedidosSucursalPanel = ({
                 <button
                   type="button"
                   onClick={() => void descartar(p.id)}
-                  disabled={busy === p.id}
+                  disabled={busy !== null}
                   className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/55 transition hover:bg-carbon/5 disabled:opacity-60"
                 >
                   Descartar

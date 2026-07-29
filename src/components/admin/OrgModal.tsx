@@ -195,8 +195,19 @@ export const OrgModal = ({
   const [mode, setMode] = useState<Mode>(initialMode);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState("Trabajando…");
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const editing = mode === "crear" || mode === "editar";
+
+  const conBusy = async (label: string, fn: () => Promise<void>) => {
+    setBusyLabel(label);
+    setBusy(true);
+    try {
+      await fn();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const [name, setName] = useState(org?.nombre ?? "");
   const [manager, setResponsable] = useState(org?.responsable ?? "");
@@ -273,8 +284,7 @@ export const OrgModal = ({
 
   const mandarContrato = async () => {
     if (!vista || busy) return;
-    setBusy(true);
-    try {
+    await conBusy("Enviando condiciones…", async () => {
       const r = await enviarLinkContrato(vista.id);
       if (!r.ok) {
         toast(r.error, "error");
@@ -288,9 +298,7 @@ export const OrgModal = ({
         }
       }
       toast("Link de condiciones enviado (y copiado)", "success");
-    } finally {
-      setBusy(false);
-    }
+    });
   };
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -362,9 +370,7 @@ export const OrgModal = ({
     const nuevoCupo = usadas + 1;
 
     if (live) {
-      setBusy(true);
-      try {
-        // Cupo = sucursales reales: al agregar, se cobra una más.
+      await conBusy("Agregando sucursal…", async () => {
         await updateOrgDb(org.id, { cupo: nuevoCupo, pagado: false });
         await insertBranchDb(org.id, data);
         await refreshOrganizations();
@@ -374,9 +380,7 @@ export const OrgModal = ({
           `Sucursal agregada · ahora ${nuevoCupo}. Marcá Pagado cuando veas la transferencia.`,
           "success",
         );
-      } finally {
-        setBusy(false);
-      }
+      });
       return;
     }
     actualizarOrg(org.id, { cupo: nuevoCupo });
@@ -395,8 +399,7 @@ export const OrgModal = ({
     const next = !vista.pagado;
     const prox = next ? sumarCicloCobro(vista.plan) : new Date();
     const proximoCobroEn = prox ? prox.toISOString() : null;
-    setBusy(true);
-    try {
+    await conBusy(next ? "Marcando pagado…" : "Marcando impago…", async () => {
       if (live) {
         await updateOrgDb(vista.id, {
           pagado: next,
@@ -407,15 +410,12 @@ export const OrgModal = ({
         toggleOrgPagado(vista.id);
       }
       toast(next ? t("toast.orgPagado") : t("toast.orgImpago"), "info");
-    } finally {
-      setBusy(false);
-    }
+    });
   };
 
   const toggleActivo = async () => {
     if (!vista || busy) return;
     const next = !vista.activo;
-    // Override: se puede activar sin aceptación, pero con confirmación.
     if (
       next &&
       pendienteContrato(vista) &&
@@ -425,63 +425,66 @@ export const OrgModal = ({
     ) {
       return;
     }
-    setBusy(true);
-    try {
-      if (live) {
-        if (next) {
-          const r = await activarOrganizacion(vista.id);
-          await refreshOrganizations();
-          if (!r.ok) {
-            toast(r.error, "error");
-            return;
+    await conBusy(
+      next ? "Activando e invitando…" : "Pausando cuenta…",
+      async () => {
+        if (live) {
+          if (next) {
+            const r = await activarOrganizacion(vista.id);
+            await refreshOrganizations();
+            if (!r.ok) {
+              toast(r.error, "error");
+              return;
+            }
+            toast("Cuenta activada · invitación de alta enviada", "success");
+          } else {
+            await updateOrgDb(vista.id, { activo: false });
+            await refreshOrganizations();
+            toast(t("toast.orgPausada"), "info");
           }
-          toast("Cuenta activada · invitación de alta enviada", "success");
         } else {
-          await updateOrgDb(vista.id, { activo: false });
-          await refreshOrganizations();
-          toast(t("toast.orgPausada"), "info");
+          toggleOrgActivo(vista.id);
+          toast(next ? t("toast.orgActiva") : t("toast.orgPausada"), "info");
         }
-      } else {
-        toggleOrgActivo(vista.id);
-        toast(next ? t("toast.orgActiva") : t("toast.orgPausada"), "info");
-      }
-    } finally {
-      setBusy(false);
-    }
+      },
+    );
   };
 
   const borrarSuc = async (sucId: string) => {
-    if (!vista) return;
-    if (live) {
-      await deleteBranchDb(sucId);
-      const quedan = Math.max(1, vista.sucursales.length - 1);
-      await updateOrgDb(vista.id, { cupo: quedan });
-      await refreshOrganizations();
-    } else {
-      removeBranch(vista.id, sucId);
-      actualizarOrg(vista.id, {
-        cupo: Math.max(1, vista.sucursales.length - 1),
-      });
-    }
-    toast(t("toast.sucBorrada"), "info");
+    if (!vista || busy) return;
+    await conBusy("Eliminando sucursal…", async () => {
+      if (live) {
+        await deleteBranchDb(sucId);
+        const quedan = Math.max(1, vista.sucursales.length - 1);
+        await updateOrgDb(vista.id, { cupo: quedan });
+        await refreshOrganizations();
+      } else {
+        removeBranch(vista.id, sucId);
+        actualizarOrg(vista.id, {
+          cupo: Math.max(1, vista.sucursales.length - 1),
+        });
+      }
+      toast(t("toast.sucBorrada"), "info");
+    });
   };
 
   const borrarOrg = async () => {
-    if (!vista) return;
-    if (live) {
-      await eliminarOrganizacion(vista.id);
-      await refreshOrganizations();
-    } else {
-      quitarOrg(vista.id);
-    }
-    toast(t("toast.orgBorrada"), "info");
-    onClose();
+    if (!vista || busy) return;
+    await conBusy("Eliminando empresa…", async () => {
+      if (live) {
+        await eliminarOrganizacion(vista.id);
+        await refreshOrganizations();
+      } else {
+        quitarOrg(vista.id);
+      }
+      toast(t("toast.orgBorrada"), "info");
+      onClose();
+    });
   };
 
   const darMes = async () => {
     if (!vista || busy) return;
-    setBusy(true);
-    try {
+    await conBusy("Otorgando mes gratis…", async () => {
       if (live) {
         const base = enGracia(vista)
           ? new Date(vista.mesGratisHasta as string)
@@ -497,9 +500,7 @@ export const OrgModal = ({
         giveFreeMonth(vista.id, 1);
       }
       toast(t("toast.mesGratis"), "success");
-    } finally {
-      setBusy(false);
-    }
+    });
   };
 
   const enterOwner = (branchId: string, branchNameLabel: string) => {
@@ -603,6 +604,7 @@ export const OrgModal = ({
       onClose={editing ? intentarSalirForm : onClose}
       labelledBy="org-modal-title"
       busy={saving || busy}
+      busyLabel={saving ? "Guardando…" : busyLabel}
       footer={footerEdicion ?? footerEliminar}
     >
       <div className="flex items-start justify-between gap-3">

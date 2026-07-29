@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { Spinner } from "@/components/ui/Spinner";
 
 // Overlay centrado en el viewport (portal a body). Evita que un padre con
 // transform (animaciones .u-in) rompa position:fixed y lo baje al final.
@@ -12,6 +13,7 @@ export const ModalShell = ({
   onClose,
   labelledBy,
   busy = false,
+  busyLabel,
 }: {
   children: React.ReactNode;
   /** Acciones fijas abajo (Guardar / Cancelar) — no scrollean con el cuerpo. */
@@ -20,6 +22,8 @@ export const ModalShell = ({
   labelledBy?: string;
   /** Mientras guarda/verifica: no cerrar con Esc ni click afuera. */
   busy?: boolean;
+  /** Texto bajo el spinner (ej. "Enviando condiciones…"). */
+  busyLabel?: string;
 }) => {
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -58,18 +62,25 @@ export const ModalShell = ({
         className="u-pop relative z-10 flex max-h-[min(92dvh,760px)] w-full max-w-none flex-col overflow-hidden rounded-t-[24px] border border-linea border-b-0 bg-surface shadow-2xl sm:max-w-lg sm:rounded-[28px] sm:border-b"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Agarire visual de sheet (solo mobile) */}
         <div
           className="flex shrink-0 justify-center pb-1 pt-2.5 sm:hidden"
           aria-hidden="true"
         >
           <span className="h-1 w-10 rounded-full bg-carbon/20" />
         </div>
-        <div className="u-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-2 sm:p-6 sm:pt-6">
+        <div
+          className={`u-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-2 sm:p-6 sm:pt-6 ${
+            busy ? "pointer-events-none select-none" : ""
+          }`}
+        >
           {children}
         </div>
         {footer ? (
-          <div className="shrink-0 border-t border-linea bg-surface/95 px-5 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur-sm sm:px-6 sm:pb-4 sm:pt-4">
+          <div
+            className={`shrink-0 border-t border-linea bg-surface/95 px-5 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur-sm sm:px-6 sm:pb-4 sm:pt-4 ${
+              busy ? "pointer-events-none opacity-60" : ""
+            }`}
+          >
             {footer}
           </div>
         ) : (
@@ -78,6 +89,18 @@ export const ModalShell = ({
             aria-hidden="true"
           />
         )}
+        {busy ? (
+          <div
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-surface/75 backdrop-blur-[2px]"
+            role="status"
+            aria-live="polite"
+          >
+            <Spinner className="size-9" />
+            <p className="px-6 text-center text-sm font-semibold text-carbon">
+              {busyLabel || "Trabajando…"}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,

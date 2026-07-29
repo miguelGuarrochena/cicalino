@@ -1,20 +1,29 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { refreshOrganizations } from "@/lib/data/superadmin";
 
 // Carga orgs al entrar a /admin y se mantiene al día (aceptación de
 // condiciones, cambios de cupo, etc.) vía realtime + poll de respaldo.
-export const useSuperadminSync = (): void => {
+export const useSuperadminSync = (): { ready: boolean } => {
+  const [ready, setReady] = useState(!supabaseConfigurado);
+
   useEffect(() => {
     if (!supabaseConfigurado) return;
 
-    void refreshOrganizations();
+    let alive = true;
+    void (async () => {
+      await refreshOrganizations();
+      if (alive) setReady(true);
+    })();
 
     const supabase = createBrowserSupabase();
-    if (!supabase) return;
+    if (!supabase) {
+      setReady(true);
+      return;
+    }
 
     const channel = supabase
       .channel("superadmin-orgs")
@@ -27,14 +36,16 @@ export const useSuperadminSync = (): void => {
       )
       .subscribe();
 
-    // Respaldo si realtime no está habilitado en la tabla.
     const poll = window.setInterval(() => {
       void refreshOrganizations();
     }, 12_000);
 
     return () => {
+      alive = false;
       window.clearInterval(poll);
       void supabase.removeChannel(channel);
     };
   }, []);
+
+  return { ready };
 };

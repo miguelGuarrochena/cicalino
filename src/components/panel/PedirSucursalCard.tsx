@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
+import { Spinner } from "@/components/ui/Spinner";
 import {
   obtenerResumenCupo,
   pedirSucursalExtra,
@@ -173,9 +174,16 @@ export const PedirSucursalCard = () => {
               type="button"
               onClick={() => void enviar()}
               disabled={busy || !confirmar}
-              className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50 sm:flex-1"
+              className="inline-flex w-full items-center justify-center rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50 sm:flex-1"
             >
-              {busy ? "…" : "Confirmar y recibir datos de pago"}
+              {busy ? (
+                <>
+                  <Spinner className="mr-2 size-4 border-crema border-r-transparent" />
+                  Enviando…
+                </>
+              ) : (
+                "Confirmar y recibir datos de pago"
+              )}
             </button>
           </div>
         </div>

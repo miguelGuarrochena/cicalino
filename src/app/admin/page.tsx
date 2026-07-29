@@ -19,6 +19,7 @@ import { useSuperadminSync } from "@/lib/hooks/useSuperadminSync";
 import { asegurarOrgDemo } from "@/lib/actions/superadmin";
 import { refreshOrganizations } from "@/lib/data/superadmin";
 import { useToast } from "@/components/ui/Toast";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
 const MULT: Record<Periodo, number> = { dia: 1, semana: 6.5, mes: 28, ano: 330 };
@@ -60,7 +61,7 @@ const SuperadminPage = () => {
   const { t } = useApp();
   const toast = useToast();
   const router = useRouter();
-  useSuperadminSync();
+  const { ready: syncReady } = useSuperadminSync();
   const organizations = useSuperadminStore((s) => s.organizaciones);
   const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
 
@@ -115,6 +116,15 @@ const SuperadminPage = () => {
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
+      {!syncReady && (
+        <div
+          className="flex items-center justify-center gap-2 rounded-2xl border border-linea bg-surface px-4 py-3 text-sm font-medium text-carbon/60"
+          role="status"
+        >
+          <Spinner className="size-4" />
+          Cargando empresas…
+        </div>
+      )}
       <div className="flex flex-col gap-3">
         <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
           {t("super.subtitulo")}
@@ -140,9 +150,16 @@ const SuperadminPage = () => {
             type="button"
             onClick={() => void abrirDemo()}
             disabled={abriendoDemo}
-            className="shrink-0 rounded-full border border-marca/30 bg-crema px-4 py-2.5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-95 disabled:opacity-60"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-marca/30 bg-crema px-4 py-2.5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-95 disabled:opacity-60"
           >
-            {abriendoDemo ? t("super.abriendoDemo") : t("super.abrirDemo")}
+            {abriendoDemo ? (
+              <>
+                <Spinner className="size-3.5" />
+                {t("super.abriendoDemo")}
+              </>
+            ) : (
+              t("super.abrirDemo")
+            )}
           </button>
           <button
             type="button"
