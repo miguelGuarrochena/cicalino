@@ -24,12 +24,39 @@ import {
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 20;
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-espera focus:ring-2 focus:ring-espera/20 placeholder:text-carbon/40";
 
 const BTN_MOBILE =
-  "w-full rounded-full px-4 py-3 text-sm font-semibold transition sm:w-auto sm:px-3 sm:py-1.5 sm:text-xs";
+  "w-full rounded-full px-4 py-3.5 text-sm font-semibold transition active:scale-[0.98] sm:w-auto sm:px-4 sm:py-2.5";
+
+const PERSONAS_CHIPS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+
+const PersonasChips = ({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+}) => (
+  <div className="flex flex-wrap gap-2">
+    {PERSONAS_CHIPS.map((n) => (
+      <button
+        key={n}
+        type="button"
+        onClick={() => onChange(n)}
+        className={`flex size-11 items-center justify-center rounded-xl text-sm font-bold transition active:scale-95 ${
+          value === n
+            ? "bg-espera text-crema"
+            : "border border-linea bg-crema/40 text-carbon hover:border-espera/40"
+        }`}
+      >
+        {n}
+      </button>
+    ))}
+  </div>
+);
 
 const mesaTileClass = (
   estado: "libre" | "ocupada" | "reservada",
@@ -141,6 +168,7 @@ const EsperaPanelPage = () => {
     null,
   );
   const [editCapacidadValue, setEditCapacidadValue] = useState(4);
+  const [liberarNumero, setLiberarNumero] = useState<number | null>(null);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -177,9 +205,6 @@ const EsperaPanelPage = () => {
   const paginated = slicePage(cola, page, PAGE_SIZE);
   const sentarEspera = esperas.find((e) => e.id === sentarId);
   const mesasLibres = mesas.filter((m) => m.estado === "libre");
-  const mesasLibresParaSentar = mesasLibres.filter(
-    (m) => (m.capacidad ?? 4) >= (sentarEspera?.personas ?? 1),
-  );
   const mesasLibresParaReserva = mesasLibres.filter(
     (m) => (m.capacidad ?? 4) >= reservaPersonas,
   );
@@ -190,7 +215,17 @@ const EsperaPanelPage = () => {
     (r) => r.id === confirmCancelReservaId,
   );
   const editCapacidadMesa = mesas.find((m) => m.numero === editCapacidadNumero);
+  const liberarMesaView = mesas.find((m) => m.numero === liberarNumero);
+  const liberarReserva =
+    liberarMesaView?.reservaId != null
+      ? reservaById.get(liberarMesaView.reservaId)
+      : undefined;
   const CAPACIDADES_RAPIDAS = [2, 4, 6, 8, 10] as const;
+
+  const hayMesaPara = (personasGrupo: number) =>
+    mesas.some(
+      (m) => m.estado === "libre" && (m.capacidad ?? 4) >= personasGrupo,
+    );
 
   const employeeRef = activeEmployee
     ? { id: activeEmployee.id, nombre: activeEmployee.nombre }
@@ -368,7 +403,7 @@ const EsperaPanelPage = () => {
                     setEditCapacidadValue(m.capacidad ?? 4);
                     return;
                   }
-                  void liberarMesa(m.numero);
+                  setLiberarNumero(m.numero);
                 }}
                 title={
                   libre
@@ -429,12 +464,15 @@ const EsperaPanelPage = () => {
               ? ` · ${reservasActivas.length}`
               : ""}
           </h2>
-          <p className="text-xs text-carbon/45">
-            {locale === "en"
-              ? "Auto-frees if they don’t arrive in time"
-              : "Se libera sola si no llegan a tiempo"}
-          </p>
+          {reservasActivas.length > 0 && (
+            <p className="text-xs text-carbon/45">
+              {locale === "en"
+                ? "Auto-frees if they don’t arrive in time"
+                : "Se libera sola si no llegan a tiempo"}
+            </p>
+          )}
         </div>
+        {reservasActivas.length > 0 ? (
         <div className="flex flex-col gap-3">
           {reservasActivas.map((r) => (
             <article
@@ -489,71 +527,69 @@ const EsperaPanelPage = () => {
               </div>
             </article>
           ))}
-          {!reservasActivas.length && (
-            <div className="rounded-[24px] border border-dashed border-amber-400/40 bg-amber-50/50 px-6 py-10 text-center dark:bg-amber-400/5">
-              <p className="font-display text-lg uppercase text-amber-900/80 dark:text-amber-100/90">
-                {locale === "en" ? "No reservations" : "Sin reservas"}
-              </p>
-              <p className="mt-1 text-sm text-carbon/50">
-                {locale === "en"
-                  ? "Add one instead of writing it on paper."
-                  : "Agregá una en lugar de anotarla en papel."}
-              </p>
-            </div>
-          )}
         </div>
+        ) : (
+          <p className="text-sm text-carbon/45">
+            {locale === "en"
+              ? "None today — use + Reservation when you need one."
+              : "Ninguna hoy — usá + Reserva cuando haga falta."}
+          </p>
+        )}
       </section>
 
       {/* Cola */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-carbon/70">
           {locale === "en" ? "Waiting list" : "Cola de espera"}
+          {cola.length ? ` · ${cola.length}` : ""}
         </h2>
         <div className="flex flex-col gap-3">
-          {paginated.map((e) => (
+          {paginated.map((e, idx) => {
+            const mins = minsAgo(e.creadoEn);
+            const urgencia =
+              mins >= 20 ? "text-rose-600" : mins >= 10 ? "text-amber-700" : "";
+            const pos = (page - 1) * PAGE_SIZE + idx + 1;
+            const puedeSentar = hayMesaPara(e.personas);
+            return (
             <article
               key={e.id}
               className={`rounded-[20px] border bg-surface p-4 shadow-sm ${
                 e.estado === "avisado"
-                  ? "border-espera/40 ring-1 ring-espera/20"
+                  ? "border-espera/50 bg-espera/5 ring-1 ring-espera/25"
                   : "border-linea"
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-carbon/10 text-xs font-bold text-carbon/60">
+                      {pos}
+                    </span>
                     <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
                       {e.nombre}
                     </h3>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                         e.estado === "avisado"
-                          ? "bg-espera/15 text-espera"
+                          ? "bg-espera text-crema"
                           : "bg-amber-100 text-amber-800"
                       }`}
                     >
                       {ETIQUETA_ESPERA[e.estado]}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm text-carbon/55">
+                  <p className={`mt-1 text-sm text-carbon/55 ${urgencia}`}>
                     {e.personas} {locale === "en" ? "guests" : "personas"} ·{" "}
-                    {minsAgo(e.creadoEn)} min
+                    <span className="font-semibold">{mins} min</span>
                     {e.empleado ? ` · ${e.empleado}` : ""}
                   </p>
                 </div>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setQr(e)}
-                    className={`${BTN_MOBILE} border border-linea text-carbon/70 hover:bg-crema`}
-                  >
-                    QR
-                  </button>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[9.5rem] sm:flex-row sm:flex-wrap">
                   {e.estado === "esperando" && (
                     <button
                       type="button"
                       onClick={() => void avisar(e.id)}
-                      className={`${BTN_MOBILE} bg-espera text-crema hover:bg-espera-fuerte`}
+                      className={`${BTN_MOBILE} bg-espera text-crema hover:bg-espera-fuerte sm:flex-1`}
                     >
                       {locale === "en" ? "Notify" : "Avisar"}
                     </button>
@@ -562,34 +598,44 @@ const EsperaPanelPage = () => {
                     <button
                       type="button"
                       onClick={() => setSentarId(e.id)}
-                      disabled={!mesasLibresParaSentar.length}
-                      className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90 disabled:opacity-40`}
+                      disabled={!puedeSentar}
+                      className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90 disabled:opacity-40 sm:flex-1`}
                     >
                       {locale === "en" ? "Seat" : "Sentar"}
                     </button>
                   )}
-                  {!esperaClosed(e.estado) && (
+                  <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setConfirmCancelEsperaId(e.id)}
-                      className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50`}
+                      onClick={() => setQr(e)}
+                      className={`${BTN_MOBILE} flex-1 border border-linea text-carbon/70 hover:bg-crema`}
                     >
-                      {locale === "en" ? "Cancel" : "Cancelar"}
+                      QR
                     </button>
-                  )}
+                    {!esperaClosed(e.estado) && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmCancelEsperaId(e.id)}
+                        className={`${BTN_MOBILE} flex-1 text-red-600/80 hover:bg-red-50`}
+                      >
+                        {locale === "en" ? "Cancel" : "Cancelar"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
           {!cola.length && (
-            <div className="rounded-[24px] border border-dashed border-espera/30 bg-espera/5 px-6 py-12 text-center">
+            <div className="rounded-[24px] border border-dashed border-espera/30 bg-espera/5 px-6 py-10 text-center">
               <p className="font-display text-lg uppercase text-espera">
                 {locale === "en" ? "No one waiting" : "Nadie en espera"}
               </p>
               <p className="mt-1 text-sm text-carbon/50">
                 {locale === "en"
-                  ? "Add a party when guests arrive."
-                  : "Agregá un grupo cuando lleguen clientes."}
+                  ? "Tap + Add party when guests arrive."
+                  : "Tocá + Agregar grupo cuando lleguen."}
               </p>
             </div>
           )}
@@ -639,28 +685,24 @@ const EsperaPanelPage = () => {
                 className={INPUT}
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void onCrear();
+                }}
                 placeholder="García"
                 autoFocus
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm">
+            <div className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-carbon/70">
                 {locale === "en" ? "Party size" : "Personas"}
               </span>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                className={INPUT}
-                value={personas}
-                onChange={(e) => setPersonas(Number(e.target.value) || 1)}
-              />
-            </label>
+              <PersonasChips value={personas} onChange={setPersonas} />
+            </div>
             <button
               type="button"
               disabled={creating}
               onClick={() => void onCrear()}
-              className="mt-2 rounded-full bg-espera px-5 py-3 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
+              className="mt-2 w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
             >
               {creating
                 ? "…"
@@ -698,21 +740,33 @@ const EsperaPanelPage = () => {
                 autoFocus
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm">
+            <div className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-carbon/70">
                 {locale === "en" ? "Party size" : "Personas"}
               </span>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                className={INPUT}
+              <PersonasChips
                 value={reservaPersonas}
-                onChange={(e) =>
-                  setReservaPersonas(Number(e.target.value) || 1)
-                }
+                onChange={(n) => {
+                  setReservaPersonas(n);
+                  const stillOk =
+                    reservaMesa != null &&
+                    mesas.some(
+                      (m) =>
+                        m.numero === reservaMesa &&
+                        m.estado === "libre" &&
+                        (m.capacidad ?? 4) >= n,
+                    );
+                  if (!stillOk) {
+                    setReservaMesa(
+                      mesas.find(
+                        (m) =>
+                          m.estado === "libre" && (m.capacidad ?? 4) >= n,
+                      )?.numero ?? null,
+                    );
+                  }
+                }}
               />
-            </label>
+            </div>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-carbon/70">
                 {locale === "en" ? "Date & time" : "Día y hora"}
@@ -974,6 +1028,57 @@ const EsperaPanelPage = () => {
                 </button>
               );
             })}
+          </div>
+        </ModalShell>
+      )}
+
+      {liberarNumero != null && liberarMesaView && (
+        <ModalShell
+          onClose={() => setLiberarNumero(null)}
+          labelledBy="liberar-title"
+        >
+          <h2
+            id="liberar-title"
+            className="font-display text-xl uppercase tracking-tight text-carbon"
+          >
+            {locale === "en"
+              ? `Free table ${liberarNumero}?`
+              : `¿Liberar mesa ${liberarNumero}?`}
+          </h2>
+          <p className="mt-2 text-sm text-carbon/60">
+            {liberarMesaView.estado === "reservada"
+              ? locale === "en"
+                ? `Cancels the reservation${liberarReserva ? ` for ${liberarReserva.nombre}` : ""}.`
+                : `Cancela la reserva${liberarReserva ? ` de ${liberarReserva.nombre}` : ""}.`
+              : locale === "en"
+                ? "Marks the table as free again."
+                : "La mesa vuelve a quedar libre."}
+          </p>
+          <div className="mt-5 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void liberarMesa(liberarNumero).then(() => {
+                  setLiberarNumero(null);
+                  toast(
+                    locale === "en"
+                      ? `Table ${liberarNumero} free`
+                      : `Mesa ${liberarNumero} libre`,
+                    "success",
+                  );
+                });
+              }}
+              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+            >
+              {locale === "en" ? "Yes, free it" : "Sí, liberar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLiberarNumero(null)}
+              className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
+            >
+              {locale === "en" ? "Back" : "Volver"}
+            </button>
           </div>
         </ModalShell>
       )}
