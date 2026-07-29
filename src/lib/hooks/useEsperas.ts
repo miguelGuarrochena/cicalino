@@ -47,6 +47,8 @@ export interface UseEsperas {
     employee?: EmployeeRef;
   }) => Promise<ReservaView | null>;
   avisar: (id: string) => Promise<void>;
+  /** Reenvía el push / señal (estado avisado). */
+  reavisar: (id: string) => Promise<{ enviados: number } | null>;
   sentar: (id: string, mesasNumeros: number[]) => Promise<void>;
   cancelar: (id: string) => Promise<void>;
   borrarEspera: (id: string) => Promise<void>;
@@ -84,6 +86,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
   const demoSentarReserva = useEsperaStore((s) => s.sentarReserva);
   const demoCancelarReserva = useEsperaStore((s) => s.cancelarReserva);
   const demoEliminar = useEsperaStore((s) => s.eliminarEspera);
+  const demoReavisar = useEsperaStore((s) => s.reavisarEspera);
   const demoExpirar = useEsperaStore((s) => s.expirarReservasDemo);
   const demoWalkIn = useEsperaStore((s) => s.ocuparWalkIn);
 
@@ -217,10 +220,42 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     await reload();
   };
 
+  const pingEspera = async (
+    id: string,
+  ): Promise<{ enviados: number } | null> => {
+    try {
+      const res = await fetch("/api/push/notify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ esperaId: id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        enviados?: number;
+      };
+      if (!data?.ok) return null;
+      return { enviados: data.enviados ?? 0 };
+    } catch {
+      return null;
+    }
+  };
+
+  const reavisar = async (id: string) => {
+    if (!live) {
+      demoReavisar(id);
+      return { enviados: 0 };
+    }
+    const r = await pingEspera(id);
+    await reload();
+    return r;
+  };
+
   const sentar = async (id: string, mesasNumeros: number[]) => {
     const nums = [...new Set(mesasNumeros)].filter((n) => n >= 1).sort((a, b) => a - b);
     if (!nums.length) return;
     const primaria = nums[0];
+    const antes = (live ? liveEsperas : demoEsperas).find((e) => e.id === id);
+    const veniaEsperando = antes?.estado === "esperando";
     if (!live || !branchId) {
       demoChange(id, "sentado", primaria, nums);
       return;
@@ -232,6 +267,8 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
         reservaId: null,
       });
     }
+    // Sentar sin Avisar: igual avisá al celular / pestaña.
+    if (veniaEsperando) void pingEspera(id);
     await reload();
   };
 
@@ -395,6 +432,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     crearEspera,
     crearReserva,
     avisar,
+    reavisar,
     sentar,
     cancelar,
     borrarEspera,

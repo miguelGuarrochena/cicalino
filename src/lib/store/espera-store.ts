@@ -50,6 +50,8 @@ interface EsperaState {
   sentarReserva: (id: string) => void;
   cancelarReserva: (id: string) => void;
   eliminarEspera: (id: string) => void;
+  /** Reavisa (bump avisadoEn) sin cambiar de sentado/cancelado. */
+  reavisarEspera: (id: string) => void;
   expirarReservasDemo: () => void;
 }
 
@@ -190,6 +192,9 @@ export const useEsperaStore = create<EsperaState>()(
             if (estado === "sentado") {
               next.sentadoEn = now;
               next.mesaNumero = mesaNumero ?? e.mesaNumero;
+              // Si sentás sin pasar por Avisar, igual dejá marca de aviso
+              // para que el cliente (pestaña abierta) vea el cambio.
+              if (!next.avisadoEn) next.avisadoEn = now;
             }
             if (estado === "cancelado") next.canceladoEn = now;
             return next;
@@ -465,6 +470,22 @@ export const useEsperaStore = create<EsperaState>()(
               : m,
           ),
         })),
+
+      reavisarEspera: (id) =>
+        set((s) => {
+          const now = new Date().toISOString();
+          return {
+            esperas: s.esperas.map((e) => {
+              if (e.id !== id) return e;
+              if (e.estado !== "esperando" && e.estado !== "avisado") return e;
+              return {
+                ...e,
+                estado: e.estado === "esperando" ? ("avisado" as const) : e.estado,
+                avisadoEn: now,
+              };
+            }),
+          };
+        }),
 
       expirarReservasDemo: () =>
         set((s) => {

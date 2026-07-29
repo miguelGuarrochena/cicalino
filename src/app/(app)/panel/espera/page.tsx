@@ -373,6 +373,7 @@ const EsperaPanelPage = () => {
     crearEspera,
     crearReserva,
     avisar,
+    reavisar,
     sentar,
     cancelar,
     borrarEspera,
@@ -1062,6 +1063,42 @@ const EsperaPanelPage = () => {
                       className={`${BTN_MOBILE} bg-espera text-crema hover:bg-espera-fuerte sm:flex-1`}
                     >
                       {locale === "en" ? "Notify" : "Avisar"}
+                    </button>
+                  )}
+                  {e.estado === "avisado" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void reavisar(e.id).then((r) => {
+                          if (r == null) {
+                            toast(
+                              locale === "en"
+                                ? "Couldn’t send notify again"
+                                : "No se pudo volver a avisar",
+                              "error",
+                            );
+                            return;
+                          }
+                          if (r.enviados > 0) {
+                            toast(
+                              locale === "en"
+                                ? "Notified again 🔔"
+                                : "Aviso reenviado 🔔",
+                              "success",
+                            );
+                          } else {
+                            toast(
+                              locale === "en"
+                                ? "Ping sent to the open tab (no push)."
+                                : "Señal enviada a la pestaña abierta (sin push).",
+                              "success",
+                            );
+                          }
+                        });
+                      }}
+                      className={`${BTN_MOBILE} border border-espera/40 bg-espera/10 text-espera hover:bg-espera hover:text-crema sm:flex-1`}
+                    >
+                      {locale === "en" ? "Notify again 🔔" : "Volver a avisar 🔔"}
                     </button>
                   )}
                   {(e.estado === "esperando" || e.estado === "avisado") && (

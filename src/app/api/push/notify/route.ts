@@ -43,7 +43,7 @@ export const POST = async (req: Request) => {
 
     await admin
       .from("esperas")
-      .update({ avisado_en: ahora, estado: "avisado" })
+      .update({ avisado_en: ahora })
       .eq("id", esperaId);
 
     if (!vapidConfigurado) {
