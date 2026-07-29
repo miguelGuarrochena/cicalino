@@ -119,13 +119,15 @@ export const aceptarContrato = async (token: string): Promise<Simple> => {
   const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
   void enviarEmail({
     to: notify,
-    subject: `Contrato aceptado — ${org.nombre}`,
+    subject: `Listo para activar — ${org.nombre}`,
     replyTo: org.dueno_email,
     html: emailLayout({
       titulo: "Condiciones aceptadas",
       cuerpoHtml: `<p style="margin:0;"><b>${esc(org.nombre)}</b> aceptó las bases (${TERMINOS_VERSION}).</p>
-        <p style="margin:8px 0 0;font-size:14px;">Mail: ${esc(org.dueno_email)}</p>`,
-      cta: { label: "Ver en Superadmin", url: `${appBaseUrl()}/admin` },
+        <p style="margin:8px 0 0;font-size:14px;">Mail: ${esc(org.dueno_email)}</p>
+        <p style="margin:8px 0 0;font-size:14px;">Ya podés <b>activar</b> la cuenta desde Superadmin
+        (ahí se manda el mail de alta al dueño).</p>`,
+      cta: { label: "Abrir Superadmin", url: `${appBaseUrl()}/admin` },
     }),
   });
 

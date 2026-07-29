@@ -26,6 +26,7 @@ import { supabaseConfigurado } from "@/lib/supabase/config";
 import {
   crearOrganizacion,
   eliminarOrganizacion,
+  activarOrganizacion,
 } from "@/lib/actions/superadmin";
 import {
   refreshOrganizations,
@@ -464,12 +465,23 @@ export const OrgModal = ({
     setBusy(true);
     try {
       if (live) {
-        await updateOrgDb(vista.id, { activo: next });
-        await refreshOrganizations();
+        if (next) {
+          const r = await activarOrganizacion(vista.id);
+          await refreshOrganizations();
+          if (!r.ok) {
+            toast(r.error, "error");
+            return;
+          }
+          toast("Cuenta activada · invitación de alta enviada", "success");
+        } else {
+          await updateOrgDb(vista.id, { activo: false });
+          await refreshOrganizations();
+          toast(t("toast.orgPausada"), "info");
+        }
       } else {
         toggleOrgActivo(vista.id);
+        toast(next ? t("toast.orgActiva") : t("toast.orgPausada"), "info");
       }
-      toast(next ? t("toast.orgActiva") : t("toast.orgPausada"), "info");
     } finally {
       setBusy(false);
     }

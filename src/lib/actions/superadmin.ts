@@ -102,32 +102,16 @@ const crearOrganizacionValidada = async (
     if (errSuc) console.error("crearOrganizacion/locales", errSuc.message);
   }
 
-  // Invitar al dueño. Si falla la invitación, la empresa igual queda creada
-  // (podés reenviar desde el panel). No tumba el alta.
-  try {
-    await invitarDueno(admin, data.duenoEmail, org.id);
-  } catch (e) {
-    console.error("invitarDueno", e);
-  }
-
+  // No invitamos acá: el mail de alta va al activar la cuenta.
+  // Al preparar un lead solo se manda el link de condiciones.
   return { ok: true, id: org.id };
 };
 
-/** Invita al dueño; si el mail ya existe en Auth sin org, borra e invita de nuevo. */
-const invitarDueno = async (
+/** ¿Ya existe un usuario Auth con este email? */
+const authUserPorEmail = async (
   admin: NonNullable<ReturnType<typeof createAdminSupabase>>,
   email: string,
-  organizacionId: string,
-): Promise<void> => {
-  const meta = { rol: "admin", organizacion_id: organizacionId };
-  const primero = await admin.auth.admin.inviteUserByEmail(email, { data: meta });
-  if (!primero.error) return;
-
-  const msg = primero.error.message ?? "";
-  console.warn("invitarDueno", msg);
-  // Solo regeneramos si el mail ya estaba registrado (Auth huérfano post-borrado).
-  if (!/already|registered|exists|duplicate/i.test(msg)) return;
-
+): Promise<{ id: string } | null> => {
   const mail = email.trim().toLowerCase();
   for (let page = 1; page <= 5; page++) {
     const { data, error } = await admin.auth.admin.listUsers({
@@ -135,25 +119,94 @@ const invitarDueno = async (
       perPage: 200,
     });
     if (error) {
-      console.error("invitarDueno/list", error.message);
-      return;
+      console.error("authUserPorEmail", error.message);
+      return null;
     }
-    const stale = data?.users?.find((u) => u.email?.toLowerCase() === mail);
-    if (!stale) {
-      if (!data?.users?.length) break;
-      continue;
-    }
-    const { error: delErr } = await admin.auth.admin.deleteUser(stale.id);
-    if (delErr) {
-      console.error("invitarDueno/delete", delErr.message);
-      return;
-    }
-    const segundo = await admin.auth.admin.inviteUserByEmail(email, {
-      data: meta,
-    });
-    if (segundo.error) console.error("invitarDueno/retry", segundo.error.message);
-    return;
+    const hit = data?.users?.find((u) => u.email?.toLowerCase() === mail);
+    if (hit) return { id: hit.id };
+    if (!data?.users?.length) break;
   }
+  return null;
+};
+
+/**
+ * Invita al dueño solo si todavía no tiene usuario Auth.
+ * Se usa al activar la cuenta (no al crear la org / mandar condiciones).
+ */
+export const invitarDuenoAlActivar = async (
+  organizacionId: string,
+): Promise<SimpleResult> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(idSchema, { id: organizacionId });
+  if (!v.ok) return { ok: false, error: v.error };
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: org } = await admin
+    .from("organizaciones")
+    .select("id, dueno_email")
+    .eq("id", v.data.id)
+    .maybeSingle();
+  if (!org) return { ok: false, error: "Empresa no encontrada." };
+
+  const email = String(org.dueno_email ?? "").trim();
+  if (!email) return { ok: false, error: "La empresa no tiene email de dueño." };
+
+  const ya = await authUserPorEmail(admin, email);
+  if (ya) {
+    // Asegura vínculo org en el perfil por si quedó suelto.
+    await admin
+      .from("usuarios")
+      .update({ organizacion_id: org.id, rol: "admin" })
+      .eq("id", ya.id);
+    return { ok: true };
+  }
+
+  const meta = { rol: "admin", organizacion_id: org.id };
+  const { error } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: meta,
+  });
+  if (error) {
+    console.error("invitarDuenoAlActivar", error.message);
+    return { ok: false, error: "No se pudo enviar la invitación de alta." };
+  }
+  return { ok: true };
+};
+
+/** Activa la cuenta e invita al dueño (mail de alta). */
+export const activarOrganizacion = async (
+  id: string,
+): Promise<SimpleResult> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { error } = await admin
+    .from("organizaciones")
+    .update({ activo: true })
+    .eq("id", v.data.id);
+  if (error) {
+    console.error("activarOrganizacion", error.message);
+    return { ok: false, error: "No se pudo activar la cuenta." };
+  }
+
+  const inv = await invitarDuenoAlActivar(v.data.id);
+  if (!inv.ok) {
+    // La cuenta ya quedó activa; avisamos el fallo del mail.
+    return {
+      ok: false,
+      error: `Cuenta activa, pero falló la invitación: ${inv.error}`,
+    };
+  }
+  return { ok: true };
 };
 
 // Elimina la organización (cascade borra sucursales, pedidos y perfiles).
@@ -332,9 +385,8 @@ export const listarSolicitudes = async (): Promise<Solicitud[]> => {
   return (data ?? []) as Solicitud[];
 };
 
-// Atiende una solicitud: crea la org (inactiva), invita al dueño, manda el
-// link de condiciones. La cuenta queda esperando aceptación (o activación
-// manual del superadmin desde el popup).
+// Atiende una solicitud: crea la org (inactiva) y manda el link de
+// condiciones. El mail de alta (invitar dueño) se manda al activar.
 export const activarSolicitud = async (id: string): Promise<Resultado> => {
   const perfil = await getPerfilActual();
   if (!perfil || perfil.rol !== "superadmin") {
