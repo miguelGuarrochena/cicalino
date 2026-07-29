@@ -65,3 +65,10 @@ export const notifyReady = () => {
   tono(1319, 190, 0.13);
   vibrate([120, 60, 120]);
 };
+
+// Cliente canceló espera/pedido: tono grave corto.
+export const dingCancelado = () => {
+  tono(392, 140);
+  tono(294, 180, 0.12);
+  vibrate([80, 40, 80]);
+};

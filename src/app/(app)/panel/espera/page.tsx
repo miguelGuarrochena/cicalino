@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { QrModal } from "@/components/panel/QrModal";
 import { ModalShell } from "@/components/ui/ModalShell";
@@ -10,10 +10,12 @@ import { useEsperas } from "@/lib/hooks/useEsperas";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
+import { dingCancelado } from "@/lib/sound";
 import {
   ETIQUETA_ESPERA,
   ETIQUETA_RESERVA,
   esperaClosed,
+  type EsperaStatus,
   type EsperaView,
   type ReservaView,
 } from "@/lib/types";
@@ -157,7 +159,12 @@ const PersonasChips = ({
 
 const mesaTileClass = (
   estado: "libre" | "ocupada" | "reservada",
-  opts?: { pickable?: boolean; selected?: boolean; tooSmall?: boolean },
+  opts?: {
+    pickable?: boolean;
+    selected?: boolean;
+    tooSmall?: boolean;
+    oversized?: boolean;
+  },
 ) => {
   const base =
     "flex aspect-square flex-col items-center justify-center rounded-2xl border-2 text-center transition";
@@ -169,8 +176,8 @@ const mesaTileClass = (
   }
   if (estado === "libre") {
     return `${base} border-espera bg-espera text-crema ${
-      opts?.pickable ? "hover:bg-espera-fuerte active:scale-95" : ""
-    }`;
+      opts?.oversized ? "opacity-80" : ""
+    } ${opts?.pickable ? "hover:bg-espera-fuerte active:scale-95" : ""}`;
   }
   if (estado === "reservada") {
     return `${base} border-amber-600 bg-amber-400 text-amber-950 ${
@@ -430,6 +437,10 @@ const EsperaPanelPage = () => {
   >("todas");
   const [qMesa, setQMesa] = useState("");
   const [page, setPage] = useState(1);
+  /** IDs cancelados desde el panel (vs. desde el celular del cliente). */
+  const staffCancelIds = useRef(new Set<string>());
+  const prevEstado = useRef<Map<string, EsperaStatus>>(new Map());
+  const cancelBootstrapped = useRef(false);
 
   useEffect(() => {
     // Esperar config real: al refrescar el store arranca con espera=false y
@@ -444,11 +455,54 @@ const EsperaPanelPage = () => {
     if (fresh?.vistoEn) setQr(null);
   }, [esperas, qr]);
 
+  useEffect(() => {
+    const next = new Map(esperas.map((e) => [e.id, e.estado]));
+    if (!cancelBootstrapped.current) {
+      prevEstado.current = next;
+      cancelBootstrapped.current = true;
+      return;
+    }
+    for (const e of esperas) {
+      const before = prevEstado.current.get(e.id);
+      if (!before || before === "cancelado" || e.estado !== "cancelado") continue;
+      const fromStaff = staffCancelIds.current.has(e.id);
+      staffCancelIds.current.delete(e.id);
+      if (fromStaff) {
+        toast(
+          locale === "en"
+            ? `Cancelled: ${e.nombre}`
+            : `Cancelado: ${e.nombre}`,
+          "info",
+        );
+      } else {
+        dingCancelado();
+        toast(
+          locale === "en"
+            ? `${e.nombre} cancelled their wait`
+            : `${e.nombre} canceló la espera`,
+          "error",
+        );
+      }
+    }
+    prevEstado.current = next;
+  }, [esperas, locale, toast]);
+
   const cola = useMemo(
     () =>
       esperas
         .filter((e) => e.estado === "esperando" || e.estado === "avisado")
         .sort((a, b) => a.creadoEn.localeCompare(b.creadoEn)),
+    [esperas],
+  );
+  const canceladasHoy = useMemo(
+    () =>
+      esperas
+        .filter((e) => e.estado === "cancelado")
+        .sort((a, b) =>
+          (b.canceladoEn ?? b.creadoEn).localeCompare(
+            a.canceladoEn ?? a.creadoEn,
+          ),
+        ),
     [esperas],
   );
   const reservasActivas = useMemo(
@@ -1015,6 +1069,39 @@ const EsperaPanelPage = () => {
         />
       </section>
 
+      {canceladasHoy.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-carbon/70">
+            {locale === "en" ? "Cancelled today" : "Cancelados hoy"}
+            {` · ${canceladasHoy.length}`}
+          </h2>
+          <div className="flex flex-col gap-2">
+            {canceladasHoy.slice(0, 8).map((e) => (
+              <div
+                key={e.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-linea bg-surface/70 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-carbon/70">
+                    {e.nombre}
+                  </p>
+                  <p className="text-xs text-carbon/45">
+                    {e.personas}{" "}
+                    {locale === "en" ? "guests" : "personas"}
+                    {e.canceladoEn
+                      ? ` · ${formatHora(e.canceladoEn, locale)}`
+                      : ""}
+                  </p>
+                </div>
+                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700">
+                  {ETIQUETA_ESPERA.cancelado}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {qr && (
         <QrModal
           referencia={qr.nombre}
@@ -1024,6 +1111,7 @@ const EsperaPanelPage = () => {
           pathPrefix="/e"
           accent="espera"
           onCancelar={() => {
+            staffCancelIds.current.add(qr.id);
             void cancelar(qr.id);
             setQr(null);
           }}
@@ -1301,6 +1389,7 @@ const EsperaPanelPage = () => {
             <button
               type="button"
               onClick={() => {
+                staffCancelIds.current.add(confirmCancelEsperaId);
                 void cancelar(confirmCancelEsperaId);
                 setConfirmCancelEsperaId(null);
               }}
@@ -1427,8 +1516,8 @@ const EsperaPanelPage = () => {
           </div>
           <p className="mt-2 mb-1 text-sm text-carbon/55">
             {locale === "en"
-              ? `Party of ${sentarEspera?.personas ?? "?"}. Tap one or more free tables.`
-              : `Grupo de ${sentarEspera?.personas ?? "?"}. Tocá una o más mesas libres.`}
+              ? `Party of ${sentarEspera?.personas ?? "?"}. Best-fit tables first — larger ones stay available.`
+              : `Grupo de ${sentarEspera?.personas ?? "?"}. Primero las que mejor entran; las más grandes las decidís vos.`}
           </p>
           {(() => {
             const need = sentarEspera?.personas ?? 1;
@@ -1468,9 +1557,27 @@ const EsperaPanelPage = () => {
             </span>
           </div>
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-            {mesas.map((m) => {
+            {(() => {
+              const need = sentarEspera?.personas ?? 1;
+              const libres = mesas
+                .filter((m) => m.estado === "libre")
+                .sort((a, b) => {
+                  const ca = a.capacidad ?? 4;
+                  const cb = b.capacidad ?? 4;
+                  const wa = ca >= need ? ca - need : 1000 + (need - ca);
+                  const wb = cb >= need ? cb - need : 1000 + (need - cb);
+                  return wa - wb || a.numero - b.numero;
+                });
+              const resto = mesas
+                .filter((m) => m.estado !== "libre")
+                .sort((a, b) => a.numero - b.numero);
+              return [...libres, ...resto];
+            })().map((m) => {
               const libre = m.estado === "libre";
               const selected = sentarMesas.includes(m.numero);
+              const cap = m.capacidad ?? 4;
+              const need = sentarEspera?.personas ?? 1;
+              const oversized = libre && cap > need;
               return (
                 <button
                   key={m.id}
@@ -1487,7 +1594,7 @@ const EsperaPanelPage = () => {
                   className={mesaTileClass(m.estado, {
                     pickable: libre,
                     selected: libre && selected,
-                    tooSmall: false,
+                    oversized,
                   })}
                 >
                   <span className="font-display text-xl leading-none">
@@ -1495,9 +1602,13 @@ const EsperaPanelPage = () => {
                   </span>
                   <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
                     {libre
-                      ? locale === "en"
-                        ? "Free"
-                        : "Libre"
+                      ? oversized
+                        ? locale === "en"
+                          ? "Big"
+                          : "Grande"
+                        : locale === "en"
+                          ? "Free"
+                          : "Libre"
                       : m.estado === "reservada"
                         ? "Res."
                         : locale === "en"
@@ -1505,7 +1616,7 @@ const EsperaPanelPage = () => {
                           : "Ocup."}
                   </span>
                   <span className="mt-0.5 text-[9px] font-semibold opacity-80">
-                    {m.capacidad ?? 4}p
+                    {cap}p
                   </span>
                 </button>
               );
