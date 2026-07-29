@@ -451,7 +451,7 @@ export const OrgModal = ({
         setNuevaSuc("");
         if (plan === "anual") {
           toast(
-            `Sucursal agregada. Cobrá el anual de esta (${money.format(anualUna)}) ahora — ciclo aparte.`,
+            `Sucursal agregada. Cobrá el anual de esta (${money.format(anualUna)}) ahora, ciclo aparte.`,
             "success",
           );
         } else if (plan === "mensual") {

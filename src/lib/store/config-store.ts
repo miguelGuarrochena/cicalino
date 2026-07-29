@@ -102,7 +102,7 @@ const INICIAL = supabaseConfigurado
       branchConfigReady: false,
     }
   : {
-      nombre: "La Esquina — Centro",
+      nombre: "La Esquina Centro",
       tipo: "panaderia" as TipoNegocio,
       whatsapp: "+54 9 341 555 1234",
       direccion: "Calle Falsa 742, Rosario",

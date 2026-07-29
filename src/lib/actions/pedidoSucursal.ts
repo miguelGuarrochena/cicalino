@@ -173,7 +173,7 @@ export const pedirSucursalExtra = async (input: {
 
   await enviarEmail({
     to: org.dueno_email,
-    subject: "Pedido de sucursal — pago Cicalino",
+    subject: "Pedido de sucursal · pago Cicalino",
     html: emailLayout({
       titulo: "Nueva sucursal",
       cuerpoHtml: `<p style="margin:0 0 8px;">¡Hola ${esc(String(contact))}!</p>
@@ -191,7 +191,7 @@ export const pedirSucursalExtra = async (input: {
 
   void enviarEmail({
     to: notify,
-    subject: `Pedido sucursal — ${org.nombre}`,
+    subject: `Pedido sucursal: ${org.nombre}`,
     replyTo: org.dueno_email,
     html: emailLayout({
       titulo: "Pedido de sucursal",
@@ -303,7 +303,7 @@ export const aprobarPedidoSucursal = async (
   const plan = (org.plan as PlanCobroUI) ?? "mensual";
   void enviarEmail({
     to: org.dueno_email,
-    subject: "Cupo actualizado — Cicalino",
+    subject: "Cupo actualizado · Cicalino",
     html: emailLayout({
       titulo: "Sucursal habilitada",
       cuerpoHtml: `<p style="margin:0 0 8px;">¡Listo!</p>

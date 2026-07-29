@@ -140,8 +140,8 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     enviarEmail({
       to: notify,
       subject: esContrato
-        ? `Quiere contratar ${planTxt}${packTxt ? ` · ${packTxt}` : ""} — ${nombre}`
-        : `Nueva solicitud de prueba — ${nombre}`,
+        ? `Quiere contratar ${planTxt}${packTxt ? ` · ${packTxt}` : ""}: ${nombre}`
+        : `Nueva solicitud de prueba: ${nombre}`,
       replyTo: mail,
       html: emailLayout({
         titulo: esContrato ? "Contratar plan" : "Nueva solicitud",
@@ -159,8 +159,8 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     enviarEmail({
       to: mail,
       subject: esContrato
-        ? "Recibimos tu pedido de contratación — Cicalino"
-        : "¡Recibimos tu pedido! — Cicalino",
+        ? "Recibimos tu pedido de contratación · Cicalino"
+        : "¡Recibimos tu pedido! · Cicalino",
       html: emailLayout({
         titulo: esContrato ? "Datos recibidos" : "¡Recibimos tu pedido!",
         cuerpoHtml: esContrato

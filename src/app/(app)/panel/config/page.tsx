@@ -267,7 +267,7 @@ const ConfigPage = () => {
           </h2>
           <p className="mb-4 mt-1 text-sm text-carbon/55">
             Ideal si tenés una tablet en recepción y otra en el mostrador. Se
-            guarda solo en este aparato — no limita cuántos dispositivos usan
+            guarda solo en este aparato, no limita cuántos dispositivos usan
             la sucursal.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

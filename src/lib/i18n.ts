@@ -105,7 +105,7 @@ const dict = {
       cliKicker: "Para el cliente",
       cliTitulo: "Escanea el QR y espera el aviso",
       cliSub:
-        "No instala nada. Deja la pantalla abierta (o activa notificaciones) y recibe el aviso cuando corresponde — pedido o mesa.",
+        "No instala nada. Deja la pantalla abierta (o activa notificaciones) y recibe el aviso cuando corresponde, pedido o mesa.",
       faqKicker: "Dudas",
       cierreTitulo: "Listo para probar",
       cierreSub: "Mirá el recorrido del cliente antes de arrancar.",

@@ -5,7 +5,7 @@ import { Providers } from "@/components/providers/Providers";
 import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
-  title: "Cicalino — avisamos el momento justo",
+  title: "Cicalino: avisamos el momento justo",
   description:
     "El avisador de pedidos por QR para tu negocio gastronomico. Sin buzzers, sin apps: el cliente escanea un QR y le avisas cuando esta listo.",
   applicationName: "Cicalino",
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Cicalino",
-    title: "Cicalino — avisamos el momento justo",
+    title: "Cicalino: avisamos el momento justo",
     description:
       "El avisador de pedidos por QR para tu negocio gastronomico. Sin buzzers, sin apps.",
     locale: "es_AR",

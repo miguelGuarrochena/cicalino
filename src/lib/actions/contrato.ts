@@ -138,7 +138,7 @@ export const aceptarContrato = async (token: string): Promise<Simple> => {
   const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
   void enviarEmail({
     to: notify,
-    subject: `Listo para activar — ${org.nombre}`,
+    subject: `Listo para activar: ${org.nombre}`,
     replyTo: org.dueno_email,
     html: emailLayout({
       titulo: "Condiciones aceptadas",
@@ -231,7 +231,7 @@ export const enviarLinkContratoInterno = async (
 
   await enviarEmail({
     to: org.dueno_email,
-    subject: "Condiciones y pago — Cicalino",
+    subject: "Condiciones y pago · Cicalino",
     html: emailLayout({
       titulo: "Condiciones y pago",
       cuerpoHtml: `<p style="margin:0 0 8px;">¡Hola ${esc(String(nombre))}!</p>

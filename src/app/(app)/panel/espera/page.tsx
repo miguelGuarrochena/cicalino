@@ -326,7 +326,7 @@ const ReservaHorarioPicker = ({
           <p className="rounded-xl border border-linea bg-surface px-3 py-3 text-sm text-carbon/55">
             {locale === "en"
               ? "No more slots today — pick another day."
-              : "No quedan horarios hoy — elegí otro día."}
+              : "No quedan horarios hoy, elegí otro día."}
           </p>
         )}
       </div>
@@ -1002,7 +1002,7 @@ const EsperaPanelPage = () => {
           <p className="text-sm text-carbon/45">
             {locale === "en"
               ? "None today — use + Reservation when you need one."
-              : "Ninguna hoy — usá + Reserva cuando haga falta."}
+              : "Ninguna hoy, usá + Reserva cuando haga falta."}
           </p>
         )}
       </section>
@@ -1407,7 +1407,7 @@ const EsperaPanelPage = () => {
                         : `Grupo de ${reservaPersonas}: elegí 2 o más mesas libres.`
                     : locale === "en"
                       ? `${reservaCapSeleccionada} / ${reservaPersonas} seats — still short ${reservaFaltan}. Join another free table.`
-                      : `${reservaCapSeleccionada} / ${reservaPersonas} plazas — faltan ${reservaFaltan}. Juntá otra mesa libre.`}
+                      : `${reservaCapSeleccionada} / ${reservaPersonas} plazas, faltan ${reservaFaltan}. Juntá otra mesa libre.`}
                 </p>
               )}
               {mesas.length ? (
@@ -1781,7 +1781,7 @@ const EsperaPanelPage = () => {
                         toast(
                           locale === "en"
                             ? "Couldn’t seat — table taken?"
-                            : "No se pudo ocupar — ¿mesa tomada?",
+                            : "No se pudo ocupar. ¿Mesa tomada?",
                           "error",
                         );
                         return;
@@ -1924,7 +1924,7 @@ const EsperaPanelPage = () => {
                   : "Entran todas."
                 : locale === "en"
                   ? `Short ${ocuparFaltan} — pick another free table below.`
-                  : `Faltan ${ocuparFaltan} — elegí otra mesa libre abajo.`}
+                  : `Faltan ${ocuparFaltan}, elegí otra mesa libre abajo.`}
             </p>
           </div>
 

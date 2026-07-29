@@ -120,7 +120,7 @@ export const enviarAvisosCobro = async (): Promise<{
   const filas = pendientes
     .map(
       (o) =>
-        `<li style="margin:0 0 8px;"><b>${esc(o.nombre)}</b> — ${esc(motivoCobro(o))}<br/><span style="font-size:13px;opacity:.75;">${esc(o.dueno_email)}</span></li>`,
+        `<li style="margin:0 0 8px;"><b>${esc(o.nombre)}</b>: ${esc(motivoCobro(o))}<br/><span style="font-size:13px;opacity:.75;">${esc(o.dueno_email)}</span></li>`,
     )
     .join("");
 
@@ -128,8 +128,8 @@ export const enviarAvisosCobro = async (): Promise<{
     to: notify,
     subject:
       pendientes.length === 1
-        ? `Cobro pendiente — ${pendientes[0].nombre}`
-        : `${pendientes.length} cobros para revisar — Cicalino`,
+        ? `Cobro pendiente: ${pendientes[0].nombre}`
+        : `${pendientes.length} cobros para revisar · Cicalino`,
     html: emailLayout({
       titulo: "Cobros a revisar",
       cuerpoHtml: `<p style="margin:0 0 12px;">Estas empresas necesitan tu atención de cobro:</p><ul style="margin:0;padding-left:18px;">${filas}</ul>`,
