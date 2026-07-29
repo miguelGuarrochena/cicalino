@@ -17,7 +17,12 @@ interface Props {
   token: string;
 }
 
-const senalMesa = (opts?: { notifLocal?: boolean; nombre?: string; token?: string; body?: string }) => {
+const senalMesa = (opts?: {
+  notifLocal?: boolean;
+  nombre?: string;
+  token?: string;
+  body?: string;
+}) => {
   if ("vibrate" in navigator) {
     navigator.vibrate?.([200, 100, 200, 100, 200]);
   }
@@ -39,7 +44,7 @@ const senalMesa = (opts?: { notifLocal?: boolean; nombre?: string; token?: strin
 };
 
 export const CustomerEsperaWaiting = ({ token }: Props) => {
-  const { locale } = useApp();
+  const { t, locale } = useApp();
   const { ready, found, espera } = useCustomerEspera(token);
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
@@ -69,6 +74,23 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     if (espera.status === "esperando") vioEsperando.current = true;
   }, [espera]);
 
+  const avisado =
+    espera?.status === "avisado" || espera?.status === "sentado";
+  const sentado = espera?.status === "sentado";
+  const cancelado = espera?.status === "cancelado";
+  const cerrado = sentado || cancelado;
+  const waiting = ready && found && !!espera && !cerrado && !avisado;
+
+  useEffect(() => {
+    if (!waiting) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [waiting]);
+
   useEffect(() => {
     if (!espera) return;
     if (espera.status !== "avisado" && espera.status !== "sentado") return;
@@ -84,166 +106,197 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     }
 
     setFlash(true);
-    window.setTimeout(() => setFlash(false), 2500);
+    window.setTimeout(() => setFlash(false), 900);
     senalMesa({
       notifLocal: !pushActivo,
       nombre: espera.nombre,
       token,
-      body:
-        locale === "en" ? "Your table is ready!" : "¡Tu mesa está lista!",
+      body: t("clienteMesa.notifListo", { n: espera.nombre }),
     });
-  }, [espera, pushActivo, token, locale]);
+  }, [espera, pushActivo, token, t]);
 
-  const activarPush = async () => {
+  const activarAvisos = async () => {
     setPushCargando(true);
     setPushError(null);
     await registrarServiceWorker();
     const permiso = await pedirPermisoNotificaciones();
     if (!permiso) {
       setPushActivo(false);
-      setPushError(
-        locale === "en" ? "Notifications blocked" : "Notificaciones bloqueadas",
-      );
+      setPushError(t("clienteMesa.pushDenegado"));
       setPushCargando(false);
       return;
     }
     const r = await suscribirWebPush(token);
     setPushActivo(r.ok);
-    setPushError(
-      r.ok
-        ? null
-        : locale === "en"
-          ? "Couldn’t enable push"
-          : "No se pudo activar el aviso",
-    );
+    setPushError(r.ok ? null : t("clienteMesa.pushError"));
     setPushCargando(false);
   };
 
   if (!ready) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-crema">
-        <div className="size-10 animate-pulse rounded-full bg-espera/30" />
-      </div>
+      <main className="flex min-h-dvh items-center justify-center px-6">
+        <p className="text-sm text-carbon/45">…</p>
+      </main>
     );
   }
 
   if (!found || !espera) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-crema px-6 text-center">
-        <ThemedImg name="bell" className="h-16 w-16 opacity-40" />
-        <p className="font-display text-xl uppercase text-carbon">
-          {locale === "en" ? "Link expired" : "Link vencido"}
+      <main className="relative flex min-h-dvh flex-col items-center justify-center px-6 py-14 text-center">
+        <Controls className="absolute right-4 top-4" />
+        <ThemedImg name="bell" alt="" className="h-28 opacity-50" />
+        <p className="mt-6 font-display text-2xl uppercase text-carbon">
+          {t("clienteMesa.noEncontradoTitulo")}
         </p>
-        <p className="max-w-xs text-sm text-carbon/55">
-          {locale === "en"
-            ? "Ask the host for a new QR."
-            : "Pedí un QR nuevo en la recepción."}
+        <p className="mt-2 max-w-sm text-carbon/60">
+          {t("clienteMesa.noEncontradoSub")}
         </p>
-      </div>
+      </main>
     );
   }
 
-  const avisado =
-    espera.status === "avisado" || espera.status === "sentado";
-  const sentado = espera.status === "sentado";
-  const cancelado = espera.status === "cancelado";
+  const esOk = avisado || sentado;
 
   return (
-    <div
-      className={`relative flex min-h-dvh flex-col bg-crema transition ${
-        flash ? "bg-espera/15" : ""
+    <main
+      className={`relative flex min-h-dvh flex-col items-center px-6 pb-14 pt-16 text-center transition-colors duration-500 ${
+        flash ? "bg-espera/25" : "bg-crema"
       }`}
     >
-      <header className="flex items-center justify-between px-4 py-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-espera">
-          {espera.nombreLocal || "Cicalino"}
-        </p>
-        <Controls />
-      </header>
+      <Controls className="absolute right-4 top-4 z-20" />
 
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-espera/70">
-          {locale === "en" ? "Table wait" : "Espera de mesa"}
+      {waiting && (
+        <p className="u-in mb-6 w-full max-w-sm rounded-2xl border border-espera/40 bg-espera/10 px-3 py-2.5 text-xs font-medium leading-snug text-espera">
+          {pushActivo
+            ? t("clienteMesa.noCerrarPush")
+            : t("clienteMesa.noCerrar")}
         </p>
-        <h1 className="mt-2 font-display text-4xl uppercase tracking-tight text-carbon">
-          {espera.nombre}
-        </h1>
-        <p className="mt-1 text-sm text-carbon/55">
-          {espera.personas} {locale === "en" ? "guests" : "personas"}
-        </p>
+      )}
 
-        <div
-          className={`mt-10 w-full rounded-[28px] border px-6 py-10 shadow-sm ${
-            cancelado
-              ? "border-linea bg-surface text-carbon/50"
-              : sentado
-                ? "border-espera/30 bg-espera text-crema"
-                : avisado
-                  ? "border-espera/40 bg-espera/15 text-espera"
-                  : "border-linea bg-surface text-carbon"
-          }`}
-        >
-          <p className="font-display text-2xl uppercase tracking-tight sm:text-3xl">
-            {cancelado
+      <div className="u-in flex flex-1 flex-col items-center justify-center">
+        <div className="flex flex-col items-center gap-1">
+          {espera.nombreLocal && (
+            <span className="mb-1 max-w-[16rem] truncate font-display text-lg uppercase tracking-tight text-carbon/70 sm:max-w-xs sm:text-xl">
+              {espera.nombreLocal}
+            </span>
+          )}
+          <span className="text-xs uppercase tracking-widest text-espera/70">
+            {t("clienteMesa.titulo")}
+          </span>
+          <span className="font-display text-5xl leading-none text-espera sm:text-6xl">
+            {espera.nombre}
+          </span>
+          <span className="mt-1 text-sm text-carbon/50">
+            {espera.personas}{" "}
+            {espera.personas === 1
               ? locale === "en"
-                ? "Cancelled"
-                : "Cancelado"
-              : sentado
-                ? locale === "en"
-                  ? `Table ${espera.mesaNumero ?? ""}`
-                  : `Mesa ${espera.mesaNumero ?? ""}`
-                : avisado
-                  ? locale === "en"
-                    ? "Your table is ready!"
-                    : "¡Tu mesa está lista!"
-                  : locale === "en"
-                    ? "Waiting for a table…"
-                    : "Esperando mesa…"}
-          </p>
-          <p className="mt-3 text-sm opacity-80">
-            {cancelado
-              ? locale === "en"
-                ? "Ask the host if you need help."
-                : "Consultá en recepción si necesitás ayuda."
-              : sentado
-                ? locale === "en"
-                  ? "Enjoy your meal."
-                  : "Buen provecho."
-                : avisado
-                  ? locale === "en"
-                    ? "Please come to the host stand."
-                    : "Acercate a la recepción."
-                  : locale === "en"
-                    ? "Keep this screen open. We’ll notify you."
-                    : "Dejá esta pantalla abierta. Te avisamos."}
-          </p>
+                ? "guest"
+                : "persona"
+              : locale === "en"
+                ? "guests"
+                : "personas"}
+          </span>
         </div>
 
-        {!avisado && !cancelado && !pushActivo && (
-          <button
-            type="button"
-            disabled={pushCargando}
-            onClick={() => void activarPush()}
-            className="mt-8 rounded-full border border-espera/40 bg-espera/10 px-5 py-2.5 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema disabled:opacity-60"
+        <div className="relative my-8 flex size-60 max-w-full items-center justify-center sm:size-64">
+          <span
+            className={`pointer-events-none absolute inset-0 m-auto size-52 rounded-full transition-colors duration-500 sm:size-56 ${
+              cancelado
+                ? "bg-red-400/10"
+                : esOk
+                  ? "bg-espera/20"
+                  : "bg-espera/10"
+            }`}
+          />
+          {!cerrado && !avisado && (
+            <span className="pointer-events-none absolute inset-0 m-auto size-52 animate-ping rounded-full bg-espera/15 sm:size-56" />
+          )}
+          <div
+            key={
+              cancelado
+                ? "cancel"
+                : sentado
+                  ? "sentado"
+                  : avisado
+                    ? "ok"
+                    : "espera"
+            }
+            className={`relative z-10 flex size-full items-center justify-center ${
+              cerrado || avisado ? "u-pop" : "u-float"
+            }`}
           >
-            {pushCargando
-              ? "…"
-              : locale === "en"
-                ? "Enable notifications"
-                : "Activar notificaciones"}
-          </button>
+            <ThemedImg
+              name={esOk ? "ok" : "espera"}
+              alt=""
+              className={`max-h-44 w-auto sm:max-h-48 ${cancelado ? "opacity-40 grayscale" : ""}`}
+            />
+          </div>
+        </div>
+
+        <div className="u-in min-h-[92px]">
+          {cancelado ? (
+            <>
+              <p className="font-display text-3xl uppercase tracking-tight text-red-600/80">
+                {t("clienteMesa.canceladoTitulo")}
+              </p>
+              <p className="mt-2 text-carbon/60">
+                {t("clienteMesa.canceladoSub")}
+              </p>
+            </>
+          ) : sentado ? (
+            <>
+              <p className="font-display text-3xl uppercase tracking-tight text-espera">
+                {t("clienteMesa.sentadoTitulo", {
+                  n: String(espera.mesaNumero ?? ""),
+                })}
+              </p>
+              <p className="mt-2 max-w-sm text-carbon/60">
+                {t("clienteMesa.sentadoSub")}
+              </p>
+            </>
+          ) : avisado ? (
+            <>
+              <p className="font-display text-3xl uppercase tracking-tight text-espera">
+                {t("clienteMesa.listoTitulo")}
+              </p>
+              <p className="mt-2 text-carbon/60">{t("clienteMesa.listoSub")}</p>
+            </>
+          ) : (
+            <>
+              <p className="font-display text-2xl uppercase tracking-tight text-carbon sm:text-3xl">
+                {t("clienteMesa.esperandoTitulo")}
+              </p>
+              <p className="mt-2 max-w-sm text-carbon/60">
+                {t("clienteMesa.esperandoSub")}
+              </p>
+            </>
+          )}
+        </div>
+
+        {!cerrado && (
+          <div className="u-in mt-8 w-full max-w-sm">
+            <button
+              type="button"
+              onClick={() => void activarAvisos()}
+              disabled={pushActivo || pushCargando}
+              className="w-full rounded-full bg-espera px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte active:scale-95 disabled:opacity-70"
+            >
+              {pushCargando
+                ? t("clienteMesa.pushCargando")
+                : pushActivo
+                  ? `${t("clienteMesa.activados")} 🔔`
+                  : t("clienteMesa.activar")}
+            </button>
+            {pushError && (
+              <p className="mt-2 text-center text-xs text-red-500">{pushError}</p>
+            )}
+          </div>
         )}
-        {pushError && (
-          <p className="mt-3 text-xs text-red-600/80">{pushError}</p>
-        )}
-        {pushActivo && !avisado && !cancelado && (
-          <p className="mt-4 text-xs font-medium text-espera/80">
-            {locale === "en"
-              ? "Notifications on — you can leave this tab."
-              : "Avisos activos — podés salir de esta pestaña."}
-          </p>
-        )}
-      </main>
-    </div>
+      </div>
+
+      <p className="mt-8 text-xs text-carbon/35">
+        {t("clienteMesa.espera")} · cicalino.net
+      </p>
+    </main>
   );
 };

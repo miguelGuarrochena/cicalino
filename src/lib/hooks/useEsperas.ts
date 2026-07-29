@@ -7,20 +7,25 @@ import { supabaseConfigurado } from "@/lib/supabase/config";
 import {
   isRealBranchId,
   fetchTodayEsperas,
+  fetchTodayReservas,
   fetchMesas,
   syncMesas,
   insertEspera,
+  insertReserva,
   updateEsperaStatus,
+  updateReservaStatus,
   setMesaEstado,
+  expirarReservasVencidas,
   subscribeEsperas,
 } from "@/lib/data/espera";
-import type { EsperaStatus, EsperaView, MesaView } from "@/lib/types";
+import type { EsperaView, MesaView, ReservaView } from "@/lib/types";
 
 type EmployeeRef = { id: string; nombre: string } | null;
 
 export interface UseEsperas {
   esperas: EsperaView[];
   mesas: MesaView[];
+  reservas: ReservaView[];
   ready: boolean;
   live: boolean;
   crearEspera: (
@@ -28,9 +33,19 @@ export interface UseEsperas {
     personas: number,
     employee?: EmployeeRef,
   ) => Promise<EsperaView | null>;
+  crearReserva: (args: {
+    nombre: string;
+    personas: number;
+    mesaNumero: number;
+    horario: string;
+    graciaMinutos: 15 | 20;
+    employee?: EmployeeRef;
+  }) => Promise<ReservaView | null>;
   avisar: (id: string) => Promise<void>;
   sentar: (id: string, mesaNumero: number) => Promise<void>;
   cancelar: (id: string) => Promise<void>;
+  sentarReserva: (id: string) => Promise<void>;
+  cancelarReserva: (id: string) => Promise<void>;
   liberarMesa: (numero: number) => Promise<void>;
 }
 
@@ -40,24 +55,33 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
 
   const demoEsperas = useEsperaStore((s) => s.esperas);
   const demoMesas = useEsperaStore((s) => s.mesas);
+  const demoReservas = useEsperaStore((s) => s.reservas);
   const seed = useEsperaStore((s) => s.seedSiVacio);
   const setMesasCount = useEsperaStore((s) => s.setMesasCount);
   const demoAdd = useEsperaStore((s) => s.agregarEspera);
   const demoChange = useEsperaStore((s) => s.cambiarEstado);
   const demoLiberar = useEsperaStore((s) => s.liberarMesa);
+  const demoAddReserva = useEsperaStore((s) => s.agregarReserva);
+  const demoSentarReserva = useEsperaStore((s) => s.sentarReserva);
+  const demoCancelarReserva = useEsperaStore((s) => s.cancelarReserva);
+  const demoExpirar = useEsperaStore((s) => s.expirarReservasDemo);
 
   const [liveEsperas, setLiveEsperas] = useState<EsperaView[]>([]);
   const [liveMesas, setLiveMesas] = useState<MesaView[]>([]);
+  const [liveReservas, setLiveReservas] = useState<ReservaView[]>([]);
   const [ready, setReady] = useState(false);
 
   const reload = useCallback(async () => {
     if (!live || !branchId) return;
-    const [e, m] = await Promise.all([
+    await expirarReservasVencidas(branchId);
+    const [e, m, r] = await Promise.all([
       fetchTodayEsperas(branchId),
       fetchMesas(branchId),
+      fetchTodayReservas(branchId),
     ]);
     setLiveEsperas(e);
     setLiveMesas(m);
+    setLiveReservas(r);
     setReady(true);
   }, [live, branchId]);
 
@@ -66,9 +90,11 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       if (!supabaseConfigurado) {
         seed(cantidadMesas);
         setMesasCount(cantidadMesas);
+        demoExpirar();
       }
       setReady(true);
-      return;
+      const demoIv = window.setInterval(() => demoExpirar(), 15_000);
+      return () => window.clearInterval(demoIv);
     }
     setReady(false);
     void (async () => {
@@ -90,7 +116,15 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       window.removeEventListener("online", onWake);
       window.clearInterval(iv);
     };
-  }, [live, branchId, seed, reload, cantidadMesas, setMesasCount]);
+  }, [
+    live,
+    branchId,
+    seed,
+    reload,
+    cantidadMesas,
+    setMesasCount,
+    demoExpirar,
+  ]);
 
   const crearEspera = async (
     nombre: string,
@@ -107,6 +141,33 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       employeeId: employee?.id,
     });
     if (created) setLiveEsperas((prev) => [created, ...prev]);
+    return created;
+  };
+
+  const crearReserva = async (args: {
+    nombre: string;
+    personas: number;
+    mesaNumero: number;
+    horario: string;
+    graciaMinutos: 15 | 20;
+    employee?: EmployeeRef;
+  }) => {
+    if (!live || !branchId) {
+      return demoAddReserva({
+        ...args,
+        empleado: args.employee?.nombre ?? null,
+      });
+    }
+    const created = await insertReserva({
+      branchId,
+      nombre: args.nombre,
+      personas: args.personas,
+      mesaNumero: args.mesaNumero,
+      horario: args.horario,
+      graciaMinutos: args.graciaMinutos,
+      employeeId: args.employee?.id,
+    });
+    await reload();
     return created;
   };
 
@@ -130,7 +191,10 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       return;
     }
     await updateEsperaStatus(id, "sentado", mesaNumero);
-    await setMesaEstado(branchId, mesaNumero, "ocupada", id);
+    await setMesaEstado(branchId, mesaNumero, "ocupada", {
+      esperaId: id,
+      reservaId: null,
+    });
     await reload();
   };
 
@@ -143,27 +207,65 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     await reload();
   };
 
+  const sentarReserva = async (id: string) => {
+    if (!live || !branchId) {
+      demoSentarReserva(id);
+      return;
+    }
+    const reserva = liveReservas.find((r) => r.id === id);
+    if (!reserva) return;
+    await updateReservaStatus(id, "sentada");
+    await setMesaEstado(branchId, reserva.mesaNumero, "ocupada", {
+      reservaId: id,
+      esperaId: null,
+    });
+    await reload();
+  };
+
+  const cancelarReserva = async (id: string) => {
+    if (!live || !branchId) {
+      demoCancelarReserva(id);
+      return;
+    }
+    const reserva = liveReservas.find((r) => r.id === id);
+    await updateReservaStatus(id, "cancelada");
+    if (reserva) {
+      await setMesaEstado(branchId, reserva.mesaNumero, "libre", {
+        reservaId: null,
+        esperaId: null,
+      });
+    }
+    await reload();
+  };
+
   const liberarMesa = async (numero: number) => {
     if (!live || !branchId) {
       demoLiberar(numero);
       return;
     }
-    await setMesaEstado(branchId, numero, "libre", null);
+    const mesa = liveMesas.find((m) => m.numero === numero);
+    if (mesa?.reservaId && mesa.estado === "reservada") {
+      await updateReservaStatus(mesa.reservaId, "cancelada");
+    }
+    await setMesaEstado(branchId, numero, "libre");
     await reload();
   };
 
   return {
     esperas: live ? liveEsperas : demoEsperas,
     mesas: live ? liveMesas : demoMesas,
+    reservas: live ? liveReservas : demoReservas,
     ready,
     live,
     crearEspera,
+    crearReserva,
     avisar,
     sentar,
     cancelar,
+    sentarReserva,
+    cancelarReserva,
     liberarMesa,
   };
 };
 
-// Re-export for callers that need status type
-export type { EsperaStatus };
+export type { EsperaStatus } from "@/lib/types";

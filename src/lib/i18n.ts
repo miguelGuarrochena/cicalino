@@ -237,6 +237,34 @@ const dict = {
         "Este QR ya no es válido o expiró. Pedí uno nuevo en el mostrador.",
       notifListo: "Pedido {n} listo para retirar.",
     },
+    clienteMesa: {
+      titulo: "Espera de mesa",
+      esperandoTitulo: "Estamos preparando tu mesa",
+      esperandoSub: "Te avisamos apenas esté lista. Dejá esta pestaña abierta.",
+      listoTitulo: "¡Tu mesa está lista!",
+      listoSub: "Acercate a la recepción.",
+      sentadoTitulo: "Mesa {n}",
+      sentadoSub: "Listo. Ya podés cerrar esta pestaña.",
+      canceladoTitulo: "Espera cancelada",
+      canceladoSub:
+        "Esta espera ya no está activa. Consultá en recepción si hace falta.",
+      activar: "Avisarme con una notificación",
+      activados: "Avisos activados",
+      pushCargando: "Activando avisos…",
+      pushError:
+        "No se pudo activar el aviso en segundo plano. Probá de nuevo o revisá el permiso de Chrome.",
+      pushDenegado:
+        "Chrome bloqueó las notificaciones. Activálas en el candado de la barra de dirección.",
+      espera: "Actualiza solo",
+      noCerrar:
+        "No cierres esta pestaña mientras esperás. Si te vas a WhatsApp, volvé acá o activá avisos.",
+      noCerrarPush:
+        "Avisos activos: podés cambiar de app y te avisamos cuando tu mesa esté lista.",
+      noEncontradoTitulo: "Link vencido",
+      noEncontradoSub:
+        "Este QR ya no es válido o expiró. Pedí uno nuevo en la recepción.",
+      notifListo: "¡{n}, tu mesa está lista!",
+    },
     modo: { pedido: "Pedido", nombre: "Cliente", mesa: "Mesa" },
     toast: {
       creado: "Pedido {n} creado",
@@ -624,6 +652,34 @@ const dict = {
       noEncontradoSub:
         "This QR is no longer valid or expired. Ask for a new one at the counter.",
       notifListo: "Order {n} is ready for pickup.",
+    },
+    clienteMesa: {
+      titulo: "Table wait",
+      esperandoTitulo: "We're getting your table ready",
+      esperandoSub: "We'll let you know when it's ready. Keep this tab open.",
+      listoTitulo: "Your table is ready!",
+      listoSub: "Please come to the host stand.",
+      sentadoTitulo: "Table {n}",
+      sentadoSub: "All set. You can close this tab now.",
+      canceladoTitulo: "Wait cancelled",
+      canceladoSub:
+        "This wait is no longer active. Ask at the host stand if you need help.",
+      activar: "Notify me",
+      activados: "Notifications on",
+      pushCargando: "Enabling notices…",
+      pushError:
+        "Couldn’t enable background notices. Try again or check Chrome’s permission.",
+      pushDenegado:
+        "Chrome blocked notifications. Enable them via the lock icon in the address bar.",
+      espera: "Updates on its own",
+      noCerrar:
+        "Don't close this tab while waiting. If you leave for WhatsApp, come back or enable notices.",
+      noCerrarPush:
+        "Notices on: you can switch apps and we'll ping you when your table is ready.",
+      noEncontradoTitulo: "Link expired",
+      noEncontradoSub:
+        "This QR is no longer valid or expired. Ask for a new one at the host stand.",
+      notifListo: "{n}, your table is ready!",
     },
     modo: { pedido: "Order", nombre: "Customer", mesa: "Table" },
     toast: {

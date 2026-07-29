@@ -4,7 +4,14 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 import { inicioJornada, finJornada } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import { isRealBranchId } from "@/lib/data/orders";
-import type { EsperaStatus, EsperaView, MesaView } from "@/lib/types";
+import type {
+  EsperaStatus,
+  EsperaView,
+  MesaEstado,
+  MesaView,
+  ReservaStatus,
+  ReservaView,
+} from "@/lib/types";
 
 export { isRealBranchId };
 
@@ -26,8 +33,24 @@ type EsperaRow = {
 type MesaRow = {
   id: string;
   numero: number;
-  estado: "libre" | "ocupada";
+  estado: MesaEstado;
   espera_id: string | null;
+  reserva_id: string | null;
+};
+
+type ReservaRow = {
+  id: string;
+  nombre: string;
+  personas: number;
+  mesa_numero: number;
+  horario: string;
+  gracia_minutos: number;
+  estado: ReservaStatus;
+  creado_en: string;
+  sentado_en: string | null;
+  cancelado_en: string | null;
+  expirado_en: string | null;
+  empleados?: { nombre: string | null } | null;
 };
 
 const mapEspera = (r: EsperaRow): EsperaView => ({
@@ -48,11 +71,29 @@ const mapEspera = (r: EsperaRow): EsperaView => ({
 const mapMesa = (r: MesaRow): MesaView => ({
   id: r.id,
   numero: r.numero,
+  estado: r.estado === "reservada" || r.estado === "ocupada" ? r.estado : "libre",
+  esperaId: r.espera_id ?? null,
+  reservaId: r.reserva_id ?? null,
+});
+
+const mapReserva = (r: ReservaRow): ReservaView => ({
+  id: r.id,
+  nombre: r.nombre,
+  personas: r.personas,
+  mesaNumero: r.mesa_numero,
+  horario: r.horario,
+  graciaMinutos: r.gracia_minutos === 20 ? 20 : 15,
   estado: r.estado,
-  esperaId: r.espera_id,
+  creadoEn: r.creado_en,
+  sentadoEn: r.sentado_en,
+  canceladoEn: r.cancelado_en,
+  expiradoEn: r.expirado_en,
+  empleado: r.empleados?.nombre ?? null,
 });
 
 const SELECT_ESPERA = "*, empleados(nombre)";
+const SELECT_RESERVA = "*, empleados(nombre)";
+const SELECT_MESA = "id, numero, estado, espera_id, reserva_id";
 const horaCorte = (): number => useConfigStore.getState().horaCorte;
 const inicioDelDia = (): string => inicioJornada(horaCorte()).toISOString();
 const finDelDia = (): string => finJornada(horaCorte()).toISOString();
@@ -67,7 +108,7 @@ export const syncMesas = async (
   const n = Math.max(1, Math.min(500, cantidad));
   const { data: existing } = await supabase
     .from("mesas")
-    .select("id, numero, estado, espera_id")
+    .select(SELECT_MESA)
     .eq("local_id", branchId)
     .order("numero");
   const rows = (existing as MesaRow[] | null) ?? [];
@@ -79,7 +120,6 @@ export const syncMesas = async (
   if (missing.length) {
     await supabase.from("mesas").insert(missing);
   }
-  // Quitar mesas por encima del cupo solo si están libres
   const extras = rows.filter((r) => r.numero > n && r.estado === "libre");
   if (extras.length) {
     await supabase
@@ -92,7 +132,7 @@ export const syncMesas = async (
   }
   const { data } = await supabase
     .from("mesas")
-    .select("id, numero, estado, espera_id")
+    .select(SELECT_MESA)
     .eq("local_id", branchId)
     .lte("numero", n)
     .order("numero");
@@ -122,7 +162,7 @@ export const fetchMesas = async (branchId: string): Promise<MesaView[]> => {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("mesas")
-    .select("id, numero, estado, espera_id")
+    .select(SELECT_MESA)
     .eq("local_id", branchId)
     .order("numero");
   if (error) {
@@ -130,6 +170,74 @@ export const fetchMesas = async (branchId: string): Promise<MesaView[]> => {
     return [];
   }
   return ((data as MesaRow[] | null) ?? []).map(mapMesa);
+};
+
+export const fetchTodayReservas = async (
+  branchId: string,
+): Promise<ReservaView[]> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("reservas")
+    .select(SELECT_RESERVA)
+    .eq("local_id", branchId)
+    .gte("horario", inicioDelDia())
+    .lte("horario", finDelDia())
+    .order("horario", { ascending: true });
+  if (error) {
+    console.error("fetchTodayReservas", error.message);
+    return [];
+  }
+  return ((data as unknown as ReservaRow[]) ?? []).map(mapReserva);
+};
+
+/** Libera mesas de reservas activas cuyo horario + gracia ya pasó. */
+export const expirarReservasVencidas = async (
+  branchId: string,
+): Promise<void> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return;
+  const { data, error } = await supabase
+    .from("reservas")
+    .select("id, mesa_numero, horario, gracia_minutos")
+    .eq("local_id", branchId)
+    .eq("estado", "activa");
+  if (error || !data?.length) return;
+
+  const now = Date.now();
+  const vencidas = (
+    data as {
+      id: string;
+      mesa_numero: number;
+      horario: string;
+      gracia_minutos: number;
+    }[]
+  ).filter((r) => {
+    const limite =
+      new Date(r.horario).getTime() + (r.gracia_minutos || 15) * 60_000;
+    return now > limite;
+  });
+  if (!vencidas.length) return;
+
+  const nowIso = new Date().toISOString();
+  for (const r of vencidas) {
+    await supabase
+      .from("reservas")
+      .update({ estado: "expirada", expirado_en: nowIso })
+      .eq("id", r.id)
+      .eq("estado", "activa");
+    await supabase
+      .from("mesas")
+      .update({
+        estado: "libre",
+        reserva_id: null,
+        actualizado_en: nowIso,
+      })
+      .eq("local_id", branchId)
+      .eq("numero", r.mesa_numero)
+      .eq("estado", "reservada")
+      .eq("reserva_id", r.id);
+  }
 };
 
 export const insertEspera = async (args: {
@@ -162,6 +270,69 @@ export const insertEspera = async (args: {
   return mapEspera(data as unknown as EsperaRow);
 };
 
+export const insertReserva = async (args: {
+  branchId: string;
+  nombre: string;
+  personas: number;
+  mesaNumero: number;
+  horario: string;
+  graciaMinutos: 15 | 20;
+  employeeId?: string | null;
+}): Promise<ReservaView | null> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return null;
+  const nombre = args.nombre.trim().slice(0, 80) || "Reserva";
+  const personas = Math.max(1, Math.min(50, args.personas || 2));
+
+  const { data: mesa } = await supabase
+    .from("mesas")
+    .select(SELECT_MESA)
+    .eq("local_id", args.branchId)
+    .eq("numero", args.mesaNumero)
+    .maybeSingle();
+  if (!mesa || (mesa as MesaRow).estado !== "libre") {
+    console.error("insertReserva: mesa no libre");
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("reservas")
+    .insert({
+      local_id: args.branchId,
+      nombre,
+      personas,
+      mesa_numero: args.mesaNumero,
+      horario: args.horario,
+      gracia_minutos: args.graciaMinutos,
+      estado: "activa",
+      empleado_id: args.employeeId ?? null,
+    })
+    .select(SELECT_RESERVA)
+    .single();
+  if (error) {
+    console.error("insertReserva", error.message);
+    return null;
+  }
+  const reserva = mapReserva(data as unknown as ReservaRow);
+  const { error: mesaErr } = await supabase
+    .from("mesas")
+    .update({
+      estado: "reservada",
+      reserva_id: reserva.id,
+      espera_id: null,
+      actualizado_en: new Date().toISOString(),
+    })
+    .eq("local_id", args.branchId)
+    .eq("numero", args.mesaNumero)
+    .eq("estado", "libre");
+  if (mesaErr) {
+    console.error("insertReserva mesa", mesaErr.message);
+    await supabase.from("reservas").delete().eq("id", reserva.id);
+    return null;
+  }
+  return reserva;
+};
+
 export const updateEsperaStatus = async (
   id: string,
   estado: EsperaStatus,
@@ -185,21 +356,46 @@ export const updateEsperaStatus = async (
   return true;
 };
 
-export const setMesaEstado = async (
-  branchId: string,
-  numero: number,
-  estado: "libre" | "ocupada",
-  esperaId: string | null = null,
+export const updateReservaStatus = async (
+  id: string,
+  estado: ReservaStatus,
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = { estado };
+  if (estado === "sentada") patch.sentado_en = now;
+  if (estado === "cancelada") patch.cancelado_en = now;
+  if (estado === "expirada") patch.expirado_en = now;
+  const { error } = await supabase.from("reservas").update(patch).eq("id", id);
+  if (error) {
+    console.error("updateReservaStatus", error.message);
+    return false;
+  }
+  return true;
+};
+
+export const setMesaEstado = async (
+  branchId: string,
+  numero: number,
+  estado: MesaEstado,
+  opts: { esperaId?: string | null; reservaId?: string | null } = {},
+): Promise<boolean> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return false;
+  const patch: Record<string, unknown> = {
+    estado,
+    actualizado_en: new Date().toISOString(),
+  };
+  if ("esperaId" in opts) patch.espera_id = opts.esperaId ?? null;
+  if ("reservaId" in opts) patch.reserva_id = opts.reservaId ?? null;
+  if (estado === "libre") {
+    patch.espera_id = null;
+    patch.reserva_id = null;
+  }
   const { error } = await supabase
     .from("mesas")
-    .update({
-      estado,
-      espera_id: esperaId,
-      actualizado_en: new Date().toISOString(),
-    })
+    .update(patch)
     .eq("local_id", branchId)
     .eq("numero", numero);
   if (error) {
@@ -225,6 +421,11 @@ export const subscribeEsperas = (
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "mesas", filter: `local_id=eq.${branchId}` },
+      () => onChange(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "reservas", filter: `local_id=eq.${branchId}` },
       () => onChange(),
     )
     .subscribe();

@@ -84,7 +84,9 @@ export const orderClosed = (status: OrderStatus): boolean => {
 
 export type EsperaStatus = "esperando" | "avisado" | "sentado" | "cancelado";
 
-export type MesaEstado = "libre" | "ocupada";
+export type MesaEstado = "libre" | "ocupada" | "reservada";
+
+export type ReservaStatus = "activa" | "sentada" | "cancelada" | "expirada";
 
 export interface EsperaView {
   id: string;
@@ -106,6 +108,22 @@ export interface MesaView {
   numero: number;
   estado: MesaEstado;
   esperaId: string | null;
+  reservaId: string | null;
+}
+
+export interface ReservaView {
+  id: string;
+  nombre: string;
+  personas: number;
+  mesaNumero: number;
+  horario: string;
+  graciaMinutos: 15 | 20;
+  estado: ReservaStatus;
+  creadoEn: string;
+  sentadoEn: string | null;
+  canceladoEn: string | null;
+  expiradoEn: string | null;
+  empleado?: string | null;
 }
 
 export const ETIQUETA_ESPERA: Record<EsperaStatus, string> = {
@@ -115,5 +133,15 @@ export const ETIQUETA_ESPERA: Record<EsperaStatus, string> = {
   cancelado: "Cancelado",
 };
 
+export const ETIQUETA_RESERVA: Record<ReservaStatus, string> = {
+  activa: "Reservada",
+  sentada: "Sentada",
+  cancelada: "Cancelada",
+  expirada: "No llegó",
+};
+
 export const esperaClosed = (status: EsperaStatus): boolean =>
   status === "sentado" || status === "cancelado";
+
+export const reservaClosed = (status: ReservaStatus): boolean =>
+  status === "sentada" || status === "cancelada" || status === "expirada";

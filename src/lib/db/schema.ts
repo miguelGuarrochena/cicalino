@@ -347,6 +347,42 @@ export const esperas = pgTable(
   ],
 );
 
+export const reservaStatusEnum = pgEnum("reserva_estado", [
+  "activa",
+  "sentada",
+  "cancelada",
+  "expirada",
+]);
+
+export const reservas = pgTable(
+  "reservas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => locales.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    personas: integer("personas").notNull().default(2),
+    mesaNumero: integer("mesa_numero").notNull(),
+    horario: timestamp("horario", { withTimezone: true }).notNull(),
+    graciaMinutos: integer("gracia_minutos").notNull().default(15),
+    estado: reservaStatusEnum("estado").notNull().default("activa"),
+    empleadoId: uuid("empleado_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+    creadoEn: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    sentadoEn: timestamp("sentado_en", { withTimezone: true }),
+    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
+    expiradoEn: timestamp("expirado_en", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_reservas_local_horario").on(t.localId, t.horario),
+    index("idx_reservas_local_estado").on(t.localId, t.estado),
+  ],
+);
+
 export const mesas = pgTable(
   "mesas",
   {
@@ -357,6 +393,9 @@ export const mesas = pgTable(
     numero: integer("numero").notNull(),
     estado: text("estado").notNull().default("libre"),
     esperaId: uuid("espera_id").references(() => esperas.id, {
+      onDelete: "set null",
+    }),
+    reservaId: uuid("reserva_id").references(() => reservas.id, {
       onDelete: "set null",
     }),
     actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
