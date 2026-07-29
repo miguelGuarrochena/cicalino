@@ -31,14 +31,20 @@ export const SolicitudesPanel = () => {
 
   const activar = async (id: string) => {
     setBusy(id);
-    const r = await activarSolicitud(id);
-    setBusy(null);
-    if (r.ok) {
-      await load();
-      await refreshOrganizations();
-      toast(t("toast.leadActivada"), "success");
-    } else {
+    try {
+      const r = await activarSolicitud(id);
+      if (r.ok) {
+        await load();
+        await refreshOrganizations();
+        toast(t("toast.leadActivada"), "success");
+      } else {
+        toast(r.error || t("toast.leadError"), "error");
+      }
+    } catch (e) {
+      console.error("activar solicitud", e);
       toast(t("toast.leadError"), "error");
+    } finally {
+      setBusy(null);
     }
   };
 

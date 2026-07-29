@@ -112,11 +112,11 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
             </div>
 
             {listo ? (
-              <div className="rounded-[24px] border border-emerald-300/60 bg-emerald-50 p-5 text-center dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                <p className="font-semibold text-emerald-800 dark:text-emerald-200">
+              <div className="rounded-[24px] border border-emerald-600/25 bg-emerald-100 p-5 text-center">
+                <p className="font-semibold text-emerald-950">
                   Condiciones aceptadas
                 </p>
-                <p className="mt-2 text-sm text-emerald-900/70 dark:text-emerald-100/80">
+                <p className="mt-2 text-sm leading-relaxed text-emerald-950/80">
                   {data.enPrueba
                     ? `Tu prueba sigue activa${data.pruebaHasta ? ` hasta el ${fecha(data.pruebaHasta)}` : ""}. Cuando termine, transferí el monto al alias.`
                     : "Cuando veamos la transferencia, marcamos tu cuenta al día."}
@@ -168,7 +168,7 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
                 </span>
               </p>
               {data.enPrueba && data.pruebaHasta && (
-                <p className="mt-1 text-xs text-sky-800 dark:text-sky-200">
+                <p className="mt-1 text-xs font-medium text-sky-900">
                   Mes gratis hasta el {fecha(data.pruebaHasta)}. El cobro arranca
                   después.
                 </p>

@@ -206,7 +206,7 @@ export const enviarLinkContratoInterno = async (
         <p style="margin:0 0 12px;font-size:22px;font-weight:800;letter-spacing:.02em;color:#2536d4;">${esc(alias)}</p>
         <p style="margin:0;font-size:13px;opacity:.75;">En el concepto podés poner el nombre del local.
         Cuando veamos el pago, lo marcamos al día.</p>`,
-      cta: { label: "Aceptar condiciones", url },
+      cta: { label: "Ir a condiciones y pago", url },
       pie: "Cicalino · Si no pediste esto, ignorá el mail.",
     }),
   });

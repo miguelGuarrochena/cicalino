@@ -156,11 +156,11 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
           ? `<p style="margin:0 0 8px;">¡Hola ${esc(nombre)}!</p>
             <p style="margin:0;">Recibimos tu pedido para el plan <b>${planTxt}</b>.
             A la brevedad te activamos la cuenta y te mandamos el link de
-            condiciones y pago. Tu cliente nunca paga.</p>`
+            condiciones y pago.</p>`
           : `<p style="margin:0 0 8px;">¡Hola ${esc(nombre)}! 🎉</p>
             <p style="margin:0;">Recibimos tu pedido para probar Cicalino. Te
             escribimos a este mail para activarte <b>1 mes gratis</b>, normalmente
-            en el día. Tu cliente nunca paga.</p>`,
+            en el día.</p>`,
       }),
     }),
   ]);

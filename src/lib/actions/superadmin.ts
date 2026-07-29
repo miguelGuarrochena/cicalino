@@ -99,9 +99,13 @@ const crearOrganizacionValidada = async (
     if (errSuc) console.error("crearOrganizacion/locales", errSuc.message);
   }
 
-  // Invitar al dueño. Si quedó un Auth huérfano de un alta borrada, lo
-  // regeneramos para que el trigger vuelva a crear la fila en `usuarios`.
-  await invitarDueno(admin, data.duenoEmail, org.id);
+  // Invitar al dueño. Si falla la invitación, la empresa igual queda creada
+  // (podés reenviar desde el panel). No tumba el alta.
+  try {
+    await invitarDueno(admin, data.duenoEmail, org.id);
+  } catch (e) {
+    console.error("invitarDueno", e);
+  }
 
   return { ok: true, id: org.id };
 };
@@ -116,11 +120,21 @@ const invitarDueno = async (
   const primero = await admin.auth.admin.inviteUserByEmail(email, { data: meta });
   if (!primero.error) return;
 
-  console.warn("invitarDueno", primero.error.message);
+  const msg = primero.error.message ?? "";
+  console.warn("invitarDueno", msg);
+  // Solo regeneramos si el mail ya estaba registrado (Auth huérfano post-borrado).
+  if (!/already|registered|exists|duplicate/i.test(msg)) return;
+
   const mail = email.trim().toLowerCase();
-  // Buscamos el usuario Auth por mail (paginado chico: casos raros post-borrado).
   for (let page = 1; page <= 5; page++) {
-    const { data } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+    if (error) {
+      console.error("invitarDueno/list", error.message);
+      return;
+    }
     const stale = data?.users?.find((u) => u.email?.toLowerCase() === mail);
     if (!stale) {
       if (!data?.users?.length) break;
@@ -131,7 +145,9 @@ const invitarDueno = async (
       console.error("invitarDueno/delete", delErr.message);
       return;
     }
-    const segundo = await admin.auth.admin.inviteUserByEmail(email, { data: meta });
+    const segundo = await admin.auth.admin.inviteUserByEmail(email, {
+      data: meta,
+    });
     if (segundo.error) console.error("invitarDueno/retry", segundo.error.message);
     return;
   }
@@ -387,10 +403,15 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
     .update({ estado: "atendida" })
     .eq("id", v.data.id);
 
-  // Mail con bases + alias MP (best-effort).
+  // Mail con bases + alias MP (best-effort: no tumba la activación).
   if (res.id) {
-    const { enviarLinkContratoInterno } = await import("@/lib/actions/contrato");
-    await enviarLinkContratoInterno(res.id);
+    try {
+      const { enviarLinkContratoInterno } = await import("@/lib/actions/contrato");
+      const mail = await enviarLinkContratoInterno(res.id);
+      if (!mail.ok) console.error("activarSolicitud/contrato", mail.error);
+    } catch (e) {
+      console.error("activarSolicitud/contrato", e);
+    }
   }
   return res;
 };
