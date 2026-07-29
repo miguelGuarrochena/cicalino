@@ -6,6 +6,7 @@ import { InstallButton } from "@/components/pwa/InstallButton";
 import { signOut } from "@/lib/auth/actions";
 import { clearSessionLocal } from "@/lib/store/session-store";
 import type { Locale } from "@/lib/i18n";
+import Link from "next/link";
 
 // Menú "···" del panel: agrupa lo secundario (idioma, tema, instalar, salir)
 // para no saturar el header. Lo operativo (fichaje, sonido, sucursal) queda
@@ -90,6 +91,29 @@ export const PanelMenu = () => {
           </button>
 
           <InstallButton className="mt-1 w-full justify-center" />
+
+          <Link
+            href="/panel/ayuda"
+            onClick={() => setOpen(false)}
+            className="mt-1 flex w-full items-center gap-2 rounded-xl px-2 py-2 text-sm text-carbon transition hover:bg-carbon/5"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            {locale === "en" ? "Help" : "Ayuda"}
+          </Link>
 
           <div className="my-1 border-t border-linea" />
 

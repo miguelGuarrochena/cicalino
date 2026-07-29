@@ -9,6 +9,7 @@ import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
+import { HelpLink } from "@/components/panel/HelpLink";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -238,9 +239,12 @@ const PanelOrdersPage = () => {
               {branchNameLabel}
             </p>
           )}
-          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-            {t("panel.titulo")}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+              {t("panel.titulo")}
+            </h1>
+            <HelpLink seccion="pedidos" />
+          </div>
           <p className="mt-1 text-sm text-carbon/55">
             {t("panel.activos", { n: activeItems.length })}
           </p>
@@ -388,10 +392,10 @@ const PanelOrdersPage = () => {
       <p className="text-center text-xs text-carbon/45">
         {t("panel.ayudaEstados")}{" "}
         <Link
-          href="/faq"
+          href="/panel/ayuda#pedidos"
           className="font-semibold text-marca underline-offset-2 hover:underline"
         >
-          {t("nav.faq")}
+          {t("nav.ayuda")}
         </Link>
       </p>
 

@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import { saveBranchConfig } from "@/lib/data/branch";
 import { syncMesas } from "@/lib/data/espera";
 import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
+import { HelpLink } from "@/components/panel/HelpLink";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { TIPO_NEGOCIO_LABEL } from "@/lib/types";
@@ -130,9 +131,12 @@ const ConfigPage = () => {
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-          {t("config.titulo")}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+            {t("config.titulo")}
+          </h1>
+          <HelpLink seccion="config" />
+        </div>
         <button
           type="button"
           onClick={() => void guardar()}

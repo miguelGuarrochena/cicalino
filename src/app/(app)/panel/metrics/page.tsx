@@ -13,6 +13,7 @@ import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { fetchMetrics, fetchEsperaMetrics, type MetricsData } from "@/lib/data/metrics";
 import { useConfigStore } from "@/lib/store/config-store";
+import { HelpLink } from "@/components/panel/HelpLink";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
 
@@ -210,10 +211,13 @@ const MetricasPage = () => {
 
       <div className="u-in flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-            {t("metricas.titulo")}
-            {tab === "espera" ? " · Espera" : ""}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+              {t("metricas.titulo")}
+              {tab === "espera" ? " · Espera" : ""}
+            </h1>
+            <HelpLink seccion="metricas" />
+          </div>
           <p className="mt-1 text-sm text-carbon/50">
             {alcance === "global"
               ? t("metricas.alcanceGlobal")

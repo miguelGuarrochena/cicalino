@@ -6,6 +6,7 @@ import { QrModal } from "@/components/panel/QrModal";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
+import { HelpLink } from "@/components/panel/HelpLink";
 import { useApp } from "@/components/providers/Providers";
 import { useEsperas } from "@/lib/hooks/useEsperas";
 import { useConfigStore } from "@/lib/store/config-store";
@@ -689,9 +690,12 @@ const EsperaPanelPage = () => {
           <p className="text-xs font-semibold uppercase tracking-wide text-espera">
             {locale === "en" ? "Table wait" : "Espera de mesa"}
           </p>
-          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-            {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+              {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
+            </h1>
+            <HelpLink seccion="espera" />
+          </div>
           <p className="mt-1 text-sm text-carbon/55">
             {cola.length}{" "}
             {locale === "en" ? "parties waiting" : "grupos esperando"}
