@@ -118,8 +118,8 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-emerald-950/80">
                   {data.enPrueba
-                    ? `Tu prueba sigue activa${data.pruebaHasta ? ` hasta el ${fecha(data.pruebaHasta)}` : ""}. Cuando termine, transferí el monto al alias.`
-                    : "Cuando veamos la transferencia, marcamos tu cuenta al día."}
+                    ? `Registramos tu aceptación. Tu prueba queda lista${data.pruebaHasta ? ` hasta el ${fecha(data.pruebaHasta)}` : ""}; te avisamos cuando la cuenta esté activa.`
+                    : "Registramos tu aceptación. Cuando veamos la transferencia, activamos tu cuenta."}
                 </p>
               </div>
             ) : (

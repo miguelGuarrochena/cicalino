@@ -99,8 +99,8 @@ export const SolicitudesPanel = () => {
                   {busy === s.id
                     ? "…"
                     : esContrato
-                      ? "Activar (pago)"
-                      : "Activar (1 mes gratis)"}
+                      ? "Preparar cuenta"
+                      : "Preparar (1 mes gratis)"}
                 </button>
                 <button
                   type="button"

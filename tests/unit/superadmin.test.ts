@@ -22,6 +22,7 @@ const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
   plan: "mensual",
   mesGratisHasta: null,
   proximoCobroEn: null,
+  contratoAceptadoEn: "2026-01-01T00:00:00Z",
   altaEn: "2026-01-01T00:00:00Z",
   sucursales: [
     {

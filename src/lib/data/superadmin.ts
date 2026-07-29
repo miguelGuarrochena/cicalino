@@ -34,6 +34,7 @@ type OrgDb = {
   plan: string | null;
   mes_gratis_hasta: string | null;
   proximo_cobro_en: string | null;
+  contrato_aceptado_en: string | null;
   creado_en: string;
   locales: BranchDb[] | null;
 };
@@ -52,6 +53,7 @@ const mapOrg = (o: OrgDb): OrganizationRow => ({
   plan: (o.plan as PlanTipo) ?? "mensual",
   mesGratisHasta: o.mes_gratis_hasta ?? null,
   proximoCobroEn: o.proximo_cobro_en ?? null,
+  contratoAceptadoEn: o.contrato_aceptado_en ?? null,
   altaEn: o.creado_en,
   sucursales: (o.locales ?? []).map((l) => ({
     id: l.id,
@@ -70,7 +72,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, creado_en, locales(id, nombre, tipo_negocio, direccion)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, creado_en, locales(id, nombre, tipo_negocio, direccion)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {

@@ -37,9 +37,15 @@ export interface OrganizationRow {
   mesGratisHasta: string | null;
   /** Próximo cobro esperado (ISO). Null = sin fecha cargada. */
   proximoCobroEn: string | null;
+  /** Cuándo el dueño aceptó bases y condiciones. Null = pendiente. */
+  contratoAceptadoEn: string | null;
   altaEn: string;
   sucursales: BranchRow[];
 }
+
+/** Todavía no aceptó las condiciones (link /aceptar). */
+export const pendienteContrato = (org: OrganizationRow): boolean =>
+  !org.contratoAceptadoEn;
 
 export type OrgInput = {
   nombre: string;
@@ -103,6 +109,7 @@ const seed = (): OrganizationRow[] => {
       plan: "mensual",
       mesGratisHasta: null,
       proximoCobroEn: dia(5),
+      contratoAceptadoEn: dia(40),
       altaEn: dia(40),
       sucursales: [
         {
@@ -139,6 +146,7 @@ const seed = (): OrganizationRow[] => {
       plan: "mensual",
       mesGratisHasta: null,
       proximoCobroEn: dia(-2),
+      contratoAceptadoEn: dia(7),
       altaEn: dia(7),
       sucursales: [
         {
@@ -197,10 +205,11 @@ export const useSuperadminStore = create<SuperadminState>()(
               duenoEmail: data.duenoEmail.trim(),
               cupo: Math.max(1, data.cupo || 1),
               pagado: true,
-              activo: true,
+              activo: false,
               plan: data.plan ?? "mensual",
               mesGratisHasta: null,
               proximoCobroEn: null,
+              contratoAceptadoEn: null,
               altaEn: new Date().toISOString(),
               sucursales: [],
             },

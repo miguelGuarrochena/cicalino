@@ -224,9 +224,9 @@ const dict = {
       orgActiva: "Empresa activada",
       orgPausada: "Empresa pausada",
       mesGratis: "Mes gratis otorgado",
-      leadActivada: "Solicitud activada · dueño invitado",
+      leadActivada: "Cuenta creada · esperando que acepte las condiciones",
       leadDescartada: "Solicitud descartada",
-      leadError: "No se pudo activar la solicitud",
+      leadError: "No se pudo preparar la solicitud",
     },
     qr: {
       titulo: "QR del pedido",
@@ -575,9 +575,9 @@ const dict = {
       orgActiva: "Company activated",
       orgPausada: "Company paused",
       mesGratis: "Free month granted",
-      leadActivada: "Lead activated · owner invited",
+      leadActivada: "Account created · waiting for terms acceptance",
       leadDescartada: "Lead dismissed",
-      leadError: "Couldn’t activate lead",
+      leadError: "Couldn’t prepare lead",
     },
     qr: {
       titulo: "Order QR",

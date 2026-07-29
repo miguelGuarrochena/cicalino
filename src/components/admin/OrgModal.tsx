@@ -10,6 +10,7 @@ import {
   cobroProximo,
   montoMensual,
   enGracia,
+  pendienteContrato,
   type OrganizationRow,
   type OrgInput,
   type BranchInput,
@@ -117,6 +118,9 @@ const fechaCorta = (iso: string): string =>
 
 /** Texto del próximo cobro según plan / cortesía / pagado. */
 const textoProximoCobro = (org: OrganizationRow): string => {
+  if (pendienteContrato(org) && !org.activo) {
+    return "Esperando que el cliente acepte las condiciones.";
+  }
   if (org.plan === "gratis") return "Sin próximo cobro (plan gratis).";
   if (enGracia(org) && org.mesGratisHasta) {
     const ciclo = org.plan === "anual" ? "anual" : "mensual";
@@ -405,6 +409,16 @@ export const OrgModal = ({
   const toggleActivo = async () => {
     if (!vista || busy) return;
     const next = !vista.activo;
+    // Override: se puede activar sin aceptación, pero con confirmación.
+    if (
+      next &&
+      pendienteContrato(vista) &&
+      !window.confirm(
+        "El cliente todavía no aceptó las condiciones. ¿Activar la cuenta de todas formas?",
+      )
+    ) {
+      return;
+    }
     setBusy(true);
     try {
       if (live) {
@@ -720,24 +734,49 @@ export const OrgModal = ({
               </div>
               <span
                 className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                  !vista.activo
-                    ? "bg-carbon/10 text-carbon/55"
-                    : enGracia(vista)
-                      ? "bg-sky-100 text-sky-800"
-                      : vista.pagado
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-red-100 text-red-600"
+                  pendienteContrato(vista) && !vista.activo
+                    ? "bg-amber-100 text-amber-800"
+                    : !vista.activo
+                      ? "bg-carbon/10 text-carbon/55"
+                      : enGracia(vista)
+                        ? "bg-sky-100 text-sky-800"
+                        : vista.pagado
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-red-100 text-red-600"
                 }`}
               >
-                {!vista.activo
-                  ? "Pausada"
-                  : enGracia(vista)
-                    ? "En prueba"
-                    : vista.pagado
-                      ? "Pagado"
-                      : "Impago"}
+                {pendienteContrato(vista) && !vista.activo
+                  ? "Esperando condiciones"
+                  : !vista.activo
+                    ? vista.contratoAceptadoEn
+                      ? "Lista para activar"
+                      : "Pausada"
+                    : enGracia(vista)
+                      ? "En prueba"
+                      : vista.pagado
+                        ? "Pagado"
+                        : "Impago"}
               </span>
             </div>
+
+            {pendienteContrato(vista) && (
+              <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+                Esperando que el cliente acepte las condiciones.
+                {!vista.activo
+                  ? " La cuenta queda bloqueada hasta que acepte, o hasta que la actives vos acá (eligiendo el plan)."
+                  : " Ya está activa (override manual)."}
+              </p>
+            )}
+
+            {!pendienteContrato(vista) && !vista.activo && (
+              <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-100">
+                Condiciones aceptadas
+                {vista.contratoAceptadoEn
+                  ? ` el ${fechaCorta(vista.contratoAceptadoEn)}`
+                  : ""}
+                . Podés activar la cuenta cuando quieras.
+              </p>
+            )}
 
             {enGracia(vista) && vista.mesGratisHasta && (
               <p className="mt-3 rounded-xl bg-sky-50 px-3 py-2 text-xs font-medium text-sky-900 dark:bg-sky-500/10 dark:text-sky-100">

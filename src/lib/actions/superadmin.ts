@@ -66,6 +66,8 @@ const crearOrganizacionValidada = async (
     };
   }
 
+  // Queda inactiva hasta que el cliente acepte condiciones (o el
+  // superadmin la active a mano desde el popup).
   const { data: org, error } = await admin
     .from("organizaciones")
     .insert({
@@ -77,6 +79,7 @@ const crearOrganizacionValidada = async (
       dueno_email: data.duenoEmail,
       cupo: data.cupo,
       plan: data.plan,
+      activo: false,
       mes_gratis_hasta: mesGratisHasta,
       proximo_cobro_en: proximoCobroEn,
     })
@@ -329,8 +332,9 @@ export const listarSolicitudes = async (): Promise<Solicitud[]> => {
   return (data ?? []) as Solicitud[];
 };
 
-// Activa una solicitud: crea la organización con 1 mes gratis + invita al dueño,
-// y marca la solicitud como atendida.
+// Atiende una solicitud: crea la org (inactiva), invita al dueño, manda el
+// link de condiciones. La cuenta queda esperando aceptación (o activación
+// manual del superadmin desde el popup).
 export const activarSolicitud = async (id: string): Promise<Resultado> => {
   const perfil = await getPerfilActual();
   if (!perfil || perfil.rol !== "superadmin") {

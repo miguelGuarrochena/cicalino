@@ -6,6 +6,7 @@ import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
   monthlyCharge,
+  pendienteContrato,
   type OrganizationRow,
 } from "@/lib/store/superadmin-store";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -221,15 +222,25 @@ const SuperadminPage = () => {
                   </p>
                   <p className="text-[10px] text-carbon/45">{t("super.cobro")}</p>
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                    o.pagado
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-red-100 text-red-600"
-                  }`}
-                >
-                  {o.pagado ? t("super.pagado") : t("super.impago")}
-                </span>
+                {pendienteContrato(o) && !o.activo ? (
+                  <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                    Esperando condiciones
+                  </span>
+                ) : !o.activo && o.contratoAceptadoEn ? (
+                  <span className="rounded-full bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-800">
+                    Lista para activar
+                  </span>
+                ) : (
+                  <span
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                      o.pagado
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-red-100 text-red-600"
+                    }`}
+                  >
+                    {o.pagado ? t("super.pagado") : t("super.impago")}
+                  </span>
+                )}
                 <span className="text-carbon/30">→</span>
               </div>
             </button>
