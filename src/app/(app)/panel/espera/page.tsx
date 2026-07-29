@@ -1111,18 +1111,28 @@ const EsperaPanelPage = () => {
           busy={creating}
           busyLabel={locale === "en" ? "Creating…" : "Creando…"}
           footer={
-            <button
-              type="button"
-              disabled={creating}
-              onClick={() => void onCrear()}
-              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
-            >
-              {creating
-                ? "…"
-                : locale === "en"
-                  ? "Create & show QR"
-                  : "Crear y mostrar QR"}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => void onCrear()}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
+              >
+                {creating
+                  ? "…"
+                  : locale === "en"
+                    ? "Create & show QR"
+                    : "Crear y mostrar QR"}
+              </button>
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => setCreateOpen(false)}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-60"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -1173,18 +1183,28 @@ const EsperaPanelPage = () => {
           busy={creatingReserva}
           busyLabel={locale === "en" ? "Saving…" : "Guardando…"}
           footer={
-            <button
-              type="button"
-              disabled={creatingReserva || !mesasLibresParaReserva.length}
-              onClick={() => void onCrearReserva()}
-              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
-            >
-              {creatingReserva
-                ? "…"
-                : locale === "en"
-                  ? "Save reservation"
-                  : "Guardar reserva"}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={creatingReserva || !mesasLibresParaReserva.length}
+                onClick={() => void onCrearReserva()}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
+              >
+                {creatingReserva
+                  ? "…"
+                  : locale === "en"
+                    ? "Save reservation"
+                    : "Guardar reserva"}
+              </button>
+              <button
+                type="button"
+                disabled={creatingReserva}
+                onClick={() => setReservaOpen(false)}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-60"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -1420,33 +1440,45 @@ const EsperaPanelPage = () => {
           }}
           labelledBy="sentar-title"
           footer={
-            <button
-              type="button"
-              disabled={
-                !sentarMesas.length ||
-                mesas
-                  .filter((m) => sentarMesas.includes(m.numero))
-                  .reduce((s, m) => s + (m.capacidad ?? 4), 0) <
-                  (sentarEspera?.personas ?? 1)
-              }
-              onClick={() => {
-                if (!sentarId || !sentarMesas.length) return;
-                void sentar(sentarId, sentarMesas).then(() => {
-                  const label = sentarMesas.join("+");
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={
+                  !sentarMesas.length ||
+                  mesas
+                    .filter((m) => sentarMesas.includes(m.numero))
+                    .reduce((s, m) => s + (m.capacidad ?? 4), 0) <
+                    (sentarEspera?.personas ?? 1)
+                }
+                onClick={() => {
+                  if (!sentarId || !sentarMesas.length) return;
+                  void sentar(sentarId, sentarMesas).then(() => {
+                    const label = sentarMesas.join("+");
+                    setSentarId(null);
+                    setSentarMesas([]);
+                    toast(
+                      locale === "en"
+                        ? `Seated at table ${label}`
+                        : `Sentados en mesa ${label}`,
+                      "success",
+                    );
+                  });
+                }}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-40"
+              >
+                {locale === "en" ? "Confirm seat" : "Confirmar asiento"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setSentarId(null);
                   setSentarMesas([]);
-                  toast(
-                    locale === "en"
-                      ? `Seated at table ${label}`
-                      : `Sentados en mesa ${label}`,
-                    "success",
-                  );
-                });
-              }}
-              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-40"
-            >
-              {locale === "en" ? "Confirm seat" : "Confirmar asiento"}
-            </button>
+                }}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -1582,23 +1614,32 @@ const EsperaPanelPage = () => {
           onClose={() => setLiberarNumero(null)}
           labelledBy="liberar-title"
           footer={
-            <button
-              type="button"
-              onClick={() => {
-                void liberarMesa(liberarNumero).then(() => {
-                  setLiberarNumero(null);
-                  toast(
-                    locale === "en"
-                      ? `Table ${liberarNumero} free`
-                      : `Mesa ${liberarNumero} libre`,
-                    "success",
-                  );
-                });
-              }}
-              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
-            >
-              {locale === "en" ? "Yes, free it" : "Sí, liberar"}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void liberarMesa(liberarNumero).then(() => {
+                    setLiberarNumero(null);
+                    toast(
+                      locale === "en"
+                        ? `Table ${liberarNumero} free`
+                        : `Mesa ${liberarNumero} libre`,
+                      "success",
+                    );
+                  });
+                }}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+              >
+                {locale === "en" ? "Yes, free it" : "Sí, liberar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLiberarNumero(null)}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -1648,25 +1689,34 @@ const EsperaPanelPage = () => {
           onClose={() => setEditCapacidadNumero(null)}
           labelledBy="capacidad-title"
           footer={
-            <button
-              type="button"
-              onClick={() => {
-                void setCapacidad(editCapacidadNumero, editCapacidadValue).then(
-                  () => {
-                    setEditCapacidadNumero(null);
-                    toast(
-                      locale === "en"
-                        ? `Table ${editCapacidadNumero}: ${editCapacidadValue} seats`
-                        : `Mesa ${editCapacidadNumero}: ${editCapacidadValue} plazas`,
-                      "success",
-                    );
-                  },
-                );
-              }}
-              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
-            >
-              {locale === "en" ? "Save" : "Guardar"}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void setCapacidad(editCapacidadNumero, editCapacidadValue).then(
+                    () => {
+                      setEditCapacidadNumero(null);
+                      toast(
+                        locale === "en"
+                          ? `Table ${editCapacidadNumero}: ${editCapacidadValue} seats`
+                          : `Mesa ${editCapacidadNumero}: ${editCapacidadValue} plazas`,
+                        "success",
+                      );
+                    },
+                  );
+                }}
+                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+              >
+                {locale === "en" ? "Save" : "Guardar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditCapacidadNumero(null)}
+                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
           }
         >
           <div className="flex items-start justify-between gap-3">

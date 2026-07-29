@@ -415,14 +415,38 @@ const PanelOrdersPage = () => {
           labelledBy="nuevo-pedido"
           busy={creating}
           footer={
-            <button
-              type="button"
-              disabled={creating}
-              onClick={() => void confirmarCrear()}
-              className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema disabled:opacity-60"
-            >
-              {creating ? "…" : t("panel.crearYQr")}
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => void confirmarCrear()}
+                className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema disabled:opacity-60 sm:flex-1"
+              >
+                {creating ? "…" : t("panel.crearYQr")}
+              </button>
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => {
+                  if (creating) return;
+                  if (refDraft.trim()) {
+                    if (
+                      !window.confirm(
+                        locale === "en"
+                          ? "Discard without creating the order?"
+                          : "¿Salir sin crear el pedido?",
+                      )
+                    ) {
+                      return;
+                    }
+                  }
+                  setCrearOpen(false);
+                }}
+                className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50 sm:flex-1"
+              >
+                {locale === "en" ? "Cancel" : "Cancelar"}
+              </button>
+            </div>
           }
         >
           <div className="flex items-start justify-between gap-3">

@@ -638,14 +638,24 @@ export const OrgModal = ({
             Hay cambios sin guardar
           </p>
         ) : null}
-        <button
-          type="button"
-          onClick={() => void guardar()}
-          disabled={saving || (mode === "editar" && !dirty)}
-          className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50"
-        >
-          {saving ? "Guardando…" : t("super.guardar")}
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => void guardar()}
+            disabled={saving || (mode === "editar" && !dirty)}
+            className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50 sm:flex-1"
+          >
+            {saving ? "Guardando…" : t("super.guardar")}
+          </button>
+          <button
+            type="button"
+            onClick={intentarSalirForm}
+            disabled={saving}
+            className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-50 sm:flex-1"
+          >
+            {t("super.cancelar")}
+          </button>
+        </div>
       </div>
     )
   ) : undefined;

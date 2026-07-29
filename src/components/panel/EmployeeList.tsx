@@ -128,14 +128,24 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
                 Completá y tocá Agregar para guardar
               </p>
             ) : null}
-            <button
-              type="button"
-              onClick={() => void guardar()}
-              disabled={saving}
-              className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
-            >
-              {saving ? "…" : t("config.guardarEmp")}
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => void guardar()}
+                disabled={saving}
+                className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60 sm:flex-1"
+              >
+                {saving ? "…" : t("config.guardarEmp")}
+              </button>
+              <button
+                type="button"
+                onClick={intentarCerrar}
+                disabled={saving}
+                className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50 sm:flex-1"
+              >
+                {t("super.cancelar")}
+              </button>
+            </div>
           </div>
         )
       }
