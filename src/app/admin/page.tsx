@@ -121,6 +121,9 @@ const SuperadminPage = () => {
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
+      <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
+        Superadmin
+      </p>
       {!syncReady && (
         <div
           className="flex items-center justify-center gap-2 rounded-2xl border border-linea bg-surface px-4 py-3 text-sm font-medium text-carbon/60"
