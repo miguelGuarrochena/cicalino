@@ -35,17 +35,17 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     <Ctx.Provider value={{ toast }}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-24 z-[220] flex flex-col items-center gap-2 px-4 sm:bottom-6"
+        className="pointer-events-none fixed inset-x-0 top-[4.25rem] z-[220] flex flex-col items-center gap-2 px-4 sm:top-[4.75rem]"
         role="region"
         aria-live="polite"
       >
         {items.map((t) => (
           <div
             key={t.id}
-            className="u-pop pointer-events-auto flex max-w-sm items-center gap-2.5 rounded-full border border-linea bg-surface px-4 py-2.5 text-sm font-medium text-carbon shadow-lg"
+            className="u-pop pointer-events-auto flex max-w-sm items-center gap-2.5 rounded-2xl border border-linea bg-crema/95 px-4 py-3 text-sm font-medium text-carbon shadow-lg backdrop-blur-md"
           >
-            <span className={`size-2 shrink-0 rounded-full ${DOT[t.kind]}`} />
-            <span className="truncate">{t.msg}</span>
+            <span className={`size-2.5 shrink-0 rounded-full ${DOT[t.kind]}`} />
+            <span className="leading-snug">{t.msg}</span>
           </div>
         ))}
       </div>
