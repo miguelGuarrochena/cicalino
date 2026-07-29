@@ -28,6 +28,13 @@ interface EsperaState {
   ) => void;
   liberarMesa: (numero: number) => void;
   ocuparMesa: (numero: number, esperaId: string) => void;
+  /** Walk-in: marca mesas ocupadas y deja un registro sentado (sin cola/QR). */
+  ocuparWalkIn: (args: {
+    mesaNumeros: number[];
+    nombre?: string;
+    personas?: number;
+    empleado?: string | null;
+  }) => EsperaView | null;
   setCapacidad: (numero: number, capacidad: number) => void;
   agregarReserva: (args: {
     nombre: string;
@@ -260,6 +267,53 @@ export const useEsperaStore = create<EsperaState>()(
               : m,
           ),
         })),
+
+      ocuparWalkIn: ({
+        mesaNumeros,
+        nombre,
+        personas,
+        empleado = null,
+      }) => {
+        const nums = [...new Set(mesaNumeros)]
+          .filter((n) => n >= 1)
+          .sort((a, b) => a - b);
+        if (!nums.length) return null;
+        const pick = get().mesas.filter((m) => nums.includes(m.numero));
+        if (pick.length !== nums.length) return null;
+        if (pick.some((m) => m.estado !== "libre")) return null;
+        const cap = pick.reduce((s, m) => s + (m.capacidad ?? 4), 0);
+        const now = new Date().toISOString();
+        const primaria = nums[0];
+        const e: EsperaView = {
+          id: crypto.randomUUID(),
+          nombre: (nombre ?? "").trim() || "Walk-in",
+          personas: Math.max(1, personas ?? cap),
+          estado: "sentado",
+          mesaNumero: primaria,
+          qrToken: crypto.randomUUID(),
+          creadoEn: now,
+          avisadoEn: null,
+          sentadoEn: now,
+          canceladoEn: null,
+          vistoEn: null,
+          empleado,
+        };
+        const setNums = new Set(nums);
+        set((s) => ({
+          esperas: [e, ...s.esperas],
+          mesas: s.mesas.map((m) =>
+            setNums.has(m.numero)
+              ? {
+                  ...m,
+                  estado: "ocupada" as const,
+                  esperaId: e.id,
+                  reservaId: null,
+                }
+              : m,
+          ),
+        }));
+        return e;
+      },
 
       setCapacidad: (numero, capacidad) =>
         set((s) => ({

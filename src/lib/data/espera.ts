@@ -410,6 +410,98 @@ export const insertReserva = async (args: {
   return reserva;
 };
 
+/** Walk-in: ocupa mesas ya, sin cola ni QR (queda sentado vinculado a las mesas). */
+export const ocuparMesasWalkIn = async (args: {
+  branchId: string;
+  mesaNumeros: number[];
+  nombre?: string;
+  personas?: number;
+  employeeId?: string | null;
+}): Promise<EsperaView | null> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return null;
+  const nums = [...new Set(args.mesaNumeros)]
+    .filter((n) => n >= 1)
+    .sort((a, b) => a - b);
+  if (!nums.length) return null;
+
+  const { data: mesasRows } = await supabase
+    .from("mesas")
+    .select(SELECT_MESA)
+    .eq("local_id", args.branchId)
+    .in("numero", nums);
+  const mesasPick = ((mesasRows as MesaRow[] | null) ?? []).map(mapMesa);
+  if (mesasPick.length !== nums.length) {
+    console.error("ocuparMesasWalkIn: mesa inexistente");
+    return null;
+  }
+  if (mesasPick.some((m) => m.estado !== "libre")) {
+    console.error("ocuparMesasWalkIn: mesa no libre");
+    return null;
+  }
+  const cap = mesasPick.reduce((s, m) => s + m.capacidad, 0);
+  const personas = Math.max(1, Math.min(50, args.personas ?? cap));
+  const nombre = (args.nombre ?? "").trim().slice(0, 80) || "Walk-in";
+  const primaria = nums[0];
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("esperas")
+    .insert({
+      local_id: args.branchId,
+      nombre,
+      personas,
+      estado: "sentado",
+      mesa_numero: primaria,
+      empleado_id: args.employeeId ?? null,
+      qr_token: crypto.randomUUID(),
+      qr_expira_en: finDelDia(),
+      sentado_en: now,
+    })
+    .select(SELECT_ESPERA)
+    .single();
+  if (error) {
+    console.error("ocuparMesasWalkIn", error.message);
+    return null;
+  }
+  const espera = mapEspera(data as unknown as EsperaRow);
+  const marcadas: number[] = [];
+  for (const n of nums) {
+    const { error: mesaErr, data: updated } = await supabase
+      .from("mesas")
+      .update({
+        estado: "ocupada",
+        espera_id: espera.id,
+        reserva_id: null,
+        actualizado_en: now,
+      })
+      .eq("local_id", args.branchId)
+      .eq("numero", n)
+      .eq("estado", "libre")
+      .select("id")
+      .maybeSingle();
+    if (mesaErr || !updated) {
+      console.error("ocuparMesasWalkIn mesa", mesaErr?.message ?? "no libre");
+      if (marcadas.length) {
+        await supabase
+          .from("mesas")
+          .update({
+            estado: "libre",
+            espera_id: null,
+            actualizado_en: now,
+          })
+          .eq("local_id", args.branchId)
+          .in("numero", marcadas)
+          .eq("espera_id", espera.id);
+      }
+      await supabase.from("esperas").delete().eq("id", espera.id);
+      return null;
+    }
+    marcadas.push(n);
+  }
+  return espera;
+};
+
 export const updateEsperaStatus = async (
   id: string,
   estado: EsperaStatus,

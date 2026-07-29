@@ -13,6 +13,7 @@ import {
   attachMesasAReservas,
   insertEspera,
   insertReserva,
+  ocuparMesasWalkIn,
   updateEsperaStatus,
   updateReservaStatus,
   setMesaEstado,
@@ -50,6 +51,12 @@ export interface UseEsperas {
   sentarReserva: (id: string) => Promise<void>;
   cancelarReserva: (id: string) => Promise<void>;
   liberarMesa: (numero: number) => Promise<void>;
+  ocuparMesas: (args: {
+    mesaNumeros: number[];
+    nombre?: string;
+    personas?: number;
+    employee?: EmployeeRef;
+  }) => Promise<EsperaView | null>;
   setCapacidad: (numero: number, capacidad: number) => Promise<void>;
   /** Reaplica cantidad_mesas de config al mapa (tras Guardar). */
   sincronizarCantidadMesas: () => Promise<void>;
@@ -72,6 +79,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
   const demoSentarReserva = useEsperaStore((s) => s.sentarReserva);
   const demoCancelarReserva = useEsperaStore((s) => s.cancelarReserva);
   const demoExpirar = useEsperaStore((s) => s.expirarReservasDemo);
+  const demoWalkIn = useEsperaStore((s) => s.ocuparWalkIn);
 
   const [liveEsperas, setLiveEsperas] = useState<EsperaView[]>([]);
   const [liveMesas, setLiveMesas] = useState<MesaView[]>([]);
@@ -330,6 +338,31 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     await reload();
   };
 
+  const ocuparMesas = async (args: {
+    mesaNumeros: number[];
+    nombre?: string;
+    personas?: number;
+    employee?: EmployeeRef;
+  }) => {
+    if (!live || !branchId) {
+      return demoWalkIn({
+        mesaNumeros: args.mesaNumeros,
+        nombre: args.nombre,
+        personas: args.personas,
+        empleado: args.employee?.nombre ?? null,
+      });
+    }
+    const created = await ocuparMesasWalkIn({
+      branchId,
+      mesaNumeros: args.mesaNumeros,
+      nombre: args.nombre,
+      personas: args.personas,
+      employeeId: args.employee?.id,
+    });
+    await reload();
+    return created;
+  };
+
   return {
     esperas: live ? liveEsperas : demoEsperas,
     mesas: live ? liveMesas : demoMesas,
@@ -344,6 +377,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     sentarReserva,
     cancelarReserva,
     liberarMesa,
+    ocuparMesas,
     setCapacidad,
     sincronizarCantidadMesas,
   };
