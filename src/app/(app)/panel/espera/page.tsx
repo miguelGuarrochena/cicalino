@@ -16,6 +16,7 @@ import {
   ETIQUETA_RESERVA,
   esperaClosed,
   labelMesas,
+  tituloMesas,
   type EsperaView,
   type ReservaView,
 } from "@/lib/types";
@@ -550,6 +551,10 @@ const EsperaPanelPage = () => {
         ? [liberarNumero]
         : [];
   const liberarGrupoLabel = labelMesas(liberarGrupoMesas);
+  const liberarGrupoTitulo = tituloMesas(
+    liberarGrupoMesas,
+    locale === "en" ? "en" : "es",
+  );
   const liberarTieneGrupo = liberarGrupoMesas.length > 1;
   const CAPACIDADES_RAPIDAS = [2, 4, 6, 8, 10] as const;
 
@@ -647,11 +652,11 @@ const EsperaPanelPage = () => {
         setReservaMesas([]);
         setReservaHorario(defaultHorarioInput());
         setReservaGracia(15);
-        const label = labelMesas(created.mesasNumeros);
+        const label = tituloMesas(created.mesasNumeros, locale === "en" ? "en" : "es");
         toast(
           locale === "en"
-            ? `Table ${label} reserved`
-            : `Mesa ${label} reservada`,
+            ? `${label} reserved`
+            : `${label} reservada`,
           "success",
         );
       } else {
@@ -940,8 +945,10 @@ const EsperaPanelPage = () => {
                       {ETIQUETA_RESERVA[r.estado]}
                     </span>
                     <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
-                      {locale === "en" ? "Table" : "Mesa"}{" "}
-                      {labelMesas(r.mesasNumeros ?? [r.mesaNumero])}
+                      {tituloMesas(
+                        r.mesasNumeros ?? [r.mesaNumero],
+                        locale === "en" ? "en" : "es",
+                      )}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-carbon/55">
@@ -958,8 +965,8 @@ const EsperaPanelPage = () => {
                       void sentarReserva(r.id).then(() =>
                         toast(
                           locale === "en"
-                            ? `Seated at table ${labelMesas(r.mesasNumeros ?? [r.mesaNumero])}`
-                            : `Sentados en mesa ${labelMesas(r.mesasNumeros ?? [r.mesaNumero])}`,
+                            ? `Seated at ${tituloMesas(r.mesasNumeros ?? [r.mesaNumero], "en")}`
+                            : `Sentados en ${tituloMesas(r.mesasNumeros ?? [r.mesaNumero], "es")}`,
                           "success",
                         ),
                       );
@@ -1331,8 +1338,8 @@ const EsperaPanelPage = () => {
               ) : reservaMesasOk ? (
                 <p className="mb-3 text-sm font-semibold text-espera">
                   {locale === "en"
-                    ? `${reservaCapSeleccionada} / ${reservaPersonas} seats · tables ${labelMesas(reservaMesas)}`
-                    : `${reservaCapSeleccionada} / ${reservaPersonas} plazas · mesas ${labelMesas(reservaMesas)}`}
+                    ? `${reservaCapSeleccionada} / ${reservaPersonas} seats · ${tituloMesas(reservaMesas, "en")}`
+                    : `${reservaCapSeleccionada} / ${reservaPersonas} plazas · ${tituloMesas(reservaMesas, "es")}`}
                 </p>
               ) : (
                 <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
@@ -1488,8 +1495,8 @@ const EsperaPanelPage = () => {
           </h2>
           <p className="mt-2 text-sm text-carbon/60">
             {locale === "en"
-              ? `Table ${labelMesas(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero])} · ${confirmCancelReserva.nombre} will be freed.`
-              : `Mesa ${labelMesas(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero])} · ${confirmCancelReserva.nombre} se libera.`}
+              ? `${tituloMesas(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero], "en")} · ${confirmCancelReserva.nombre} will be freed.`
+              : `${tituloMesas(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero], "es")} · ${confirmCancelReserva.nombre} se libera.`}
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <button
@@ -1534,13 +1541,16 @@ const EsperaPanelPage = () => {
                 onClick={() => {
                   if (!sentarId || !sentarMesas.length) return;
                   void sentar(sentarId, sentarMesas).then(() => {
-                    const label = sentarMesas.join("+");
+                    const titulo = tituloMesas(
+                      sentarMesas,
+                      locale === "en" ? "en" : "es",
+                    );
                     setSentarId(null);
                     setSentarMesas([]);
                     toast(
                       locale === "en"
-                        ? `Seated at table ${label}`
-                        : `Sentados en mesa ${label}`,
+                        ? `Seated at ${titulo}`
+                        : `Sentados en ${titulo}`,
                       "success",
                     );
                   });
@@ -1601,8 +1611,8 @@ const EsperaPanelPage = () => {
                   : `${selectedCap} / ${need} plazas elegidas`}
                 {sentarMesas.length > 1
                   ? locale === "en"
-                    ? ` · tables ${sentarMesas.join("+")}`
-                    : ` · mesas ${sentarMesas.join("+")}`
+                    ? ` · ${tituloMesas(sentarMesas, "en")}`
+                    : ` · ${tituloMesas(sentarMesas, "es")}`
                   : ""}
               </p>
             );
@@ -1722,7 +1732,10 @@ const EsperaPanelPage = () => {
                         );
                         return;
                       }
-                      const label = labelMesas(ocuparMesasSel);
+                      const titulo = tituloMesas(
+                        ocuparMesasSel,
+                        locale === "en" ? "en" : "es",
+                      );
                       setOcuparOpen(false);
                       setOcuparNombre("");
                       setOcuparMesasSel([]);
@@ -1730,8 +1743,8 @@ const EsperaPanelPage = () => {
                       setOcuparPersonas(2);
                       toast(
                         locale === "en"
-                          ? `Seated at ${label}`
-                          : `Ocupada mesa ${label}`,
+                          ? `Seated at ${titulo}`
+                          : `Ocupada ${titulo}`,
                         "success",
                       );
                     })
@@ -1836,8 +1849,10 @@ const EsperaPanelPage = () => {
             }`}
           >
             <p className="text-sm font-semibold text-carbon">
-              {locale === "en" ? "Tables" : "Mesas"}{" "}
-              {labelMesas(ocuparMesasSel)}
+              {tituloMesas(
+                ocuparMesasSel,
+                locale === "en" ? "en" : "es",
+              )}
               <span className="font-normal text-carbon/55">
                 {" "}
                 · {ocuparCap}/{ocuparPersonas}{" "}
@@ -1934,8 +1949,8 @@ const EsperaPanelPage = () => {
                         setLiberarNumero(null);
                         toast(
                           locale === "en"
-                            ? `Tables ${liberarGrupoLabel} free`
-                            : `Mesas ${liberarGrupoLabel} libres`,
+                            ? `${liberarGrupoTitulo} free`
+                            : `${liberarGrupoTitulo} libres`,
                           "success",
                         );
                       });
@@ -2047,8 +2062,8 @@ const EsperaPanelPage = () => {
               <p className="mt-2 text-sm text-carbon/55">
                 {liberarTieneGrupo
                   ? locale === "en"
-                    ? `Joined tables ${liberarGrupoLabel}. Free all, or only this one if the party got smaller.`
-                    : `Mesas juntas ${liberarGrupoLabel}. Liberá todas, o solo esta si el grupo se achicó.`
+                    ? `${liberarGrupoTitulo} joined. Free all, or only this one if the party got smaller.`
+                    : `${liberarGrupoTitulo} juntas. Liberá todas, o solo esta si el grupo se achicó.`
                   : locale === "en"
                     ? "Marks the table as free again."
                     : "La mesa vuelve a quedar libre."}

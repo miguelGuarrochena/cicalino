@@ -150,8 +150,22 @@ export const esperaClosed = (status: EsperaStatus): boolean =>
 export const reservaClosed = (status: ReservaStatus): boolean =>
   status === "sentada" || status === "cancelada" || status === "expirada";
 
-/** Etiqueta corta: "3" o "1+5". */
+/** Números: "8" o "8 + 5". */
 export const labelMesas = (nums: number[]): string => {
   const sorted = [...new Set(nums)].filter((n) => n >= 1).sort((a, b) => a - b);
-  return sorted.join("+") || "—";
+  return sorted.join(" + ") || "—";
+};
+
+/** Título: "Mesa 8" / "Mesas 8 + 5" (o Table/Tables en EN). */
+export const tituloMesas = (
+  nums: number[],
+  locale: "es" | "en" = "es",
+): string => {
+  const sorted = [...new Set(nums)].filter((n) => n >= 1).sort((a, b) => a - b);
+  const label = sorted.join(" + ");
+  if (!sorted.length) return locale === "en" ? "Table" : "Mesa";
+  if (sorted.length === 1) {
+    return locale === "en" ? `Table ${label}` : `Mesa ${label}`;
+  }
+  return locale === "en" ? `Tables ${label}` : `Mesas ${label}`;
 };
