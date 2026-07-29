@@ -6,10 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useEsperaStore } from "@/lib/store/espera-store";
-import {
-  useEsperaAlertsStore,
-  staffEsperaCancelIds,
-} from "@/lib/store/espera-alerts-store";
+import { staffEsperaCancelIds } from "@/lib/store/espera-alerts-store";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isRealBranchId } from "@/lib/data/orders";
@@ -29,20 +26,10 @@ const announce = (args: {
   fromGuest: boolean;
   toast: (msg: string, kind?: "info" | "success" | "error") => void;
   locale: string;
-  pushCancel: (a: {
-    id: string;
-    nombre: string;
-    fromGuest: boolean;
-  }) => void;
   seen: Set<string>;
 }) => {
   if (args.seen.has(args.id)) return;
   args.seen.add(args.id);
-  args.pushCancel({
-    id: args.id,
-    nombre: args.nombre,
-    fromGuest: args.fromGuest,
-  });
   if (args.fromGuest) {
     dingCancelado();
     args.toast(
@@ -62,7 +49,7 @@ const announce = (args: {
 };
 
 /**
- * Cancelaciones de espera en todo el panel.
+ * Cancelaciones de espera en todo el panel (toast + sonido).
  * Instantáneo vía broadcast; postgres + poll como respaldo.
  */
 export const useEsperaCancelWatch = () => {
@@ -70,7 +57,6 @@ export const useEsperaCancelWatch = () => {
   const toast = useToast();
   const branchId = useSessionStore((s) => s.sucursalId);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
-  const pushCancel = useEsperaAlertsStore((s) => s.pushCancel);
   const live = Boolean(
     supabaseConfigurado && branchId && isRealBranchId(branchId),
   );
@@ -103,7 +89,6 @@ export const useEsperaCancelWatch = () => {
             fromGuest: !fromStaff,
             toast,
             locale,
-            pushCancel,
             seen: seen.current,
           });
         }
@@ -137,7 +122,6 @@ export const useEsperaCancelWatch = () => {
       if (!active) return;
       const next = new Map(rows.map((e) => [e.id, e.estado]));
       if (!ready.current) {
-        // Ya cancelados al abrir: no avisar, solo recordar.
         for (const e of rows) {
           if (e.estado === "cancelado") seen.current.add(e.id);
         }
@@ -157,7 +141,6 @@ export const useEsperaCancelWatch = () => {
           fromGuest: !fromStaff,
           toast,
           locale,
-          pushCancel,
           seen: seen.current,
         });
       }
@@ -189,10 +172,8 @@ export const useEsperaCancelWatch = () => {
             fromGuest: true,
             toast,
             locale,
-            pushCancel,
             seen: seen.current,
           });
-          // Refrescar lista en segundo plano.
           void tick();
         },
       )
@@ -204,5 +185,5 @@ export const useEsperaCancelWatch = () => {
       unsubPg();
       if (supabase && broadcastCh) void supabase.removeChannel(broadcastCh);
     };
-  }, [moduloEspera, branchId, live, toast, locale, pushCancel]);
+  }, [moduloEspera, branchId, live, toast, locale]);
 };
