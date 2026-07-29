@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { SiteFooter } from "@/components/ui/SiteFooter";
+import { MascotLoader } from "@/components/ui/MascotLoader";
 import {
   aceptarContrato,
   obtenerContratoPorToken,
@@ -80,7 +81,7 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
 
       <main className="mx-auto w-full max-w-md flex-1 px-5 py-10">
         {data === undefined ? (
-          <p className="text-center text-sm text-carbon/50">Cargando…</p>
+          <MascotLoader className="h-20" />
         ) : data === null ? (
           <div className="text-center">
             <h1 className="font-display text-3xl uppercase tracking-tight text-marca">

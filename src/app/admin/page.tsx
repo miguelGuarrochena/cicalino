@@ -20,6 +20,7 @@ import { asegurarOrgDemo } from "@/lib/actions/superadmin";
 import { refreshOrganizations } from "@/lib/data/superadmin";
 import { useToast } from "@/components/ui/Toast";
 import { Spinner } from "@/components/ui/Spinner";
+import { MascotLoader } from "@/components/ui/MascotLoader";
 
 const PAGE_SIZE = 8;
 
@@ -156,11 +157,10 @@ const SuperadminPage = () => {
       </p>
       {!syncReady && (
         <div
-          className="flex items-center justify-center gap-2 rounded-2xl border border-linea bg-surface px-4 py-3 text-sm font-medium text-carbon/60"
+          className="flex items-center justify-center rounded-2xl border border-linea bg-surface px-4 py-8"
           role="status"
         >
-          <Spinner className="size-4" />
-          Cargando empresas…
+          <MascotLoader className="h-16" label="Cargando empresas…" />
         </div>
       )}
 
@@ -177,7 +177,7 @@ const SuperadminPage = () => {
           >
             {abriendoDemo ? (
               <>
-                <Spinner className="size-3.5" />
+                <Spinner className="size-3.5" inline />
                 {t("super.abriendoDemo")}
               </>
             ) : (

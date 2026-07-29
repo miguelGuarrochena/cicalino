@@ -178,7 +178,7 @@ export const PedirSucursalCard = () => {
             >
               {busy ? (
                 <>
-                  <Spinner className="mr-2 size-4 border-crema border-r-transparent" />
+                  <Spinner className="mr-2 size-4 border-crema border-r-transparent" inline />
                   Enviando…
                 </>
               ) : (

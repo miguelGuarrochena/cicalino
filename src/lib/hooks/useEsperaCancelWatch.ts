@@ -6,8 +6,12 @@ import { useToast } from "@/components/ui/Toast";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useEsperaStore } from "@/lib/store/espera-store";
-import { useEsperaAlertsStore, staffEsperaCancelIds } from "@/lib/store/espera-alerts-store";
+import {
+  useEsperaAlertsStore,
+  staffEsperaCancelIds,
+} from "@/lib/store/espera-alerts-store";
 import { supabaseConfigurado } from "@/lib/supabase/config";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isRealBranchId } from "@/lib/data/orders";
 import {
   fetchTodayEsperas,
@@ -16,53 +20,50 @@ import {
 import { dingCancelado } from "@/lib/sound";
 import type { EsperaStatus } from "@/lib/types";
 
-const POLL_MS = 4000;
+/** Backup si falla el broadcast (realtime postgres). */
+const POLL_MS = 15_000;
 
-const noteCancels = (
-  rows: { id: string; nombre: string; estado: EsperaStatus }[],
-  prev: Map<string, EsperaStatus>,
-  opts: {
-    toast: (msg: string, kind?: "info" | "success" | "error") => void;
-    locale: string;
-    pushCancel: (a: {
-      id: string;
-      nombre: string;
-      fromGuest: boolean;
-    }) => void;
-  },
-) => {
-  for (const e of rows) {
-    const before = prev.get(e.id);
-    if (!before || before === "cancelado" || e.estado !== "cancelado") continue;
-    const fromStaff = staffEsperaCancelIds.has(e.id);
-    staffEsperaCancelIds.delete(e.id);
-    opts.pushCancel({
-      id: e.id,
-      nombre: e.nombre,
-      fromGuest: !fromStaff,
-    });
-    if (fromStaff) {
-      opts.toast(
-        opts.locale === "en"
-          ? `Cancelled: ${e.nombre}`
-          : `Cancelado: ${e.nombre}`,
-        "info",
-      );
-    } else {
-      dingCancelado();
-      opts.toast(
-        opts.locale === "en"
-          ? `${e.nombre} cancelled their wait`
-          : `${e.nombre} canceló la espera`,
-        "error",
-      );
-    }
+const announce = (args: {
+  id: string;
+  nombre: string;
+  fromGuest: boolean;
+  toast: (msg: string, kind?: "info" | "success" | "error") => void;
+  locale: string;
+  pushCancel: (a: {
+    id: string;
+    nombre: string;
+    fromGuest: boolean;
+  }) => void;
+  seen: Set<string>;
+}) => {
+  if (args.seen.has(args.id)) return;
+  args.seen.add(args.id);
+  args.pushCancel({
+    id: args.id,
+    nombre: args.nombre,
+    fromGuest: args.fromGuest,
+  });
+  if (args.fromGuest) {
+    dingCancelado();
+    args.toast(
+      args.locale === "en"
+        ? `${args.nombre} cancelled their wait`
+        : `${args.nombre} canceló la espera`,
+      "error",
+    );
+  } else {
+    args.toast(
+      args.locale === "en"
+        ? `Cancelled: ${args.nombre}`
+        : `Cancelado: ${args.nombre}`,
+      "info",
+    );
   }
 };
 
 /**
- * Escucha cancelaciones de espera en todo el panel (no solo en /panel/espera).
- * Poll cada 4s + realtime; en demo, Zustand + storage entre pestañas.
+ * Cancelaciones de espera en todo el panel.
+ * Instantáneo vía broadcast; postgres + poll como respaldo.
  */
 export const useEsperaCancelWatch = () => {
   const { locale } = useApp();
@@ -75,6 +76,7 @@ export const useEsperaCancelWatch = () => {
   );
   const prev = useRef<Map<string, EsperaStatus>>(new Map());
   const ready = useRef(false);
+  const seen = useRef(new Set<string>());
 
   useEffect(() => {
     if (!moduloEspera || !branchId) return;
@@ -89,7 +91,22 @@ export const useEsperaCancelWatch = () => {
           ready.current = true;
           return;
         }
-        noteCancels(rows, prev.current, { toast, locale, pushCancel });
+        for (const e of rows) {
+          const before = prev.current.get(e.id);
+          if (!before || before === "cancelado" || e.estado !== "cancelado")
+            continue;
+          const fromStaff = staffEsperaCancelIds.has(e.id);
+          staffEsperaCancelIds.delete(e.id);
+          announce({
+            id: e.id,
+            nombre: e.nombre,
+            fromGuest: !fromStaff,
+            toast,
+            locale,
+            pushCancel,
+            seen: seen.current,
+          });
+        }
         prev.current = next;
       };
       apply();
@@ -113,30 +130,79 @@ export const useEsperaCancelWatch = () => {
 
     ready.current = false;
     let active = true;
+    const supabase = createBrowserSupabase();
 
     const tick = async () => {
       const rows = await fetchTodayEsperas(branchId);
       if (!active) return;
       const next = new Map(rows.map((e) => [e.id, e.estado]));
       if (!ready.current) {
+        // Ya cancelados al abrir: no avisar, solo recordar.
+        for (const e of rows) {
+          if (e.estado === "cancelado") seen.current.add(e.id);
+        }
         prev.current = next;
         ready.current = true;
         return;
       }
-      noteCancels(rows, prev.current, { toast, locale, pushCancel });
+      for (const e of rows) {
+        const before = prev.current.get(e.id);
+        if (!before || before === "cancelado" || e.estado !== "cancelado")
+          continue;
+        const fromStaff = staffEsperaCancelIds.has(e.id);
+        staffEsperaCancelIds.delete(e.id);
+        announce({
+          id: e.id,
+          nombre: e.nombre,
+          fromGuest: !fromStaff,
+          toast,
+          locale,
+          pushCancel,
+          seen: seen.current,
+        });
+      }
       prev.current = next;
     };
 
     void tick();
     const iv = window.setInterval(() => void tick(), POLL_MS);
-    const unsub = subscribeEsperas(branchId, () => {
-      void tick();
-    }, "-cancel-watch");
+    const unsubPg = subscribeEsperas(
+      branchId,
+      () => {
+        void tick();
+      },
+      "-cancel-watch",
+    );
+
+    const broadcastCh = supabase
+      ?.channel(`espera-cancel:${branchId}`)
+      .on(
+        "broadcast",
+        { event: "guest-cancel" },
+        (msg: { payload?: { id?: string; nombre?: string } }) => {
+          const id = msg.payload?.id;
+          const nombre = msg.payload?.nombre;
+          if (!id || !nombre) return;
+          announce({
+            id,
+            nombre,
+            fromGuest: true,
+            toast,
+            locale,
+            pushCancel,
+            seen: seen.current,
+          });
+          // Refrescar lista en segundo plano.
+          void tick();
+        },
+      )
+      .subscribe();
 
     return () => {
       active = false;
       window.clearInterval(iv);
-      unsub();
+      unsubPg();
+      if (supabase && broadcastCh) void supabase.removeChannel(broadcastCh);
     };
   }, [moduloEspera, branchId, live, toast, locale, pushCancel]);
 };

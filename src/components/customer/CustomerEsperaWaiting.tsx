@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
+import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { useApp } from "@/components/providers/Providers";
@@ -162,7 +163,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   if (!ready) {
     return (
       <main className="flex min-h-dvh items-center justify-center px-6">
-        <p className="text-sm text-carbon/45">…</p>
+        <MascotLoader />
       </main>
     );
   }

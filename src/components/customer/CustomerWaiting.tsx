@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
+import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
 import { useApp } from "@/components/providers/Providers";
 import { useCustomerOrder } from "@/lib/hooks/useCustomerOrder";
@@ -158,7 +159,7 @@ export const CustomerWaiting = ({ token }: Props) => {
   if (!hydrated) {
     return (
       <main className="flex min-h-dvh items-center justify-center px-6">
-        <p className="text-sm text-carbon/45">…</p>
+        <MascotLoader />
       </main>
     );
   }

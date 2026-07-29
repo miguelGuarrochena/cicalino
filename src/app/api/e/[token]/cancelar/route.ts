@@ -5,6 +5,7 @@ import { qrTokenSchema } from "@/lib/schemas";
 
 // POST /api/e/[token]/cancelar
 // El comensal cancela su espera (esperando | avisado). Auth por token.
+// Tras cancelar, broadcast al panel del local para aviso instantáneo.
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export const POST = async (
 
   const { data, error: findErr } = await admin
     .from("esperas")
-    .select("id, estado")
+    .select("id, estado, nombre, local_id")
     .eq("qr_token", token)
     .maybeSingle();
 
@@ -57,6 +58,34 @@ export const POST = async (
   if (error) {
     console.error("e/cancelar", error.message);
     return NextResponse.json({ ok: false, reason: "db-error" }, { status: 500 });
+  }
+
+  // Aviso al instante al mostrador (no depende del poll).
+  try {
+    const channel = admin.channel(`espera-cancel:${data.local_id}`);
+    await new Promise<void>((resolve, reject) => {
+      const t = setTimeout(() => {
+        reject(new Error("broadcast subscribe timeout"));
+      }, 2500);
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          clearTimeout(t);
+          resolve();
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          clearTimeout(t);
+          reject(new Error(status));
+        }
+      });
+    });
+    await channel.send({
+      type: "broadcast",
+      event: "guest-cancel",
+      payload: { id: data.id, nombre: data.nombre },
+    });
+    await admin.removeChannel(channel);
+  } catch (e) {
+    console.error("e/cancelar broadcast", e);
   }
 
   return NextResponse.json({ ok: true });

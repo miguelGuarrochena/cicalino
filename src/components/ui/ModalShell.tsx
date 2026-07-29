@@ -95,7 +95,7 @@ export const ModalShell = ({
             role="status"
             aria-live="polite"
           >
-            <Spinner className="size-9" />
+            <Spinner className="h-14" />
             <p className="px-6 text-center text-sm font-semibold text-carbon">
               {busyLabel || "Trabajando…"}
             </p>

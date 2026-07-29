@@ -110,7 +110,7 @@ export const SolicitudesPanel = () => {
                 >
                   {trabajando ? (
                     <>
-                      <Spinner className="size-3.5 border-crema border-r-transparent" />
+                      <Spinner className="size-3.5 border-crema border-r-transparent" inline />
                       Preparando…
                     </>
                   ) : esContrato ? (

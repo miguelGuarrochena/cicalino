@@ -14,6 +14,7 @@ import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { useRouter } from "next/navigation";
 import { EsperaCancelBanner } from "@/components/panel/EsperaCancelBanner";
+import { MascotLoader } from "@/components/ui/MascotLoader";
 
 /** Superadmin en /panel sin impersonar: volver a /admin sin flash de pantalla intermedia. */
 const SuperadminRedirect = () => {
@@ -23,7 +24,7 @@ const SuperadminRedirect = () => {
   }, [router]);
   return (
     <div className="flex min-h-[40vh] items-center justify-center">
-      <div className="size-8 animate-pulse rounded-full bg-marca/25" />
+      <MascotLoader className="h-16" />
     </div>
   );
 };
