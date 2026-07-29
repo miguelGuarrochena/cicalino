@@ -99,15 +99,46 @@ const crearOrganizacionValidada = async (
     if (errSuc) console.error("crearOrganizacion/locales", errSuc.message);
   }
 
-  // Invitar al dueño (si el mail ya existe, ignoramos el error).
-  await admin.auth.admin.inviteUserByEmail(data.duenoEmail, {
-    data: { rol: "admin", organizacion_id: org.id },
-  });
+  // Invitar al dueño. Si quedó un Auth huérfano de un alta borrada, lo
+  // regeneramos para que el trigger vuelva a crear la fila en `usuarios`.
+  await invitarDueno(admin, data.duenoEmail, org.id);
 
   return { ok: true, id: org.id };
 };
 
-// Elimina la organización (cascade borra sucursales y pedidos). Solo superadmin.
+/** Invita al dueño; si el mail ya existe en Auth sin org, borra e invita de nuevo. */
+const invitarDueno = async (
+  admin: NonNullable<ReturnType<typeof createAdminSupabase>>,
+  email: string,
+  organizacionId: string,
+): Promise<void> => {
+  const meta = { rol: "admin", organizacion_id: organizacionId };
+  const primero = await admin.auth.admin.inviteUserByEmail(email, { data: meta });
+  if (!primero.error) return;
+
+  console.warn("invitarDueno", primero.error.message);
+  const mail = email.trim().toLowerCase();
+  // Buscamos el usuario Auth por mail (paginado chico: casos raros post-borrado).
+  for (let page = 1; page <= 5; page++) {
+    const { data } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    const stale = data?.users?.find((u) => u.email?.toLowerCase() === mail);
+    if (!stale) {
+      if (!data?.users?.length) break;
+      continue;
+    }
+    const { error: delErr } = await admin.auth.admin.deleteUser(stale.id);
+    if (delErr) {
+      console.error("invitarDueno/delete", delErr.message);
+      return;
+    }
+    const segundo = await admin.auth.admin.inviteUserByEmail(email, { data: meta });
+    if (segundo.error) console.error("invitarDueno/retry", segundo.error.message);
+    return;
+  }
+};
+
+// Elimina la organización (cascade borra sucursales, pedidos y perfiles).
+// También libera el mail: Auth + solicitudes previas, para poder volver a contratar.
 export const eliminarOrganizacion = async (
   id: string,
 ): Promise<SimpleResult> => {
@@ -119,6 +150,19 @@ export const eliminarOrganizacion = async (
   if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: org } = await admin
+    .from("organizaciones")
+    .select("id, dueno_email")
+    .eq("id", v.data.id)
+    .maybeSingle();
+  if (!org) return { ok: false, error: "Empresa no encontrada." };
+
+  const { data: perfiles } = await admin
+    .from("usuarios")
+    .select("id")
+    .eq("organizacion_id", v.data.id);
+
   const { error } = await admin
     .from("organizaciones")
     .delete()
@@ -127,6 +171,22 @@ export const eliminarOrganizacion = async (
     console.error("eliminarOrganizacion", error.message);
     return { ok: false, error: "No se pudo eliminar la empresa." };
   }
+
+  const mail = String(org.dueno_email ?? "").trim().toLowerCase();
+  if (mail) {
+    const { error: solErr } = await admin
+      .from("solicitudes")
+      .update({ estado: "descartada" })
+      .ilike("email", mail)
+      .in("estado", ["nueva", "atendida"]);
+    if (solErr) console.error("eliminarOrganizacion/solicitudes", solErr.message);
+  }
+
+  for (const p of perfiles ?? []) {
+    const { error: authErr } = await admin.auth.admin.deleteUser(p.id);
+    if (authErr) console.error("eliminarOrganizacion/auth", authErr.message);
+  }
+
   return { ok: true };
 };
 

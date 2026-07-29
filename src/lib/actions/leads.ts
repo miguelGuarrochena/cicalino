@@ -76,23 +76,16 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     .from("solicitudes")
     .select("id, estado")
     .ilike("email", mail)
-    .in("estado", ["nueva", "atendida"])
-    .limit(5);
-  if (solPrevias?.some((s) => s.estado === "nueva")) {
+    .eq("estado", "nueva")
+    .limit(1);
+  if (solPrevias?.length) {
     return {
       ok: false,
       error: "Ya recibimos tu pedido con este mail. Te escribimos en breve.",
     };
   }
-  if (solPrevias?.some((s) => s.estado === "atendida")) {
-    return {
-      ok: false,
-      error:
-        tipo === "contrato"
-          ? "Este mail ya tiene un alta previa. Escribinos a info@cicalino.net."
-          : "Este mail ya usó la prueba gratis. Para otro local escribinos a info@cicalino.net y lo vemos.",
-    };
-  }
+  // Las «atendida» no bloquean: si borraste la empresa, el mail queda libre.
+  // El anti-abuso real es «¿hay organización con este mail?» + rate limit.
 
   const { error } = await admin.from("solicitudes").insert({
     nombre,
