@@ -50,7 +50,10 @@ export interface UseEsperas {
   cancelar: (id: string) => Promise<void>;
   sentarReserva: (id: string) => Promise<void>;
   cancelarReserva: (id: string) => Promise<void>;
-  liberarMesa: (numero: number) => Promise<void>;
+  liberarMesa: (
+    numero: number,
+    opts?: { soloEsta?: boolean },
+  ) => Promise<void>;
   ocuparMesas: (args: {
     mesaNumeros: number[];
     nombre?: string;
@@ -282,9 +285,12 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     await reload();
   };
 
-  const liberarMesa = async (numero: number) => {
+  const liberarMesa = async (
+    numero: number,
+    opts?: { soloEsta?: boolean },
+  ) => {
     if (!live || !branchId) {
-      demoLiberar(numero);
+      demoLiberar(numero, opts);
       return;
     }
     const mesa = liveMesas.find((m) => m.numero === numero);
@@ -303,7 +309,12 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       await reload();
       return;
     }
-    // Si el grupo ocupaba varias mesas, liberar todas las del mismo espera.
+    if (opts?.soloEsta) {
+      await setMesaEstado(branchId, numero, "libre");
+      await reload();
+      return;
+    }
+    // Grupo ocupado (espera o reserva sentada): liberar todas las juntas.
     if (mesa?.esperaId && mesa.estado === "ocupada") {
       const mismas = liveMesas.filter(
         (m) => m.esperaId === mesa.esperaId && m.estado === "ocupada",
@@ -314,7 +325,6 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       await reload();
       return;
     }
-    // Reserva sentada: varias mesas con el mismo reservaId.
     if (mesa?.reservaId && mesa.estado === "ocupada") {
       const mismas = liveMesas.filter(
         (m) => m.reservaId === mesa.reservaId && m.estado === "ocupada",

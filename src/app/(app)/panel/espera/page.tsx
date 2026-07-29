@@ -525,6 +525,32 @@ const EsperaPanelPage = () => {
     liberarMesaView?.esperaId != null
       ? esperaById.get(liberarMesaView.esperaId)
       : undefined;
+  const liberarGrupoMesas =
+    liberarMesaView?.estado === "ocupada"
+      ? mesas
+          .filter((m) => {
+            if (m.estado !== "ocupada") return false;
+            if (
+              liberarMesaView.esperaId &&
+              m.esperaId === liberarMesaView.esperaId
+            ) {
+              return true;
+            }
+            if (
+              liberarMesaView.reservaId &&
+              m.reservaId === liberarMesaView.reservaId
+            ) {
+              return true;
+            }
+            return m.numero === liberarMesaView.numero;
+          })
+          .map((m) => m.numero)
+          .sort((a, b) => a - b)
+      : liberarNumero != null
+        ? [liberarNumero]
+        : [];
+  const liberarGrupoLabel = labelMesas(liberarGrupoMesas);
+  const liberarTieneGrupo = liberarGrupoMesas.length > 1;
   const CAPACIDADES_RAPIDAS = [2, 4, 6, 8, 10] as const;
 
   const hayMesaPara = (personasGrupo: number) => {
@@ -1899,23 +1925,68 @@ const EsperaPanelPage = () => {
           labelledBy="liberar-title"
           footer={
             <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  void liberarMesa(liberarNumero).then(() => {
-                    setLiberarNumero(null);
-                    toast(
-                      locale === "en"
-                        ? `Table ${liberarNumero} free`
-                        : `Mesa ${liberarNumero} libre`,
-                      "success",
-                    );
-                  });
-                }}
-                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
-              >
-                {locale === "en" ? "Yes, free it" : "Sí, liberar"}
-              </button>
+              {liberarTieneGrupo && liberarMesaView.estado === "ocupada" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void liberarMesa(liberarNumero).then(() => {
+                        setLiberarNumero(null);
+                        toast(
+                          locale === "en"
+                            ? `Tables ${liberarGrupoLabel} free`
+                            : `Mesas ${liberarGrupoLabel} libres`,
+                          "success",
+                        );
+                      });
+                    }}
+                    className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+                  >
+                    {locale === "en"
+                      ? `Free all (${liberarGrupoLabel})`
+                      : `Liberar todas (${liberarGrupoLabel})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void liberarMesa(liberarNumero, { soloEsta: true }).then(
+                        () => {
+                          setLiberarNumero(null);
+                          toast(
+                            locale === "en"
+                              ? `Table ${liberarNumero} free`
+                              : `Mesa ${liberarNumero} libre`,
+                            "success",
+                          );
+                        },
+                      );
+                    }}
+                    className="w-full rounded-full border border-espera/40 bg-espera/10 px-5 py-3.5 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema"
+                  >
+                    {locale === "en"
+                      ? `Only table ${liberarNumero}`
+                      : `Solo mesa ${liberarNumero}`}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void liberarMesa(liberarNumero).then(() => {
+                      setLiberarNumero(null);
+                      toast(
+                        locale === "en"
+                          ? `Table ${liberarNumero} free`
+                          : `Mesa ${liberarNumero} libre`,
+                        "success",
+                      );
+                    });
+                  }}
+                  className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+                >
+                  {locale === "en" ? "Yes, free it" : "Sí, liberar"}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setLiberarNumero(null)}
@@ -1974,24 +2045,13 @@ const EsperaPanelPage = () => {
                 </>
               )}
               <p className="mt-2 text-sm text-carbon/55">
-                {(() => {
-                  const linked = liberarMesaView.esperaId
-                    ? mesas.filter(
-                        (m) =>
-                          m.esperaId === liberarMesaView.esperaId &&
-                          m.estado === "ocupada",
-                      )
-                    : [liberarMesaView];
-                  if (linked.length > 1) {
-                    const nums = linked.map((m) => m.numero).join("+");
-                    return locale === "en"
-                      ? `Also frees joined tables ${nums}.`
-                      : `También libera las mesas juntas ${nums}.`;
-                  }
-                  return locale === "en"
+                {liberarTieneGrupo
+                  ? locale === "en"
+                    ? `Joined tables ${liberarGrupoLabel}. Free all, or only this one if the party got smaller.`
+                    : `Mesas juntas ${liberarGrupoLabel}. Liberá todas, o solo esta si el grupo se achicó.`
+                  : locale === "en"
                     ? "Marks the table as free again."
-                    : "La mesa vuelve a quedar libre.";
-                })()}
+                    : "La mesa vuelve a quedar libre."}
               </p>
             </div>
           ) : (

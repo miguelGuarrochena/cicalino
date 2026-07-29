@@ -26,7 +26,10 @@ interface EsperaState {
     mesaNumero?: number | null,
     mesasExtra?: number[],
   ) => void;
-  liberarMesa: (numero: number) => void;
+  liberarMesa: (
+    numero: number,
+    opts?: { soloEsta?: boolean },
+  ) => void;
   ocuparMesa: (numero: number, esperaId: string) => void;
   /** Walk-in: marca mesas ocupadas y deja un registro sentado (sin cola/QR). */
   ocuparWalkIn: (args: {
@@ -207,11 +210,12 @@ export const useEsperaStore = create<EsperaState>()(
           return { esperas, mesas };
         }),
 
-      liberarMesa: (numero) =>
+      liberarMesa: (numero, opts) =>
         set((s) => {
           const mesa = s.mesas.find((m) => m.numero === numero);
           let reservas = s.reservas;
           if (mesa?.reservaId && mesa.estado === "reservada") {
+            // Reserva activa: cancelar siempre libera todo el bloque.
             const now = new Date().toISOString();
             const reservaId = mesa.reservaId;
             reservas = s.reservas.map((r) =>
@@ -223,6 +227,21 @@ export const useEsperaStore = create<EsperaState>()(
               reservas,
               mesas: s.mesas.map((m) =>
                 m.reservaId === reservaId
+                  ? {
+                      ...m,
+                      estado: "libre" as const,
+                      esperaId: null,
+                      reservaId: null,
+                    }
+                  : m,
+              ),
+            };
+          }
+          if (opts?.soloEsta) {
+            return {
+              reservas,
+              mesas: s.mesas.map((m) =>
+                m.numero === numero
                   ? {
                       ...m,
                       estado: "libre" as const,
