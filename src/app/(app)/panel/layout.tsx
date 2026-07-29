@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Logo } from "@/components/ui/Logo";
 import { PanelNav } from "@/components/panel/PanelNav";
 import { Fichaje } from "@/components/panel/TimeClock";
@@ -11,26 +12,20 @@ import { useBranchConfigSync } from "@/lib/hooks/useBranchConfigSync";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-const SuperadminRedirect = () => (
-  <div className="flex flex-col items-center gap-3 rounded-[28px] border border-linea bg-surface/60 px-6 py-16 text-center">
-    <p className="font-display text-xl uppercase tracking-tight text-carbon">
-      Área del local
-    </p>
-    <p className="max-w-sm text-sm text-carbon/55">
-      El superadmin opera en su propia consola. Para ver una sucursal, abrila
-      desde Superadmin y usá “Entrar como dueño”.
-    </p>
-    <Link
-      href="/admin"
-      className="rounded-full bg-carbon px-5 py-2.5 text-sm font-semibold text-crema transition hover:opacity-90"
-    >
-      Ir a Superadmin
-    </Link>
-  </div>
-);
+/** Superadmin en /panel sin impersonar: volver a /admin sin flash de pantalla intermedia. */
+const SuperadminRedirect = () => {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/admin");
+  }, [router]);
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center">
+      <div className="size-8 animate-pulse rounded-full bg-marca/25" />
+    </div>
+  );
+};
 
 const BannerImpersonacion = () => {
   const { t } = useApp();
@@ -51,8 +46,9 @@ const BannerImpersonacion = () => {
         <button
           type="button"
           onClick={() => {
+            // Primero navegar: si limpiamos antes, /panel pinta el redirect un frame.
+            router.replace("/admin");
             exitImpersonation();
-            router.push("/admin");
           }}
           className="rounded-full bg-crema/15 px-3 py-1 text-xs font-semibold transition hover:bg-crema/25"
         >

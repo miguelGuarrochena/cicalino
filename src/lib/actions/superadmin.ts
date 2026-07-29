@@ -281,7 +281,7 @@ type DemoContexto = {
 
 /**
  * Asegura la org + sucursal de demo para el superadmin.
- * Idempotente: si ya existe, la reutiliza. No invita usuario.
+ * Idempotente: si ya existe, la reutiliza y deja Pedidos + Espera activos.
  */
 export const asegurarOrgDemo = async (): Promise<
   { ok: true; demo: DemoContexto } | { ok: false; error: string }
@@ -292,6 +292,27 @@ export const asegurarOrgDemo = async (): Promise<
   }
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const aplicarModulosDemo = async (orgId: string, sucId: string) => {
+    await admin
+      .from("organizaciones")
+      .update({
+        modulo_pedidos: true,
+        modulo_espera: true,
+        plan: "gratis",
+        pagado: true,
+        activo: true,
+      })
+      .eq("id", orgId);
+    await admin
+      .from("locales")
+      .update({
+        modulo_pedidos: true,
+        modulo_espera: true,
+        cantidad_mesas: 12,
+      })
+      .eq("id", sucId);
+  };
 
   const { data: existente } = await admin
     .from("organizaciones")
@@ -313,6 +334,9 @@ export const asegurarOrgDemo = async (): Promise<
           nombre: DEMO_SUC_NOMBRE,
           tipo_negocio: "cafeteria",
           slug: DEMO_SUC_SLUG,
+          modulo_pedidos: true,
+          modulo_espera: true,
+          cantidad_mesas: 12,
         })
         .select("id, nombre")
         .single();
@@ -321,6 +345,7 @@ export const asegurarOrgDemo = async (): Promise<
       }
       suc = creada;
     }
+    await aplicarModulosDemo(existente.id, suc.id);
     return {
       ok: true,
       demo: {
@@ -343,6 +368,8 @@ export const asegurarOrgDemo = async (): Promise<
       plan: "gratis",
       pagado: true,
       activo: true,
+      modulo_pedidos: true,
+      modulo_espera: true,
     })
     .select("id, nombre")
     .single();
@@ -357,6 +384,9 @@ export const asegurarOrgDemo = async (): Promise<
       nombre: DEMO_SUC_NOMBRE,
       tipo_negocio: "cafeteria",
       slug: DEMO_SUC_SLUG,
+      modulo_pedidos: true,
+      modulo_espera: true,
+      cantidad_mesas: 12,
     })
     .select("id, nombre")
     .single();

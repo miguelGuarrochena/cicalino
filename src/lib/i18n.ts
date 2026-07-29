@@ -120,6 +120,14 @@ const dict = {
         espera: "Dejás la pantalla abierta mientras preparan.",
         aviso: "Llega el aviso: ya podés retirar.",
         listo: "Vas al mostrador y te lo llevás.",
+        mesaPush: "García, ¡tu mesa está lista!",
+        mesa: {
+          scan: "Escaneás el QR de la espera. Sin instalar nada.",
+          cola: "Quedás en cola mientras liberan una mesa.",
+          aviso: "Llega el aviso: hay mesa para tu grupo.",
+          mesa: "Te sentás. La recepción libera la mesa cuando te vas.",
+          mesaTitulo: "Mesa 7",
+        },
       },
     },
     entrar: {
@@ -500,6 +508,14 @@ const dict = {
         espera: "Keep the screen open while they prepare.",
         aviso: "You get the ping: time to pick it up.",
         listo: "Head to the counter and grab it.",
+        mesaPush: "García — your table is ready!",
+        mesa: {
+          scan: "Scan the waitlist QR. Nothing to install.",
+          cola: "You’re in line while a table frees up.",
+          aviso: "You get the ping: a table is ready.",
+          mesa: "You’re seated. The host frees the table when you leave.",
+          mesaTitulo: "Table 7",
+        },
       },
     },
     entrar: {
