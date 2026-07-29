@@ -525,6 +525,27 @@ export const updateEsperaStatus = async (
   return true;
 };
 
+/** Borra una espera (p. ej. cancelado que ya no hace falta ver). */
+export const deleteEspera = async (id: string): Promise<boolean> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return false;
+  await supabase
+    .from("mesas")
+    .update({
+      estado: "libre",
+      espera_id: null,
+      reserva_id: null,
+      actualizado_en: new Date().toISOString(),
+    })
+    .eq("espera_id", id);
+  const { error } = await supabase.from("esperas").delete().eq("id", id);
+  if (error) {
+    console.error("deleteEspera", error.message);
+    return false;
+  }
+  return true;
+};
+
 export const updateReservaStatus = async (
   id: string,
   estado: ReservaStatus,

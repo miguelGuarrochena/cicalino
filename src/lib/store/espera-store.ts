@@ -49,6 +49,7 @@ interface EsperaState {
   }) => ReservaView | null;
   sentarReserva: (id: string) => void;
   cancelarReserva: (id: string) => void;
+  eliminarEspera: (id: string) => void;
   expirarReservasDemo: () => void;
 }
 
@@ -449,6 +450,21 @@ export const useEsperaStore = create<EsperaState>()(
             ),
           };
         }),
+
+      eliminarEspera: (id) =>
+        set((s) => ({
+          esperas: s.esperas.filter((e) => e.id !== id),
+          mesas: s.mesas.map((m) =>
+            m.esperaId === id
+              ? {
+                  ...m,
+                  estado: "libre" as const,
+                  esperaId: null,
+                  reservaId: null,
+                }
+              : m,
+          ),
+        })),
 
       expirarReservasDemo: () =>
         set((s) => {

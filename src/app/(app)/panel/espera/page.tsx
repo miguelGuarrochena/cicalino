@@ -11,6 +11,7 @@ import { useEsperas } from "@/lib/hooks/useEsperas";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
+import { inicioJornada } from "@/lib/businessDay";
 import {
   ETIQUETA_ESPERA,
   ETIQUETA_RESERVA,
@@ -346,6 +347,7 @@ const EsperaPanelPage = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const activeEmployee = useSessionStore((s) => s.empleadoActivo);
   const cantidadMesas = useConfigStore((s) => s.cantidadMesas);
+  const horaCorte = useConfigStore((s) => s.horaCorte);
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
   const branchConfigReady = useConfigStore((s) => s.branchConfigReady);
@@ -371,6 +373,7 @@ const EsperaPanelPage = () => {
     avisar,
     sentar,
     cancelar,
+    borrarEspera,
     sentarReserva,
     cancelarReserva,
     liberarMesa,
@@ -435,17 +438,20 @@ const EsperaPanelPage = () => {
         .sort((a, b) => a.creadoEn.localeCompare(b.creadoEn)),
     [esperas],
   );
-  const canceladasHoy = useMemo(
-    () =>
-      esperas
-        .filter((e) => e.estado === "cancelado")
-        .sort((a, b) =>
-          (b.canceladoEn ?? b.creadoEn).localeCompare(
-            a.canceladoEn ?? a.creadoEn,
-          ),
+  const canceladasHoy = useMemo(() => {
+    const desde = inicioJornada(horaCorte).toISOString();
+    return esperas
+      .filter(
+        (e) =>
+          e.estado === "cancelado" &&
+          (e.canceladoEn ?? e.creadoEn) >= desde,
+      )
+      .sort((a, b) =>
+        (b.canceladoEn ?? b.creadoEn).localeCompare(
+          a.canceladoEn ?? a.creadoEn,
         ),
-    [esperas],
-  );
+      );
+  }, [esperas, horaCorte]);
   const reservasActivas = useMemo(
     () => reservas.filter((r) => r.estado === "activa"),
     [reservas],
@@ -1134,9 +1140,40 @@ const EsperaPanelPage = () => {
                       : ""}
                   </p>
                 </div>
-                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700">
-                  {ETIQUETA_ESPERA.cancelado}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700">
+                    {ETIQUETA_ESPERA.cancelado}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={locale === "en" ? "Delete" : "Borrar"}
+                    title={locale === "en" ? "Delete" : "Borrar"}
+                    onClick={() => {
+                      void borrarEspera(e.id);
+                      toast(
+                        locale === "en" ? "Removed" : "Eliminado",
+                        "success",
+                      );
+                    }}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-linea text-carbon/40 transition hover:border-red-300 hover:text-red-500"
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="M19 6l-1 14H6L5 6" />
+                      <path d="M10 11v6M14 11v6" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
