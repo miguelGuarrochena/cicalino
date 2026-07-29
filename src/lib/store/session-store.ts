@@ -28,6 +28,13 @@ interface SessionState {
   empleadoActivo: ActiveEmployee | null;
   fichar: (emp: ActiveEmployee) => void;
   salir: () => void;
+  /**
+   * Dueño desbloqueó Config/Métricas con su contraseña de cuenta.
+   * No se persiste: al refrescar o salir de la sección se vuelve a pedir.
+   */
+  adminDesbloqueado: boolean;
+  desbloquearAdmin: () => void;
+  bloquearAdmin: () => void;
   impersonando: Impersonacion | null;
   entrarComoDueño: (data: Impersonacion) => void;
   salirImpersonacion: () => void;
@@ -65,6 +72,9 @@ export const useSessionStore = create<SessionState>()(
       empleadoActivo: null,
       fichar: (emp) => set({ empleadoActivo: emp }),
       salir: () => set({ empleadoActivo: null }),
+      adminDesbloqueado: false,
+      desbloquearAdmin: () => set({ adminDesbloqueado: true }),
+      bloquearAdmin: () => set({ adminDesbloqueado: false }),
       impersonando: null,
       entrarComoDueño: (data) =>
         set({
@@ -73,6 +83,7 @@ export const useSessionStore = create<SessionState>()(
           sucursalId: data.sucursalId,
           impersonando: data,
           empleadoActivo: null,
+          adminDesbloqueado: false,
         }),
       salirImpersonacion: () =>
         set({
@@ -81,9 +92,21 @@ export const useSessionStore = create<SessionState>()(
           sucursalId: null,
           impersonando: null,
           empleadoActivo: null,
+          adminDesbloqueado: false,
         }),
     }),
-    { name: "cicalino-session-v2", skipHydration: true },
+    {
+      name: "cicalino-session-v2",
+      skipHydration: true,
+      partialize: (s) => ({
+        rol: s.rol,
+        organizacionId: s.organizacionId,
+        sucursalId: s.sucursalId,
+        empleadoActivo: s.empleadoActivo,
+        impersonando: s.impersonando,
+        // adminDesbloqueado a propósito fuera: no guardar el desbloqueo.
+      }),
+    },
   ),
 );
 
@@ -95,6 +118,7 @@ export const clearSessionLocal = () => {
     sucursalId: supabaseConfigurado ? null : "suc-centro",
     empleadoActivo: null,
     impersonando: null,
+    adminDesbloqueado: false,
   });
   try {
     useSessionStore.persist.clearStorage();

@@ -2,14 +2,11 @@
 
 import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
-import { useSessionStore } from "@/lib/store/session-store";
 
-// Bloque cuando el rol actual no tiene acceso a la seccion.
+// Bloque cuando el rol de la cuenta no tiene acceso a la seccion.
 export const NoAccess = () => {
   const { locale } = useApp();
-  const empleadoActivo = useSessionStore((s) => s.empleadoActivo);
   const es = locale !== "en";
-  const porFichaje = Boolean(empleadoActivo);
 
   return (
     <div className="flex flex-col items-center gap-3 rounded-[28px] border border-linea bg-surface/60 px-6 py-16 text-center">
@@ -32,13 +29,9 @@ export const NoAccess = () => {
         {es ? "Sin acceso" : "No access"}
       </p>
       <p className="max-w-xs text-sm text-carbon/55">
-        {porFichaje
-          ? es
-            ? `Hay alguien fichado (${empleadoActivo?.nombre}). Tocá Salir en Fichar para volver a Configuración o Métricas.`
-            : `Someone is clocked in (${empleadoActivo?.nombre}). Tap Exit on Clock in to open Settings or Metrics again.`
-          : es
-            ? "Tu rol no puede ver esta sección. Cambiá de cuenta desde Entrar."
-            : "Your role can't view this section. Switch account from Sign in."}
+        {es
+          ? "Tu cuenta no puede ver esta sección. Cambiá de cuenta desde Entrar."
+          : "Your account can't view this section. Switch account from Sign in."}
       </p>
       <div className="mt-1 flex flex-wrap justify-center gap-2">
         <Link
@@ -47,14 +40,12 @@ export const NoAccess = () => {
         >
           {es ? "Volver a pedidos" : "Back to orders"}
         </Link>
-        {!porFichaje && (
-          <Link
-            href="/login"
-            className="rounded-full border border-linea px-5 py-2.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5"
-          >
-            {es ? "Cambiar cuenta" : "Switch account"}
-          </Link>
-        )}
+        <Link
+          href="/login"
+          className="rounded-full border border-linea px-5 py-2.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5"
+        >
+          {es ? "Cambiar cuenta" : "Switch account"}
+        </Link>
       </div>
     </div>
   );

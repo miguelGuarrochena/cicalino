@@ -8,6 +8,7 @@ import {
   useSuperadminStore,
 } from "@/lib/store/superadmin-store";
 import { NoAccess } from "@/components/ui/NoAccess";
+import { AdminGate } from "@/components/panel/AdminGate";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { fetchMetrics, fetchEsperaMetrics, type MetricsData } from "@/lib/data/metrics";
@@ -96,7 +97,6 @@ const Tarjeta = ({ titulo, valor, detalle, delay, acento, acentoColor = "marca" 
 const MetricasPage = () => {
   const { t } = useApp();
   const role = useSessionStore((s) => s.rol);
-  const empleadoActivo = useSessionStore((s) => s.empleadoActivo);
   const branchId = useSessionStore((s) => s.sucursalId);
   const orgs = useSuperadminStore((s) => s.organizaciones);
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
@@ -128,7 +128,7 @@ const MetricasPage = () => {
     };
   }, [live, branchId, periodo]);
 
-  if (role !== "admin" || empleadoActivo) return <NoAccess />;
+  if (role !== "admin") return <NoAccess />;
 
   const org = orgById(orgs, useSessionStore.getState().organizacionId);
   const suc = org?.sucursales.find((s) => s.id === branchId);
@@ -377,4 +377,11 @@ const MetricasPage = () => {
     </div>
   );
 };
-export default MetricasPage;
+
+const MetricasPageGate = () => (
+  <AdminGate>
+    <MetricasPage />
+  </AdminGate>
+);
+
+export default MetricasPageGate;

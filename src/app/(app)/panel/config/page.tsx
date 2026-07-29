@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { NoAccess } from "@/components/ui/NoAccess";
+import { AdminGate } from "@/components/panel/AdminGate";
 import { EmployeeList } from "@/components/panel/EmployeeList";
 import {
   useConfigStore,
@@ -60,7 +61,6 @@ const ConfigPage = () => {
   const toast = useToast();
   const role = useSessionStore((s) => s.rol);
   const branchId = useSessionStore((s) => s.sucursalId);
-  const empleadoActivo = useSessionStore((s) => s.empleadoActivo);
   const c = useConfigStore();
   const [guardado, setGuardado] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -123,7 +123,7 @@ const ConfigPage = () => {
     }
   };
 
-  if (role === "empleado" || role === "superadmin" || empleadoActivo) {
+  if (role === "empleado" || role === "superadmin") {
     return <NoAccess />;
   }
 
@@ -364,4 +364,11 @@ const ConfigPage = () => {
     </div>
   );
 };
-export default ConfigPage;
+
+const ConfigPageGate = () => (
+  <AdminGate>
+    <ConfigPage />
+  </AdminGate>
+);
+
+export default ConfigPageGate;

@@ -94,3 +94,50 @@ export const invitarAdmin = async (
   }
   return { ok: true };
 };
+
+/**
+ * Re-autentica al dueño con su contraseña de cuenta (no el PIN de 4 dígitos).
+ * Sirve para desbloquear Config / Métricas en una tablet compartida.
+ */
+export const verificarPasswordDueño = async (
+  password: string,
+): Promise<Resultado> => {
+  const pass = password.trim();
+  if (pass.length < 6) {
+    return { ok: false, error: "Ingresá la contraseña de tu cuenta." };
+  }
+
+  const perfil = await getPerfilActual();
+  if (!perfil) return { ok: false, error: "Sesión vencida. Volvé a entrar." };
+  if (perfil.rol !== "admin" && perfil.rol !== "supervisor") {
+    return { ok: false, error: "No autorizado." };
+  }
+  if (!perfil.email) {
+    return { ok: false, error: "Tu cuenta no tiene email." };
+  }
+
+  const hdrs = await headers();
+  const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || "sin-ip";
+  const porCuenta = await rateLimitCompartido(
+    `reauth:mail:${perfil.email.toLowerCase()}`,
+    6,
+    10 * 60_000,
+  );
+  const porIp = await rateLimitCompartido(`reauth:ip:${ip}`, 20, 10 * 60_000);
+  if (!porCuenta.ok || !porIp.ok) {
+    return {
+      ok: false,
+      error: "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
+    };
+  }
+
+  const supabase = await createServerSupabase();
+  if (!supabase) return { ok: false, error: "Supabase no configurado" };
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: perfil.email,
+    password: pass,
+  });
+  if (error) return { ok: false, error: traducirError(error.message) };
+  return { ok: true };
+};

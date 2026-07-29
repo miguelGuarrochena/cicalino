@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
 import { PanelNav } from "@/components/panel/PanelNav";
 import { Fichaje } from "@/components/panel/TimeClock";
@@ -12,7 +13,6 @@ import { useBranchConfigSync } from "@/lib/hooks/useBranchConfigSync";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
-import { useRouter } from "next/navigation";
 import { EsperaCancelBanner } from "@/components/panel/EsperaCancelBanner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 
@@ -67,9 +67,22 @@ const PanelLayout = ({
   const role = useSessionStore((s) => s.rol);
   const impersonating = useSessionStore((s) => s.impersonando);
   const branchId = useSessionStore((s) => s.sucursalId);
+  const path = usePathname();
+  // Fichar solo en piso (Pedidos / Espera). Config y Métricas no muestran el botón.
+  const mostrarFichaje =
+    role !== "superadmin" &&
+    (path === "/panel" || path.startsWith("/panel/espera"));
+  const enSeccionDueño =
+    path.startsWith("/panel/config") || path.startsWith("/panel/metrics");
+  const bloquearAdmin = useSessionStore((s) => s.bloquearAdmin);
 
   useWakeLock(role !== "superadmin");
   useBranchConfigSync(branchId);
+
+  // Al salir de Config/Métricas se vuelve a pedir la contraseña.
+  useEffect(() => {
+    if (!enSeccionDueño) bloquearAdmin();
+  }, [enSeccionDueño, bloquearAdmin]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
@@ -81,7 +94,7 @@ const PanelLayout = ({
           <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-3">
             {role !== "superadmin" && <BranchSwitcher />}
             {role !== "superadmin" && <PanelNav />}
-            {role !== "superadmin" && <Fichaje />}
+            {mostrarFichaje && <Fichaje />}
             {role !== "superadmin" && <SoundToggle />}
             <PanelMenu />
           </div>
