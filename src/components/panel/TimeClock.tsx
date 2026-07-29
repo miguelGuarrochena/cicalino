@@ -215,23 +215,23 @@ export const Fichaje = () => {
                 </div>
                 <ModalCloseBtn onClick={cerrar} label={t("qr.cerrar")} />
               </div>
-              <div className="flex items-center justify-between gap-2 rounded-2xl border border-linea bg-crema/40 px-3 py-3">
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marca text-xs font-semibold text-crema">
-                    {inicial(activeEmployee.nombre)}
-                  </span>
-                  <span className="truncate font-semibold text-carbon">
+              <button
+                type="button"
+                onClick={() => leave()}
+                className="flex w-full items-center gap-3 rounded-2xl border border-linea bg-crema/40 px-3 py-3 text-left transition hover:border-red-200 hover:bg-red-50/60"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marca text-xs font-semibold text-crema">
+                  {inicial(activeEmployee.nombre)}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold text-carbon">
                     {activeEmployee.nombre}
                   </span>
+                  <span className="block text-xs font-medium text-red-600">
+                    {t("fichaje.cerrarSesion")}
+                  </span>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => leave()}
-                  className="shrink-0 rounded-full bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
-                >
-                  {t("fichaje.salir")}
-                </button>
-              </div>
+              </button>
             </div>
           ) : (
             <div>
