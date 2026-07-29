@@ -57,6 +57,9 @@ const TerminosPage = () => {
                 (transferencia / Mercado Pago al alias indicado). La falta de
                 pago puede implicar pausa del servicio. El plan anual se abona
                 por adelantado según la cotización vigente al momento del pago.
+                En plan mensual, una sucursal agregada a mitad de ciclo se suma
+                al <b>próximo</b> cobro. En plan anual, cada sucursal nueva es un
+                cobro anual aparte (desde la fecha de alta de esa sucursal).
               </p>
               <p>
                 <b className="text-carbon">Responsabilidades del local.</b> El
@@ -105,7 +108,9 @@ const TerminosPage = () => {
               <p>
                 <b className="text-carbon">Payment.</b> Billing is currently
                 manual (transfer / Mercado Pago). Non-payment may pause the
-                service.
+                service. On a monthly plan, a branch added mid-cycle is billed
+                from the <b>next</b> cycle. On a yearly plan, each new branch is
+                a separate yearly charge (from that branch&apos;s start date).
               </p>
               <p>
                 <b className="text-carbon">Venue responsibilities.</b> The venue

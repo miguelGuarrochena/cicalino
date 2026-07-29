@@ -368,18 +368,41 @@ export const OrgModal = ({
     };
     const usadas = vista?.sucursales.length ?? 0;
     const nuevoCupo = usadas + 1;
+    const plan = vista?.plan ?? "mensual";
+    const anualUna = montoPlanPreview("anual", 1);
 
     if (live) {
       await conBusy("Agregando sucursal…", async () => {
-        await updateOrgDb(org.id, { cupo: nuevoCupo, pagado: false });
+        if (plan === "anual") {
+          // Anual = producto aparte: cobrá esta sucursal ahora (ciclo propio).
+          // No tocamos proximo_cobro_en de las que ya estaban.
+          await updateOrgDb(org.id, { cupo: nuevoCupo, pagado: false });
+        } else if (plan === "mensual") {
+          // Mensual: se suma al próximo ciclo; no marcamos impago.
+          await updateOrgDb(org.id, { cupo: nuevoCupo });
+        } else {
+          await updateOrgDb(org.id, { cupo: nuevoCupo });
+        }
         await insertBranchDb(org.id, data);
         await refreshOrganizations();
         setCupoError(false);
         setNuevaSuc("");
-        toast(
-          `Sucursal agregada · ahora ${nuevoCupo}. Marcá Pagado cuando veas la transferencia.`,
-          "success",
-        );
+        if (plan === "anual") {
+          toast(
+            `Sucursal agregada. Cobrá el anual de esta (${money.format(anualUna)}) ahora — ciclo aparte.`,
+            "success",
+          );
+        } else if (plan === "mensual") {
+          const prox = vista?.proximoCobroEn
+            ? fechaCorta(vista.proximoCobroEn)
+            : "el próximo ciclo";
+          toast(
+            `Sucursal agregada · ${nuevoCupo} en total. Se cobra desde ${prox}.`,
+            "success",
+          );
+        } else {
+          toast(`Sucursal agregada · ahora ${nuevoCupo}`, "success");
+        }
       });
       return;
     }
@@ -397,8 +420,21 @@ export const OrgModal = ({
   const togglePagado = async () => {
     if (!vista || busy) return;
     const next = !vista.pagado;
-    const prox = next ? sumarCicloCobro(vista.plan) : new Date();
-    const proximoCobroEn = prox ? prox.toISOString() : null;
+    // Si pagan un adicional anual (nueva sucursal) y el aniversario de la org
+    // sigue en el futuro, no lo movemos.
+    let proximoCobroEn: string | null;
+    if (!next) {
+      proximoCobroEn = new Date().toISOString();
+    } else if (
+      vista.plan === "anual" &&
+      vista.proximoCobroEn &&
+      new Date(vista.proximoCobroEn).getTime() > Date.now()
+    ) {
+      proximoCobroEn = vista.proximoCobroEn;
+    } else {
+      const prox = sumarCicloCobro(vista.plan);
+      proximoCobroEn = prox ? prox.toISOString() : null;
+    }
     await conBusy(next ? "Marcando pagado…" : "Marcando impago…", async () => {
       if (live) {
         await updateOrgDb(vista.id, {
@@ -923,8 +959,11 @@ export const OrgModal = ({
               )}
             </p>
             <p className="mt-1 text-xs text-carbon/50">
-              Agregá con nombre y tipo. Cuando veas el pago, marcá Pagado arriba
-              (arranca el ciclo).
+              {vista.plan === "anual"
+                ? "Anual: cada sucursal nueva se cobra aparte (año desde hoy). Marcá Pagado cuando entre la transferencia."
+                : vista.plan === "mensual"
+                  ? "Mensual: la nueva se suma al próximo ciclo (misma fecha de cobro de la cuenta)."
+                  : "Plan cortesía: sin cobro."}
             </p>
 
             <ul className="mt-3 flex flex-col gap-2">
