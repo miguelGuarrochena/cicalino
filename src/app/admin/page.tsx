@@ -12,6 +12,7 @@ import {
 import { useSessionStore } from "@/lib/store/session-store";
 import { OrgModal } from "@/components/admin/OrgModal";
 import { SolicitudesPanel } from "@/components/admin/SolicitudesPanel";
+import { PedidosSucursalPanel } from "@/components/admin/PedidosSucursalPanel";
 import { CobrosPanel } from "@/components/admin/CobrosPanel";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useSuperadminSync } from "@/lib/hooks/useSuperadminSync";
@@ -180,6 +181,12 @@ const SuperadminPage = () => {
       </p>
 
       <SolicitudesPanel />
+      <PedidosSucursalPanel
+        onAbrir={(id) => {
+          const org = organizations.find((o) => o.id === id);
+          if (org) setModal({ mode: "ver", org });
+        }}
+      />
       <CobrosPanel
         onAbrir={(id) => {
           const org = organizations.find((o) => o.id === id);

@@ -350,29 +350,49 @@ export const OrgModal = ({
       } else {
         actualizarOrg(org.id, data);
       }
+      // Queda en detalle para poder agregar sucursales sin reabrir.
+      const d = draftActual();
+      setBaseline(d);
+      setErrors({});
+      setMode("ver");
       toast(t("toast.orgGuardada"), "success");
-      onClose();
     }
   };
 
   const agregarSuc = async () => {
-    if (!org || !newBranch.trim()) return;
+    if (!org || !newBranch.trim() || busy) return;
     const data: BranchInput = {
       nombre: newBranch.trim(),
       tipo: nuevaTipo,
       direccion: org.direccion,
     };
+    const usadas = vista?.sucursales.length ?? 0;
+    const cupoActual = vista?.cupo ?? 0;
+    const necesitaCupo = usadas >= cupoActual;
+
     if (live) {
-      if ((vista?.sucursales.length ?? 0) >= (vista?.cupo ?? 0)) {
-        setCupoError(true);
-        return;
+      setBusy(true);
+      try {
+        if (necesitaCupo) {
+          await updateOrgDb(org.id, { cupo: cupoActual + 1 });
+        }
+        await insertBranchDb(org.id, data);
+        await refreshOrganizations();
+        setCupoError(false);
+        setNuevaSuc("");
+        toast(
+          necesitaCupo
+            ? "Cupo +1 y sucursal agregada"
+            : t("toast.sucAgregada"),
+          "success",
+        );
+      } finally {
+        setBusy(false);
       }
-      await insertBranchDb(org.id, data);
-      await refreshOrganizations();
-      setCupoError(false);
-      setNuevaSuc("");
-      toast(t("toast.sucAgregada"), "success");
       return;
+    }
+    if (necesitaCupo) {
+      actualizarOrg(org.id, { cupo: cupoActual + 1 });
     }
     const res = createBranch(org.id, data);
     if (!res.ok) {
@@ -381,7 +401,30 @@ export const OrgModal = ({
     }
     setCupoError(false);
     setNuevaSuc("");
-    toast(t("toast.sucAgregada"), "success");
+    toast(
+      necesitaCupo ? "Cupo +1 y sucursal agregada" : t("toast.sucAgregada"),
+      "success",
+    );
+  };
+
+  /** Sube el cupo en 1 sin salir del detalle. */
+  const sumarCupo = async () => {
+    if (!vista || busy) return;
+    setBusy(true);
+    try {
+      const next = vista.cupo + 1;
+      if (live) {
+        await updateOrgDb(vista.id, { cupo: next });
+        await refreshOrganizations();
+      } else {
+        actualizarOrg(vista.id, { cupo: next });
+      }
+      setCupo(next);
+      setCupoError(false);
+      toast(`Cupo actualizado: ${next}`, "success");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const togglePagado = async () => {
@@ -549,12 +592,39 @@ export const OrgModal = ({
     )
   ) : undefined;
 
+  const footerEliminar =
+    !editing && confirmDel ? (
+      <div className="flex flex-col gap-2.5">
+        <p className="text-center text-sm font-semibold text-carbon">
+          ¿Eliminar esta empresa? No se puede deshacer.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => setConfirmDel(false)}
+            disabled={busy}
+            className="w-full rounded-full border border-linea bg-surface py-3 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-50 sm:flex-1"
+          >
+            {t("super.cancelar")}
+          </button>
+          <button
+            type="button"
+            onClick={() => void borrarOrg()}
+            disabled={busy}
+            className="w-full rounded-full bg-red-500 py-3 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50 sm:flex-1"
+          >
+            {t("super.confirmarEliminar")}
+          </button>
+        </div>
+      </div>
+    ) : undefined;
+
   return (
     <ModalShell
       onClose={editing ? intentarSalirForm : onClose}
       labelledBy="org-modal-title"
       busy={saving || busy}
-      footer={footerEdicion}
+      footer={footerEdicion ?? footerEliminar}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -707,6 +777,23 @@ export const OrgModal = ({
               value={vista.direccion || "—"}
             />
           </div>
+
+          {vista.sucursales.length >= vista.cupo && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-amber-300/60 bg-amber-50 px-3 py-3 dark:border-amber-500/30 dark:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-medium text-amber-950 dark:text-amber-100">
+                Cupo completo ({vista.cupo}). Sumá 1 contratada o agregá una
+                sucursal abajo (también sube el cupo).
+              </p>
+              <button
+                type="button"
+                onClick={() => void sumarCupo()}
+                disabled={busy}
+                className="shrink-0 rounded-full bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-800 disabled:opacity-50"
+              >
+                +1 cupo
+              </button>
+            </div>
+          )}
 
           {/* Bloque de cobro: lo más importante para el superadmin */}
           <div className="rounded-2xl border border-linea bg-crema/50 p-3.5">
@@ -899,6 +986,9 @@ export const OrgModal = ({
             <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-dashed border-linea p-3">
               <p className="text-xs font-semibold text-carbon/55">
                 {t("super.agregarSucursal")}
+                {vista.sucursales.length >= vista.cupo
+                  ? " · suma 1 al cupo al agregar"
+                  : ""}
               </p>
               {quotaError && (
                 <p className="text-xs text-red-500">{t("super.cupoLleno")}</p>
@@ -908,7 +998,16 @@ export const OrgModal = ({
                   className={INPUT}
                   placeholder={t("super.nombreSucursal")}
                   value={newBranch}
-                  onChange={(e) => setNuevaSuc(e.target.value)}
+                  onChange={(e) => {
+                    setNuevaSuc(e.target.value);
+                    setCupoError(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void agregarSuc();
+                    }
+                  }}
                 />
                 <Select
                   value={nuevaTipo}
@@ -920,41 +1019,27 @@ export const OrgModal = ({
                 />
                 <button
                   type="button"
-                  onClick={agregarSuc}
-                  className="rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema"
+                  onClick={() => void agregarSuc()}
+                  disabled={busy || !newBranch.trim()}
+                  className="rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema disabled:opacity-50"
                 >
-                  +
+                  {busy
+                    ? "…"
+                    : vista.sucursales.length >= vista.cupo
+                      ? "+ cupo y sucursal"
+                      : "+"}
                 </button>
               </div>
             </div>
           </div>
 
-          {!confirmDel ? (
-            <button
-              type="button"
-              onClick={() => setConfirmDel(true)}
-              className="text-xs font-semibold text-red-600/70 hover:text-red-600"
-            >
-              {t("super.eliminar")}
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDel(false)}
-                className="flex-1 rounded-full border border-linea py-2 text-sm"
-              >
-                {t("super.cancelar")}
-              </button>
-              <button
-                type="button"
-                onClick={borrarOrg}
-                className="flex-1 rounded-full bg-red-600 py-2 text-sm font-semibold text-white"
-              >
-                {t("super.confirmarEliminar")}
-              </button>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setConfirmDel(true)}
+            className="text-xs font-semibold text-red-600/70 hover:text-red-600"
+          >
+            {t("super.eliminar")}
+          </button>
         </div>
       ) : null}
     </ModalShell>

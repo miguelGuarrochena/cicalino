@@ -12,9 +12,10 @@ import {
 import { isWhatsapp } from "@/lib/validations";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
+import { saveBranchConfig } from "@/lib/data/branch";
+import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
-import { saveBranchConfig } from "@/lib/data/branch";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
@@ -191,6 +192,10 @@ const ConfigPage = () => {
             </Campo>
           </div>
         </section>
+      )}
+
+      {role === "admin" && supabaseConfigurado && isRealBranchId(branchId) && (
+        <PedirSucursalCard />
       )}
 
       <section className={CARD}>

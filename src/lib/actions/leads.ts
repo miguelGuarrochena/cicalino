@@ -68,8 +68,8 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     return {
       ok: false,
       error:
-        "Este mail ya tiene una cuenta Cicalino. Si querés otra sucursal o un cambio de plan, escribinos a info@cicalino.net.",
-    };
+        "Este mail ya tiene una cuenta Cicalino. Si querés otra sucursal, pedila desde el panel (Configuración).",
+      };
   }
 
   const { data: solPrevias } = await admin

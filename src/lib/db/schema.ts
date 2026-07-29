@@ -272,6 +272,27 @@ export const solicitudes = pgTable("solicitudes", {
 export type Solicitud = typeof solicitudes.$inferSelect;
 
 // ---------------------------------------------------------------------------
+// Pedidos de sucursal extra (dueño pide +1 cupo)
+// ---------------------------------------------------------------------------
+
+export const pedidosSucursal = pgTable("pedidos_sucursal", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizacionId: uuid("organizacion_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  cupoActual: integer("cupo_actual").notNull(),
+  cupoPedido: integer("cupo_pedido").notNull(),
+  nombreSucursal: text("nombre_sucursal"),
+  // nueva | atendida | descartada
+  estado: text("estado").notNull().default("nueva"),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type PedidoSucursal = typeof pedidosSucursal.$inferSelect;
+
+// ---------------------------------------------------------------------------
 // Relaciones
 // ---------------------------------------------------------------------------
 
