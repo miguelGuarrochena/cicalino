@@ -29,10 +29,10 @@ export const CobrosPanel = ({
   if (items.length === 0) return null;
 
   return (
-    <section className="rounded-[24px] border border-amber-400/40 bg-amber-50 p-4 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 sm:p-5">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-100">
+    <section className="rounded-[24px] border border-amber-300/80 bg-amber-100 p-4 shadow-sm sm:p-5">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-amber-950">
         Cobros a revisar
-        <span className="rounded-full bg-amber-600 px-2 py-0.5 text-xs text-white">
+        <span className="rounded-full bg-amber-700 px-2 py-0.5 text-xs text-white">
           {items.length}
         </span>
       </h2>
@@ -40,7 +40,7 @@ export const CobrosPanel = ({
         {items.map((o) => (
           <li
             key={o.id}
-            className="flex flex-col gap-2 rounded-2xl border border-amber-200/80 bg-surface px-3 py-3 sm:flex-row sm:items-center dark:border-amber-500/20"
+            className="flex flex-col gap-2 rounded-2xl border border-amber-200/80 bg-surface px-3 py-3 sm:flex-row sm:items-center"
           >
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-carbon">{o.nombre}</p>

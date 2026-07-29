@@ -272,28 +272,28 @@ const PanelOrdersPage = () => {
           onClick={() => setFiltro("creado")}
           className={`rounded-2xl border px-3 py-3 text-left transition ${
             filtro === "creado"
-              ? "border-amber-400 bg-amber-50 dark:bg-amber-500/10"
+              ? "border-amber-400 bg-amber-100"
               : "border-linea bg-surface hover:bg-carbon/5"
           }`}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700/80">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-900">
             {t("estado.creado")}
           </p>
-          <p className="mt-0.5 font-display text-2xl text-amber-700">{enCurso}</p>
+          <p className="mt-0.5 font-display text-2xl text-amber-900">{enCurso}</p>
         </button>
         <button
           type="button"
           onClick={() => setFiltro("listo")}
           className={`rounded-2xl border px-3 py-3 text-left transition ${
             filtro === "listo"
-              ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10"
+              ? "border-emerald-400 bg-emerald-100"
               : "border-linea bg-surface hover:bg-carbon/5"
           }`}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700/80">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
             {t("estado.listo")}
           </p>
-          <p className="mt-0.5 font-display text-2xl text-emerald-700">{listos}</p>
+          <p className="mt-0.5 font-display text-2xl text-emerald-900">{listos}</p>
         </button>
       </div>
 

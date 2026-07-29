@@ -181,13 +181,13 @@ export const CustomerWaiting = ({ token }: Props) => {
   return (
     <main
       className={`relative flex min-h-dvh flex-col items-center px-6 pb-14 pt-16 text-center transition-colors duration-500 ${
-        flash ? "bg-emerald-200/70 dark:bg-emerald-500/25" : "bg-crema"
+        flash ? "bg-emerald-200/70" : "bg-crema"
       }`}
     >
       <Controls className="absolute right-4 top-4 z-20" />
 
       {waiting && (
-        <p className="u-in mb-6 w-full max-w-sm rounded-2xl border border-amber-300/50 bg-amber-50 px-3 py-2.5 text-xs font-medium leading-snug text-amber-900/80 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100/90">
+        <p className="u-in mb-6 w-full max-w-sm rounded-2xl border border-amber-300/80 bg-amber-100 px-3 py-2.5 text-xs font-medium leading-snug text-amber-950">
           {pushActivo ? t("cliente.noCerrarPush") : t("cliente.noCerrar")}
         </p>
       )}
@@ -275,7 +275,7 @@ export const CustomerWaiting = ({ token }: Props) => {
             <button
               type="button"
               onClick={marcarRetirado}
-              className="w-full rounded-full border border-emerald-300 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+              className="w-full rounded-full border border-emerald-400 bg-emerald-100 px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200 active:scale-95"
             >
               {locale === "en" ? "I picked it up 👍" : "Ya lo retiré 👍"}
             </button>

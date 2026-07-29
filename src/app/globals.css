@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/* dark: debe respetar el toggle (data-theme), no solo el OS.
+ * Si el usuario fuerza claro con OS en oscuro, no aplicar dark:text claros
+ * sobre fondos crema/ámbar (texto ilegible). */
+@custom-variant dark {
+  &:where([data-theme="dark"] *, [data-theme="dark"]) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:not(:where([data-theme="light"] *, [data-theme="light"])) {
+      @slot;
+    }
+  }
+}
+
 /* ===========================================================================
    Cicalino — sistema de marca (azul cobalto sobre crema)
    Tema claro por defecto; oscuro segun sistema o forzado con data-theme.

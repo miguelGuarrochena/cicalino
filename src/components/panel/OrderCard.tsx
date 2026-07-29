@@ -164,8 +164,8 @@ export const OrderCard = ({
 
       {(enCurso || listo) &&
         (confirmCancel ? (
-          <div className="flex flex-col gap-2 rounded-2xl bg-red-50 p-2 dark:bg-red-500/10">
-            <p className="px-1 text-center text-xs font-medium text-red-700 dark:text-red-300">
+          <div className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50 p-2">
+            <p className="px-1 text-center text-xs font-medium text-red-800">
               {t("card.confirmarCancel")}
             </p>
             <div className="flex gap-2">
