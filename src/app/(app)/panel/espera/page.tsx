@@ -154,16 +154,173 @@ const mesaTileClass = (
 const minsAgo = (iso: string) =>
   Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
 
-const toLocalInput = (d: Date) => {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+const toLocalInput = (d: Date) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+/** Reservas de restaurante: cada 15 min (21:00, 21:15, 21:30…). */
+const SLOT_STEP_MIN = 15;
+const SLOT_START_MIN = 11 * 60; // 11:00
+const SLOT_END_MIN = 23 * 60 + 45; // 23:45
+
+const snapToSlot = (d: Date) => {
+  const out = new Date(d);
+  out.setSeconds(0, 0);
+  const total = out.getHours() * 60 + out.getMinutes();
+  const snapped = Math.ceil(total / SLOT_STEP_MIN) * SLOT_STEP_MIN;
+  out.setHours(Math.floor(snapped / 60), snapped % 60, 0, 0);
+  return out;
 };
 
 const defaultHorarioInput = () => {
-  const d = new Date();
-  d.setMinutes(0, 0, 0);
-  d.setHours(d.getHours() + 1);
+  const d = snapToSlot(new Date(Date.now() + 60 * 60_000));
   return toLocalInput(d);
+};
+
+const dateKeyFromLocal = (local: string) => local.slice(0, 10);
+const timeKeyFromLocal = (local: string) => local.slice(11, 16);
+
+const combineLocalHorario = (dateKey: string, timeKey: string) =>
+  `${dateKey}T${timeKey}`;
+
+const todayDateKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+
+const addDaysKey = (dateKey: string, days: number) => {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+};
+
+const buildDayOptions = (locale: string) => {
+  const today = todayDateKey();
+  const loc = locale === "en" ? "en-US" : "es-AR";
+  return Array.from({ length: 7 }, (_, i) => {
+    const key = addDaysKey(today, i);
+    const [y, m, d] = key.split("-").map(Number);
+    const label =
+      i === 0
+        ? locale === "en"
+          ? "Today"
+          : "Hoy"
+        : i === 1
+          ? locale === "en"
+            ? "Tomorrow"
+            : "Mañana"
+          : new Date(y, m - 1, d).toLocaleDateString(loc, {
+              weekday: "short",
+              day: "numeric",
+            });
+    return { key, label };
+  });
+};
+
+const allTimeSlots = (() => {
+  const slots: string[] = [];
+  for (let m = SLOT_START_MIN; m <= SLOT_END_MIN; m += SLOT_STEP_MIN) {
+    slots.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
+  }
+  return slots;
+})();
+
+const availableTimeSlots = (dateKey: string) => {
+  if (dateKey !== todayDateKey()) return allTimeSlots;
+  const now = snapToSlot(new Date());
+  const minKey = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  return allTimeSlots.filter((t) => t >= minKey);
+};
+
+const ReservaHorarioPicker = ({
+  value,
+  onChange,
+  locale,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  locale: string;
+}) => {
+  const days = useMemo(() => buildDayOptions(locale), [locale]);
+  const dateKey = dateKeyFromLocal(value) || todayDateKey();
+  const timeKey = timeKeyFromLocal(value) || "20:00";
+  const slots = useMemo(() => availableTimeSlots(dateKey), [dateKey]);
+
+  useEffect(() => {
+    if (!slots.length) return;
+    if (!slots.includes(timeKey)) {
+      onChange(combineLocalHorario(dateKey, slots[0]));
+    }
+  }, [dateKey, timeKey, slots, onChange]);
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-linea bg-crema/30 p-3">
+      <div>
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-carbon/45">
+          {locale === "en" ? "Day" : "Día"}
+        </p>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          {days.map((d) => {
+            const active = d.key === dateKey;
+            return (
+              <button
+                key={d.key}
+                type="button"
+                onClick={() => {
+                  const nextSlots = availableTimeSlots(d.key);
+                  const t = nextSlots.includes(timeKey)
+                    ? timeKey
+                    : (nextSlots[0] ?? timeKey);
+                  onChange(combineLocalHorario(d.key, t));
+                }}
+                className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold capitalize transition sm:text-sm ${
+                  active
+                    ? "bg-espera text-crema"
+                    : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
+                }`}
+              >
+                {d.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-carbon/45">
+          {locale === "en" ? "Time · every 15 min" : "Hora · cada 15 min"}
+        </p>
+        {slots.length ? (
+          <div className="grid max-h-44 grid-cols-4 gap-1.5 overflow-y-auto rounded-xl sm:grid-cols-5">
+            {slots.map((t) => {
+              const active = t === timeKey;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => onChange(combineLocalHorario(dateKey, t))}
+                  className={`rounded-xl px-2 py-2.5 text-sm font-semibold tabular-nums transition active:scale-95 ${
+                    active
+                      ? "bg-espera text-crema shadow-sm"
+                      : "border border-linea bg-surface text-carbon hover:border-espera/40"
+                  }`}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded-xl border border-linea bg-surface px-3 py-3 text-sm text-carbon/55">
+            {locale === "en"
+              ? "No more slots today — pick another day."
+              : "No quedan horarios hoy — elegí otro día."}
+          </p>
+        )}
+      </div>
+    </div>
+  );
 };
 
 const formatHora = (iso: string, locale: string) =>
@@ -236,6 +393,10 @@ const EsperaPanelPage = () => {
   const [editCapacidadValue, setEditCapacidadValue] = useState(4);
   const [liberarNumero, setLiberarNumero] = useState<number | null>(null);
   const [sentarMesas, setSentarMesas] = useState<number[]>([]);
+  const [filtroMesa, setFiltroMesa] = useState<
+    "todas" | "libre" | "reservada" | "ocupada"
+  >("todas");
+  const [qMesa, setQMesa] = useState("");
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -269,6 +430,14 @@ const EsperaPanelPage = () => {
   const ocupadas = mesas.filter((m) => m.estado === "ocupada").length;
   const reservadas = mesas.filter((m) => m.estado === "reservada").length;
   const personasEnCola = cola.reduce((sum, e) => sum + e.personas, 0);
+  const mesasFiltradas = useMemo(() => {
+    const needle = qMesa.trim();
+    return mesas.filter((m) => {
+      if (filtroMesa !== "todas" && m.estado !== filtroMesa) return false;
+      if (!needle) return true;
+      return String(m.numero).includes(needle);
+    });
+  }, [mesas, filtroMesa, qMesa]);
   const paginated = slicePage(cola, page, PAGE_SIZE);
   const sentarEspera = esperas.find((e) => e.id === sentarId);
   const mesasLibres = mesas.filter((m) => m.estado === "libre");
@@ -386,39 +555,35 @@ const EsperaPanelPage = () => {
   if (!visibles.espera) return null;
 
   return (
-    <div>
+    <div className="flex flex-col gap-5 sm:gap-6">
       <ModuleSwitcher />
 
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-espera">
             {locale === "en" ? "Table wait" : "Espera de mesa"}
           </p>
-          <h1 className="font-display text-2xl uppercase tracking-tight text-carbon sm:text-3xl">
+          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
             {locale === "en" ? "Floor & queue" : "Sala y cola"}
           </h1>
           <p className="mt-1 text-sm text-carbon/55">
-            {libres} {locale === "en" ? "free" : "libres"} · {reservadas}{" "}
-            {locale === "en" ? "reserved" : "reservadas"} · {ocupadas}{" "}
-            {locale === "en" ? "busy" : "ocupadas"} · {cola.length}{" "}
-            {locale === "en" ? "parties" : "grupos"} · {personasEnCola}{" "}
-            {locale === "en" ? "guests waiting" : "personas en cola"}
+            {cola.length}{" "}
+            {locale === "en" ? "parties waiting" : "grupos en cola"}
+            {personasEnCola
+              ? ` · ${personasEnCola} ${locale === "en" ? "guests" : "personas"}`
+              : ""}
             {cantidadMesas ? ` · ${cantidadMesas} mesas` : ""}
           </p>
-          <p className="mt-0.5 text-xs text-carbon/40">
-            {locale === "en"
-              ? "Tap busy/reserved to free · tap free to set seats"
-              : "Tocá ocupada/reservada para liberar · libre para plazas"}
-          </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
             type="button"
             onClick={() => {
               const firstFit =
                 mesas.find(
                   (m) =>
-                    m.estado === "libre" && (m.capacidad ?? 4) >= reservaPersonas,
+                    m.estado === "libre" &&
+                    (m.capacidad ?? 4) >= reservaPersonas,
                 )?.numero ?? null;
               setReservaMesa(firstFit);
               setReservaHorario(defaultHorarioInput());
@@ -438,34 +603,114 @@ const EsperaPanelPage = () => {
         </div>
       </div>
 
-      {/* Grid de mesas */}
-      <section className="mb-6 rounded-[24px] border border-espera/25 bg-espera/[0.07] p-4 shadow-sm dark:border-espera/30 dark:bg-espera/10 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-carbon/70">
-            {locale === "en" ? "Tables" : "Mesas"}
-          </h2>
-          <p className="text-xs text-carbon/45">
-            {locale === "en"
-              ? "Tap a free table to set seats"
-              : "Tocá una mesa libre para definir plazas"}
+      {/* Resumen mesas (como pedidos) */}
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setFiltroMesa((f) => (f === "libre" ? "todas" : "libre"))
+          }
+          className={`rounded-2xl border px-3 py-3 text-left transition ${
+            filtroMesa === "libre"
+              ? "border-espera bg-espera/15"
+              : "border-linea bg-surface hover:bg-carbon/5"
+          }`}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-espera">
+            {locale === "en" ? "Free" : "Libres"}
           </p>
+          <p className="mt-0.5 font-display text-2xl text-espera">{libres}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setFiltroMesa((f) => (f === "reservada" ? "todas" : "reservada"))
+          }
+          className={`rounded-2xl border px-3 py-3 text-left transition ${
+            filtroMesa === "reservada"
+              ? "border-amber-500 bg-amber-100"
+              : "border-linea bg-surface hover:bg-carbon/5"
+          }`}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+            {locale === "en" ? "Reserved" : "Reservadas"}
+          </p>
+          <p className="mt-0.5 font-display text-2xl text-amber-900">
+            {reservadas}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setFiltroMesa((f) => (f === "ocupada" ? "todas" : "ocupada"))
+          }
+          className={`rounded-2xl border px-3 py-3 text-left transition ${
+            filtroMesa === "ocupada"
+              ? "border-rose-500 bg-rose-100"
+              : "border-linea bg-surface hover:bg-carbon/5"
+          }`}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-800">
+            {locale === "en" ? "Busy" : "Ocupadas"}
+          </p>
+          <p className="mt-0.5 font-display text-2xl text-rose-800">{ocupadas}</p>
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          {(
+            [
+              ["todas", locale === "en" ? "All" : "Todas", mesas.length],
+              ["libre", locale === "en" ? "Free" : "Libres", libres],
+              [
+                "reservada",
+                locale === "en" ? "Reserved" : "Reservadas",
+                reservadas,
+              ],
+              ["ocupada", locale === "en" ? "Busy" : "Ocupadas", ocupadas],
+            ] as const
+          ).map(([key, label, n]) => {
+            const active = filtroMesa === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFiltroMesa(key)}
+                className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold transition sm:text-sm ${
+                  active
+                    ? "bg-espera text-crema"
+                    : "border border-linea bg-surface text-carbon/60 hover:bg-carbon/5"
+                }`}
+              >
+                {label}
+                <span className={`ml-1.5 ${active ? "opacity-80" : "opacity-50"}`}>
+                  {n}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <div className="mt-2 flex flex-wrap gap-3 text-[10px] font-semibold uppercase tracking-wide text-carbon/50">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm bg-espera" />
-              {locale === "en" ? "Free" : "Libre"}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm bg-amber-400" />
-              {locale === "en" ? "Reserved" : "Reservada"}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm bg-rose-600" />
-              {locale === "en" ? "Busy" : "Ocupada"}
-            </span>
-        </div>
-        <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
-          {mesas.map((m) => {
+        <input
+          type="search"
+          value={qMesa}
+          onChange={(e) => setQMesa(e.target.value)}
+          placeholder={
+            locale === "en" ? "Search table nº…" : "Buscar mesa nº…"
+          }
+          className={INPUT}
+        />
+        <p className="text-xs text-carbon/45">
+          {locale === "en"
+            ? "Tap free → seats · tap busy/reserved → free"
+            : "Libre → plazas · ocupada/reservada → liberar"}
+        </p>
+      </div>
+
+      {/* Grid de mesas */}
+      <section className="rounded-[24px] border border-espera/20 bg-surface p-4 shadow-sm sm:p-5">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
+          {mesasFiltradas.map((m) => {
             const reserva =
               m.reservaId != null ? reservaById.get(m.reservaId) : undefined;
             const libre = m.estado === "libre";
@@ -529,11 +774,18 @@ const EsperaPanelPage = () => {
                 : "Definí la cantidad de mesas en Configuración."}
             </p>
           )}
+          {!!mesas.length && !mesasFiltradas.length && (
+            <p className="col-span-full py-6 text-center text-sm text-carbon/50">
+              {locale === "en"
+                ? "No tables match this filter."
+                : "Ninguna mesa con este filtro."}
+            </p>
+          )}
         </div>
       </section>
 
       {/* Reservas */}
-      <section className="mb-6">
+      <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-carbon/70">
             {locale === "en" ? "Reservations" : "Reservas"}
@@ -847,17 +1099,16 @@ const EsperaPanelPage = () => {
                 }}
               />
             </div>
-            <label className="flex flex-col gap-1.5 text-sm">
+            <div className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-carbon/70">
                 {locale === "en" ? "Date & time" : "Día y hora"}
               </span>
-              <input
-                type="datetime-local"
-                className={INPUT}
+              <ReservaHorarioPicker
                 value={reservaHorario}
-                onChange={(e) => setReservaHorario(e.target.value)}
+                onChange={setReservaHorario}
+                locale={locale}
               />
-            </label>
+            </div>
             <fieldset>
               <legend className="mb-1.5 text-sm font-medium text-carbon/70">
                 {locale === "en" ? "Table" : "Mesa"}
