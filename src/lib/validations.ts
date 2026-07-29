@@ -31,5 +31,23 @@ export const isPin4 = (v: string): boolean => {
   return /^\d{4}$/.test(v.trim());
 };
 
+/** Comparación de nombres de empleado (sin importar mayúsculas ni espacios de sobra). */
+export const normalizarNombreEmpleado = (nombre: string): string =>
+  nombre.trim().replace(/\s+/g, " ").toLocaleLowerCase("es");
+
+/** true si ya hay alguien con ese nombre en la lista (opcional: ignorar un id al editar). */
+export const nombreEmpleadoEnUso = (
+  nombre: string,
+  empleados: ReadonlyArray<{ id: string; nombre: string }>,
+  exceptoId?: string,
+): boolean => {
+  const n = normalizarNombreEmpleado(nombre);
+  if (!n) return false;
+  return empleados.some(
+    (e) =>
+      e.id !== exceptoId && normalizarNombreEmpleado(e.nombre) === n,
+  );
+};
+
 // `pinEnUso` se eliminó: los PINs ya no bajan al navegador, así que el chequeo
 // de duplicados lo hace `set_empleado_pin` en la base (security-fixes-03.sql).

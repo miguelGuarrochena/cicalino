@@ -8,10 +8,15 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/Toast";
-import { isPin4 } from "@/lib/validations";
+import { isPin4, nombreEmpleadoEnUso } from "@/lib/validations";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
-import { insertEmployee, removeEmployeeDb } from "@/lib/data/branch";
+import {
+  insertEmployee,
+  removeEmployeeDb,
+  setEmployeePin,
+} from "@/lib/data/branch";
+import type { EmployeeUI } from "@/lib/store/config-store";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
@@ -24,6 +29,17 @@ const inicial = (name: string) => {
 type FieldErrors = {
   nombre?: string;
   pin?: string;
+};
+
+const mapPinError = (msg: string, t: (k: string) => string): string => {
+  const lower = msg.toLowerCase();
+  if (lower.includes("ya está en uso") || lower.includes("already")) {
+    return t("config.empPinDup");
+  }
+  if (lower.includes("4 dígitos") || lower.includes("4 digits")) {
+    return t("config.empPinReq");
+  }
+  return t("toast.empError");
 };
 
 // Modal para dar de alta un empleado (nombre + puesto + PIN único de 4 dígitos).
@@ -57,8 +73,10 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const validar = (): FieldErrors => {
     const next: FieldErrors = {};
     if (!name.trim()) next.nombre = t("config.empNombreReq");
-    // El duplicado ya no se chequea acá: los PINs no bajan al navegador.
-    // Lo valida `set_empleado_pin` en la base y el error vuelve por el RPC.
+    else if (nombreEmpleadoEnUso(name, employees)) {
+      next.nombre = t("config.empNombreDup");
+    }
+    // El duplicado de PIN lo valida `set_empleado_pin` en la base.
     if (!isPin4(pin)) next.pin = t("config.empPinReq");
     return next;
   };
@@ -76,11 +94,17 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
           rol: role,
           pin,
         });
-        if (!created) {
-          toast(t("toast.empError"), "error");
+        if (!created.ok) {
+          if (created.reason === "nombre_dup") {
+            setErrors({ nombre: t("config.empNombreDup") });
+          } else if (created.reason === "pin_dup") {
+            setErrors({ pin: t("config.empPinDup") });
+          } else {
+            toast(t("toast.empError"), "error");
+          }
           return;
         }
-        pushEmpleado(created);
+        pushEmpleado(created.emp);
       } else {
         addEmployee({ nombre: name, rol: role, pin });
       }
@@ -230,6 +254,119 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
+/** Modal para resetear el PIN de un empleado existente (sin borrarlo). */
+const ChangePinModal = ({
+  emp,
+  onClose,
+}: {
+  emp: EmployeeUI;
+  onClose: () => void;
+}) => {
+  const { t } = useApp();
+  const toast = useToast();
+  const marcarPin = useConfigStore((s) => s.marcarPinEmpleado);
+  const branchId = useSessionStore((s) => s.sucursalId);
+  const live = supabaseConfigurado && isRealBranchId(branchId);
+
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState<string | undefined>();
+  const [saving, setSaving] = useState(false);
+
+  const guardar = async () => {
+    if (saving) return;
+    if (!isPin4(pin)) {
+      setError(t("config.empPinReq"));
+      return;
+    }
+    setSaving(true);
+    try {
+      if (live) {
+        const res = await setEmployeePin(emp.id, pin);
+        if (!res.ok) {
+          setError(mapPinError(res.error, t));
+          return;
+        }
+      }
+      marcarPin(emp.id, true);
+      toast(t("toast.empPinCambiado"), "success");
+      onClose();
+    } catch {
+      toast(t("toast.empError"), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      onClose={onClose}
+      labelledBy="emp-pin-modal-title"
+      busy={saving}
+      footer={
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => void guardar()}
+            disabled={saving}
+            className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60 sm:flex-1"
+          >
+            {saving ? "…" : t("config.guardarPin")}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50 sm:flex-1"
+          >
+            {t("super.cancelar")}
+          </button>
+        </div>
+      }
+    >
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3
+            id="emp-pin-modal-title"
+            className="font-display text-2xl uppercase tracking-tight text-carbon"
+          >
+            {t("config.cambiarPin")}
+          </h3>
+          <p className="mt-1 text-sm text-carbon/55">
+            {t("config.cambiarPinSub", { n: emp.nombre })}
+          </p>
+        </div>
+        <ModalCloseBtn
+          onClick={onClose}
+          disabled={saving}
+          label={t("qr.cerrar")}
+        />
+      </div>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-carbon/70">
+          {t("config.empPin")} *
+        </span>
+        <input
+          autoFocus
+          disabled={saving}
+          inputMode="numeric"
+          maxLength={4}
+          className={`${INPUT} tracking-[0.35em] ${error ? "border-red-400" : ""}`}
+          value={pin}
+          onChange={(e) => {
+            setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
+            setError(undefined);
+          }}
+          onKeyDown={(e) => e.key === "Enter" && void guardar()}
+          placeholder="••••"
+        />
+        <span className="text-xs text-carbon/45">{t("config.empPinHint")}</span>
+        {error && <span className="text-xs text-red-500">{error}</span>}
+      </label>
+    </ModalShell>
+  );
+};
+
 export const EmployeeList = () => {
   const { t } = useApp();
   const toast = useToast();
@@ -238,6 +375,7 @@ export const EmployeeList = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const live = supabaseConfigurado && isRealBranchId(branchId);
   const [modal, setModal] = useState(false);
+  const [pinEmp, setPinEmp] = useState<EmployeeUI | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [borrando, setBorrando] = useState(false);
   const [page, setPage] = useState(1);
@@ -319,28 +457,51 @@ export const EmployeeList = () => {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmId(e.id)}
-                    aria-label={t("config.borrar")}
-                    className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-linea text-carbon/45 transition hover:border-red-300 hover:text-red-500"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setPinEmp(e)}
+                      aria-label={t("config.cambiarPin")}
+                      title={t("config.cambiarPin")}
+                      className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-linea text-carbon/45 transition hover:border-marca hover:text-marca"
                     >
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4h8v2" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v6M14 11v6" />
-                    </svg>
-                  </button>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(e.id)}
+                      aria-label={t("config.borrar")}
+                      className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-linea text-carbon/45 transition hover:border-red-300 hover:text-red-500"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4h8v2" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                      </svg>
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
@@ -355,6 +516,9 @@ export const EmployeeList = () => {
       )}
 
       {modal && <EmployeeModal onClose={() => setModal(false)} />}
+      {pinEmp && (
+        <ChangePinModal emp={pinEmp} onClose={() => setPinEmp(null)} />
+      )}
     </>
   );
 };

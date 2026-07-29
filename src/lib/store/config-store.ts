@@ -72,6 +72,8 @@ interface ConfigState {
     campo: "nombre" | "rol",
     valor: string,
   ) => void;
+  /** Marca si el empleado tiene PIN (el valor del PIN nunca vive en el store). */
+  marcarPinEmpleado: (id: string, tienePin: boolean) => void;
   quitarEmpleado: (id: string) => void;
   /**
    * true cuando ya cargamos config de la sucursal (o no hace falta).
@@ -148,6 +150,12 @@ export const useConfigStore = create<ConfigState>()(
         set((s) => ({
           empleados: s.empleados.map((e) =>
             e.id === id ? { ...e, [campo]: valor } : e,
+          ),
+        })),
+      marcarPinEmpleado: (id, tienePin) =>
+        set((s) => ({
+          empleados: s.empleados.map((e) =>
+            e.id === id ? { ...e, tienePin } : e,
           ),
         })),
       quitarEmpleado: (id) =>

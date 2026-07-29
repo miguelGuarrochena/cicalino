@@ -2,6 +2,7 @@
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { branchOperacionSchema, empleadoSchema, parsear } from "@/lib/schemas";
+import { nombreEmpleadoEnUso } from "@/lib/validations";
 import type {
   EmployeeUI,
   IdentificationMode,
@@ -146,17 +147,35 @@ export const verifyEmployeePin = async (
   return fila ? { id: fila.id, nombre: fila.nombre } : null;
 };
 
+export type InsertEmployeeResult =
+  | { ok: true; emp: EmployeeUI }
+  | { ok: false; reason: "nombre_dup" | "pin_dup" | "error" };
+
 export const insertEmployee = async (
   branchId: string,
   data: { nombre: string; rol?: string; pin?: string },
-): Promise<EmployeeUI | null> => {
+): Promise<InsertEmployeeResult> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { ok: false, reason: "error" };
   const v = parsear(empleadoSchema, data);
   if (!v.ok) {
     console.error("insertEmployee", v.error);
-    return null;
+    return { ok: false, reason: "error" };
   }
+
+  // Chequeo previo (UX); el índice único en la base es la garantía real.
+  const { data: existentes } = await supabase
+    .from("empleados")
+    .select("id, nombre")
+    .eq("local_id", branchId)
+    .eq("activo", true);
+  if (
+    existentes &&
+    nombreEmpleadoEnUso(v.data.nombre, existentes as { id: string; nombre: string }[])
+  ) {
+    return { ok: false, reason: "nombre_dup" };
+  }
+
   const { data: row, error } = await supabase
     .from("empleados")
     .insert({
@@ -168,7 +187,8 @@ export const insertEmployee = async (
     .single();
   if (error || !row) {
     console.error("insertEmployee", error?.message);
-    return null;
+    if (error?.code === "23505") return { ok: false, reason: "nombre_dup" };
+    return { ok: false, reason: "error" };
   }
   const emp = mapEmp(row as EmpRow);
 
@@ -179,11 +199,15 @@ export const insertEmployee = async (
     if (!res.ok) {
       console.error("insertEmployee/pin", res.error);
       await supabase.from("empleados").delete().eq("id", emp.id);
-      return null;
+      const msg = res.error.toLowerCase();
+      if (msg.includes("ya está en uso") || msg.includes("already")) {
+        return { ok: false, reason: "pin_dup" };
+      }
+      return { ok: false, reason: "error" };
     }
-    return { ...emp, tienePin: true };
+    return { ok: true, emp: { ...emp, tienePin: true } };
   }
-  return emp;
+  return { ok: true, emp };
 };
 
 export interface BranchLite {

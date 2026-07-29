@@ -5,6 +5,8 @@ import {
   formatCuil,
   isWhatsapp,
   isPin4,
+  nombreEmpleadoEnUso,
+  normalizarNombreEmpleado,
 } from "@/lib/validations";
 
 describe("isEmail", () => {
@@ -49,6 +51,34 @@ describe("isPin4", () => {
     expect(isPin4("12")).toBe(false);
     expect(isPin4("12345")).toBe(false);
     expect(isPin4("12a4")).toBe(false);
+  });
+});
+
+describe("nombreEmpleadoEnUso", () => {
+  const lista = [
+    { id: "1", nombre: "Lucía" },
+    { id: "2", nombre: "Marcos" },
+  ];
+
+  it("detecta el mismo nombre sin importar mayúsculas ni espacios", () => {
+    expect(nombreEmpleadoEnUso("lucía", lista)).toBe(true);
+    expect(nombreEmpleadoEnUso("  Lucía  ", lista)).toBe(true);
+    expect(nombreEmpleadoEnUso("LUCÍA", lista)).toBe(true);
+  });
+
+  it("permite variantes distintas", () => {
+    expect(nombreEmpleadoEnUso("Lucy", lista)).toBe(false);
+    expect(nombreEmpleadoEnUso("Lucía B", lista)).toBe(false);
+    expect(nombreEmpleadoEnUso("Luli", lista)).toBe(false);
+  });
+
+  it("ignora un id al editar", () => {
+    expect(nombreEmpleadoEnUso("Lucía", lista, "1")).toBe(false);
+    expect(nombreEmpleadoEnUso("Lucía", lista, "2")).toBe(true);
+  });
+
+  it("normaliza espacios internos", () => {
+    expect(normalizarNombreEmpleado("  Lucía   B  ")).toBe("lucía b");
   });
 });
 

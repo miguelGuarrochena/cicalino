@@ -9,7 +9,7 @@ import {
   integer,
   boolean,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -156,7 +156,14 @@ export const employees = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("idx_empleados_local").on(t.localId)],
+  (t) => [
+    index("idx_empleados_local").on(t.localId),
+    // Fichaje por nombre: no pueden coexistir dos iguales en la misma sucursal.
+    uniqueIndex("uq_empleados_local_nombre").on(
+      t.localId,
+      sql`lower(trim(${t.nombre}))`,
+    ),
+  ],
 );
 
 // ---------------------------------------------------------------------------
