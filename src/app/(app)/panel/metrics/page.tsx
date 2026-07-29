@@ -10,7 +10,7 @@ import {
 import { NoAccess } from "@/components/ui/NoAccess";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
-import { fetchMetrics, type MetricsData } from "@/lib/data/metrics";
+import { fetchMetrics, fetchEsperaMetrics, type MetricsData } from "@/lib/data/metrics";
 import { useConfigStore } from "@/lib/store/config-store";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
@@ -108,14 +108,19 @@ const MetricasPage = () => {
 
   const live = supabaseConfigurado && isRealBranchId(branchId);
   const [liveData, setLiveData] = useState<MetricsData | null>(null);
+  const [liveEspera, setLiveEspera] = useState<MetricsData | null>(null);
   useEffect(() => {
     if (!live || !branchId) {
       setLiveData(null);
+      setLiveEspera(null);
       return;
     }
     let active = true;
     void fetchMetrics(branchId, periodo).then((m) => {
       if (active) setLiveData(m);
+    });
+    void fetchEsperaMetrics(branchId, periodo).then((m) => {
+      if (active) setLiveEspera(m);
     });
     return () => {
       active = false;
@@ -140,7 +145,9 @@ const MetricasPage = () => {
   };
   const d =
     tab === "espera"
-      ? DATA_ESPERA[periodo]
+      ? live
+        ? liveEspera ?? EMPTY
+        : DATA_ESPERA[periodo]
       : live
         ? liveData ?? EMPTY
         : DATA[periodo];
@@ -282,10 +289,10 @@ const MetricasPage = () => {
         />
         <Tarjeta
           titulo={tab === "espera" ? "Ocupación" : t("metricas.retiro")}
-          valor={tab === "espera" ? "72%" : d.retiro}
+          valor={d.retiro}
           detalle={
             tab === "espera"
-              ? "Mesas ocupadas promedio"
+              ? "Mesas ocupadas ahora"
               : t("metricas.retiroDet")
           }
           delay={0.15}

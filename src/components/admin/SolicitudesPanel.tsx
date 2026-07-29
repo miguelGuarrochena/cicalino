@@ -70,6 +70,14 @@ export const SolicitudesPanel = () => {
           const esContrato = s.tipo === "contrato";
           const planLbl =
             s.plan === "anual" ? "Anual" : s.plan === "mensual" ? "Mensual" : "";
+          const packLbl =
+            s.pack === "pack"
+              ? "Pack"
+              : s.pack === "espera"
+                ? "Espera"
+                : s.pack === "pedidos"
+                  ? "Pedidos"
+                  : "";
           const trabajando = busy === s.id;
           return (
             <li
@@ -81,7 +89,7 @@ export const SolicitudesPanel = () => {
                   {s.local || s.nombre}
                   <span className="ml-2 rounded-full bg-carbon/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/55">
                     {esContrato
-                      ? `Contrato${planLbl ? ` · ${planLbl}` : ""}`
+                      ? `Contrato${planLbl ? ` · ${planLbl}` : ""}${packLbl ? ` · ${packLbl}` : ""}`
                       : "Prueba"}
                   </span>
                 </p>

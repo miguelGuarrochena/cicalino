@@ -198,6 +198,7 @@ const PreciosPage = () => {
         cuil,
         tipo: "contrato",
         plan,
+        pack,
         turnstileToken: turnstileToken ?? undefined,
       });
       if (!res.ok) {

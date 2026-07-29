@@ -150,7 +150,7 @@ export const insertEspera = async (args: {
       personas,
       estado: "esperando",
       empleado_id: args.employeeId ?? null,
-      qr_token: crypto.randomUUID().replace(/-/g, ""),
+      qr_token: crypto.randomUUID(),
       qr_expira_en: finDelDia(),
     })
     .select(SELECT_ESPERA)

@@ -183,3 +183,74 @@ export const fetchMetrics = async (
     valores,
   };
 };
+
+type EsperaRow = {
+  estado: string;
+  creado_en: string;
+  avisado_en: string | null;
+  sentado_en: string | null;
+};
+
+/** Métricas del módulo Espera (grupos / tiempos de aviso). */
+export const fetchEsperaMetrics = async (
+  branchId: string,
+  period: Periodo,
+): Promise<MetricsData> => {
+  const supabase = createBrowserSupabase();
+  const vacio: MetricsData = {
+    pedidos: "0",
+    prep: "—",
+    retiro: "—",
+    cola: "0",
+    pico: "—",
+    avisos: "—",
+    labels: [],
+    valores: [],
+  };
+  if (!supabase) return vacio;
+  const [{ data, error }, mesasRes] = await Promise.all([
+    supabase
+      .from("esperas")
+      .select("estado, creado_en, avisado_en, sentado_en")
+      .eq("local_id", branchId)
+      .gte("creado_en", desde(period).toISOString()),
+    period === "dia"
+      ? supabase
+          .from("mesas")
+          .select("estado")
+          .eq("local_id", branchId)
+      : Promise.resolve({ data: null as { estado: string }[] | null }),
+  ]);
+  if (error || !data) return vacio;
+  const rows = data as EsperaRow[];
+  const total = rows.length;
+  const avisados = rows.filter(
+    (r) => r.estado === "avisado" || r.estado === "sentado",
+  ).length;
+  const enCola = rows.filter(
+    (r) => r.estado === "esperando" || r.estado === "avisado",
+  ).length;
+  const mesas = mesasRes.data ?? [];
+  const ocupadas = mesas.filter((m) => m.estado === "ocupada").length;
+  const ocupPct =
+    mesas.length > 0
+      ? `${Math.round((ocupadas / mesas.length) * 100)}%`
+      : "—";
+  const asRow: Row[] = rows.map((r) => ({
+    estado: r.estado,
+    creado_en: r.creado_en,
+    listo_en: r.avisado_en,
+    retirado_en: r.sentado_en,
+  }));
+  const { labels, valores, pico: pk } = buckets(asRow, period);
+  return {
+    pedidos: total.toLocaleString("es-AR"),
+    prep: minutosProm(asRow, (r) => r.creado_en, (r) => r.listo_en),
+    retiro: ocupPct,
+    cola: period === "dia" ? String(enCola) : "—",
+    pico: pk,
+    avisos: total ? `${Math.round((avisados / total) * 100)}%` : "—",
+    labels,
+    valores,
+  };
+};

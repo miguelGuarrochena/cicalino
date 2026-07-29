@@ -33,6 +33,8 @@ export const solicitudSchema = z.object({
   // prueba = /probar; contrato = /precios «Contratar plan»
   tipo: z.enum(["prueba", "contrato"]).optional().default("prueba"),
   plan: z.enum(["mensual", "anual"]).optional(),
+  // pedidos | espera | pack (solo contrato)
+  pack: z.enum(["pedidos", "espera", "pack"]).optional(),
   // El token de Turnstile lo emite Cloudflare; solo acotamos el tamaño.
   turnstileToken: z.string().max(2048).optional(),
 }).superRefine((v, ctx) => {
@@ -42,6 +44,13 @@ export const solicitudSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "Elegí un plan (mensual o anual).",
       path: ["plan"],
+    });
+  }
+  if (!v.pack) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Elegí un módulo (pedidos, espera o pack).",
+      path: ["pack"],
     });
   }
   if (!v.local || v.local.length < 2) {
@@ -240,7 +249,14 @@ export const pushSubscribeSchema = z.object({
 });
 export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;
 
-export const pushNotifySchema = z.object({ orderId: uuid });
+export const pushNotifySchema = z
+  .object({
+    orderId: uuid.optional(),
+    esperaId: uuid.optional(),
+  })
+  .refine((v) => Boolean(v.orderId) !== Boolean(v.esperaId), {
+    message: "Mandá orderId o esperaId (uno solo).",
+  });
 
 /** Token del QR en la URL pública /p/[token] y /api/p/[token]. */
 export const qrTokenSchema = uuid;

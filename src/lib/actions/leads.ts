@@ -27,6 +27,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
   const { nombre, email, turnstileToken } = v.data;
   const tipo = v.data.tipo ?? "prueba";
   const plan = v.data.plan ?? null;
+  const pack = v.data.pack ?? null;
 
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined;
@@ -97,6 +98,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     cuil: tipo === "contrato" ? cuilVal : null,
     tipo,
     plan: tipo === "contrato" ? plan : null,
+    pack: tipo === "contrato" ? pack : null,
   });
   if (error) {
     console.error("crearSolicitud", error.message);
@@ -114,12 +116,21 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
   const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
   const esContrato = tipo === "contrato";
   const planTxt = plan === "anual" ? "Anual" : "Mensual";
+  const packTxt =
+    pack === "pack"
+      ? "Pack (Pedidos + Espera)"
+      : pack === "espera"
+        ? "Solo espera"
+        : pack === "pedidos"
+          ? "Solo pedidos"
+          : "";
   const detalleContrato = [
     mail,
     telefonoVal,
     local,
     direccion,
     cuilVal ? `CUIL ${cuilVal}` : null,
+    packTxt || null,
   ]
     .filter(Boolean)
     .map((x) => esc(String(x)))
@@ -129,13 +140,13 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     enviarEmail({
       to: notify,
       subject: esContrato
-        ? `Quiere contratar plan ${planTxt} — ${nombre}`
+        ? `Quiere contratar ${planTxt}${packTxt ? ` · ${packTxt}` : ""} — ${nombre}`
         : `Nueva solicitud de prueba — ${nombre}`,
       replyTo: mail,
       html: emailLayout({
         titulo: esContrato ? "Contratar plan" : "Nueva solicitud",
         cuerpoHtml: esContrato
-          ? `<p style="margin:0 0 6px;"><b>${esc(nombre)}</b> quiere contratar el plan <b>${planTxt}</b>.</p>
+          ? `<p style="margin:0 0 6px;"><b>${esc(nombre)}</b> quiere contratar el plan <b>${planTxt}</b>${packTxt ? ` · <b>${esc(packTxt)}</b>` : ""}.</p>
             <p style="margin:0;font-size:14px;">${detalleContrato}</p>`
           : `<p style="margin:0 0 6px;"><b>${esc(nombre)}</b> quiere probar Cicalino.</p>
             <p style="margin:0;font-size:14px;">${esc(mail)}${
@@ -154,7 +165,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
         titulo: esContrato ? "Datos recibidos" : "¡Recibimos tu pedido!",
         cuerpoHtml: esContrato
           ? `<p style="margin:0 0 8px;">¡Hola ${esc(nombre)}!</p>
-            <p style="margin:0;">Recibimos tu pedido para el plan <b>${planTxt}</b>.
+            <p style="margin:0;">Recibimos tu pedido para el plan <b>${planTxt}</b>${packTxt ? ` (${esc(packTxt)})` : ""}.
             A la brevedad te activamos la cuenta y te mandamos el link de
             condiciones y pago.</p>`
           : `<p style="margin:0 0 8px;">¡Hola ${esc(nombre)}! 🎉</p>

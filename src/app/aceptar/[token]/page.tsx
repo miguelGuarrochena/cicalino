@@ -107,6 +107,7 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
                 <b className="text-carbon">{data.nombre}</b>
                 {" · "}
                 Plan {data.ciclo}
+                {data.modulos ? ` · ${data.modulos}` : ""}
                 {data.cupo > 1 ? ` · ${data.cupo} sucursales` : ""}
               </p>
             </div>

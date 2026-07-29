@@ -241,9 +241,10 @@ export const pushSubscriptions = pgTable(
   "push_subscriptions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    pedidoId: uuid("pedido_id")
-      .notNull()
-      .references(() => orders.id, { onDelete: "cascade" }),
+    pedidoId: uuid("pedido_id").references(() => orders.id, {
+      onDelete: "cascade",
+    }),
+    esperaId: uuid("espera_id"),
     endpoint: text("endpoint").notNull(),
     p256dh: text("p256dh").notNull(),
     auth: text("auth").notNull(),
@@ -274,6 +275,8 @@ export const solicitudes = pgTable("solicitudes", {
   tipo: text("tipo").notNull().default("prueba"),
   // mensual | anual (solo contrato)
   plan: text("plan"),
+  // pedidos | espera | pack (solo contrato)
+  pack: text("pack"),
   creadoEn: timestamp("creado_en", { withTimezone: true })
     .notNull()
     .defaultNow(),

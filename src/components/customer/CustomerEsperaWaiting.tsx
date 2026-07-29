@@ -9,6 +9,7 @@ import {
   mostrarAvisoListo,
   pedirPermisoNotificaciones,
   registrarServiceWorker,
+  suscribirWebPush,
 } from "@/lib/notifications";
 import { lanzarConfetiListo } from "@/lib/confetti";
 
@@ -16,17 +17,33 @@ interface Props {
   token: string;
 }
 
-const senalMesa = () => {
+const senalMesa = (opts?: { notifLocal?: boolean; nombre?: string; token?: string; body?: string }) => {
   if ("vibrate" in navigator) {
     navigator.vibrate?.([200, 100, 200, 100, 200]);
   }
   void lanzarConfetiListo();
+  if (
+    opts?.notifLocal &&
+    opts.nombre &&
+    opts.token &&
+    opts.body &&
+    typeof document !== "undefined" &&
+    document.visibilityState === "hidden"
+  ) {
+    void mostrarAvisoListo({
+      referencia: opts.nombre,
+      url: `/e/${opts.token}`,
+      body: opts.body,
+    });
+  }
 };
 
 export const CustomerEsperaWaiting = ({ token }: Props) => {
   const { locale } = useApp();
   const { ready, found, espera } = useCustomerEspera(token);
   const [pushActivo, setPushActivo] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+  const [pushCargando, setPushCargando] = useState(false);
   const [flash, setFlash] = useState(false);
   const ultimoAviso = useRef<string | null>(null);
   const vioEsperando = useRef(false);
@@ -38,46 +55,68 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
       if (!("Notification" in window) || Notification.permission !== "granted") {
         return;
       }
-      if (alive) setPushActivo(true);
+      const r = await suscribirWebPush(token);
+      if (!alive) return;
+      setPushActivo(r.ok);
     })();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (!espera) return;
     if (espera.status === "esperando") vioEsperando.current = true;
+  }, [espera]);
+
+  useEffect(() => {
+    if (!espera) return;
+    if (espera.status !== "avisado" && espera.status !== "sentado") return;
     const key = espera.avisadoEn ?? espera.status;
-    if (
-      (espera.status === "avisado" || espera.status === "sentado") &&
-      vioEsperando.current &&
-      ultimoAviso.current !== key
-    ) {
+
+    if (ultimoAviso.current === null) {
       ultimoAviso.current = key;
-      setFlash(true);
-      senalMesa();
-      if (
-        typeof document !== "undefined" &&
-        document.visibilityState === "hidden" &&
-        Notification.permission === "granted"
-      ) {
-        void mostrarAvisoListo({
-          referencia: espera.nombre,
-          url: `/e/${token}`,
-          body:
-            locale === "en"
-              ? "Your table is ready!"
-              : "¡Tu mesa está lista!",
-        });
-      }
-      window.setTimeout(() => setFlash(false), 2500);
+      if (!vioEsperando.current) return;
+    } else if (ultimoAviso.current === key) {
+      return;
+    } else {
+      ultimoAviso.current = key;
     }
-  }, [espera, token, locale]);
+
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 2500);
+    senalMesa({
+      notifLocal: !pushActivo,
+      nombre: espera.nombre,
+      token,
+      body:
+        locale === "en" ? "Your table is ready!" : "¡Tu mesa está lista!",
+    });
+  }, [espera, pushActivo, token, locale]);
 
   const activarPush = async () => {
-    const ok = await pedirPermisoNotificaciones();
-    setPushActivo(ok);
+    setPushCargando(true);
+    setPushError(null);
+    await registrarServiceWorker();
+    const permiso = await pedirPermisoNotificaciones();
+    if (!permiso) {
+      setPushActivo(false);
+      setPushError(
+        locale === "en" ? "Notifications blocked" : "Notificaciones bloqueadas",
+      );
+      setPushCargando(false);
+      return;
+    }
+    const r = await suscribirWebPush(token);
+    setPushActivo(r.ok);
+    setPushError(
+      r.ok
+        ? null
+        : locale === "en"
+          ? "Couldn’t enable push"
+          : "No se pudo activar el aviso",
+    );
+    setPushCargando(false);
   };
 
   if (!ready) {
@@ -183,13 +222,26 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
         {!avisado && !cancelado && !pushActivo && (
           <button
             type="button"
+            disabled={pushCargando}
             onClick={() => void activarPush()}
-            className="mt-8 rounded-full border border-espera/40 bg-espera/10 px-5 py-2.5 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema"
+            className="mt-8 rounded-full border border-espera/40 bg-espera/10 px-5 py-2.5 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema disabled:opacity-60"
           >
-            {locale === "en"
-              ? "Enable notifications"
-              : "Activar notificaciones"}
+            {pushCargando
+              ? "…"
+              : locale === "en"
+                ? "Enable notifications"
+                : "Activar notificaciones"}
           </button>
+        )}
+        {pushError && (
+          <p className="mt-3 text-xs text-red-600/80">{pushError}</p>
+        )}
+        {pushActivo && !avisado && !cancelado && (
+          <p className="mt-4 text-xs font-medium text-espera/80">
+            {locale === "en"
+              ? "Notifications on — you can leave this tab."
+              : "Avisos activos — podés salir de esta pestaña."}
+          </p>
         )}
       </main>
     </div>

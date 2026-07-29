@@ -1,19 +1,18 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/security/rateLimit";
+import { qrTokenSchema } from "@/lib/schemas";
 
 // GET /api/e/[token] -> estado público de la espera de mesa.
 
 export const dynamic = "force-dynamic";
-
-const TOKEN_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 
 export const GET = async (
   _req: Request,
   { params }: { params: Promise<{ token: string }> },
 ) => {
   const { token } = await params;
-  if (!TOKEN_RE.test(token)) {
+  if (!qrTokenSchema.safeParse(token).success) {
     return NextResponse.json({ ok: false, reason: "not-found" });
   }
 

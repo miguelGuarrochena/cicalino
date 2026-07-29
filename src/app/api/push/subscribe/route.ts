@@ -4,11 +4,8 @@ import { rateLimit } from "@/lib/security/rateLimit";
 import { parsear, pushSubscribeSchema } from "@/lib/schemas";
 
 // POST /api/push/subscribe
-// Body: { token, subscription }. Guarda la suscripción del cliente asociada
-// al pedido (resuelto por qr_token). Usa service_role.
-//
-// El esquema valida el endpoint contra una allowlist de servicios de push: sin
-// eso, el cliente elige a qué URL le pega nuestro backend (SSRF).
+// Body: { token, subscription }. Asocia la suscripción a un pedido O una espera
+// (mismo qr_token). Usa service_role.
 export const dynamic = "force-dynamic";
 
 export const POST = async (req: Request) => {
@@ -25,7 +22,6 @@ export const POST = async (req: Request) => {
   }
   const { token, subscription: sub } = v.data;
 
-  // El cliente se suscribe una sola vez; 5/min por token frena inserts abusivos.
   const rl = rateLimit(`sub:${token}`, 5, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
@@ -38,13 +34,23 @@ export const POST = async (req: Request) => {
     .from("pedidos")
     .select("id")
     .eq("qr_token", token)
-    .single();
-  if (!pedido) return NextResponse.json({ ok: false, reason: "not-found" });
+    .maybeSingle();
 
-  // Dedup por endpoint: borramos si existía y volvemos a insertar.
+  let esperaId: string | null = null;
+  if (!pedido) {
+    const { data: espera } = await admin
+      .from("esperas")
+      .select("id")
+      .eq("qr_token", token)
+      .maybeSingle();
+    if (!espera) return NextResponse.json({ ok: false, reason: "not-found" });
+    esperaId = espera.id;
+  }
+
   await admin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
   const { error } = await admin.from("push_subscriptions").insert({
-    pedido_id: pedido.id,
+    pedido_id: pedido?.id ?? null,
+    espera_id: esperaId,
     endpoint: sub.endpoint,
     p256dh: sub.keys.p256dh,
     auth: sub.keys.auth,

@@ -13,6 +13,7 @@ import {
   montoContrato,
   etiquetaCiclo,
 } from "@/lib/contrato";
+import { etiquetaModulos, type ModulosFlags } from "@/lib/precios";
 
 type Simple = { ok: true } | { ok: false; error: string };
 
@@ -42,6 +43,7 @@ export type ContratoPublico = {
   enPrueba: boolean;
   pruebaHasta: string | null;
   terminosVersion: string;
+  modulos: string;
 };
 
 const nuevoToken = (): string => {
@@ -61,13 +63,17 @@ export const obtenerContratoPorToken = async (
   const { data } = await admin
     .from("organizaciones")
     .select(
-      "nombre, plan, cupo, contrato_aceptado_en, mes_gratis_hasta, terminos_version",
+      "nombre, plan, cupo, contrato_aceptado_en, mes_gratis_hasta, terminos_version, modulo_pedidos, modulo_espera",
     )
     .eq("contrato_token", t)
     .maybeSingle();
   if (!data) return null;
   const plan = (data.plan as PlanCobroUI) ?? "mensual";
   const cupo = data.cupo ?? 1;
+  const modulos: ModulosFlags = {
+    pedidos: data.modulo_pedidos !== false,
+    espera: Boolean(data.modulo_espera),
+  };
   const pruebaHasta = data.mes_gratis_hasta;
   const enPrueba =
     !!pruebaHasta && new Date(pruebaHasta).getTime() > Date.now();
@@ -75,7 +81,7 @@ export const obtenerContratoPorToken = async (
     nombre: data.nombre,
     plan,
     cupo,
-    monto: montoContrato(plan, cupo),
+    monto: montoContrato(plan, cupo, modulos),
     ciclo: etiquetaCiclo(plan),
     alias: mpAlias(),
     yaAceptado: Boolean(data.contrato_aceptado_en),
@@ -83,6 +89,7 @@ export const obtenerContratoPorToken = async (
     enPrueba,
     pruebaHasta,
     terminosVersion: data.terminos_version ?? TERMINOS_VERSION,
+    modulos: etiquetaModulos(modulos),
   };
 };
 
@@ -160,7 +167,7 @@ export const enviarLinkContratoInterno = async (
   const { data: org } = await admin
     .from("organizaciones")
     .select(
-      "id, nombre, dueno_email, plan, cupo, contrato_token, mes_gratis_hasta, responsable",
+      "id, nombre, dueno_email, plan, cupo, contrato_token, mes_gratis_hasta, responsable, modulo_pedidos, modulo_espera",
     )
     .eq("id", organizacionId)
     .maybeSingle();
@@ -182,7 +189,12 @@ export const enviarLinkContratoInterno = async (
   const url = `${appBaseUrl()}/aceptar/${token}`;
   const plan = (org.plan as PlanCobroUI) ?? "mensual";
   const cupo = org.cupo ?? 1;
-  const monto = montoContrato(plan, cupo);
+  const modulos: ModulosFlags = {
+    pedidos: org.modulo_pedidos !== false,
+    espera: Boolean(org.modulo_espera),
+  };
+  const monto = montoContrato(plan, cupo, modulos);
+  const packLbl = etiquetaModulos(modulos);
   const alias = mpAlias();
   const prueba =
     org.mes_gratis_hasta &&
@@ -191,10 +203,10 @@ export const enviarLinkContratoInterno = async (
 
   const cuerpoPago = prueba
     ? `<p style="margin:0 0 8px;">Mientras dura tu mes gratis no hace falta pagar.
-      Al terminar, transferí <b>${money(monto)}</b> (${etiquetaCiclo(plan)})
+      Al terminar, transferí <b>${money(monto)}</b> (${etiquetaCiclo(plan)} · ${esc(packLbl)})
       al alias de Mercado Pago:</p>`
     : `<p style="margin:0 0 8px;">Para activar / continuar el servicio, transferí
-      <b>${money(monto)}</b> (${etiquetaCiclo(plan)}) al alias de Mercado Pago:</p>`;
+      <b>${money(monto)}</b> (${etiquetaCiclo(plan)} · ${esc(packLbl)}) al alias de Mercado Pago:</p>`;
 
   await enviarEmail({
     to: org.dueno_email,

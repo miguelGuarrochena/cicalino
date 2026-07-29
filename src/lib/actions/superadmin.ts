@@ -422,10 +422,16 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
     };
   }
 
-  // Prueba → 1 mes gratis. Contrato → plan elegido, sin mes gratis automático.
+  // Prueba → 1 mes gratis + pedidos. Contrato → plan/pack elegido.
   const esContrato = sol.tipo === "contrato";
   const planSol =
     sol.plan === "anual" || sol.plan === "mensual" ? sol.plan : "mensual";
+  const packSol =
+    sol.pack === "espera" || sol.pack === "pack" || sol.pack === "pedidos"
+      ? sol.pack
+      : "pedidos";
+  const moduloPedidos = packSol === "pedidos" || packSol === "pack";
+  const moduloEspera = packSol === "espera" || packSol === "pack";
 
   const alta = parsear(crearOrganizacionSchema, {
     nombre: sol.local || sol.nombre,
@@ -442,6 +448,8 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
     cupo: 1,
     plan: esContrato ? planSol : "mensual",
     mesGratis: !esContrato,
+    moduloPedidos: esContrato ? moduloPedidos : true,
+    moduloEspera: esContrato ? moduloEspera : false,
     sucursales: [
       {
         nombre: sol.local || "Principal",

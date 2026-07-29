@@ -61,12 +61,14 @@ describe("solicitudSchema (formulario público)", () => {
       direccion: "Av. Corrientes 1234",
       tipo: "contrato",
       plan: "anual",
+      pack: "pack",
       cuil: "20-12345678-9",
     });
     expect(ok.ok).toBe(true);
     if (ok.ok) {
       expect(ok.data.tipo).toBe("contrato");
       expect(ok.data.plan).toBe("anual");
+      expect(ok.data.pack).toBe("pack");
       expect(ok.data.cuil).toBe("20123456789");
       expect(ok.data.telefono).toContain("11");
     }

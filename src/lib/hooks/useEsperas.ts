@@ -116,6 +116,11 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       return;
     }
     await updateEsperaStatus(id, "avisado");
+    void fetch("/api/push/notify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ esperaId: id }),
+    }).catch(() => {});
     await reload();
   };
 
