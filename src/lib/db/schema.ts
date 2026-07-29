@@ -83,6 +83,10 @@ export const organizations = pgTable("organizaciones", {
   proximoCobroEn: timestamp("proximo_cobro_en", { withTimezone: true }),
   // Último mail de recordatorio de cobro (anti-spam).
   avisoCobroEn: timestamp("aviso_cobro_en", { withTimezone: true }),
+  // Aceptación de bases y condiciones (link /aceptar/[token]).
+  contratoToken: text("contrato_token"),
+  contratoAceptadoEn: timestamp("contrato_aceptado_en", { withTimezone: true }),
+  terminosVersion: text("terminos_version"),
   creadoEn: timestamp("creado_en", { withTimezone: true })
     .notNull()
     .defaultNow(),

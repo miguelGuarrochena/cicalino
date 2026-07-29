@@ -5,6 +5,7 @@ import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { useApp } from "@/components/providers/Providers";
+import { TERMINOS_VERSION } from "@/lib/contrato";
 
 const TerminosPage = () => {
   const { t, locale } = useApp();
@@ -23,22 +24,51 @@ const TerminosPage = () => {
         <h1 className="mt-4 font-display text-4xl uppercase tracking-tight text-carbon">
           {t("nav.terminos")}
         </h1>
+        <p className="mt-2 text-xs text-carbon/45">
+          {es ? "Versión" : "Version"} {TERMINOS_VERSION}
+        </p>
         <div className="mt-6 space-y-4 text-sm leading-relaxed text-carbon/70">
           {es ? (
             <>
               <p>
                 Al usar Cicalino aceptás estos términos. El servicio es un
-                avisador de pedidos por QR para negocios gastronómicos.
+                avisador de pedidos por QR para negocios gastronómicos. El
+                cliente final del local no paga ni se registra en Cicalino.
               </p>
               <p>
-                El local es responsable de los datos que carga (empleados,
-                pedidos, datos fiscales) y de cumplir la normativa aplicable en
-                Argentina.
+                <b className="text-carbon">Contratación.</b> El servicio se
+                contrata por organización y sucursales (cupo). El alta puede
+                incluir un período de prueba. Al contratar o continuar el
+                servicio, el responsable aceptá estas bases (por ejemplo mediante
+                el link de aceptación que enviamos por mail) y abona según el
+                plan acordado (mensual o anual).
               </p>
               <p>
-                El precio puede actualizarse; te avisamos con anticipación
-                razonable. El servicio se presta “tal cual”, sujeto a
-                disponibilidad.
+                <b className="text-carbon">Precio e inflación.</b> El precio
+                publicado o acordado puede actualizarse, en particular por
+                variación de costos e inflación en Argentina. Te avisamos con
+                anticipación razonable (por mail o en el panel) antes de que el
+                nuevo valor aplique al <b>próximo</b> ciclo de cobro. Si no
+                querés continuar al nuevo precio, podés cancelar antes de ese
+                ciclo; no hay reintegros proporcionales salvo pacto distinto.
+              </p>
+              <p>
+                <b className="text-carbon">Pago.</b> Hoy el cobro es manual
+                (transferencia / Mercado Pago al alias indicado). La falta de
+                pago puede implicar pausa del servicio. El plan anual se abona
+                por adelantado según la cotización vigente al momento del pago.
+              </p>
+              <p>
+                <b className="text-carbon">Responsabilidades del local.</b> El
+                local es responsable de los datos que carga (empleados, pedidos,
+                datos fiscales), del uso del panel y de cumplir la normativa
+                aplicable en Argentina. Cicalino no sustituye sistemas de
+                facturación ni de gestión gastronómica completa.
+              </p>
+              <p>
+                <b className="text-carbon">Disponibilidad.</b> El servicio se
+                presta “tal cual”, sujeto a disponibilidad de internet, del
+                navegador del cliente y de proveedores (hosting, push, correo).
               </p>
               <p>
                 Contacto:{" "}
@@ -55,15 +85,32 @@ const TerminosPage = () => {
             <>
               <p>
                 By using Cicalino you accept these terms. The product is a QR
-                order-notice tool for food businesses.
+                order-notice tool for food businesses. End customers never pay
+                or create an account.
               </p>
               <p>
-                The venue is responsible for the data it enters (staff, orders,
-                tax details) and for complying with applicable law.
+                <b className="text-carbon">Contracting.</b> The service is sold
+                per organization and branch quota. Onboarding may include a
+                trial. To start or continue, the business owner accepts these
+                terms (e.g. via the acceptance link we email) and pays the agreed
+                plan (monthly or yearly).
               </p>
               <p>
-                Pricing may change with reasonable notice. The service is
-                provided as-is, subject to availability.
+                <b className="text-carbon">Pricing.</b> Listed or agreed prices
+                may change (including due to inflation). We give reasonable
+                notice before a new price applies to the <b>next</b> billing
+                cycle. You may cancel before that cycle if you do not accept the
+                new price.
+              </p>
+              <p>
+                <b className="text-carbon">Payment.</b> Billing is currently
+                manual (transfer / Mercado Pago). Non-payment may pause the
+                service.
+              </p>
+              <p>
+                <b className="text-carbon">Venue responsibilities.</b> The venue
+                is responsible for the data it enters and for complying with
+                applicable law. Cicalino is not a full POS or invoicing system.
               </p>
               <p>
                 Contact:{" "}

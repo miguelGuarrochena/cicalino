@@ -297,6 +297,12 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
     .from("solicitudes")
     .update({ estado: "atendida" })
     .eq("id", v.data.id);
+
+  // Mail con bases + alias MP (best-effort).
+  if (res.id) {
+    const { enviarLinkContratoInterno } = await import("@/lib/actions/contrato");
+    await enviarLinkContratoInterno(res.id);
+  }
   return res;
 };
 

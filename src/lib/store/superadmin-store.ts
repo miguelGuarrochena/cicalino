@@ -1,11 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { TipoNegocio } from "@/lib/store/config-store";
+import { PRECIO_POR_SUCURSAL } from "@/lib/precios";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { sumarCicloCobro } from "@/lib/billing";
 
-/** Precio mensual por sucursal activa (ARS). */
-export const PRECIO_POR_SUCURSAL = 20000;
+export { PRECIO_POR_SUCURSAL };
 
 export interface BranchRow {
   id: string;

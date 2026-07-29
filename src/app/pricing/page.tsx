@@ -15,7 +15,8 @@ const money = new Intl.NumberFormat("es-AR", {
 
 // Contacto directo (sin pasarela). Solo por mail.
 const MAIL = "info@cicalino.net";
-const PRECIO_MENSUAL = 20000; // ARS por sucursal
+const PRECIO_MENSUAL = 20000; // ARS por sucursal — mantener alineado con src/lib/precios.ts
+
 const PRECIO_ANUAL = PRECIO_MENSUAL * 10; // 2 meses gratis
 
 const PreciosPage = () => {
@@ -147,6 +148,11 @@ const PreciosPage = () => {
               : `Several branches? Add ${money.format(
                   anual ? PRECIO_ANUAL : PRECIO_MENSUAL,
                 )} per branch. Message us and we’ll set the total.`}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-carbon/45">
+            {es
+              ? "El precio puede actualizarse por inflación u otros costos; te avisamos con anticipación antes del próximo ciclo. Al contratar aceptás las bases y condiciones."
+              : "Prices may change with notice before the next billing cycle. Contracting includes accepting our terms."}
           </p>
 
           <div className="mt-6 flex flex-col gap-2">

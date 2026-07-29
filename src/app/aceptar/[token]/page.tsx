@@ -1,0 +1,201 @@
+"use client";
+
+import { useEffect, useState, use } from "react";
+import Link from "next/link";
+import { Logo } from "@/components/ui/Logo";
+import { SiteFooter } from "@/components/ui/SiteFooter";
+import {
+  aceptarContrato,
+  obtenerContratoPorToken,
+  type ContratoPublico,
+} from "@/lib/actions/contrato";
+
+const money = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  maximumFractionDigits: 0,
+});
+
+const fecha = (iso: string) =>
+  new Date(iso).toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
+  const { token } = use(params);
+  const [data, setData] = useState<ContratoPublico | null | undefined>(
+    undefined,
+  );
+  const [acepto, setAcepto] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [listo, setListo] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const r = await obtenerContratoPorToken(token);
+      if (alive) {
+        setData(r);
+        if (r?.yaAceptado) setListo(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [token]);
+
+  const copiarAlias = async () => {
+    if (!data) return;
+    try {
+      await navigator.clipboard.writeText(data.alias);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1600);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const enviar = async () => {
+    if (!acepto || saving) return;
+    setSaving(true);
+    setError(null);
+    const r = await aceptarContrato(token);
+    setSaving(false);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    setListo(true);
+  };
+
+  return (
+    <div className="flex min-h-dvh flex-col bg-crema">
+      <header className="flex items-center justify-between px-5 py-4 sm:px-8">
+        <Logo className="h-10 sm:h-12" />
+      </header>
+
+      <main className="mx-auto w-full max-w-md flex-1 px-5 py-10">
+        {data === undefined ? (
+          <p className="text-center text-sm text-carbon/50">Cargando…</p>
+        ) : data === null ? (
+          <div className="text-center">
+            <h1 className="font-display text-3xl uppercase tracking-tight text-marca">
+              Link inválido
+            </h1>
+            <p className="mt-3 text-sm text-carbon/60">
+              Este enlace no existe o ya no está disponible. Pedí uno nuevo a
+              Cicalino.
+            </p>
+            <Link
+              href="/"
+              className="mt-6 inline-block text-sm font-semibold text-marca hover:underline"
+            >
+              Ir al inicio
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5">
+            <div className="text-center">
+              <h1 className="font-display text-3xl uppercase tracking-tight text-marca sm:text-4xl">
+                Condiciones y pago
+              </h1>
+              <p className="mt-2 text-sm text-carbon/60">
+                <b className="text-carbon">{data.nombre}</b>
+                {" · "}
+                Plan {data.ciclo}
+                {data.cupo > 1 ? ` · ${data.cupo} sucursales` : ""}
+              </p>
+            </div>
+
+            {listo ? (
+              <div className="rounded-[24px] border border-emerald-300/60 bg-emerald-50 p-5 text-center dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                <p className="font-semibold text-emerald-800 dark:text-emerald-200">
+                  Condiciones aceptadas
+                </p>
+                <p className="mt-2 text-sm text-emerald-900/70 dark:text-emerald-100/80">
+                  {data.enPrueba
+                    ? `Tu prueba sigue activa${data.pruebaHasta ? ` hasta el ${fecha(data.pruebaHasta)}` : ""}. Cuando termine, transferí el monto al alias.`
+                    : "Cuando veamos la transferencia, marcamos tu cuenta al día."}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-[24px] border border-linea bg-surface p-5 shadow-sm">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={acepto}
+                    onChange={(e) => setAcepto(e.target.checked)}
+                    className="mt-1 size-4 accent-[var(--brand)]"
+                  />
+                  <span className="text-sm leading-snug text-carbon/75">
+                    Leí y acepto las{" "}
+                    <Link
+                      href="/terms"
+                      target="_blank"
+                      className="font-semibold text-marca underline-offset-2 hover:underline"
+                    >
+                      bases y condiciones
+                    </Link>{" "}
+                    de Cicalino (versión {data.terminosVersion}).
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  disabled={!acepto || saving}
+                  onClick={() => void enviar()}
+                  className="mt-4 w-full rounded-full bg-marca py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50"
+                >
+                  {saving ? "Guardando…" : "Aceptar condiciones"}
+                </button>
+                {error && (
+                  <p className="mt-2 text-center text-xs text-red-500">{error}</p>
+                )}
+              </div>
+            )}
+
+            <div className="rounded-[24px] border border-linea bg-surface p-5 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-carbon/45">
+                Pago por Mercado Pago
+              </p>
+              <p className="mt-2 text-2xl font-bold text-marca">
+                {money.format(data.monto)}
+                <span className="ml-1 text-sm font-semibold text-carbon/50">
+                  / {data.plan === "anual" ? "año" : "mes"}
+                </span>
+              </p>
+              {data.enPrueba && data.pruebaHasta && (
+                <p className="mt-1 text-xs text-sky-800 dark:text-sky-200">
+                  Mes gratis hasta el {fecha(data.pruebaHasta)}. El cobro arranca
+                  después.
+                </p>
+              )}
+              <p className="mt-4 text-xs text-carbon/55">Alias</p>
+              <button
+                type="button"
+                onClick={() => void copiarAlias()}
+                className="mt-1 w-full rounded-xl border border-linea bg-crema/50 px-4 py-3 text-left font-mono text-lg font-semibold tracking-wide text-carbon transition hover:border-marca/40"
+              >
+                {data.alias}
+                <span className="ml-2 text-xs font-sans font-medium text-marca">
+                  {copiado ? "✓ copiado" : "tocá para copiar"}
+                </span>
+              </button>
+              <p className="mt-3 text-xs leading-relaxed text-carbon/50">
+                En el concepto poné el nombre del local. El precio puede
+                actualizarse por inflación; te avisamos con anticipación
+                razonable antes del próximo ciclo.
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
+      <SiteFooter />
+    </div>
+  );
+};
+
+export default AceptarPage;

@@ -32,6 +32,7 @@ import {
   insertBranchDb,
   deleteBranchDb,
 } from "@/lib/data/superadmin";
+import { enviarLinkContrato } from "@/lib/actions/contrato";
 
 const required = (v: string) => v.trim().length > 0;
 const emailOk = isEmail;
@@ -269,6 +270,28 @@ export const OrgModal = ({
   const descartarYSalir = () => {
     aplicarDraft(baseline);
     salirFormLimpio();
+  };
+
+  const mandarContrato = async () => {
+    if (!vista || busy) return;
+    setBusy(true);
+    try {
+      const r = await enviarLinkContrato(vista.id);
+      if (!r.ok) {
+        toast(r.error, "error");
+        return;
+      }
+      if (r.url) {
+        try {
+          await navigator.clipboard.writeText(r.url);
+        } catch {
+          /* ignore */
+        }
+      }
+      toast("Link de condiciones enviado (y copiado)", "success");
+    } finally {
+      setBusy(false);
+    }
   };
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -744,6 +767,14 @@ export const OrgModal = ({
                 }`}
               >
                 {vista.pagado ? "Marcar impago" : "Marcar pagado"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void mandarContrato()}
+                disabled={busy}
+                className="rounded-full bg-marca/10 px-3 py-1.5 text-xs font-semibold text-marca disabled:opacity-50"
+              >
+                Enviar condiciones + pago
               </button>
               <button
                 type="button"
