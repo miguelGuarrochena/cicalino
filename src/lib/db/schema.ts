@@ -21,6 +21,10 @@ export const businessTypeEnum = pgEnum("business_type", [
   "panaderia",
   "rotiseria",
   "heladeria",
+  "bar",
+  "restaurante",
+  "pasteleria",
+  "food_truck",
   "otro",
 ]);
 

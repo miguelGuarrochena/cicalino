@@ -159,6 +159,7 @@ Archivos: `src/lib/actions/superadmin.ts` (crear/eliminar), `src/lib/data/supera
    - `supabase/solicitudes-tipo.sql` (prueba vs contratar plan)
    - `supabase/pedidos-sucursal.sql` (dueño pide +1 cupo / pago)
    - `supabase/realtime-organizaciones.sql` (Superadmin refresca al aceptar contrato)
+   - `supabase/tipos-negocio.sql` (bar, restaurante, pastelería, food truck)
 3. Flujo: el cliente toca "Activar avisos" → se suscribe (`/api/push/subscribe`).
    Cuando el panel marca **listo** (o **Volver a avisar**), llama a
    `/api/push/notify`: actualiza `avisado_en` (señal en pantalla) y, si hay

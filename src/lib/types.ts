@@ -14,7 +14,25 @@ export type TipoNegocio =
   | "panaderia"
   | "rotiseria"
   | "heladeria"
+  | "bar"
+  | "restaurante"
+  | "pasteleria"
+  | "food_truck"
   | "otro";
+
+export const TIPO_NEGOCIO_LABEL: Record<TipoNegocio, string> = {
+  cafeteria: "Cafetería",
+  panaderia: "Panadería",
+  rotiseria: "Rotisería",
+  heladeria: "Heladería",
+  bar: "Bar",
+  restaurante: "Restaurante",
+  pasteleria: "Pastelería",
+  food_truck: "Food truck",
+  otro: "Otro",
+};
+
+export const TIPOS_NEGOCIO = Object.keys(TIPO_NEGOCIO_LABEL) as TipoNegocio[];
 
 // Lo que ve el panel del local por cada pedido.
 export interface OrderView {

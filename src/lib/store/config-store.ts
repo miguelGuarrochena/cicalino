@@ -2,13 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 
+import type { TipoNegocio } from "@/lib/types";
+export type { TipoNegocio };
+export { TIPO_NEGOCIO_LABEL, TIPOS_NEGOCIO } from "@/lib/types";
+
 export type IdentificationMode = "pedido" | "nombre" | "mesa";
-export type TipoNegocio =
-  | "cafeteria"
-  | "panaderia"
-  | "rotiseria"
-  | "heladeria"
-  | "otro";
 
 export interface EmployeeUI {
   id: string;

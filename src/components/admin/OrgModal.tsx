@@ -18,6 +18,7 @@ import {
 } from "@/lib/store/superadmin-store";
 import { sumarCicloCobro } from "@/lib/billing";
 import type { TipoNegocio } from "@/lib/store/config-store";
+import { TIPO_NEGOCIO_LABEL, TIPOS_NEGOCIO } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { isEmail, isCuil, isWhatsapp } from "@/lib/validations";
 import { Select } from "@/components/ui/Select";
@@ -90,13 +91,7 @@ const money = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-const TIPO_LABEL: Record<TipoNegocio, string> = {
-  cafeteria: "Cafetería",
-  panaderia: "Panadería",
-  rotiseria: "Rotisería",
-  heladeria: "Heladería",
-  otro: "Otro",
-};
+const TIPO_LABEL = TIPO_NEGOCIO_LABEL;
 
 const PLAN_LABEL: Record<PlanTipo, string> = {
   mensual: "Mensual",
@@ -191,7 +186,6 @@ export const OrgModal = ({
     toggleOrgPagado,
     quitarOrg,
     altaSucursal: createBranch,
-    toggleSucursalActivo: toggleBranchActive,
     quitarSucursal: removeBranch,
     darMesGratis: giveFreeMonth,
   } = useSuperadminStore();
@@ -365,34 +359,27 @@ export const OrgModal = ({
       direccion: org.direccion,
     };
     const usadas = vista?.sucursales.length ?? 0;
-    const cupoActual = vista?.cupo ?? 0;
-    const necesitaCupo = usadas >= cupoActual;
+    const nuevoCupo = usadas + 1;
 
     if (live) {
       setBusy(true);
       try {
-        if (necesitaCupo) {
-          await updateOrgDb(org.id, { cupo: cupoActual + 1 });
-        }
+        // Cupo = sucursales reales: al agregar, se cobra una más.
+        await updateOrgDb(org.id, { cupo: nuevoCupo, pagado: false });
         await insertBranchDb(org.id, data);
         await refreshOrganizations();
         setCupoError(false);
         setNuevaSuc("");
         toast(
-          necesitaCupo
-            ? "Cupo +1 y sucursal agregada"
-            : t("toast.sucAgregada"),
+          `Sucursal agregada · ahora ${nuevoCupo}. Marcá Pagado cuando veas la transferencia.`,
           "success",
         );
-        onClose();
       } finally {
         setBusy(false);
       }
       return;
     }
-    if (necesitaCupo) {
-      actualizarOrg(org.id, { cupo: cupoActual + 1 });
-    }
+    actualizarOrg(org.id, { cupo: nuevoCupo });
     const res = createBranch(org.id, data);
     if (!res.ok) {
       setCupoError(true);
@@ -400,31 +387,7 @@ export const OrgModal = ({
     }
     setCupoError(false);
     setNuevaSuc("");
-    toast(
-      necesitaCupo ? "Cupo +1 y sucursal agregada" : t("toast.sucAgregada"),
-      "success",
-    );
-    onClose();
-  };
-
-  /** Sube el cupo en 1 sin salir del detalle. */
-  const sumarCupo = async () => {
-    if (!vista || busy) return;
-    setBusy(true);
-    try {
-      const next = vista.cupo + 1;
-      if (live) {
-        await updateOrgDb(vista.id, { cupo: next });
-        await refreshOrganizations();
-      } else {
-        actualizarOrg(vista.id, { cupo: next });
-      }
-      setCupo(next);
-      setCupoError(false);
-      toast(`Cupo actualizado: ${next}`, "success");
-    } finally {
-      setBusy(false);
-    }
+    toast(`Sucursal agregada · ahora ${nuevoCupo}`, "success");
   };
 
   const togglePagado = async () => {
@@ -491,9 +454,14 @@ export const OrgModal = ({
     if (!vista) return;
     if (live) {
       await deleteBranchDb(sucId);
+      const quedan = Math.max(1, vista.sucursales.length - 1);
+      await updateOrgDb(vista.id, { cupo: quedan });
       await refreshOrganizations();
     } else {
       removeBranch(vista.id, sucId);
+      actualizarOrg(vista.id, {
+        cupo: Math.max(1, vista.sucursales.length - 1),
+      });
     }
     toast(t("toast.sucBorrada"), "info");
   };
@@ -721,8 +689,8 @@ export const OrgModal = ({
                   {t("super.cupo")}
                 </span>
                 <p className="rounded-xl border border-linea bg-crema/40 px-4 py-3 text-sm text-carbon/55">
-                  {org?.sucursales.length ?? 0} / {org?.cupo ?? quota} · se
-                  gestiona abajo, en Sucursales
+                  {org?.sucursales.length ?? 0} sucursales · se gestionan en el
+                  detalle
                 </p>
               </div>
             )}
@@ -935,28 +903,27 @@ export const OrgModal = ({
           </div>
 
           <div className="rounded-2xl border border-linea bg-crema/40 p-3.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
-                  {t("super.sucursales")}
-                </p>
-                <p className="mt-1 text-sm text-carbon/70">
-                  <b>{vista.sucursales.length}</b> de <b>{vista.cupo}</b>{" "}
-                  contratadas
-                  {vista.sucursales.length >= vista.cupo
-                    ? " · cupo completo"
-                    : ""}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void sumarCupo()}
-                disabled={busy}
-                className="shrink-0 rounded-full border border-linea bg-surface px-3 py-1.5 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5 disabled:opacity-50"
-              >
-                +1 cupo
-              </button>
-            </div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
+              {t("super.sucursales")}
+            </p>
+            <p className="mt-1 text-sm text-carbon/70">
+              <b>{vista.sucursales.length}</b>{" "}
+              {vista.sucursales.length === 1 ? "sucursal" : "sucursales"}
+              {vista.plan !== "gratis" && (
+                <span className="text-carbon/50">
+                  {" "}
+                  · cobro{" "}
+                  {money.format(
+                    montoPlanPreview(vista.plan, vista.sucursales.length || 1),
+                  )}
+                  {vista.plan === "anual" ? "/año" : "/mes"}
+                </span>
+              )}
+            </p>
+            <p className="mt-1 text-xs text-carbon/50">
+              Agregá con nombre y tipo. Cuando veas el pago, marcá Pagado arriba
+              (arranca el ciclo).
+            </p>
 
             <ul className="mt-3 flex flex-col gap-2">
               {vista.sucursales.map((suc) => (
@@ -967,7 +934,7 @@ export const OrgModal = ({
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-carbon">{suc.nombre}</p>
                     <p className="truncate text-xs text-carbon/50">
-                      {TIPO_LABEL[suc.tipo]} · {suc.direccion || "—"}
+                      {TIPO_LABEL[suc.tipo] ?? suc.tipo} · {suc.direccion || "—"}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -977,20 +944,6 @@ export const OrgModal = ({
                       className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema"
                     >
                       {t("super.entrarComo")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !suc.activo;
-                        toggleBranchActive(vista.id, suc.id);
-                        toast(
-                          next ? t("toast.sucActiva") : t("toast.sucPausada"),
-                          "info",
-                        );
-                      }}
-                      className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60"
-                    >
-                      {suc.activo ? t("super.pausar") : t("super.activar")}
                     </button>
                     <button
                       type="button"
@@ -1007,17 +960,8 @@ export const OrgModal = ({
               )}
             </ul>
 
-            <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-dashed border-linea bg-surface/80 p-3">
-              <p className="text-xs font-semibold text-carbon/55">
-                Agregar sucursal
-                {vista.sucursales.length >= vista.cupo
-                  ? " (incluye +1 cupo)"
-                  : ""}
-              </p>
-              {quotaError && (
-                <p className="text-xs text-red-500">{t("super.cupoLleno")}</p>
-              )}
-              <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
                 <input
                   className={INPUT}
                   placeholder={t("super.nombreSucursal")}
@@ -1033,41 +977,28 @@ export const OrgModal = ({
                     }
                   }}
                 />
-                <Select
-                  value={nuevaTipo}
-                  onChange={(v) => setNuevaTipo(v as TipoNegocio)}
-                  options={(Object.keys(TIPO_LABEL) as TipoNegocio[]).map(
-                    (k) => ({ value: k, label: TIPO_LABEL[k] }),
-                  )}
-                  className="sm:min-w-[9.5rem]"
-                />
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNuevaSuc("");
-                    setCupoError(false);
-                  }}
-                  disabled={busy || !newBranch.trim()}
-                  className="w-full rounded-full border border-linea px-4 py-2.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-40 sm:flex-1"
-                >
-                  {t("super.cancelar")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void agregarSuc()}
-                  disabled={busy || !newBranch.trim()}
-                  className="w-full rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema disabled:opacity-50 sm:flex-1"
-                >
-                  {busy
-                    ? "…"
-                    : vista.sucursales.length >= vista.cupo
-                      ? "Guardar (+1 cupo)"
-                      : "Guardar sucursal"}
-                </button>
-              </div>
+              <Select
+                value={nuevaTipo}
+                onChange={(v) => setNuevaTipo(v as TipoNegocio)}
+                options={TIPOS_NEGOCIO.map((k) => ({
+                  value: k,
+                  label: TIPO_LABEL[k],
+                }))}
+                className="sm:min-w-[10rem]"
+              />
+              <button
+                type="button"
+                onClick={() => void agregarSuc()}
+                disabled={busy || !newBranch.trim()}
+                className="rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema disabled:opacity-50"
+              >
+                {busy ? "…" : "Agregar"}
+              </button>
             </div>
+            {quotaError && (
+              <p className="mt-2 text-xs text-red-500">{t("super.cupoLleno")}</p>
+            )}
           </div>
 
           <button

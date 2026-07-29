@@ -65,7 +65,17 @@ export const pin4 = z
   .refine((v) => v === "" || v.length === 4, "El PIN tiene que ser de 4 dígitos.");
 
 export const tipoNegocio = z.enum(
-  ["cafeteria", "panaderia", "rotiseria", "heladeria", "otro"],
+  [
+    "cafeteria",
+    "panaderia",
+    "rotiseria",
+    "heladeria",
+    "bar",
+    "restaurante",
+    "pasteleria",
+    "food_truck",
+    "otro",
+  ],
   { errorMap: () => ({ message: "Tipo de negocio inválido." }) },
 );
 

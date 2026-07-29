@@ -16,19 +16,17 @@ import { saveBranchConfig } from "@/lib/data/branch";
 import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
+import { TIPOS_NEGOCIO, TIPO_NEGOCIO_LABEL } from "@/lib/types";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 const CARD =
   "rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6";
 
-const TIPOS = [
-  { value: "cafeteria", label: "Cafetería" },
-  { value: "panaderia", label: "Panadería" },
-  { value: "rotiseria", label: "Rotisería" },
-  { value: "heladeria", label: "Heladería" },
-  { value: "otro", label: "Otro" },
-] as const;
+const TIPOS = TIPOS_NEGOCIO.map((value) => ({
+  value,
+  label: TIPO_NEGOCIO_LABEL[value],
+}));
 
 const HORAS_CORTE = Array.from({ length: 24 }).map((_, h) => ({
   value: String(h),
