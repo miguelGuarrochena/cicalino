@@ -404,7 +404,9 @@ const EsperaPanelPage = () => {
   const [sentarMesas, setSentarMesas] = useState<number[]>([]);
   const [ocuparOpen, setOcuparOpen] = useState(false);
   const [ocuparMesasSel, setOcuparMesasSel] = useState<number[]>([]);
+  const [ocuparPrimaria, setOcuparPrimaria] = useState<number | null>(null);
   const [ocuparNombre, setOcuparNombre] = useState("");
+  const [ocuparPersonas, setOcuparPersonas] = useState(2);
   const [ocupando, setOcupando] = useState(false);
   const [filtroMesa, setFiltroMesa] = useState<
     "todas" | "libre" | "reservada" | "ocupada"
@@ -494,7 +496,14 @@ const EsperaPanelPage = () => {
   const ocuparCap = mesas
     .filter((m) => ocuparMesasSel.includes(m.numero))
     .reduce((s, m) => s + (m.capacidad ?? 4), 0);
-  const ocuparOk = ocuparMesasSel.length > 0;
+  const ocuparFaltan = Math.max(0, ocuparPersonas - ocuparCap);
+  const ocuparOk =
+    ocuparMesasSel.length > 0 && ocuparCap >= ocuparPersonas;
+  const ocuparPrimariaMesa =
+    ocuparPrimaria != null
+      ? mesas.find((m) => m.numero === ocuparPrimaria)
+      : undefined;
+  const ocuparNecesitaMapa = ocuparMesasSel.length > 0 && !ocuparOk;
   const confirmCancelEspera = esperas.find(
     (e) => e.id === confirmCancelEsperaId,
   );
@@ -796,8 +805,10 @@ const EsperaPanelPage = () => {
                 type="button"
                 onClick={() => {
                   if (libre) {
+                    setOcuparPrimaria(m.numero);
                     setOcuparMesasSel([m.numero]);
                     setOcuparNombre("");
+                    setOcuparPersonas(Math.min(m.capacidad ?? 4, 4));
                     setOcuparOpen(true);
                     return;
                   }
@@ -1655,7 +1666,7 @@ const EsperaPanelPage = () => {
                   void ocuparMesas({
                     mesaNumeros: ocuparMesasSel,
                     nombre: ocuparNombre,
-                    personas: ocuparCap,
+                    personas: ocuparPersonas,
                     employee: employeeRef,
                   })
                     .then((created) => {
@@ -1672,6 +1683,8 @@ const EsperaPanelPage = () => {
                       setOcuparOpen(false);
                       setOcuparNombre("");
                       setOcuparMesasSel([]);
+                      setOcuparPrimaria(null);
+                      setOcuparPersonas(2);
                       toast(
                         locale === "en"
                           ? `Seated at ${label}`
@@ -1685,25 +1698,29 @@ const EsperaPanelPage = () => {
               >
                 {ocupando
                   ? "…"
-                  : locale === "en"
-                    ? "Seat now"
-                    : "Ocupar ahora"}
+                  : !ocuparOk && ocuparFaltan > 0
+                    ? locale === "en"
+                      ? `Need ${ocuparFaltan} more seats`
+                      : `Faltan ${ocuparFaltan} plazas`
+                    : locale === "en"
+                      ? "Seat now"
+                      : "Ocupar ahora"}
               </button>
-              {ocuparMesasSel[0] != null && (
+              {ocuparPrimaria != null && (
                 <button
                   type="button"
                   disabled={ocupando}
                   onClick={() => {
-                    const n = ocuparMesasSel[0];
-                    const mesa = mesas.find((m) => m.numero === n);
-                    setEditCapacidadNumero(n);
-                    setEditCapacidadValue(mesa?.capacidad ?? 4);
+                    setEditCapacidadNumero(ocuparPrimaria);
+                    setEditCapacidadValue(
+                      ocuparPrimariaMesa?.capacidad ?? 4,
+                    );
                   }}
                   className="w-full rounded-full border border-linea px-5 py-3 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-50"
                 >
                   {locale === "en"
-                    ? `Edit seats (table ${ocuparMesasSel[0]})`
-                    : `Editar plazas (mesa ${ocuparMesasSel[0]})`}
+                    ? `Edit seats (table ${ocuparPrimaria})`
+                    : `Editar plazas (mesa ${ocuparPrimaria})`}
                 </button>
               )}
               <button
@@ -1718,23 +1735,32 @@ const EsperaPanelPage = () => {
           }
         >
           <div className="flex items-start justify-between gap-3">
-            <h2
-              id="ocupar-title"
-              className="font-display text-xl uppercase tracking-tight text-carbon"
-            >
-              {locale === "en" ? "Seat now" : "Ocupar mesa"}
-            </h2>
+            <div className="min-w-0">
+              <h2
+                id="ocupar-title"
+                className="font-display text-xl uppercase tracking-tight text-carbon"
+              >
+                {ocuparPrimaria != null
+                  ? locale === "en"
+                    ? `Seat at table ${ocuparPrimaria}`
+                    : `Ocupar mesa ${ocuparPrimaria}`
+                  : locale === "en"
+                    ? "Seat now"
+                    : "Ocupar mesa"}
+              </h2>
+              <p className="mt-1 text-sm text-carbon/55">
+                {locale === "en"
+                  ? "Walk-in: no QR, no waitlist."
+                  : "Walk-in: sin QR ni lista de espera."}
+              </p>
+            </div>
             <ModalCloseBtn
               disabled={ocupando}
               onClick={() => setOcuparOpen(false)}
               label={locale === "en" ? "Close" : "Cerrar"}
             />
           </div>
-          <p className="mt-2 text-sm text-carbon/55">
-            {locale === "en"
-              ? "No QR, no waitlist — mark free tables as busy."
-              : "Sin QR ni lista: marcá mesas libres como ocupadas."}
-          </p>
+
           <label className="mt-4 flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-carbon/70">
               {locale === "en" ? "Name (optional)" : "Nombre (opcional)"}
@@ -1744,67 +1770,109 @@ const EsperaPanelPage = () => {
               value={ocuparNombre}
               disabled={ocupando}
               onChange={(e) => setOcuparNombre(e.target.value)}
-              placeholder={locale === "en" ? "Walk-in" : "Walk-in"}
+              placeholder="Pérez"
               autoFocus
             />
           </label>
-          <p
-            className={`mt-3 mb-2 text-sm font-semibold ${
-              ocuparOk ? "text-espera" : "text-amber-700"
+
+          <div className="mt-4 flex flex-col gap-1.5 text-sm">
+            <span className="font-medium text-carbon/70">
+              {locale === "en" ? "Party size" : "Personas"}
+            </span>
+            <PersonasChips
+              value={ocuparPersonas}
+              onChange={setOcuparPersonas}
+            />
+          </div>
+
+          <div
+            className={`mt-4 rounded-2xl border px-3 py-3 ${
+              ocuparOk
+                ? "border-espera/40 bg-espera/10"
+                : "border-amber-300/60 bg-amber-50 dark:bg-amber-400/10"
             }`}
           >
-            {ocuparOk
-              ? locale === "en"
-                ? `${ocuparCap} seats · tables ${labelMesas(ocuparMesasSel)}`
-                : `${ocuparCap} plazas · mesas ${labelMesas(ocuparMesasSel)}`
-              : locale === "en"
-                ? "Pick at least one free table."
-                : "Elegí al menos una mesa libre."}
-          </p>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-            {mesas.map((m) => {
-              const libre = m.estado === "libre";
-              const selected = ocuparMesasSel.includes(m.numero);
-              const cap = m.capacidad ?? 4;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  disabled={!libre || ocupando}
-                  onClick={() => {
-                    if (!libre) return;
-                    setOcuparMesasSel((prev) =>
-                      prev.includes(m.numero)
-                        ? prev.filter((n) => n !== m.numero)
-                        : [...prev, m.numero].sort((a, b) => a - b),
-                    );
-                  }}
-                  className={mesaTileClass(m.estado, {
-                    pickable: libre,
-                    selected: libre && selected,
-                  })}
-                >
-                  <span className="font-display text-xl leading-none">
-                    {m.numero}
-                  </span>
-                  <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
-                    {libre
-                      ? locale === "en"
-                        ? "Free"
-                        : "Libre"
-                      : m.estado === "reservada"
-                        ? "Res."
-                        : locale === "en"
-                          ? "Busy"
-                          : "Ocup."}
-                  </span>
-                  <span className="mt-0.5 text-[9px] font-semibold opacity-80">
-                    {cap}p
-                  </span>
-                </button>
-              );
-            })}
+            <p className="text-sm font-semibold text-carbon">
+              {locale === "en" ? "Tables" : "Mesas"}{" "}
+              {labelMesas(ocuparMesasSel)}
+              <span className="font-normal text-carbon/55">
+                {" "}
+                · {ocuparCap}/{ocuparPersonas}{" "}
+                {locale === "en" ? "seats" : "plazas"}
+              </span>
+            </p>
+            <p
+              className={`mt-1 text-sm font-semibold ${
+                ocuparOk ? "text-espera" : "text-amber-800 dark:text-amber-200"
+              }`}
+            >
+              {ocuparOk
+                ? locale === "en"
+                  ? "Fits the party."
+                  : "Entran todas."
+                : locale === "en"
+                  ? `Short ${ocuparFaltan} — pick another free table below.`
+                  : `Faltan ${ocuparFaltan} — elegí otra mesa libre abajo.`}
+            </p>
           </div>
+
+          {ocuparNecesitaMapa && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
+                {locale === "en" ? "Free tables to join" : "Mesas libres para juntar"}
+              </p>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                {mesasLibres.map((m) => {
+                  const selected = ocuparMesasSel.includes(m.numero);
+                  const cap = m.capacidad ?? 4;
+                  const esPrimaria = m.numero === ocuparPrimaria;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      disabled={ocupando || esPrimaria}
+                      onClick={() => {
+                        if (esPrimaria) return;
+                        setOcuparMesasSel((prev) =>
+                          prev.includes(m.numero)
+                            ? prev.filter((n) => n !== m.numero)
+                            : [...prev, m.numero].sort((a, b) => a - b),
+                        );
+                      }}
+                      className={mesaTileClass("libre", {
+                        pickable: true,
+                        selected,
+                      })}
+                    >
+                      <span className="font-display text-xl leading-none">
+                        {m.numero}
+                      </span>
+                      <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
+                        {selected
+                          ? locale === "en"
+                            ? "On"
+                            : "Sí"
+                          : locale === "en"
+                            ? "Free"
+                            : "Libre"}
+                      </span>
+                      <span className="mt-0.5 text-[9px] font-semibold opacity-80">
+                        {cap}p
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {!mesasLibres.filter((m) => m.numero !== ocuparPrimaria)
+                .length && (
+                <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
+                  {locale === "en"
+                    ? "No other free tables. Free one or lower the party size."
+                    : "No hay más mesas libres. Liberá una o bajá las personas."}
+                </p>
+              )}
+            </div>
+          )}
         </ModalShell>
       )}
 
