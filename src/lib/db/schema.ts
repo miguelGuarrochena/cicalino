@@ -392,6 +392,7 @@ export const mesas = pgTable(
       .references(() => locales.id, { onDelete: "cascade" }),
     numero: integer("numero").notNull(),
     estado: text("estado").notNull().default("libre"),
+    capacidad: integer("capacidad").notNull().default(4),
     esperaId: uuid("espera_id").references(() => esperas.id, {
       onDelete: "set null",
     }),

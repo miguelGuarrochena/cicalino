@@ -15,6 +15,7 @@ import {
   updateEsperaStatus,
   updateReservaStatus,
   setMesaEstado,
+  setMesaCapacidad,
   expirarReservasVencidas,
   subscribeEsperas,
 } from "@/lib/data/espera";
@@ -47,6 +48,7 @@ export interface UseEsperas {
   sentarReserva: (id: string) => Promise<void>;
   cancelarReserva: (id: string) => Promise<void>;
   liberarMesa: (numero: number) => Promise<void>;
+  setCapacidad: (numero: number, capacidad: number) => Promise<void>;
 }
 
 export const useEsperas = (branchId: string | null): UseEsperas => {
@@ -61,6 +63,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
   const demoAdd = useEsperaStore((s) => s.agregarEspera);
   const demoChange = useEsperaStore((s) => s.cambiarEstado);
   const demoLiberar = useEsperaStore((s) => s.liberarMesa);
+  const demoSetCapacidad = useEsperaStore((s) => s.setCapacidad);
   const demoAddReserva = useEsperaStore((s) => s.agregarReserva);
   const demoSentarReserva = useEsperaStore((s) => s.sentarReserva);
   const demoCancelarReserva = useEsperaStore((s) => s.cancelarReserva);
@@ -251,6 +254,15 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     await reload();
   };
 
+  const setCapacidad = async (numero: number, capacidad: number) => {
+    if (!live || !branchId) {
+      demoSetCapacidad(numero, capacidad);
+      return;
+    }
+    await setMesaCapacidad(branchId, numero, capacidad);
+    await reload();
+  };
+
   return {
     esperas: live ? liveEsperas : demoEsperas,
     mesas: live ? liveMesas : demoMesas,
@@ -265,6 +277,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     sentarReserva,
     cancelarReserva,
     liberarMesa,
+    setCapacidad,
   };
 };
 

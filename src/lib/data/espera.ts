@@ -34,6 +34,7 @@ type MesaRow = {
   id: string;
   numero: number;
   estado: MesaEstado;
+  capacidad: number | null;
   espera_id: string | null;
   reserva_id: string | null;
 };
@@ -72,6 +73,7 @@ const mapMesa = (r: MesaRow): MesaView => ({
   id: r.id,
   numero: r.numero,
   estado: r.estado === "reservada" || r.estado === "ocupada" ? r.estado : "libre",
+  capacidad: Math.max(1, Math.min(50, r.capacidad ?? 4)),
   esperaId: r.espera_id ?? null,
   reservaId: r.reserva_id ?? null,
 });
@@ -93,7 +95,7 @@ const mapReserva = (r: ReservaRow): ReservaView => ({
 
 const SELECT_ESPERA = "*, empleados(nombre)";
 const SELECT_RESERVA = "*, empleados(nombre)";
-const SELECT_MESA = "id, numero, estado, espera_id, reserva_id";
+const SELECT_MESA = "id, numero, estado, capacidad, espera_id, reserva_id";
 const horaCorte = (): number => useConfigStore.getState().horaCorte;
 const inicioDelDia = (): string => inicioJornada(horaCorte()).toISOString();
 const finDelDia = (): string => finJornada(horaCorte()).toISOString();
@@ -115,7 +117,8 @@ export const syncMesas = async (
   const have = new Set(rows.map((r) => r.numero));
   const missing = [];
   for (let i = 1; i <= n; i++) {
-    if (!have.has(i)) missing.push({ local_id: branchId, numero: i, estado: "libre" });
+    if (!have.has(i))
+      missing.push({ local_id: branchId, numero: i, estado: "libre", capacidad: 4 });
   }
   if (missing.length) {
     await supabase.from("mesas").insert(missing);
@@ -370,6 +373,29 @@ export const updateReservaStatus = async (
   const { error } = await supabase.from("reservas").update(patch).eq("id", id);
   if (error) {
     console.error("updateReservaStatus", error.message);
+    return false;
+  }
+  return true;
+};
+
+export const setMesaCapacidad = async (
+  branchId: string,
+  numero: number,
+  capacidad: number,
+): Promise<boolean> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return false;
+  const cap = Math.max(1, Math.min(50, Math.round(capacidad) || 4));
+  const { error } = await supabase
+    .from("mesas")
+    .update({
+      capacidad: cap,
+      actualizado_en: new Date().toISOString(),
+    })
+    .eq("local_id", branchId)
+    .eq("numero", numero);
+  if (error) {
+    console.error("setMesaCapacidad", error.message);
     return false;
   }
   return true;

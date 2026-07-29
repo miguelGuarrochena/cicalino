@@ -89,7 +89,7 @@ export const useCustomerEspera = (token: string): Result => {
       done();
     }
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "cicalino-espera-demo-v2")
+      if (e.key === "cicalino-espera-demo-v3")
         void useEsperaStore.persist.rehydrate();
     };
     window.addEventListener("storage", onStorage);

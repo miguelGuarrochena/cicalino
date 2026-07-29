@@ -27,6 +27,7 @@ interface EsperaState {
   ) => void;
   liberarMesa: (numero: number) => void;
   ocuparMesa: (numero: number, esperaId: string) => void;
+  setCapacidad: (numero: number, capacidad: number) => void;
   agregarReserva: (args: {
     nombre: string;
     personas: number;
@@ -48,15 +49,17 @@ const buildMesas = (n: number, prev: MesaView[] = []): MesaView[] => {
   return Array.from({ length: Math.max(1, n) }, (_, i) => {
     const num = i + 1;
     const old = map.get(num);
-    return (
-      old ?? {
-        id: `mesa-demo-${num}`,
-        numero: num,
-        estado: "libre" as const,
-        esperaId: null,
-        reservaId: null,
-      }
-    );
+    if (old) {
+      return { ...old, capacidad: old.capacidad ?? 4 };
+    }
+    return {
+      id: `mesa-demo-${num}`,
+      numero: num,
+      estado: "libre" as const,
+      capacidad: 4,
+      esperaId: null,
+      reservaId: null,
+    };
   });
 };
 
@@ -235,6 +238,18 @@ export const useEsperaStore = create<EsperaState>()(
           ),
         })),
 
+      setCapacidad: (numero, capacidad) =>
+        set((s) => ({
+          mesas: s.mesas.map((m) =>
+            m.numero === numero
+              ? {
+                  ...m,
+                  capacidad: Math.max(1, Math.min(50, Math.round(capacidad) || 4)),
+                }
+              : m,
+          ),
+        })),
+
       agregarReserva: ({
         nombre,
         personas,
@@ -365,7 +380,7 @@ export const useEsperaStore = create<EsperaState>()(
         }),
     }),
     {
-      name: "cicalino-espera-demo-v2",
+      name: "cicalino-espera-demo-v3",
       skipHydration: true,
       partialize: (s) =>
         supabaseConfigurado

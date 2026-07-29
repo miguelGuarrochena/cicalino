@@ -107,6 +107,7 @@ export interface MesaView {
   id: string;
   numero: number;
   estado: MesaEstado;
+  capacidad: number;
   esperaId: string | null;
   reservaId: string | null;
 }
