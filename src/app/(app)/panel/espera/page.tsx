@@ -1441,13 +1441,9 @@ const EsperaPanelPage = () => {
                         </span>
                         <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
                           {libre
-                            ? oversized
-                              ? locale === "en"
-                                ? "Big"
-                                : "Grande"
-                              : locale === "en"
-                                ? "Free"
-                                : "Libre"
+                            ? locale === "en"
+                              ? "Free"
+                              : "Libre"
                             : m.estado === "reservada"
                               ? "Res."
                               : locale === "en"
@@ -1731,13 +1727,9 @@ const EsperaPanelPage = () => {
                   </span>
                   <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
                     {libre
-                      ? oversized
-                        ? locale === "en"
-                          ? "Big"
-                          : "Grande"
-                        : locale === "en"
-                          ? "Free"
-                          : "Libre"
+                      ? locale === "en"
+                        ? "Free"
+                        : "Libre"
                       : m.estado === "reservada"
                         ? "Res."
                         : locale === "en"
