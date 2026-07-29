@@ -74,7 +74,8 @@ export const organizations = pgTable("organizaciones", {
   cuil: text("cuil"),
   direccion: text("direccion"),
   duenoEmail: text("dueno_email").notNull(),
-  // Sucursales contratadas (cobro = cupo × PRECIO_POR_SUCURSAL).
+  // Cupo = cantidad de sucursales contratadas (slots). Cobro real = suma
+  // de módulos de cada local (ver locales.modulo_*).
   cupo: integer("cupo").notNull().default(1),
   pagado: boolean("pagado").notNull().default(true),
   activo: boolean("activo").notNull().default(true),
@@ -87,7 +88,8 @@ export const organizations = pgTable("organizaciones", {
   proximoCobroEn: timestamp("proximo_cobro_en", { withTimezone: true }),
   // Último mail de recordatorio de cobro (anti-spam).
   avisoCobroEn: timestamp("aviso_cobro_en", { withTimezone: true }),
-  // Módulos contratados (cobro = cupo × precio según pack).
+  // Agregado (OR) de módulos de las sucursales — legacy / listados.
+  // Fuente de verdad del cobro: locales.modulo_*.
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
   // Aceptación de bases y condiciones (link /aceptar/[token]).
@@ -122,7 +124,7 @@ export const locales = pgTable("locales", {
   cantidadMesas: integer("cantidad_mesas"),
   // Hora a la que corta la jornada operativa (0-23). Default 6:00.
   horaCorte: integer("hora_corte").notNull().default(6),
-  // Módulos activos en esta sucursal (subset de lo contratado en la org).
+  // Módulos contratados de ESTA sucursal (fuente de verdad de cobro y menú).
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })

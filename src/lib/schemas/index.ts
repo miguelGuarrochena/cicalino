@@ -85,6 +85,8 @@ export const sucursalInputSchema = z.object({
   nombre: texto(2, 80, "el nombre de la sucursal"),
   tipo: tipoNegocio,
   direccion: textoOpcional(160, "la dirección"),
+  moduloPedidos: z.boolean().optional().default(true),
+  moduloEspera: z.boolean().optional().default(false),
 });
 
 export const crearOrganizacionSchema = z.object({
@@ -102,6 +104,7 @@ export const crearOrganizacionSchema = z.object({
     .max(500, "El cupo máximo es 500."),
   plan: plan.optional().default("mensual"),
   mesGratis: z.boolean().optional().default(false),
+  /** Defaults / agregado; el cobro real sale de cada sucursal. */
   moduloPedidos: z.boolean().optional().default(true),
   moduloEspera: z.boolean().optional().default(false),
   sucursales: z
@@ -142,16 +145,10 @@ export const branchConfigSchema = z
       .int()
       .min(0, "La hora de corte va de 0 a 23.")
       .max(23, "La hora de corte va de 0 a 23."),
-    moduloPedidos: z.boolean().optional().default(true),
-    moduloEspera: z.boolean().optional().default(false),
   })
   .refine((v) => v.modo !== "mesa" || v.cantidadMesas >= 1, {
     message: "Con modo 'mesa' necesitás definir la cantidad de mesas.",
     path: ["cantidadMesas"],
-  })
-  .refine((v) => v.moduloPedidos || v.moduloEspera, {
-    message: "Activá al menos un módulo en la sucursal.",
-    path: ["moduloPedidos"],
   });
 export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 

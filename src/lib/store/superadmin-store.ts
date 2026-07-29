@@ -4,12 +4,13 @@ import type { TipoNegocio } from "@/lib/store/config-store";
 import {
   PRECIO_POR_SUCURSAL,
   precioMensualPorSucursal,
+  precioMensualSucursales,
   type ModulosFlags,
 } from "@/lib/precios";
 import { supabaseConfigurado } from "@/lib/supabase/config";
 import { sumarCicloCobro } from "@/lib/billing";
 
-export { PRECIO_POR_SUCURSAL, precioMensualPorSucursal };
+export { PRECIO_POR_SUCURSAL, precioMensualPorSucursal, precioMensualSucursales };
 export type { ModulosFlags };
 
 export interface BranchRow {
@@ -20,6 +21,9 @@ export interface BranchRow {
   direccion: string;
   activo: boolean;
   pedidosHoy: number;
+  /** Módulos contratados de esta sucursal (cobro + menú). */
+  moduloPedidos: boolean;
+  moduloEspera: boolean;
 }
 
 export type PlanTipo = "mensual" | "anual" | "gratis";
@@ -44,7 +48,7 @@ export interface OrganizationRow {
   proximoCobroEn: string | null;
   /** Cuándo el dueño aceptó bases y condiciones. Null = pendiente. */
   contratoAceptadoEn: string | null;
-  /** Módulos contratados (definen el precio por sucursal). */
+  /** Agregado de módulos (OR de sucursales). Cobro real = suma por local. */
   moduloPedidos: boolean;
   moduloEspera: boolean;
   altaEn: string;
@@ -72,6 +76,8 @@ export type BranchInput = {
   nombre: string;
   tipo: TipoNegocio;
   direccion: string;
+  moduloPedidos?: boolean;
+  moduloEspera?: boolean;
 };
 
 interface SuperadminState {
@@ -132,6 +138,8 @@ const seed = (): OrganizationRow[] => {
           direccion: "Calle Falsa 742, Rosario",
           activo: true,
           pedidosHoy: 38,
+          moduloPedidos: true,
+          moduloEspera: true,
         },
         {
           id: "suc-norte",
@@ -141,6 +149,8 @@ const seed = (): OrganizationRow[] => {
           direccion: "Av. Pellegrini 1200, Rosario",
           activo: true,
           pedidosHoy: 27,
+          moduloPedidos: true,
+          moduloEspera: false,
         },
       ],
     },
@@ -171,6 +181,8 @@ const seed = (): OrganizationRow[] => {
           direccion: "San Martín 500, Córdoba",
           activo: true,
           pedidosHoy: 22,
+          moduloPedidos: true,
+          moduloEspera: false,
         },
       ],
     },
@@ -181,11 +193,20 @@ const seed = (): OrganizationRow[] => {
 export const enGracia = (org: OrganizationRow): boolean =>
   !!org.mesGratisHasta && new Date(org.mesGratisHasta).getTime() > Date.now();
 
-/** Monto mensual recurrente (cupo × precio del pack); 0 si el plan es gratis. */
+/** Monto mensual = suma de packs de cada sucursal; 0 si el plan es gratis. */
 export const montoMensual = (org: OrganizationRow): number => {
   if (org.plan === "gratis") return 0;
+  if (org.sucursales.length) {
+    return precioMensualSucursales(
+      org.sucursales.map((s) => ({
+        pedidos: s.moduloPedidos !== false,
+        espera: Boolean(s.moduloEspera),
+      })),
+    );
+  }
+  // Sin locales aún: estimación por cupo × agregado org (alta en curso).
   return (
-    org.cupo *
+    Math.max(1, org.cupo) *
     precioMensualPorSucursal({
       pedidos: org.moduloPedidos !== false,
       espera: Boolean(org.moduloEspera),
@@ -331,6 +352,8 @@ export const useSuperadminStore = create<SuperadminState>()(
                       direccion: data.direccion.trim(),
                       activo: true,
                       pedidosHoy: 0,
+                      moduloPedidos: data.moduloPedidos !== false,
+                      moduloEspera: Boolean(data.moduloEspera),
                     },
                   ],
                 }
@@ -356,6 +379,25 @@ export const useSuperadminStore = create<SuperadminState>()(
                   ...(data.tipo != null ? { tipo: data.tipo } : {}),
                   ...(data.direccion != null
                     ? { direccion: data.direccion.trim() }
+                    : {}),
+                  ...(data.moduloPedidos != null || data.moduloEspera != null
+                    ? (() => {
+                        const pedidos =
+                          data.moduloPedidos != null
+                            ? data.moduloPedidos
+                            : suc.moduloPedidos;
+                        const espera =
+                          data.moduloEspera != null
+                            ? data.moduloEspera
+                            : suc.moduloEspera;
+                        if (!pedidos && !espera) {
+                          return { moduloPedidos: true, moduloEspera: false };
+                        }
+                        return {
+                          moduloPedidos: pedidos,
+                          moduloEspera: espera,
+                        };
+                      })()
                     : {}),
                 };
               }),

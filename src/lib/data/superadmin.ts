@@ -7,6 +7,7 @@ import {
   type PlanTipo,
 } from "@/lib/store/superadmin-store";
 import type { TipoNegocio } from "@/lib/store/config-store";
+import { normalizarModulos } from "@/lib/precios";
 
 // ---------------------------------------------------------------------------
 // Datos del superadmin: organizaciones + sucursales (tabla locales).
@@ -19,6 +20,8 @@ type BranchDb = {
   nombre: string;
   tipo_negocio: TipoNegocio;
   direccion: string | null;
+  modulo_pedidos: boolean | null;
+  modulo_espera: boolean | null;
 };
 type OrgDb = {
   id: string;
@@ -41,34 +44,54 @@ type OrgDb = {
   locales: BranchDb[] | null;
 };
 
-const mapOrg = (o: OrgDb): OrganizationRow => ({
-  id: o.id,
-  nombre: o.nombre,
-  responsable: o.responsable ?? "",
-  telefono: o.telefono ?? "",
-  cuil: o.cuil ?? "",
-  direccion: o.direccion ?? "",
-  duenoEmail: o.dueno_email,
-  cupo: o.cupo,
-  pagado: o.pagado,
-  activo: o.activo,
-  plan: (o.plan as PlanTipo) ?? "mensual",
-  mesGratisHasta: o.mes_gratis_hasta ?? null,
-  proximoCobroEn: o.proximo_cobro_en ?? null,
-  contratoAceptadoEn: o.contrato_aceptado_en ?? null,
-  moduloPedidos: o.modulo_pedidos !== false,
-  moduloEspera: Boolean(o.modulo_espera),
-  altaEn: o.creado_en,
-  sucursales: (o.locales ?? []).map((l) => ({
-    id: l.id,
-    organizacionId: o.id,
-    nombre: l.nombre,
-    tipo: l.tipo_negocio ?? "otro",
-    direccion: l.direccion ?? "",
-    activo: true, // la tabla locales no tiene columna "activo" (display)
-    pedidosHoy: 0,
-  })),
-});
+const mapOrg = (o: OrgDb): OrganizationRow => {
+  const sucursales = (o.locales ?? []).map((l) => {
+    const mods = normalizarModulos({
+      pedidos: l.modulo_pedidos !== false,
+      espera: Boolean(l.modulo_espera),
+    });
+    return {
+      id: l.id,
+      organizacionId: o.id,
+      nombre: l.nombre,
+      tipo: l.tipo_negocio ?? "otro",
+      direccion: l.direccion ?? "",
+      activo: true,
+      pedidosHoy: 0,
+      moduloPedidos: mods.pedidos,
+      moduloEspera: mods.espera,
+    };
+  });
+  const agg = sucursales.length
+    ? {
+        moduloPedidos: sucursales.some((s) => s.moduloPedidos),
+        moduloEspera: sucursales.some((s) => s.moduloEspera),
+      }
+    : {
+        moduloPedidos: o.modulo_pedidos !== false,
+        moduloEspera: Boolean(o.modulo_espera),
+      };
+  return {
+    id: o.id,
+    nombre: o.nombre,
+    responsable: o.responsable ?? "",
+    telefono: o.telefono ?? "",
+    cuil: o.cuil ?? "",
+    direccion: o.direccion ?? "",
+    duenoEmail: o.dueno_email,
+    cupo: o.cupo,
+    pagado: o.pagado,
+    activo: o.activo,
+    plan: (o.plan as PlanTipo) ?? "mensual",
+    mesGratisHasta: o.mes_gratis_hasta ?? null,
+    proximoCobroEn: o.proximo_cobro_en ?? null,
+    contratoAceptadoEn: o.contrato_aceptado_en ?? null,
+    moduloPedidos: agg.moduloPedidos,
+    moduloEspera: agg.moduloEspera,
+    altaEn: o.creado_en,
+    sucursales,
+  };
+};
 
 export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const supabase = createBrowserSupabase();
@@ -76,7 +99,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, locales(id, nombre, tipo_negocio, direccion)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
@@ -140,12 +163,45 @@ export const updateOrgDb = async (
   if (error) console.error("updateOrgDb", error.message);
 };
 
-export const insertBranchDb = async (
+/** Recalcula organizaciones.modulo_* como OR de sus locales. */
+export const syncOrgModulosFromLocales = async (
   orgId: string,
-  data: { nombre: string; tipo: TipoNegocio; direccion: string },
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;
+  const { data, error } = await supabase
+    .from("locales")
+    .select("modulo_pedidos, modulo_espera")
+    .eq("organizacion_id", orgId);
+  if (error) {
+    console.error("syncOrgModulosFromLocales", error.message);
+    return;
+  }
+  const rows = data ?? [];
+  const pedidos = rows.some((r) => r.modulo_pedidos !== false) || rows.length === 0;
+  const espera = rows.some((r) => Boolean(r.modulo_espera));
+  await updateOrgDb(orgId, {
+    moduloPedidos: pedidos || !espera,
+    moduloEspera: espera,
+  });
+};
+
+export const insertBranchDb = async (
+  orgId: string,
+  data: {
+    nombre: string;
+    tipo: TipoNegocio;
+    direccion: string;
+    moduloPedidos?: boolean;
+    moduloEspera?: boolean;
+  },
+): Promise<void> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return;
+  const mods = normalizarModulos({
+    pedidos: data.moduloPedidos,
+    espera: data.moduloEspera,
+  });
   const slug = `${data.nombre
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -157,13 +213,47 @@ export const insertBranchDb = async (
     tipo_negocio: data.tipo,
     direccion: data.direccion.trim() || null,
     slug,
+    modulo_pedidos: mods.pedidos,
+    modulo_espera: mods.espera,
   });
   if (error) console.error("insertBranchDb", error.message);
+  else await syncOrgModulosFromLocales(orgId);
+};
+
+export const updateBranchModulesDb = async (
+  orgId: string,
+  branchId: string,
+  mods: { moduloPedidos: boolean; moduloEspera: boolean },
+): Promise<void> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return;
+  const n = normalizarModulos({
+    pedidos: mods.moduloPedidos,
+    espera: mods.moduloEspera,
+  });
+  const { error } = await supabase
+    .from("locales")
+    .update({
+      modulo_pedidos: n.pedidos,
+      modulo_espera: n.espera,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", branchId);
+  if (error) console.error("updateBranchModulesDb", error.message);
+  else await syncOrgModulosFromLocales(orgId);
 };
 
 export const deleteBranchDb = async (id: string): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;
+  const { data: row } = await supabase
+    .from("locales")
+    .select("organizacion_id")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase.from("locales").delete().eq("id", id);
   if (error) console.error("deleteBranchDb", error.message);
+  else if (row?.organizacion_id) {
+    await syncOrgModulosFromLocales(row.organizacion_id);
+  }
 };

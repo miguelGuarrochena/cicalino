@@ -104,9 +104,6 @@ const ConfigPage = () => {
         ) {
           next.mesas = t("config.errMesas");
         }
-        if (!c.moduloPedidos && !c.moduloEspera) {
-          next.mesas = "Activá al menos un módulo.";
-        }
         return next;
       };
 
@@ -128,8 +125,6 @@ const ConfigPage = () => {
           horaCorte: c.horaCorte,
           moduloPedidos: c.moduloPedidos,
           moduloEspera: c.moduloEspera,
-          orgModuloPedidos: c.orgModuloPedidos,
-          orgModuloEspera: c.orgModuloEspera,
         });
       }
       setGuardado(true);
@@ -221,55 +216,43 @@ const ConfigPage = () => {
 
       <section className={CARD}>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-          Módulos de la sucursal
+          Módulos de esta sucursal
         </h2>
         <p className="mb-4 mt-1 text-sm text-carbon/55">
-          Activá lo que usás acá. Solo podés encender lo contratado en la
-          empresa.
+          Lo contratado para este local. Si necesitás sumar o quitar un módulo,
+          pedilo al administrador.
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            disabled={!c.orgModuloPedidos && !c.moduloPedidos}
-            onClick={() => {
-              if (!c.orgModuloPedidos) return;
-              c.setModuloPedidos(!c.moduloPedidos);
-            }}
-            className={`rounded-2xl border p-4 text-left transition ${
+          <div
+            className={`rounded-2xl border p-4 ${
               c.moduloPedidos
                 ? "border-marca bg-marca/10 ring-2 ring-marca/30"
-                : "border-linea bg-crema/30"
-            } ${!c.orgModuloPedidos ? "opacity-50" : ""}`}
+                : "border-linea bg-crema/30 opacity-55"
+            }`}
           >
             <span className="font-semibold text-carbon">Pedidos listos</span>
             <span className="mt-1 block text-xs text-carbon/55">
-              {c.orgModuloPedidos
-                ? "Aviso cuando el pedido está listo"
-                : "No contratado en la empresa"}
+              {c.moduloPedidos
+                ? "Incluido en esta sucursal"
+                : "No contratado acá"}
             </span>
-          </button>
-          <button
-            type="button"
-            disabled={!c.orgModuloEspera && !c.moduloEspera}
-            onClick={() => {
-              if (!c.orgModuloEspera) return;
-              c.setModuloEspera(!c.moduloEspera);
-            }}
-            className={`rounded-2xl border p-4 text-left transition ${
+          </div>
+          <div
+            className={`rounded-2xl border p-4 ${
               c.moduloEspera
                 ? "border-espera bg-espera/10 ring-2 ring-espera/30"
-                : "border-linea bg-crema/30"
-            } ${!c.orgModuloEspera ? "opacity-50" : ""}`}
+                : "border-linea bg-crema/30 opacity-55"
+            }`}
           >
             <span className="font-semibold text-carbon">Espera de mesa</span>
             <span className="mt-1 block text-xs text-carbon/55">
-              {c.orgModuloEspera
-                ? "Cola y mapa de mesas"
-                : "No contratado en la empresa"}
+              {c.moduloEspera
+                ? "Incluido en esta sucursal"
+                : "No contratado acá"}
             </span>
-          </button>
+          </div>
         </div>
-        {(c.moduloEspera || c.modo === "mesa") && (
+        {c.moduloEspera && (
           <div className="mt-4 max-w-xs">
             <Campo label={t("config.cantidadMesas")} error={errors.mesas}>
               <input
@@ -287,14 +270,15 @@ const ConfigPage = () => {
         )}
       </section>
 
-      {(c.moduloPedidos && c.moduloEspera) && (
+      {c.moduloPedidos && c.moduloEspera && (
         <section className={CARD}>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
             Este dispositivo
           </h2>
           <p className="mb-4 mt-1 text-sm text-carbon/55">
             Ideal si tenés una tablet en recepción y otra en el mostrador. Se
-            guarda solo en este aparato.
+            guarda solo en este aparato — no limita cuántos dispositivos usan
+            la sucursal.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {(

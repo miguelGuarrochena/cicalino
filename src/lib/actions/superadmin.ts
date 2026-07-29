@@ -93,17 +93,33 @@ const crearOrganizacionValidada = async (
   }
 
   if (data.sucursales.length) {
-    const rows = data.sucursales.map((b) => ({
-      organizacion_id: org.id,
-      nombre: b.nombre,
-      tipo_negocio: b.tipo,
-      direccion: b.direccion ?? null,
-      slug: `${slugify(b.nombre)}-${sufijoAleatorio()}`,
-      modulo_pedidos: data.moduloPedidos !== false,
-      modulo_espera: Boolean(data.moduloEspera),
-    }));
+    const rows = data.sucursales.map((b) => {
+      let pedidos = b.moduloPedidos !== false;
+      let espera = Boolean(b.moduloEspera);
+      if (!pedidos && !espera) pedidos = true;
+      return {
+        organizacion_id: org.id,
+        nombre: b.nombre,
+        tipo_negocio: b.tipo,
+        direccion: b.direccion ?? null,
+        slug: `${slugify(b.nombre)}-${sufijoAleatorio()}`,
+        modulo_pedidos: pedidos,
+        modulo_espera: espera,
+      };
+    });
     const { error: errSuc } = await admin.from("locales").insert(rows);
     if (errSuc) console.error("crearOrganizacion/locales", errSuc.message);
+    else {
+      const pedidos = rows.some((r) => r.modulo_pedidos);
+      const espera = rows.some((r) => r.modulo_espera);
+      await admin
+        .from("organizaciones")
+        .update({
+          modulo_pedidos: pedidos || !espera,
+          modulo_espera: espera,
+        })
+        .eq("id", org.id);
+    }
   }
 
   // No invitamos acá: el mail de alta va al activar la cuenta.
@@ -488,6 +504,8 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
           (typeof sol.direccion === "string" && sol.direccion) ||
           (typeof sol.ciudad === "string" && sol.ciudad) ||
           "",
+        moduloPedidos: esContrato ? moduloPedidos : true,
+        moduloEspera: esContrato ? moduloEspera : false,
       },
     ],
   });

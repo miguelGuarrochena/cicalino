@@ -5,8 +5,10 @@ import {
   orgById,
   branchById,
   PRECIO_POR_SUCURSAL,
+  precioMensualPorSucursal,
   type OrganizationRow,
 } from "@/lib/store/superadmin-store";
+import { PRECIO_PACK } from "@/lib/precios";
 
 const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
   id: "o1",
@@ -35,15 +37,47 @@ const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
       direccion: "",
       activo: true,
       pedidosHoy: 10,
+      moduloPedidos: true,
+      moduloEspera: false,
     },
   ],
   ...over,
 });
 
 describe("monthlyCharge", () => {
-  it("cobra cupo × precio si está paga y activa", () => {
-    expect(monthlyCharge(mkOrg({ cupo: 2 }))).toBe(2 * PRECIO_POR_SUCURSAL);
-    expect(monthlyCharge(mkOrg({ cupo: 3 }))).toBe(3 * PRECIO_POR_SUCURSAL);
+  it("cobra la suma de packs de cada sucursal", () => {
+    expect(monthlyCharge(mkOrg())).toBe(PRECIO_POR_SUCURSAL);
+    expect(
+      monthlyCharge(
+        mkOrg({
+          cupo: 2,
+          sucursales: [
+            {
+              id: "s1",
+              organizacionId: "o1",
+              nombre: "A",
+              tipo: "panaderia",
+              direccion: "",
+              activo: true,
+              pedidosHoy: 0,
+              moduloPedidos: true,
+              moduloEspera: false,
+            },
+            {
+              id: "s2",
+              organizacionId: "o1",
+              nombre: "B",
+              tipo: "panaderia",
+              direccion: "",
+              activo: true,
+              pedidosHoy: 0,
+              moduloPedidos: true,
+              moduloEspera: true,
+            },
+          ],
+        }),
+      ),
+    ).toBe(PRECIO_POR_SUCURSAL + PRECIO_PACK);
   });
   it("no cobra si está pausada, es gratis o en cortesía", () => {
     expect(monthlyCharge(mkOrg({ activo: false }))).toBe(0);
@@ -55,14 +89,22 @@ describe("monthlyCharge", () => {
 
 describe("cobroProximo", () => {
   it("anual cobra 10 meses (2 de regalo)", () => {
-    expect(cobroProximo(mkOrg({ cupo: 1, plan: "anual" }))).toBe(
+    expect(cobroProximo(mkOrg({ plan: "anual" }))).toBe(
       10 * PRECIO_POR_SUCURSAL,
     );
   });
   it("mensual cobra 1 mes", () => {
-    expect(cobroProximo(mkOrg({ cupo: 1, plan: "mensual" }))).toBe(
+    expect(cobroProximo(mkOrg({ plan: "mensual" }))).toBe(
       PRECIO_POR_SUCURSAL,
     );
+  });
+});
+
+describe("precioMensualPorSucursal", () => {
+  it("pack es más barato que sumar ambos", () => {
+    expect(
+      precioMensualPorSucursal({ pedidos: true, espera: true }),
+    ).toBe(PRECIO_PACK);
   });
 });
 

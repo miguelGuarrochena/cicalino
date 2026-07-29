@@ -7,7 +7,6 @@ import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
-  PRECIO_POR_SUCURSAL,
   cobroProximo,
   montoMensual,
   enGracia,
@@ -18,7 +17,12 @@ import {
   type BranchInput,
   type PlanTipo,
 } from "@/lib/store/superadmin-store";
-import { etiquetaModulos } from "@/lib/precios";
+import {
+  PRECIO_PEDIDOS,
+  PRECIO_ESPERA,
+  PRECIO_PACK,
+  etiquetaModulos,
+} from "@/lib/precios";
 import { sumarCicloCobro } from "@/lib/billing";
 import type { TipoNegocio } from "@/lib/store/config-store";
 import { TIPO_NEGOCIO_LABEL, TIPOS_NEGOCIO } from "@/lib/store/config-store";
@@ -36,6 +40,7 @@ import {
   refreshOrganizations,
   updateOrgDb,
   insertBranchDb,
+  updateBranchModulesDb,
   deleteBranchDb,
 } from "@/lib/data/superadmin";
 import { enviarLinkContrato } from "@/lib/actions/contrato";
@@ -53,8 +58,6 @@ type DraftOrg = {
   duenoEmail: string;
   cupo: number;
   plan: PlanTipo;
-  moduloPedidos: boolean;
-  moduloEspera: boolean;
 };
 
 const draftVacio = (): DraftOrg => ({
@@ -66,8 +69,6 @@ const draftVacio = (): DraftOrg => ({
   duenoEmail: "",
   cupo: 1,
   plan: "mensual",
-  moduloPedidos: true,
-  moduloEspera: false,
 });
 
 const draftDesdeOrg = (o: OrganizationRow): DraftOrg => ({
@@ -79,8 +80,6 @@ const draftDesdeOrg = (o: OrganizationRow): DraftOrg => ({
   duenoEmail: o.duenoEmail,
   cupo: o.cupo,
   plan: o.plan,
-  moduloPedidos: o.moduloPedidos !== false,
-  moduloEspera: Boolean(o.moduloEspera),
 });
 
 const draftsIguales = (a: DraftOrg, b: DraftOrg): boolean =>
@@ -91,9 +90,7 @@ const draftsIguales = (a: DraftOrg, b: DraftOrg): boolean =>
   a.direccion.trim() === b.direccion.trim() &&
   a.duenoEmail.trim() === b.duenoEmail.trim() &&
   a.cupo === b.cupo &&
-  a.plan === b.plan &&
-  a.moduloPedidos === b.moduloPedidos &&
-  a.moduloEspera === b.moduloEspera;
+  a.plan === b.plan;
 
 
 const money = new Intl.NumberFormat("es-AR", {
@@ -111,7 +108,7 @@ const PLAN_LABEL: Record<PlanTipo, string> = {
 };
 
 const PLAN_HELP: Record<PlanTipo, string> = {
-  mensual: "Cobro cada mes por sucursal contratada.",
+  mensual: "Cobro cada mes = suma de lo contratado en cada sucursal.",
   anual: "Un solo cobro por año (precio de 10 meses: 2 de regalo).",
   gratis: "Sin cobro. Cortesía permanente, no es el mes de prueba.",
 };
@@ -164,6 +161,48 @@ const montoPlanPreview = (
   return plan === "anual" ? mes * 10 : mes;
 };
 
+const PackPicker = ({
+  pedidos,
+  espera,
+  onChange,
+  compact,
+}: {
+  pedidos: boolean;
+  espera: boolean;
+  onChange: (p: boolean, e: boolean) => void;
+  compact?: boolean;
+}) => (
+  <div className={`flex flex-wrap gap-1.5 ${compact ? "" : "mt-2"}`}>
+    {(
+      [
+        [true, false, "Pedidos", PRECIO_PEDIDOS],
+        [false, true, "Espera", PRECIO_ESPERA],
+        [true, true, "Pack", PRECIO_PACK],
+      ] as const
+    ).map(([p, e, label, precio]) => {
+      const activo = pedidos === p && espera === e;
+      return (
+        <button
+          key={label}
+          type="button"
+          onClick={() => onChange(p, e)}
+          className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+            activo
+              ? e && p
+                ? "border-espera bg-espera/15 text-espera"
+                : e
+                  ? "border-espera bg-espera/15 text-espera"
+                  : "border-marca bg-marca/15 text-marca"
+              : "border-linea bg-surface text-carbon/60 hover:bg-carbon/5"
+          }`}
+        >
+          {label} · {money.format(precio)}
+        </button>
+      );
+    })}
+  </div>
+);
+
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-3 py-2.5 text-sm text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20";
 
@@ -204,6 +243,7 @@ export const OrgModal = ({
     toggleOrgPagado,
     quitarOrg,
     altaSucursal: createBranch,
+    actualizarSucursal,
     quitarSucursal: removeBranch,
     darMesGratis: giveFreeMonth,
   } = useSuperadminStore();
@@ -235,10 +275,6 @@ export const OrgModal = ({
   const [ownerEmail, setOwnerEmail] = useState(org?.duenoEmail ?? "");
   const [quota, setCupo] = useState(org?.cupo ?? 1);
   const [plan, setPlan] = useState<PlanTipo>(org?.plan ?? "mensual");
-  const [moduloPedidos, setModuloPedidos] = useState(
-    org?.moduloPedidos !== false,
-  );
-  const [moduloEspera, setModuloEspera] = useState(Boolean(org?.moduloEspera));
   const [baseline, setBaseline] = useState<DraftOrg>(() =>
     initialMode === "crear" || !org ? draftVacio() : draftDesdeOrg(org),
   );
@@ -249,6 +285,8 @@ export const OrgModal = ({
   // Alta sucursal rápida
   const [newBranch, setNuevaSuc] = useState("");
   const [nuevaTipo, setNuevaTipo] = useState<TipoNegocio>("cafeteria");
+  const [nuevaPedidos, setNuevaPedidos] = useState(true);
+  const [nuevaEspera, setNuevaEspera] = useState(false);
 
   const draftActual = (): DraftOrg => ({
     nombre: name,
@@ -259,8 +297,6 @@ export const OrgModal = ({
     duenoEmail: ownerEmail,
     cupo: quota,
     plan,
-    moduloPedidos,
-    moduloEspera,
   });
 
   const dirty = editing && !draftsIguales(draftActual(), baseline);
@@ -274,8 +310,6 @@ export const OrgModal = ({
     setOwnerEmail(d.duenoEmail);
     setCupo(d.cupo);
     setPlan(d.plan);
-    setModuloPedidos(d.moduloPedidos);
-    setModuloEspera(d.moduloEspera);
   };
 
   const entrarEditar = (o: OrganizationRow) => {
@@ -336,9 +370,6 @@ export const OrgModal = ({
     if (cuil && !cuilOk(cuil)) e.cuil = t("super.errCuil");
     if (quota < 1) e.cupo = t("super.errCupo");
     if (org && quota < org.sucursales.length) e.cupo = t("super.errCupoBajo");
-    if (!moduloPedidos && !moduloEspera) {
-      e.modulos = "Elegí al menos un módulo.";
-    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -354,8 +385,6 @@ export const OrgModal = ({
       duenoEmail: ownerEmail,
       cupo: quota,
       plan,
-      moduloPedidos,
-      moduloEspera,
     };
     if (mode === "crear") {
       if (live) {
@@ -396,23 +425,22 @@ export const OrgModal = ({
       nombre: newBranch.trim(),
       tipo: nuevaTipo,
       direccion: org.direccion,
+      moduloPedidos: nuevaPedidos,
+      moduloEspera: nuevaEspera,
     };
     const usadas = vista?.sucursales.length ?? 0;
     const nuevoCupo = usadas + 1;
     const plan = vista?.plan ?? "mensual";
     const anualUna = montoPlanPreview("anual", 1, {
-      pedidos: vista?.moduloPedidos !== false,
-      espera: Boolean(vista?.moduloEspera),
+      pedidos: nuevaPedidos,
+      espera: nuevaEspera,
     });
 
     if (live) {
       await conBusy("Agregando sucursal…", async () => {
         if (plan === "anual") {
-          // Anual = producto aparte: cobrá esta sucursal ahora (ciclo propio).
-          // No tocamos proximo_cobro_en de las que ya estaban.
           await updateOrgDb(org.id, { cupo: nuevoCupo, pagado: false });
         } else if (plan === "mensual") {
-          // Mensual: se suma al próximo ciclo; no marcamos impago.
           await updateOrgDb(org.id, { cupo: nuevoCupo });
         } else {
           await updateOrgDb(org.id, { cupo: nuevoCupo });
@@ -449,6 +477,30 @@ export const OrgModal = ({
     setCupoError(false);
     setNuevaSuc("");
     toast(`Sucursal agregada · ahora ${nuevoCupo}`, "success");
+  };
+
+  const cambiarModulosSuc = async (
+    branchId: string,
+    pedidos: boolean,
+    espera: boolean,
+  ) => {
+    if (!org || busy) return;
+    if (live) {
+      await conBusy("Actualizando módulos…", async () => {
+        await updateBranchModulesDb(org.id, branchId, {
+          moduloPedidos: pedidos,
+          moduloEspera: espera,
+        });
+        await refreshOrganizations();
+        toast("Módulos de la sucursal actualizados", "success");
+      });
+      return;
+    }
+    actualizarSucursal(org.id, branchId, {
+      moduloPedidos: pedidos,
+      moduloEspera: espera,
+    });
+    toast("Módulos de la sucursal actualizados", "success");
   };
 
   const togglePagado = async () => {
@@ -782,70 +834,23 @@ export const OrgModal = ({
               </div>
             )}
           </div>
-          {/* Módulos */}
+          {/* Módulos: se eligen por sucursal */}
           <div className="rounded-2xl border border-linea bg-crema/50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
-              Módulos contratados
+              Módulos por sucursal
             </p>
-            <div className="mt-2 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !moduloPedidos;
-                  if (!next && !moduloEspera) return;
-                  setModuloPedidos(next);
-                }}
-                className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                  moduloPedidos
-                    ? "border-marca bg-marca/10 ring-2 ring-marca/20"
-                    : "border-linea bg-surface hover:bg-carbon/5"
-                }`}
-              >
-                <span className="text-sm font-semibold text-carbon">
-                  Pedidos listos
-                </span>
-                <span className="mt-0.5 block text-xs text-carbon/55">
-                  Aviso QR cuando el pedido está listo
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !moduloEspera;
-                  if (!next && !moduloPedidos) return;
-                  setModuloEspera(next);
-                }}
-                className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                  moduloEspera
-                    ? "border-espera bg-espera/10 ring-2 ring-espera/20"
-                    : "border-linea bg-surface hover:bg-carbon/5"
-                }`}
-              >
-                <span className="text-sm font-semibold text-carbon">
-                  Espera de mesa
-                </span>
-                <span className="mt-0.5 block text-xs text-carbon/55">
-                  Cola + mapa de mesas
-                </span>
-              </button>
-            </div>
-            {errors.modulos && (
-              <p className="mt-2 text-xs text-red-500">{errors.modulos}</p>
+            <p className="mt-1 text-sm text-carbon/60">
+              Cada local tiene su pack (Pedidos {money.format(PRECIO_PEDIDOS)} ·
+              Espera {money.format(PRECIO_ESPERA)} · Pack{" "}
+              {money.format(PRECIO_PACK)}). El cobro es la suma de las
+              sucursales.
+            </p>
+            {mode === "crear" && (
+              <p className="mt-2 text-xs text-carbon/50">
+                Creá la empresa y después agregá cada sucursal con su pack en el
+                detalle.
+              </p>
             )}
-            <p className="mt-2 text-xs text-carbon/50">
-              {etiquetaModulos({
-                pedidos: moduloPedidos,
-                espera: moduloEspera,
-              })}{" "}
-              ·{" "}
-              {money.format(
-                precioMensualPorSucursal({
-                  pedidos: moduloPedidos,
-                  espera: moduloEspera,
-                }),
-              )}
-              /mes por sucursal
-            </p>
           </div>
           <div className="rounded-2xl border border-linea bg-crema/50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
@@ -854,12 +859,6 @@ export const OrgModal = ({
             <div className="mt-2 flex flex-col gap-2">
               {(["mensual", "anual", "gratis"] as PlanTipo[]).map((p) => {
                 const activo = plan === p;
-                const cupoPreview =
-                  mode === "editar" ? (org?.cupo ?? quota) : quota;
-                const mods = {
-                  pedidos: moduloPedidos,
-                  espera: moduloEspera,
-                };
                 return (
                   <button
                     key={p}
@@ -879,10 +878,11 @@ export const OrgModal = ({
                             ? "Gratis (cortesía)"
                             : "Mensual"}
                       </span>
-                      <span className="text-xs font-semibold text-marca">
-                        {money.format(montoPlanPreview(p, cupoPreview, mods))}
-                        {p === "anual" ? "/año" : p === "mensual" ? "/mes" : ""}
-                      </span>
+                      {p !== "gratis" && (
+                        <span className="text-xs font-semibold text-marca">
+                          desde {money.format(PRECIO_ESPERA)}/suc.
+                        </span>
+                      )}
                     </span>
                     <span className="mt-0.5 block text-xs text-carbon/55">
                       {PLAN_HELP[p]}
@@ -892,11 +892,9 @@ export const OrgModal = ({
               })}
             </div>
             <p className="mt-2 text-xs text-carbon/50">
-              {plan === "anual"
-                ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, mode === "editar" ? (org?.cupo ?? quota) : quota, { pedidos: moduloPedidos, espera: moduloEspera }))} una vez al año.`
-                : plan === "mensual"
-                  ? `Al guardar: cobrás ${money.format(montoPlanPreview(plan, mode === "editar" ? (org?.cupo ?? quota) : quota, { pedidos: moduloPedidos, espera: moduloEspera }))} cada mes.`
-                  : "Al guardar: sin cobro recurrente."}
+              {plan === "gratis"
+                ? "Al guardar: sin cobro recurrente."
+                : "El monto se arma con los packs de cada sucursal (detalle)."}
             </p>
           </div>
           <Campo label={t("super.direccion")}>
@@ -936,10 +934,8 @@ export const OrgModal = ({
                     <span className="ml-2 font-sans text-sm font-semibold normal-case tracking-normal text-marca">
                       {money.format(
                         enGracia(vista)
-                          ? montoPlanPreview(vista.plan, vista.cupo, {
-                              pedidos: vista.moduloPedidos !== false,
-                              espera: Boolean(vista.moduloEspera),
-                            })
+                          ? montoMensual(vista) *
+                              (vista.plan === "anual" ? 10 : 1)
                           : cobroProximo(vista) || montoMensual(vista),
                       )}
                       {vista.plan === "anual" ? "/año" : "/mes"}
@@ -1073,10 +1069,9 @@ export const OrgModal = ({
                   {" "}
                   · cobro{" "}
                   {money.format(
-                    montoPlanPreview(vista.plan, vista.sucursales.length || 1, {
-                      pedidos: vista.moduloPedidos !== false,
-                      espera: Boolean(vista.moduloEspera),
-                    }),
+                    vista.plan === "anual"
+                      ? montoMensual(vista) * 10
+                      : montoMensual(vista),
                   )}
                   {vista.plan === "anual" ? "/año" : "/mes"}
                 </span>
@@ -1086,80 +1081,116 @@ export const OrgModal = ({
               {vista.plan === "anual"
                 ? "Anual: cada sucursal nueva se cobra aparte (año desde hoy). Marcá Pagado cuando entre la transferencia."
                 : vista.plan === "mensual"
-                  ? "Mensual: la nueva se suma al próximo ciclo (misma fecha de cobro de la cuenta)."
+                  ? "Mensual: la nueva se suma al próximo ciclo según su pack."
                   : "Plan cortesía: sin cobro."}
             </p>
 
             <ul className="mt-3 flex flex-col gap-2">
-              {vista.sucursales.map((suc) => (
-                <li
-                  key={suc.id}
-                  className="flex flex-col gap-2 rounded-2xl border border-linea bg-surface px-3 py-3 sm:flex-row sm:items-center"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-carbon">{suc.nombre}</p>
-                    <p className="truncate text-xs text-carbon/50">
-                      {TIPO_LABEL[suc.tipo] ?? suc.tipo} · {suc.direccion || "—"}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => enterOwner(suc.id, suc.nombre)}
-                      className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema"
-                    >
-                      {t("super.entrarComo")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => borrarSuc(suc.id)}
-                      className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600/80"
-                    >
-                      {t("super.eliminar")}
-                    </button>
-                  </div>
-                </li>
-              ))}
+              {vista.sucursales.map((suc) => {
+                const mods = {
+                  pedidos: suc.moduloPedidos !== false,
+                  espera: Boolean(suc.moduloEspera),
+                };
+                return (
+                  <li
+                    key={suc.id}
+                    className="flex flex-col gap-2 rounded-2xl border border-linea bg-surface px-3 py-3"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-carbon">{suc.nombre}</p>
+                        <p className="truncate text-xs text-carbon/50">
+                          {TIPO_LABEL[suc.tipo] ?? suc.tipo} ·{" "}
+                          {suc.direccion || "—"}
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-carbon/65">
+                          {etiquetaModulos(mods)} ·{" "}
+                          {money.format(precioMensualPorSucursal(mods))}/mes
+                        </p>
+                        <PackPicker
+                          pedidos={mods.pedidos}
+                          espera={mods.espera}
+                          compact
+                          onChange={(p, e) =>
+                            void cambiarModulosSuc(suc.id, p, e)
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => enterOwner(suc.id, suc.nombre)}
+                          className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema"
+                        >
+                          {t("super.entrarComo")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => borrarSuc(suc.id)}
+                          className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600/80"
+                        >
+                          {t("super.eliminar")}
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
               {vista.sucursales.length === 0 && (
                 <p className="text-sm text-carbon/45">{t("super.sinSucursales")}</p>
               )}
             </ul>
 
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="min-w-0 flex-1">
-                <input
-                  className={INPUT}
-                  placeholder={t("super.nombreSucursal")}
-                  value={newBranch}
-                  onChange={(e) => {
-                    setNuevaSuc(e.target.value);
-                    setCupoError(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void agregarSuc();
-                    }
+            <div className="mt-3 flex flex-col gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="min-w-0 flex-1">
+                  <input
+                    className={INPUT}
+                    placeholder={t("super.nombreSucursal")}
+                    value={newBranch}
+                    onChange={(e) => {
+                      setNuevaSuc(e.target.value);
+                      setCupoError(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void agregarSuc();
+                      }
+                    }}
+                  />
+                </div>
+                <Select
+                  value={nuevaTipo}
+                  onChange={(v) => setNuevaTipo(v as TipoNegocio)}
+                  options={TIPOS_NEGOCIO.map((k) => ({
+                    value: k,
+                    label: TIPO_LABEL[k],
+                  }))}
+                  className="sm:min-w-[10rem]"
+                />
+                <button
+                  type="button"
+                  onClick={() => void agregarSuc()}
+                  disabled={busy || !newBranch.trim()}
+                  className="rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema disabled:opacity-50"
+                >
+                  {busy ? "…" : "Agregar"}
+                </button>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-carbon/50">
+                  Pack de la nueva sucursal
+                </p>
+                <PackPicker
+                  pedidos={nuevaPedidos}
+                  espera={nuevaEspera}
+                  onChange={(p, e) => {
+                    setNuevaPedidos(p);
+                    setNuevaEspera(e);
                   }}
                 />
               </div>
-              <Select
-                value={nuevaTipo}
-                onChange={(v) => setNuevaTipo(v as TipoNegocio)}
-                options={TIPOS_NEGOCIO.map((k) => ({
-                  value: k,
-                  label: TIPO_LABEL[k],
-                }))}
-                className="sm:min-w-[10rem]"
-              />
-              <button
-                type="button"
-                onClick={() => void agregarSuc()}
-                disabled={busy || !newBranch.trim()}
-                className="rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema disabled:opacity-50"
-              >
-                {busy ? "…" : "Agregar"}
-              </button>
             </div>
             {quotaError && (
               <p className="mt-2 text-xs text-red-500">{t("super.cupoLleno")}</p>

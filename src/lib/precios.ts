@@ -26,12 +26,27 @@ export const precioMensualPorSucursal = (m: ModulosFlags): number => {
   return 0;
 };
 
+/** Cobro mensual = suma de lo contratado en cada sucursal. */
+export const precioMensualSucursales = (lista: ModulosFlags[]): number =>
+  lista.reduce((sum, m) => sum + precioMensualPorSucursal(m), 0);
+
 /** Etiqueta corta del pack contratado. */
 export const etiquetaModulos = (m: ModulosFlags): string => {
   if (m.pedidos && m.espera) return "Pedidos + Espera";
   if (m.pedidos) return "Solo pedidos";
   if (m.espera) return "Solo espera";
   return "Sin módulos";
+};
+
+/** Etiqueta del cobro cuando cada sucursal puede tener un pack distinto. */
+export const etiquetaModulosSucursales = (lista: ModulosFlags[]): string => {
+  if (!lista.length) return "Sin sucursales";
+  const labels = lista.map(etiquetaModulos);
+  const uniq = [...new Set(labels)];
+  if (uniq.length === 1) {
+    return lista.length === 1 ? uniq[0]! : `${uniq[0]} × ${lista.length}`;
+  }
+  return `Mixto · ${lista.length} sucursales`;
 };
 
 /** Normaliza flags: al menos un módulo activo. */
