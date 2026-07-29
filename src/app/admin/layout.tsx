@@ -15,20 +15,23 @@ const AdminLayout = async ({
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
       <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md">
-        <div className="flex items-center justify-between gap-3 px-5 py-3 sm:px-8">
-          <div className="flex items-center gap-3">
-            <Logo href="/admin" className="h-10 sm:h-12" />
-            <span className="rounded-full bg-carbon px-3 py-1 text-xs font-bold uppercase tracking-wide text-crema">
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 sm:gap-3 sm:px-8 sm:py-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <Logo href="/admin" className="h-8 sm:h-12" />
+            <span className="rounded-full bg-carbon px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-crema sm:hidden">
+              SA
+            </span>
+            <span className="hidden rounded-full bg-carbon px-3 py-1 text-xs font-bold uppercase tracking-wide text-crema sm:inline-flex">
               Superadmin
             </span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <Controls />
             <LogoutButton />
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 sm:px-6 sm:py-8">
         {children}
       </main>
       <SiteFooter />

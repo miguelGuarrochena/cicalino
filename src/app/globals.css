@@ -189,18 +189,36 @@ button:disabled,
 .on-dark {
   display: none;
 }
+.on-light {
+  display: inline-block;
+  max-width: 100%;
+  width: auto;
+  object-fit: contain;
+  object-position: left center;
+  vertical-align: middle;
+}
 :root[data-theme="dark"] .on-light {
   display: none;
 }
 :root[data-theme="dark"] .on-dark {
-  display: block;
+  display: inline-block;
+  max-width: 100%;
+  width: auto;
+  object-fit: contain;
+  object-position: left center;
+  vertical-align: middle;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .on-light {
     display: none;
   }
   :root:not([data-theme="light"]) .on-dark {
-    display: block;
+    display: inline-block;
+    max-width: 100%;
+    width: auto;
+    object-fit: contain;
+    object-position: left center;
+    vertical-align: middle;
   }
 }
 

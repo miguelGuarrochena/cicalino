@@ -15,13 +15,13 @@ export const ThemedImg = ({
       <img
         src={`/${name}-light.png`}
         alt={alt}
-        className={`on-light w-auto ${className}`}
+        className={`on-light ${className}`}
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`/${name}-dark.png`}
         alt={alt}
-        className={`on-dark w-auto ${className}`}
+        className={`on-dark ${className}`}
       />
     </>
   );

@@ -43,12 +43,12 @@ const Metric = ({
   alerta?: boolean;
 }) => (
   <div
-    className="u-in rounded-[24px] border border-linea bg-surface p-5 shadow-sm"
+    className="u-in w-full rounded-[20px] border border-linea bg-surface px-4 py-4 shadow-sm sm:rounded-[24px] sm:p-5"
     style={{ animationDelay: `${delay}s` }}
   >
     <p className="text-sm text-carbon/55">{label}</p>
     <p
-      className={`mt-2 font-display text-3xl uppercase tracking-tight sm:text-4xl ${
+      className={`mt-1.5 break-words font-display text-2xl uppercase tracking-tight sm:mt-2 sm:text-4xl ${
         alerta ? "text-red-500" : "text-marca"
       }`}
     >
@@ -131,31 +131,33 @@ const SuperadminPage = () => {
         </div>
       )}
       <div className="flex flex-col gap-3">
-        <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+        <h1 className="font-display text-2xl uppercase tracking-tight text-carbon sm:text-4xl">
           {t("super.subtitulo")}
         </h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-1 overflow-x-auto rounded-full border border-linea bg-surface p-1">
-            {periodos.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPeriodo(p)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition sm:px-4 ${
-                  periodo === p
-                    ? "bg-marca text-crema"
-                    : "text-carbon/55 hover:text-carbon"
-                }`}
-              >
-                {t(`metricas.periodo.${p}`)}
-              </button>
-            ))}
-          </div>
+
+        <div className="flex w-full overflow-x-auto rounded-full border border-linea bg-surface p-1">
+          {periodos.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPeriodo(p)}
+              className={`min-w-0 flex-1 rounded-full px-2 py-2.5 text-xs font-semibold transition sm:px-4 ${
+                periodo === p
+                  ? "bg-marca text-crema"
+                  : "text-carbon/55 hover:text-carbon"
+              }`}
+            >
+              {t(`metricas.periodo.${p}`)}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button
             type="button"
             onClick={() => void abrirDemo()}
             disabled={abriendoDemo}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-marca/30 bg-crema px-4 py-2.5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-95 disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-marca/30 bg-crema px-4 py-3 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-95 disabled:opacity-60 sm:w-auto sm:py-2.5"
           >
             {abriendoDemo ? (
               <>
@@ -169,14 +171,14 @@ const SuperadminPage = () => {
           <button
             type="button"
             onClick={() => setModal({ mode: "crear" })}
-            className="shrink-0 rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
+            className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 sm:w-auto sm:py-2.5"
           >
             + {t("super.crear")}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         <Metric
           label={t("super.orgsActivas")}
           value={String(activas.length)}

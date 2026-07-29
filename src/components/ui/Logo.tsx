@@ -13,14 +13,27 @@ export const Logo = ({
   /** Destino del link. En panel usá `/panel`; en admin `/admin`. */
   href?: string;
 }) => {
+  // h-* en el wrapper; la img mantiene aspect-ratio (no se estira).
   const img = (
-    <ThemedImg name="logo" alt="Cicalino" className={className} />
+    <span
+      className={`relative inline-flex shrink-0 items-center overflow-hidden ${className}`}
+    >
+      <ThemedImg
+        name="logo"
+        alt="Cicalino"
+        className="!h-full !w-auto max-w-[9.5rem] object-contain object-left sm:max-w-[12rem]"
+      />
+    </span>
   );
   if (!linked) {
-    return <span className="inline-flex items-center">{img}</span>;
+    return <span className="inline-flex shrink-0 items-center">{img}</span>;
   }
   return (
-    <Link href={href} className="inline-flex items-center" aria-label="Cicalino">
+    <Link
+      href={href}
+      className="inline-flex shrink-0 items-center"
+      aria-label="Cicalino"
+    >
       {img}
     </Link>
   );
