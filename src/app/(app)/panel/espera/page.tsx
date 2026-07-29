@@ -547,7 +547,7 @@ const EsperaPanelPage = () => {
         setNombre("");
         setPersonas(2);
         toast(
-          locale === "en" ? "Added to waitlist" : "En cola de espera",
+          locale === "en" ? "Added to waitlist" : "Agregado a la lista",
           "success",
         );
       }
@@ -635,11 +635,11 @@ const EsperaPanelPage = () => {
             {locale === "en" ? "Table wait" : "Espera de mesa"}
           </p>
           <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-            {locale === "en" ? "Floor & queue" : "Sala y cola"}
+            {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
           </h1>
           <p className="mt-1 text-sm text-carbon/55">
             {cola.length}{" "}
-            {locale === "en" ? "parties waiting" : "grupos en cola"}
+            {locale === "en" ? "parties waiting" : "grupos esperando"}
             {personasEnCola
               ? ` · ${personasEnCola} ${locale === "en" ? "guests" : "personas"}`
               : ""}
@@ -946,7 +946,7 @@ const EsperaPanelPage = () => {
       {/* Cola */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-carbon/70">
-          {locale === "en" ? "Waiting list" : "Cola de espera"}
+          {locale === "en" ? "Waiting list" : "Lista de espera"}
           {cola.length ? ` · ${cola.length}` : ""}
         </h2>
         <div className="flex flex-col gap-3">
@@ -1394,8 +1394,8 @@ const EsperaPanelPage = () => {
           </h2>
           <p className="mt-2 text-sm text-carbon/60">
             {locale === "en"
-              ? `${confirmCancelEspera.nombre} will leave the queue.`
-              : `${confirmCancelEspera.nombre} sale de la cola.`}
+              ? `${confirmCancelEspera.nombre} will leave the waitlist.`
+              : `${confirmCancelEspera.nombre} sale de la lista.`}
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <button
@@ -1413,7 +1413,7 @@ const EsperaPanelPage = () => {
               onClick={() => setConfirmCancelEsperaId(null)}
               className="w-full rounded-full border border-linea px-5 py-3 text-sm font-semibold text-carbon transition hover:bg-crema"
             >
-              {locale === "en" ? "Keep waiting" : "Seguir en cola"}
+              {locale === "en" ? "Keep waiting" : "Seguir esperando"}
             </button>
           </div>
         </ModalShell>
@@ -1733,7 +1733,7 @@ const EsperaPanelPage = () => {
           <p className="mt-2 text-sm text-carbon/55">
             {locale === "en"
               ? "No QR, no waitlist — mark free tables as busy."
-              : "Sin QR ni cola: marcá mesas libres como ocupadas."}
+              : "Sin QR ni lista: marcá mesas libres como ocupadas."}
           </p>
           <label className="mt-4 flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-carbon/70">
