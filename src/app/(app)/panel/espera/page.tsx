@@ -478,8 +478,14 @@ const EsperaPanelPage = () => {
   const reservaCapSeleccionada = mesas
     .filter((m) => reservaMesas.includes(m.numero))
     .reduce((s, m) => s + (m.capacidad ?? 4), 0);
+  const reservaCapLibre = mesasLibres.reduce(
+    (s, m) => s + (m.capacidad ?? 4),
+    0,
+  );
+  const reservaPuedeCubrir = reservaCapLibre >= reservaPersonas;
   const reservaMesasOk =
     reservaMesas.length > 0 && reservaCapSeleccionada >= reservaPersonas;
+  const reservaFaltan = Math.max(0, reservaPersonas - reservaCapSeleccionada);
   const confirmCancelEspera = esperas.find(
     (e) => e.id === confirmCancelEsperaId,
   );
@@ -548,12 +554,22 @@ const EsperaPanelPage = () => {
       return;
     }
     if (!reservaMesasOk) {
-      toast(
-        locale === "en"
-          ? "Pick free tables that fit the party"
-          : "Elegí mesas libres que entren al grupo",
-        "error",
-      );
+      const msg = !mesasLibres.length
+        ? locale === "en"
+          ? "No free tables right now"
+          : "No hay mesas libres ahora"
+        : !reservaPuedeCubrir
+          ? locale === "en"
+            ? `Not enough free seats for ${reservaPersonas} (only ${reservaCapLibre} available)`
+            : `No alcanzan las mesas libres para ${reservaPersonas} (hay ${reservaCapLibre} plazas)`
+          : reservaMesas.length === 0
+            ? locale === "en"
+              ? `Pick tables until you reach ${reservaPersonas} seats`
+              : `Elegí mesas hasta llegar a ${reservaPersonas} plazas`
+            : locale === "en"
+              ? `Still short ${reservaFaltan} seat${reservaFaltan === 1 ? "" : "s"} — join another free table`
+              : `Faltan ${reservaFaltan} plaza${reservaFaltan === 1 ? "" : "s"}: juntá otra mesa libre`;
+      toast(msg, "error");
       return;
     }
     const horario = new Date(reservaHorario);
@@ -1240,25 +1256,35 @@ const EsperaPanelPage = () => {
                   ? "Pick one table or join free ones until the party fits."
                   : "Elegí una mesa o juntá libres hasta que entren."}
               </p>
-              {(() => {
-                const ok = reservaMesasOk;
-                return (
-                  <p
-                    className={`mb-3 text-sm font-semibold ${
-                      ok ? "text-espera" : "text-amber-700"
-                    }`}
-                  >
-                    {locale === "en"
-                      ? `${reservaCapSeleccionada} / ${reservaPersonas} seats selected`
-                      : `${reservaCapSeleccionada} / ${reservaPersonas} plazas elegidas`}
-                    {reservaMesas.length > 1
-                      ? locale === "en"
-                        ? ` · tables ${labelMesas(reservaMesas)}`
-                        : ` · mesas ${labelMesas(reservaMesas)}`
-                      : ""}
-                  </p>
-                );
-              })()}
+              {!mesasLibres.length ? (
+                <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
+                  {locale === "en"
+                    ? "No free tables right now."
+                    : "No hay mesas libres ahora."}
+                </p>
+              ) : !reservaPuedeCubrir ? (
+                <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
+                  {locale === "en"
+                    ? `Not enough free seats for ${reservaPersonas} people (only ${reservaCapLibre} available). Free a table or lower the party size.`
+                    : `No alcanzan las mesas libres para ${reservaPersonas} personas (hay ${reservaCapLibre} plazas). Liberá una mesa o bajá el grupo.`}
+                </p>
+              ) : reservaMesasOk ? (
+                <p className="mb-3 text-sm font-semibold text-espera">
+                  {locale === "en"
+                    ? `${reservaCapSeleccionada} / ${reservaPersonas} seats · tables ${labelMesas(reservaMesas)}`
+                    : `${reservaCapSeleccionada} / ${reservaPersonas} plazas · mesas ${labelMesas(reservaMesas)}`}
+                </p>
+              ) : (
+                <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
+                  {reservaMesas.length === 0
+                    ? locale === "en"
+                      ? `Pick tables until you reach ${reservaPersonas} seats.`
+                      : `Elegí mesas hasta llegar a ${reservaPersonas} plazas.`
+                    : locale === "en"
+                      ? `${reservaCapSeleccionada} / ${reservaPersonas} seats — still short ${reservaFaltan}. Join another free table.`
+                      : `${reservaCapSeleccionada} / ${reservaPersonas} plazas — faltan ${reservaFaltan}. Juntá otra mesa libre.`}
+                </p>
+              )}
               {mesas.length ? (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                   {mesas.map((m) => {
