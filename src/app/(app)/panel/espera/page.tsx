@@ -489,6 +489,10 @@ const EsperaPanelPage = () => {
     liberarMesaView?.reservaId != null
       ? reservaById.get(liberarMesaView.reservaId)
       : undefined;
+  const liberarEspera =
+    liberarMesaView?.esperaId != null
+      ? esperaById.get(liberarMesaView.esperaId)
+      : undefined;
   const CAPACIDADES_RAPIDAS = [2, 4, 6, 8, 10] as const;
 
   const hayMesaPara = (personasGrupo: number) => {
@@ -748,8 +752,16 @@ const EsperaPanelPage = () => {
           {mesasFiltradas.map((m) => {
             const reserva =
               m.reservaId != null ? reservaById.get(m.reservaId) : undefined;
+            const espera =
+              m.esperaId != null ? esperaById.get(m.esperaId) : undefined;
             const libre = m.estado === "libre";
             const reservada = m.estado === "reservada";
+            const ocupada = m.estado === "ocupada";
+            const etiquetaGrupo = reservada
+              ? reserva?.nombre
+              : ocupada
+                ? (espera?.nombre ?? reserva?.nombre)
+                : undefined;
             return (
               <button
                 key={m.id}
@@ -794,9 +806,9 @@ const EsperaPanelPage = () => {
                 <span className="mt-0.5 text-[9px] font-semibold opacity-80">
                   {m.capacidad ?? 4}p
                 </span>
-                {reservada && reserva && (
+                {etiquetaGrupo && (
                   <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-80">
-                    {reserva.nombre}
+                    {etiquetaGrupo}
                   </span>
                 )}
               </button>
@@ -1616,20 +1628,48 @@ const EsperaPanelPage = () => {
               label={locale === "en" ? "Close" : "Cerrar"}
             />
           </div>
-          <p className="mt-2 text-sm text-carbon/60">
-            {liberarMesaView.estado === "reservada"
-              ? locale === "en"
-                ? `Cancels the reservation${liberarReserva ? ` for ${liberarReserva.nombre}` : ""}.`
-                : `Cancela la reserva${liberarReserva ? ` de ${liberarReserva.nombre}` : ""}.`
-              : (() => {
-                  const linked =
-                    liberarMesaView.esperaId
-                      ? mesas.filter(
-                          (m) =>
-                            m.esperaId === liberarMesaView.esperaId &&
-                            m.estado === "ocupada",
-                        )
-                      : [liberarMesaView];
+          {liberarMesaView.estado === "reservada" && liberarReserva ? (
+            <div className="mt-3 rounded-2xl border border-amber-400/35 bg-amber-50/70 px-3.5 py-3 dark:bg-amber-400/10">
+              <p className="font-display text-lg uppercase tracking-tight text-carbon">
+                {liberarReserva.nombre}
+              </p>
+              <p className="mt-1 text-sm text-carbon/60">
+                {formatHora(liberarReserva.horario, locale)} ·{" "}
+                {liberarReserva.personas}{" "}
+                {locale === "en" ? "guests" : "personas"} · +
+                {liberarReserva.graciaMinutos} min
+              </p>
+              <p className="mt-2 text-sm text-carbon/55">
+                {locale === "en"
+                  ? "Cancels this reservation and frees the table."
+                  : "Cancela esta reserva y libera la mesa."}
+              </p>
+            </div>
+          ) : liberarMesaView.estado === "ocupada" ? (
+            <div className="mt-3 rounded-2xl border border-rose-300/40 bg-rose-50/70 px-3.5 py-3 dark:bg-rose-400/10">
+              {(liberarEspera || liberarReserva) && (
+                <>
+                  <p className="font-display text-lg uppercase tracking-tight text-carbon">
+                    {liberarEspera?.nombre ?? liberarReserva?.nombre}
+                  </p>
+                  <p className="mt-1 text-sm text-carbon/60">
+                    {liberarEspera
+                      ? `${liberarEspera.personas} ${locale === "en" ? "guests" : "personas"}`
+                      : liberarReserva
+                        ? `${formatHora(liberarReserva.horario, locale)} · ${liberarReserva.personas} ${locale === "en" ? "guests" : "personas"}`
+                        : null}
+                  </p>
+                </>
+              )}
+              <p className="mt-2 text-sm text-carbon/55">
+                {(() => {
+                  const linked = liberarMesaView.esperaId
+                    ? mesas.filter(
+                        (m) =>
+                          m.esperaId === liberarMesaView.esperaId &&
+                          m.estado === "ocupada",
+                      )
+                    : [liberarMesaView];
                   if (linked.length > 1) {
                     const nums = linked.map((m) => m.numero).join("+");
                     return locale === "en"
@@ -1640,7 +1680,15 @@ const EsperaPanelPage = () => {
                     ? "Marks the table as free again."
                     : "La mesa vuelve a quedar libre.";
                 })()}
-          </p>
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-carbon/60">
+              {locale === "en"
+                ? "Marks the table as free again."
+                : "La mesa vuelve a quedar libre."}
+            </p>
+          )}
         </ModalShell>
       )}
 
