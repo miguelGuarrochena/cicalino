@@ -839,7 +839,7 @@ export const OrgModal = ({
             </div>
 
             {pendienteContrato(vista) && (
-              <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+              <p className="mt-3 rounded-xl border border-amber-300/80 bg-amber-100 px-3 py-2 text-xs font-medium text-amber-950">
                 Esperando que el cliente acepte las condiciones.
                 {!vista.activo
                   ? " La cuenta queda bloqueada hasta que acepte, o hasta que la actives vos acá (eligiendo el plan)."
@@ -848,7 +848,7 @@ export const OrgModal = ({
             )}
 
             {!pendienteContrato(vista) && !vista.activo && (
-              <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-100">
+              <p className="mt-3 rounded-xl border border-emerald-300/80 bg-emerald-100 px-3 py-2 text-xs font-medium text-emerald-950">
                 Condiciones aceptadas
                 {vista.contratoAceptadoEn
                   ? ` el ${fechaCorta(vista.contratoAceptadoEn)}`
@@ -858,7 +858,7 @@ export const OrgModal = ({
             )}
 
             {enGracia(vista) && vista.mesGratisHasta && (
-              <p className="mt-3 rounded-xl bg-sky-50 px-3 py-2 text-xs font-medium text-sky-900 dark:bg-sky-500/10 dark:text-sky-100">
+              <p className="mt-3 rounded-xl border border-sky-300/80 bg-sky-100 px-3 py-2 text-xs font-medium text-sky-950">
                 Mes gratis / cortesía hasta el{" "}
                 <b>{fechaCorta(vista.mesGratisHasta)}</b>. El plan{" "}
                 {PLAN_LABEL[vista.plan].toLowerCase()} ya está cargado; el cobro

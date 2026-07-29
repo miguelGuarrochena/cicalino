@@ -83,7 +83,7 @@ export const PedirSucursalCard = () => {
       </p>
 
       {resumen.pendiente && (
-        <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+        <p className="mt-3 rounded-xl border border-amber-300/80 bg-amber-100 px-3 py-2 text-xs font-medium text-amber-950">
           Pedido en curso: te mandamos el mail con el alias. Cuando veamos la
           transferencia, sumamos el cupo.
         </p>
