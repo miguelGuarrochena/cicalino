@@ -20,15 +20,14 @@ const esc = (s: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-// Alta de una solicitud de prueba desde el formulario público "Probá gratis".
-// Es pública (sin login): inserta con service_role. Manda mails si hay Resend.
+// Alta de lead público: /probar (prueba) o /precios «Contratar plan» (contrato).
 export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
-  // Validación de esquema: rechaza por defecto, acota longitudes y normaliza.
   const v = parsear(solicitudSchema, input);
   if (!v.ok) return { ok: false, error: v.error };
   const { nombre, email, turnstileToken } = v.data;
+  const tipo = v.data.tipo ?? "prueba";
+  const plan = v.data.plan ?? null;
 
-  // Anti-bot (Cloudflare Turnstile).
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined;
   const humano = await verificarTurnstile(turnstileToken, ip);
@@ -36,7 +35,6 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     return { ok: false, error: "No pudimos verificar que sos humano. Reintentá." };
   }
 
-  // Un mismo visitante no debería poder inundar la tabla de leads.
   const porIp = await rateLimitCompartido(`lead:ip:${ip ?? "sin-ip"}`, 5, 60 * 60_000);
   if (!porIp.ok) {
     return { ok: false, error: "Ya recibimos tu pedido. Te escribimos en breve." };
@@ -47,14 +45,16 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
 
   const local = v.data.local ?? null;
   const ciudad = v.data.ciudad ?? null;
+  const direccion = v.data.direccion || null;
+  const telefonoVal = v.data.telefono || null;
+  const cuilVal = v.data.cuil && v.data.cuil.length === 11 ? v.data.cuil : null;
   const mail = email.trim().toLowerCase();
 
-  // Una sola prueba autoservicio por email. Más locales / otra cortesía = a mano.
   const porMail = await rateLimitCompartido(`lead:mail:${mail}`, 3, 24 * 60 * 60_000);
   if (!porMail.ok) {
     return {
       ok: false,
-      error: "Ya pediste una prueba con este mail. Escribinos a info@cicalino.net.",
+      error: "Ya enviaste una solicitud con este mail. Escribinos a info@cicalino.net.",
     };
   }
 
@@ -68,7 +68,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     return {
       ok: false,
       error:
-        "Este mail ya tiene una cuenta Cicalino. Si querés otra sucursal o un mes de cortesía, escribinos a info@cicalino.net.",
+        "Este mail ya tiene una cuenta Cicalino. Si querés otra sucursal o un cambio de plan, escribinos a info@cicalino.net.",
     };
   }
 
@@ -88,45 +88,78 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     return {
       ok: false,
       error:
-        "Este mail ya usó la prueba gratis. Para otro local escribinos a info@cicalino.net y lo vemos.",
+        tipo === "contrato"
+          ? "Este mail ya tiene un alta previa. Escribinos a info@cicalino.net."
+          : "Este mail ya usó la prueba gratis. Para otro local escribinos a info@cicalino.net y lo vemos.",
     };
   }
 
-  const { error } = await admin
-    .from("solicitudes")
-    .insert({ nombre, email: mail, local, ciudad });
+  const { error } = await admin.from("solicitudes").insert({
+    nombre,
+    email: mail,
+    local,
+    ciudad: tipo === "contrato" ? null : ciudad,
+    direccion: tipo === "contrato" ? direccion : null,
+    telefono: tipo === "contrato" ? telefonoVal : null,
+    cuil: tipo === "contrato" ? cuilVal : null,
+    tipo,
+    plan: tipo === "contrato" ? plan : null,
+  });
   if (error) {
     console.error("crearSolicitud", error.message);
     return { ok: false, error: "No pudimos registrar tu solicitud. Reintentá." };
   }
 
-  // Mails (best-effort): aviso a Cicalino + confirmación al lead.
-  // Si falta RESEND_API_KEY, la solicitud igual queda en Superadmin → Solicitudes.
   const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
+  const esContrato = tipo === "contrato";
+  const planTxt = plan === "anual" ? "Anual" : "Mensual";
+  const detalleContrato = [
+    mail,
+    telefonoVal,
+    local,
+    direccion,
+    cuilVal ? `CUIL ${cuilVal}` : null,
+  ]
+    .filter(Boolean)
+    .map((x) => esc(String(x)))
+    .join(" · ");
+
   const avisos = await Promise.all([
     enviarEmail({
       to: notify,
-      subject: `Nueva solicitud de prueba — ${nombre}`,
-      replyTo: email,
+      subject: esContrato
+        ? `Quiere contratar plan ${planTxt} — ${nombre}`
+        : `Nueva solicitud de prueba — ${nombre}`,
+      replyTo: mail,
       html: emailLayout({
-        titulo: "Nueva solicitud",
-        cuerpoHtml: `<p style="margin:0 0 6px;"><b>${esc(nombre)}</b> quiere probar Cicalino.</p>
-        <p style="margin:0;font-size:14px;">${esc(mail)}${
-          local ? ` · ${esc(local)}` : ""
-        }${ciudad ? ` · ${esc(ciudad)}` : ""}</p>`,
-        cta: { label: "Activar en el panel", url: `${appBaseUrl()}/admin` },
+        titulo: esContrato ? "Contratar plan" : "Nueva solicitud",
+        cuerpoHtml: esContrato
+          ? `<p style="margin:0 0 6px;"><b>${esc(nombre)}</b> quiere contratar el plan <b>${planTxt}</b>.</p>
+            <p style="margin:0;font-size:14px;">${detalleContrato}</p>`
+          : `<p style="margin:0 0 6px;"><b>${esc(nombre)}</b> quiere probar Cicalino.</p>
+            <p style="margin:0;font-size:14px;">${esc(mail)}${
+              local ? ` · ${esc(local)}` : ""
+            }${ciudad ? ` · ${esc(ciudad)}` : ""}</p>`,
+        cta: { label: "Ver en Superadmin", url: `${appBaseUrl()}/admin` },
         pie: "Panel de Superadmin → Solicitudes",
       }),
     }),
     enviarEmail({
       to: mail,
-      subject: "¡Recibimos tu pedido! — Cicalino",
+      subject: esContrato
+        ? "Recibimos tu pedido de contratación — Cicalino"
+        : "¡Recibimos tu pedido! — Cicalino",
       html: emailLayout({
-        titulo: "¡Recibimos tu pedido!",
-        cuerpoHtml: `<p style="margin:0 0 8px;">¡Hola ${esc(nombre)}! 🎉</p>
-        <p style="margin:0;">Recibimos tu pedido para probar Cicalino. Te
-        escribimos a este mail para activarte <b>1 mes gratis</b>, normalmente
-        en el día. Tu cliente nunca paga.</p>`,
+        titulo: esContrato ? "Datos recibidos" : "¡Recibimos tu pedido!",
+        cuerpoHtml: esContrato
+          ? `<p style="margin:0 0 8px;">¡Hola ${esc(nombre)}!</p>
+            <p style="margin:0;">Recibimos tu pedido para el plan <b>${planTxt}</b>.
+            A la brevedad te activamos la cuenta y te mandamos el link de
+            condiciones y pago. Tu cliente nunca paga.</p>`
+          : `<p style="margin:0 0 8px;">¡Hola ${esc(nombre)}! 🎉</p>
+            <p style="margin:0;">Recibimos tu pedido para probar Cicalino. Te
+            escribimos a este mail para activarte <b>1 mes gratis</b>, normalmente
+            en el día. Tu cliente nunca paga.</p>`,
       }),
     }),
   ]);

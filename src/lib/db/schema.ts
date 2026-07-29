@@ -252,10 +252,18 @@ export const solicitudes = pgTable("solicitudes", {
   id: uuid("id").primaryKey().defaultRandom(),
   nombre: text("nombre").notNull(),
   email: text("email").notNull(),
+  telefono: text("telefono"),
   local: text("local"),
   ciudad: text("ciudad"),
+  direccion: text("direccion"),
+  // CUIL/CUIT (11 dígitos) — pedido en contratar plan
+  cuil: text("cuil"),
   // nueva | atendida | descartada
   estado: text("estado").notNull().default("nueva"),
+  // prueba | contrato
+  tipo: text("tipo").notNull().default("prueba"),
+  // mensual | anual (solo contrato)
+  plan: text("plan"),
   creadoEn: timestamp("creado_en", { withTimezone: true })
     .notNull()
     .defaultNow(),

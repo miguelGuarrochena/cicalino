@@ -156,6 +156,7 @@ Archivos: `src/lib/actions/superadmin.ts` (crear/eliminar), `src/lib/data/supera
    - `supabase/avisado-en.sql` (columna para re-avisar con la pestaña abierta)
    - `supabase/proximo-cobro.sql` (fechas de cobro + avisos al superadmin)
    - `supabase/contrato-aceptacion.sql` (token + aceptación de condiciones)
+   - `supabase/solicitudes-tipo.sql` (prueba vs contratar plan)
 3. Flujo: el cliente toca "Activar avisos" → se suscribe (`/api/push/subscribe`).
    Cuando el panel marca **listo** (o **Volver a avisar**), llama a
    `/api/push/notify`: actualiza `avisado_en` (señal en pantalla) y, si hay

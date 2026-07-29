@@ -21,12 +21,50 @@ export * from "./comunes";
 // ---------------------------------------------------------------------------
 
 export const solicitudSchema = z.object({
+  // Responsable / contacto
   nombre: texto(2, 120, "tu nombre"),
   email,
+  telefono,
+  cuil,
+  // Empresa / local
   local: textoOpcional(120, "el nombre del local"),
   ciudad: textoOpcional(80, "la ciudad"),
+  direccion: textoOpcional(160, "la dirección"),
+  // prueba = /probar; contrato = /precios «Contratar plan»
+  tipo: z.enum(["prueba", "contrato"]).optional().default("prueba"),
+  plan: z.enum(["mensual", "anual"]).optional(),
   // El token de Turnstile lo emite Cloudflare; solo acotamos el tamaño.
   turnstileToken: z.string().max(2048).optional(),
+}).superRefine((v, ctx) => {
+  if (v.tipo !== "contrato") return;
+  if (!v.plan) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Elegí un plan (mensual o anual).",
+      path: ["plan"],
+    });
+  }
+  if (!v.local || v.local.length < 2) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Completá el nombre del local o empresa.",
+      path: ["local"],
+    });
+  }
+  if (!(v.telefono && v.telefono.replace(/\D/g, "").length >= 8)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Completá un teléfono válido (mín. 8 dígitos).",
+      path: ["telefono"],
+    });
+  }
+  if (!(v.cuil && v.cuil.length === 11)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Completá un CUIL/CUIT válido (11 dígitos).",
+      path: ["cuil"],
+    });
+  }
 });
 export type SolicitudInput = z.infer<typeof solicitudSchema>;
 

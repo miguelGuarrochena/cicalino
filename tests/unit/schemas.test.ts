@@ -51,6 +51,43 @@ describe("solicitudSchema (formulario público)", () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect("estado" in r.data).toBe(false);
   });
+
+  it("acepta contrato completo y rechaza contrato incompleto", () => {
+    const ok = parsear(solicitudSchema, {
+      nombre: "Ana",
+      email: "a@b.com",
+      telefono: "+54 9 11 5555 5555",
+      local: "Café Ana",
+      direccion: "Av. Corrientes 1234",
+      tipo: "contrato",
+      plan: "anual",
+      cuil: "20-12345678-9",
+    });
+    expect(ok.ok).toBe(true);
+    if (ok.ok) {
+      expect(ok.data.tipo).toBe("contrato");
+      expect(ok.data.plan).toBe("anual");
+      expect(ok.data.cuil).toBe("20123456789");
+      expect(ok.data.telefono).toContain("11");
+    }
+    expect(
+      parsear(solicitudSchema, {
+        nombre: "Ana",
+        email: "a@b.com",
+        tipo: "contrato",
+      }).ok,
+    ).toBe(false);
+    expect(
+      parsear(solicitudSchema, {
+        nombre: "Ana",
+        email: "a@b.com",
+        local: "Café",
+        telefono: "1155555555",
+        tipo: "contrato",
+        plan: "mensual",
+      }).ok,
+    ).toBe(false);
+  });
 });
 
 describe("crearOrganizacionSchema", () => {

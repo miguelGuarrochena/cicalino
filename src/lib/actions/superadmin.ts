@@ -286,20 +286,35 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
     };
   }
 
-  // La solicitud viene de un formulario público: la revalidamos con el mismo
-  // esquema que un alta manual antes de convertirla en empresa.
+  // Prueba → 1 mes gratis. Contrato → plan elegido, sin mes gratis automático.
+  const esContrato = sol.tipo === "contrato";
+  const planSol =
+    sol.plan === "anual" || sol.plan === "mensual" ? sol.plan : "mensual";
+
   const alta = parsear(crearOrganizacionSchema, {
     nombre: sol.local || sol.nombre,
     responsable: sol.nombre,
-    telefono: "",
-    cuil: "",
-    direccion: sol.ciudad || "",
+    telefono: typeof sol.telefono === "string" ? sol.telefono : "",
+    cuil: typeof sol.cuil === "string" && sol.cuil.replace(/\D/g, "").length === 11
+      ? sol.cuil.replace(/\D/g, "")
+      : "",
+    direccion:
+      (typeof sol.direccion === "string" && sol.direccion) ||
+      (typeof sol.ciudad === "string" && sol.ciudad) ||
+      "",
     duenoEmail: mail,
     cupo: 1,
-    plan: "mensual",
-    mesGratis: true,
+    plan: esContrato ? planSol : "mensual",
+    mesGratis: !esContrato,
     sucursales: [
-      { nombre: sol.local || "Principal", tipo: "otro", direccion: sol.ciudad || "" },
+      {
+        nombre: sol.local || "Principal",
+        tipo: "otro",
+        direccion:
+          (typeof sol.direccion === "string" && sol.direccion) ||
+          (typeof sol.ciudad === "string" && sol.ciudad) ||
+          "",
+      },
     ],
   });
   if (!alta.ok) return { ok: false, error: alta.error };
