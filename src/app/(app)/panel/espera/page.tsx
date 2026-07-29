@@ -493,6 +493,11 @@ const EsperaPanelPage = () => {
   const reservaMesasOk =
     reservaMesas.length > 0 && reservaCapSeleccionada >= reservaPersonas;
   const reservaFaltan = Math.max(0, reservaPersonas - reservaCapSeleccionada);
+  const reservaMaxMesaLibre = mesasLibres.reduce(
+    (max, m) => Math.max(max, m.capacidad ?? 4),
+    0,
+  );
+  const reservaCabeEnUna = reservaMaxMesaLibre >= reservaPersonas;
   const ocuparCap = mesas
     .filter((m) => ocuparMesasSel.includes(m.numero))
     .reduce((s, m) => s + (m.capacidad ?? 4), 0);
@@ -581,9 +586,13 @@ const EsperaPanelPage = () => {
             ? `Not enough free seats for ${reservaPersonas} (only ${reservaCapLibre} available)`
             : `No alcanzan las mesas libres para ${reservaPersonas} (hay ${reservaCapLibre} plazas)`
           : reservaMesas.length === 0
-            ? locale === "en"
-              ? `Pick tables until you reach ${reservaPersonas} seats`
-              : `Elegí mesas hasta llegar a ${reservaPersonas} plazas`
+            ? reservaCabeEnUna
+              ? locale === "en"
+                ? `Pick a free table for ${reservaPersonas} people`
+                : `Elegí una mesa libre para ${reservaPersonas} personas`
+              : locale === "en"
+                ? `Party of ${reservaPersonas} needs 2+ tables`
+                : `Grupo de ${reservaPersonas}: elegí 2 o más mesas`
             : locale === "en"
               ? `Still short ${reservaFaltan} seat${reservaFaltan === 1 ? "" : "s"} — join another free table`
               : `Faltan ${reservaFaltan} plaza${reservaFaltan === 1 ? "" : "s"}: juntá otra mesa libre`;
@@ -1273,9 +1282,13 @@ const EsperaPanelPage = () => {
                 {locale === "en" ? "Table" : "Mesa"}
               </legend>
               <p className="mb-2 text-xs text-carbon/45">
-                {locale === "en"
-                  ? "Pick one table or join free ones until the party fits."
-                  : "Elegí una mesa o juntá libres hasta que entren."}
+                {reservaCabeEnUna
+                  ? locale === "en"
+                    ? "Pick a free table that fits the party."
+                    : "Elegí una mesa libre que entre al grupo."
+                  : locale === "en"
+                    ? "No single free table fits — join 2 or more."
+                    : "Ninguna mesa sola alcanza: juntá 2 o más."}
               </p>
               {!mesasLibres.length ? (
                 <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
@@ -1298,9 +1311,13 @@ const EsperaPanelPage = () => {
               ) : (
                 <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
                   {reservaMesas.length === 0
-                    ? locale === "en"
-                      ? `Pick tables until you reach ${reservaPersonas} seats.`
-                      : `Elegí mesas hasta llegar a ${reservaPersonas} plazas.`
+                    ? reservaCabeEnUna
+                      ? locale === "en"
+                        ? `Pick a free table for ${reservaPersonas} people.`
+                        : `Elegí una mesa libre para ${reservaPersonas} personas.`
+                      : locale === "en"
+                        ? `Party of ${reservaPersonas} needs 2+ tables — pick free ones to join.`
+                        : `Grupo de ${reservaPersonas}: elegí 2 o más mesas libres.`
                     : locale === "en"
                       ? `${reservaCapSeleccionada} / ${reservaPersonas} seats — still short ${reservaFaltan}. Join another free table.`
                       : `${reservaCapSeleccionada} / ${reservaPersonas} plazas — faltan ${reservaFaltan}. Juntá otra mesa libre.`}
