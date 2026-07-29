@@ -11,8 +11,6 @@ export interface CustomerEsperaCola {
   personasDelante: number;
   gruposEnCola: number;
   personasEnCola: number;
-  mesasLibres: number;
-  mesasQueEntran: number;
 }
 
 export interface CustomerEspera {
@@ -38,15 +36,13 @@ const emptyCola = (): CustomerEsperaCola => ({
   personasDelante: 0,
   gruposEnCola: 0,
   personasEnCola: 0,
-  mesasLibres: 0,
-  mesasQueEntran: 0,
 });
 
-const normalizeCola = (raw: Partial<CustomerEsperaCola> | null | undefined): CustomerEsperaCola => ({
+const normalizeCola = (
+  raw: Partial<CustomerEsperaCola> | null | undefined,
+): CustomerEsperaCola => ({
   ...emptyCola(),
   ...raw,
-  mesasLibres: raw?.mesasLibres ?? 0,
-  mesasQueEntran: raw?.mesasQueEntran ?? 0,
 });
 
 const colaFromDemo = (
@@ -58,7 +54,6 @@ const colaFromDemo = (
     estado: string;
     creadoEn: string;
   }[],
-  mesas: { estado: string; capacidad: number }[],
 ): CustomerEsperaCola => {
   const yo = esperas.find((e) => e.qrToken === token);
   const activos = esperas.filter(
@@ -80,20 +75,11 @@ const colaFromDemo = (
       personasDelante += row.personas;
     }
   }
-  let mesasLibres = 0;
-  let mesasQueEntran = 0;
-  for (const m of mesas) {
-    if (m.estado !== "libre") continue;
-    mesasLibres += 1;
-    if ((m.capacidad ?? 4) >= yo.personas) mesasQueEntran += 1;
-  }
   return {
     gruposDelante,
     personasDelante,
     gruposEnCola,
     personasEnCola,
-    mesasLibres,
-    mesasQueEntran,
   };
 };
 
@@ -101,7 +87,6 @@ export const useCustomerEspera = (token: string): Result => {
   const live = supabaseConfigurado;
   const seed = useEsperaStore((s) => s.seedSiVacio);
   const demoEsperas = useEsperaStore((s) => s.esperas);
-  const demoMesas = useEsperaStore((s) => s.mesas);
   const cfg = useConfigStore();
 
   const [remote, setRemote] = useState<CustomerEspera | null>(null);
@@ -193,7 +178,7 @@ export const useCustomerEspera = (token: string): Result => {
           mesaNumero: demo.mesaNumero,
           nombreLocal: cfg.nombre || "Local",
           avisadoEn: demo.avisadoEn,
-          cola: colaFromDemo(token, demoEsperas, demoMesas),
+          cola: colaFromDemo(token, demoEsperas),
         }
       : null,
   };

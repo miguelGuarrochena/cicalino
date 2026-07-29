@@ -58,8 +58,6 @@ export const GET = async (
   let personasDelante = 0;
   let gruposEnCola = 0;
   let personasEnCola = 0;
-  let mesasLibres = 0;
-  let mesasQueEntran = 0;
 
   const { data: cola } = await supabase
     .from("esperas")
@@ -81,20 +79,6 @@ export const GET = async (
     }
   }
 
-  const { data: mesasRows } = await supabase
-    .from("mesas")
-    .select("estado, capacidad")
-    .eq("local_id", data.local_id)
-    .eq("estado", "libre");
-
-  if (mesasRows?.length) {
-    const necesitamos = data.personas ?? 1;
-    for (const m of mesasRows) {
-      mesasLibres += 1;
-      if ((m.capacidad ?? 4) >= necesitamos) mesasQueEntran += 1;
-    }
-  }
-
   return NextResponse.json({
     ok: true,
     nombre: data.nombre,
@@ -109,8 +93,6 @@ export const GET = async (
       personasDelante,
       gruposEnCola,
       personasEnCola,
-      mesasLibres,
-      mesasQueEntran,
     },
   });
 };

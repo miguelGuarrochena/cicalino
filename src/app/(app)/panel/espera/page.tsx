@@ -173,6 +173,7 @@ const EsperaPanelPage = () => {
   const libres = mesas.filter((m) => m.estado === "libre").length;
   const ocupadas = mesas.filter((m) => m.estado === "ocupada").length;
   const reservadas = mesas.filter((m) => m.estado === "reservada").length;
+  const personasEnCola = cola.reduce((sum, e) => sum + e.personas, 0);
   const paginated = slicePage(cola, page, PAGE_SIZE);
   const sentarEspera = esperas.find((e) => e.id === sentarId);
   const mesasLibres = mesas.filter((m) => m.estado === "libre");
@@ -288,8 +289,14 @@ const EsperaPanelPage = () => {
             {libres} {locale === "en" ? "free" : "libres"} · {reservadas}{" "}
             {locale === "en" ? "reserved" : "reservadas"} · {ocupadas}{" "}
             {locale === "en" ? "busy" : "ocupadas"} · {cola.length}{" "}
-            {locale === "en" ? "waiting" : "en espera"}
+            {locale === "en" ? "parties" : "grupos"} · {personasEnCola}{" "}
+            {locale === "en" ? "guests waiting" : "personas en cola"}
             {cantidadMesas ? ` · ${cantidadMesas} mesas` : ""}
+          </p>
+          <p className="mt-0.5 text-xs text-carbon/40">
+            {locale === "en"
+              ? "Tap busy/reserved to free · tap free to set seats"
+              : "Tocá ocupada/reservada para liberar · libre para plazas"}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">

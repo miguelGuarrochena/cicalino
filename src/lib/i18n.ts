@@ -278,10 +278,6 @@ const dict = {
       colaPersona: "persona",
       colaPersonas: "personas",
       colaTotal: "En cola: {g} {gLabel} · {p} {pLabel}",
-      mesasLibresCero: "No hay mesas libres ahora",
-      mesasQueEntranUno: "1 mesa libre que te entra",
-      mesasQueEntran: "{n} mesas libres que te entran",
-      mesasLibresOtras: "({t} libres en total)",
     },
     modo: { pedido: "Pedido", nombre: "Cliente", mesa: "Mesa" },
     toast: {
@@ -712,10 +708,6 @@ const dict = {
       colaPersona: "person",
       colaPersonas: "people",
       colaTotal: "In line: {g} {gLabel} · {p} {pLabel}",
-      mesasLibresCero: "No free tables right now",
-      mesasQueEntranUno: "1 free table that fits you",
-      mesasQueEntran: "{n} free tables that fit you",
-      mesasLibresOtras: "({t} free in total)",
     },
     modo: { pedido: "Order", nombre: "Customer", mesa: "Table" },
     toast: {
