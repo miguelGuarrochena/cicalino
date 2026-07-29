@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ModalShell } from "@/components/ui/ModalShell";
+import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
@@ -637,24 +638,14 @@ export const OrgModal = ({
             Hay cambios sin guardar
           </p>
         ) : null}
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button
-            type="button"
-            onClick={intentarSalirForm}
-            disabled={saving}
-            className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon transition hover:bg-carbon/5 disabled:opacity-50 sm:flex-1"
-          >
-            {t("super.cancelar")}
-          </button>
-          <button
-            type="button"
-            onClick={() => void guardar()}
-            disabled={saving || (mode === "editar" && !dirty)}
-            className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50 sm:flex-1"
-          >
-            {saving ? "Guardando…" : t("super.guardar")}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => void guardar()}
+          disabled={saving || (mode === "editar" && !dirty)}
+          className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50"
+        >
+          {saving ? "Guardando…" : t("super.guardar")}
+        </button>
       </div>
     )
   ) : undefined;
@@ -710,14 +701,11 @@ export const OrgModal = ({
             {mode === "crear" ? t("super.nuevaOrg") : vista?.nombre}
           </h2>
         </div>
-        <button
-          type="button"
+        <ModalCloseBtn
           onClick={editing ? intentarSalirForm : onClose}
           disabled={saving || busy}
-          className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60 disabled:opacity-50"
-        >
-          {t("qr.cerrar")}
-        </button>
+          label={t("qr.cerrar")}
+        />
       </div>
 
       {editing ? (

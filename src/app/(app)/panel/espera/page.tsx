@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { QrModal } from "@/components/panel/QrModal";
 import { ModalShell } from "@/components/ui/ModalShell";
+import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useApp } from "@/components/providers/Providers";
 import { useEsperas } from "@/lib/hooks/useEsperas";
@@ -32,37 +33,6 @@ const INPUT =
 
 const BTN_MOBILE =
   "w-full rounded-full px-4 py-3.5 text-sm font-semibold transition active:scale-[0.98] sm:w-auto sm:px-4 sm:py-2.5";
-
-const ModalCloseBtn = ({
-  onClick,
-  disabled,
-  label,
-}: {
-  onClick: () => void;
-  disabled?: boolean;
-  label: string;
-}) => (
-  <button
-    type="button"
-    disabled={disabled}
-    onClick={onClick}
-    aria-label={label}
-    className="flex size-10 shrink-0 items-center justify-center rounded-full border border-linea text-carbon/60 transition hover:bg-crema hover:text-carbon disabled:opacity-60"
-  >
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  </button>
-);
 
 /** Contador − / + usable en mobile (sin input number nativo). */
 const NumberStepper = ({
@@ -1141,28 +1111,18 @@ const EsperaPanelPage = () => {
           busy={creating}
           busyLabel={locale === "en" ? "Creating…" : "Creando…"}
           footer={
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                disabled={creating}
-                onClick={() => void onCrear()}
-                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
-              >
-                {creating
-                  ? "…"
-                  : locale === "en"
-                    ? "Create & show QR"
-                    : "Crear y mostrar QR"}
-              </button>
-              <button
-                type="button"
-                disabled={creating}
-                onClick={() => setCreateOpen(false)}
-                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-60"
-              >
-                {locale === "en" ? "Cancel" : "Cancelar"}
-              </button>
-            </div>
+            <button
+              type="button"
+              disabled={creating}
+              onClick={() => void onCrear()}
+              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
+            >
+              {creating
+                ? "…"
+                : locale === "en"
+                  ? "Create & show QR"
+                  : "Crear y mostrar QR"}
+            </button>
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -1213,28 +1173,18 @@ const EsperaPanelPage = () => {
           busy={creatingReserva}
           busyLabel={locale === "en" ? "Saving…" : "Guardando…"}
           footer={
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                disabled={creatingReserva || !mesasLibresParaReserva.length}
-                onClick={() => void onCrearReserva()}
-                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
-              >
-                {creatingReserva
-                  ? "…"
-                  : locale === "en"
-                    ? "Save reservation"
-                    : "Guardar reserva"}
-              </button>
-              <button
-                type="button"
-                disabled={creatingReserva}
-                onClick={() => setReservaOpen(false)}
-                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-60"
-              >
-                {locale === "en" ? "Cancel" : "Cancelar"}
-              </button>
-            </div>
+            <button
+              type="button"
+              disabled={creatingReserva || !mesasLibresParaReserva.length}
+              onClick={() => void onCrearReserva()}
+              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
+            >
+              {creatingReserva
+                ? "…"
+                : locale === "en"
+                  ? "Save reservation"
+                  : "Guardar reserva"}
+            </button>
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -1470,45 +1420,33 @@ const EsperaPanelPage = () => {
           }}
           labelledBy="sentar-title"
           footer={
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                disabled={
-                  !sentarMesas.length ||
-                  mesas
-                    .filter((m) => sentarMesas.includes(m.numero))
-                    .reduce((s, m) => s + (m.capacidad ?? 4), 0) <
-                    (sentarEspera?.personas ?? 1)
-                }
-                onClick={() => {
-                  if (!sentarId || !sentarMesas.length) return;
-                  void sentar(sentarId, sentarMesas).then(() => {
-                    const label = sentarMesas.join("+");
-                    setSentarId(null);
-                    setSentarMesas([]);
-                    toast(
-                      locale === "en"
-                        ? `Seated at table ${label}`
-                        : `Sentados en mesa ${label}`,
-                      "success",
-                    );
-                  });
-                }}
-                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-40"
-              >
-                {locale === "en" ? "Confirm seat" : "Confirmar asiento"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
+            <button
+              type="button"
+              disabled={
+                !sentarMesas.length ||
+                mesas
+                  .filter((m) => sentarMesas.includes(m.numero))
+                  .reduce((s, m) => s + (m.capacidad ?? 4), 0) <
+                  (sentarEspera?.personas ?? 1)
+              }
+              onClick={() => {
+                if (!sentarId || !sentarMesas.length) return;
+                void sentar(sentarId, sentarMesas).then(() => {
+                  const label = sentarMesas.join("+");
                   setSentarId(null);
                   setSentarMesas([]);
-                }}
-                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
-              >
-                {locale === "en" ? "Cancel" : "Cancelar"}
-              </button>
-            </div>
+                  toast(
+                    locale === "en"
+                      ? `Seated at table ${label}`
+                      : `Sentados en mesa ${label}`,
+                    "success",
+                  );
+                });
+              }}
+              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-40"
+            >
+              {locale === "en" ? "Confirm seat" : "Confirmar asiento"}
+            </button>
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -1644,32 +1582,23 @@ const EsperaPanelPage = () => {
           onClose={() => setLiberarNumero(null)}
           labelledBy="liberar-title"
           footer={
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  void liberarMesa(liberarNumero).then(() => {
-                    setLiberarNumero(null);
-                    toast(
-                      locale === "en"
-                        ? `Table ${liberarNumero} free`
-                        : `Mesa ${liberarNumero} libre`,
-                      "success",
-                    );
-                  });
-                }}
-                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
-              >
-                {locale === "en" ? "Yes, free it" : "Sí, liberar"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setLiberarNumero(null)}
-                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
-              >
-                {locale === "en" ? "Cancel" : "Cancelar"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                void liberarMesa(liberarNumero).then(() => {
+                  setLiberarNumero(null);
+                  toast(
+                    locale === "en"
+                      ? `Table ${liberarNumero} free`
+                      : `Mesa ${liberarNumero} libre`,
+                    "success",
+                  );
+                });
+              }}
+              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+            >
+              {locale === "en" ? "Yes, free it" : "Sí, liberar"}
+            </button>
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -1719,34 +1648,25 @@ const EsperaPanelPage = () => {
           onClose={() => setEditCapacidadNumero(null)}
           labelledBy="capacidad-title"
           footer={
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  void setCapacidad(editCapacidadNumero, editCapacidadValue).then(
-                    () => {
-                      setEditCapacidadNumero(null);
-                      toast(
-                        locale === "en"
-                          ? `Table ${editCapacidadNumero}: ${editCapacidadValue} seats`
-                          : `Mesa ${editCapacidadNumero}: ${editCapacidadValue} plazas`,
-                        "success",
-                      );
-                    },
-                  );
-                }}
-                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
-              >
-                {locale === "en" ? "Save" : "Guardar"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditCapacidadNumero(null)}
-                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
-              >
-                {locale === "en" ? "Cancel" : "Cancelar"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                void setCapacidad(editCapacidadNumero, editCapacidadValue).then(
+                  () => {
+                    setEditCapacidadNumero(null);
+                    toast(
+                      locale === "en"
+                        ? `Table ${editCapacidadNumero}: ${editCapacidadValue} seats`
+                        : `Mesa ${editCapacidadNumero}: ${editCapacidadValue} plazas`,
+                      "success",
+                    );
+                  },
+                );
+              }}
+              className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+            >
+              {locale === "en" ? "Save" : "Guardar"}
+            </button>
           }
         >
           <div className="flex items-start justify-between gap-3">

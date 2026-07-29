@@ -8,6 +8,7 @@ import { QrModal } from "@/components/panel/QrModal";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { ModalShell } from "@/components/ui/ModalShell";
+import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -414,38 +415,14 @@ const PanelOrdersPage = () => {
           labelledBy="nuevo-pedido"
           busy={creating}
           footer={
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                disabled={creating}
-                onClick={() => {
-                  if (creating) return;
-                  if (refDraft.trim()) {
-                    if (
-                      !window.confirm(
-                        locale === "en"
-                          ? "Discard without creating the order?"
-                          : "¿Salir sin crear el pedido?",
-                      )
-                    ) {
-                      return;
-                    }
-                  }
-                  setCrearOpen(false);
-                }}
-                className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50 sm:flex-1"
-              >
-                {t("qr.cerrar")}
-              </button>
-              <button
-                type="button"
-                disabled={creating}
-                onClick={() => void confirmarCrear()}
-                className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema disabled:opacity-60 sm:flex-1"
-              >
-                {creating ? "…" : t("panel.crearYQr")}
-              </button>
-            </div>
+            <button
+              type="button"
+              disabled={creating}
+              onClick={() => void confirmarCrear()}
+              className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema disabled:opacity-60"
+            >
+              {creating ? "…" : t("panel.crearYQr")}
+            </button>
           }
         >
           <div className="flex items-start justify-between gap-3">
@@ -455,10 +432,9 @@ const PanelOrdersPage = () => {
             >
               {t("panel.nuevo")}
             </h3>
-            <button
-              type="button"
+            <ModalCloseBtn
               disabled={creating}
-              aria-label={t("qr.cerrar")}
+              label={t("qr.cerrar")}
               onClick={() => {
                 if (creating) return;
                 if (refDraft.trim()) {
@@ -474,21 +450,7 @@ const PanelOrdersPage = () => {
                 }
                 setCrearOpen(false);
               }}
-              className="flex size-10 shrink-0 items-center justify-center rounded-full border border-linea text-carbon/60 transition hover:bg-crema hover:text-carbon disabled:opacity-60"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                aria-hidden="true"
-              >
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
+            />
           </div>
           <p className="mt-1 text-sm text-carbon/55">
             {mode === "mesa" ? t("panel.pedirMesa") : t("panel.pedirNombre")}

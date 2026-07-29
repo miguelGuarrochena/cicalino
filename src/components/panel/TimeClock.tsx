@@ -5,6 +5,7 @@ import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { ModalShell } from "@/components/ui/ModalShell";
+import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { verifyEmployeePin } from "@/lib/data/branch";
 import { supabaseConfigurado } from "@/lib/supabase/config";
@@ -220,14 +221,7 @@ export const Fichaje = () => {
                     {t("fichaje.elegiSub")}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={cerrar}
-                  aria-label={t("qr.cerrar")}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full border border-linea text-carbon/50"
-                >
-                  ✕
-                </button>
+                <ModalCloseBtn onClick={cerrar} label={t("qr.cerrar")} />
               </div>
               <ul className="flex flex-col gap-1.5">
                 {pageItems.map((e) => (

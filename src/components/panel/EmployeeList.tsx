@@ -5,6 +5,7 @@ import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { ModalShell } from "@/components/ui/ModalShell";
+import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/Toast";
 import { isPin4 } from "@/lib/validations";
@@ -127,24 +128,14 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
                 Completá y tocá Agregar para guardar
               </p>
             ) : null}
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={intentarCerrar}
-                disabled={saving}
-                className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50 sm:flex-1"
-              >
-                {t("qr.cerrar")}
-              </button>
-              <button
-                type="button"
-                onClick={() => void guardar()}
-                disabled={saving}
-                className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60 sm:flex-1"
-              >
-                {saving ? "…" : t("config.guardarEmp")}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => void guardar()}
+              disabled={saving}
+              className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
+            >
+              {saving ? "…" : t("config.guardarEmp")}
+            </button>
           </div>
         )
       }
@@ -159,15 +150,11 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
           </h3>
           <p className="mt-1 text-sm text-carbon/55">{t("config.modalSub")}</p>
         </div>
-        <button
-          type="button"
+        <ModalCloseBtn
           onClick={intentarCerrar}
           disabled={saving}
-          aria-label={t("qr.cerrar")}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-linea text-carbon/50 transition hover:bg-carbon/5 disabled:opacity-50"
-        >
-          ✕
-        </button>
+          label={t("qr.cerrar")}
+        />
       </div>
 
       <div className="flex flex-col gap-3">
@@ -318,7 +305,7 @@ export const EmployeeList = () => {
                       onClick={() => setConfirmId(null)}
                       className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60"
                     >
-                      {t("qr.cerrar")}
+                      {t("super.cancelar")}
                     </button>
                   </div>
                 ) : (

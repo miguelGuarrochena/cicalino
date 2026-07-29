@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { useApp } from "@/components/providers/Providers";
 import { ModalShell } from "@/components/ui/ModalShell";
+import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 
 interface Props {
   referencia: string;
@@ -107,13 +108,7 @@ export const QrModal = ({
               {reference}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            aria-label={t("qr.cerrar")}
-            className="flex size-9 items-center justify-center rounded-full border border-linea text-carbon/50 transition hover:bg-carbon/5"
-          >
-            ✕
-          </button>
+          <ModalCloseBtn onClick={onClose} label={t("qr.cerrar")} />
         </div>
 
         <div className="flex flex-col items-center">
