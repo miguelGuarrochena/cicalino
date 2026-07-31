@@ -20,6 +20,7 @@ export interface BranchRow {
   name: string;
   altaEn: string | null;
   cobroDesde: string | null;
+  responsableId: string | null;
   tipo: BusinessType;
   direccion: string;
   activo: boolean;
@@ -145,6 +146,7 @@ const seed = (): OrganizationRow[] => {
           pedidosHoy: 38,
           altaEn: null,
           cobroDesde: null,
+          responsableId: null,
           moduloPedidos: true,
           moduloEspera: true,
         },
@@ -158,6 +160,7 @@ const seed = (): OrganizationRow[] => {
           pedidosHoy: 27,
           altaEn: null,
           cobroDesde: null,
+          responsableId: null,
           moduloPedidos: true,
           moduloEspera: false,
         },
@@ -198,6 +201,7 @@ const seed = (): OrganizationRow[] => {
           pedidosHoy: 22,
           altaEn: null,
           cobroDesde: null,
+          responsableId: null,
           moduloPedidos: true,
           moduloEspera: false,
         },
@@ -373,6 +377,7 @@ export const useSuperadminStore = create<SuperadminState>()(
                       pedidosHoy: 0,
                       altaEn: null,
                       cobroDesde: null,
+                      responsableId: null,
                       moduloPedidos: data.moduloPedidos !== false,
                       moduloEspera: Boolean(data.moduloEspera),
                     },

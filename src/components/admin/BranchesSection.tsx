@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
@@ -17,9 +17,12 @@ import {
   deleteBranchDb,
   insertBranchDb,
   refreshOrganizations,
+  fetchOrgUsers,
   setBranchActiveDb,
   setBranchBillingStartDb,
+  setBranchManagerDb,
   updateBranchModulesDb,
+  type OrgUser,
 } from "@/lib/data/superadmin";
 import { addCycle, toDateOnly } from "@/lib/subscription";
 
@@ -50,6 +53,17 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
   const [nuevoPedidos, setNuevoPedidos] = useState(true);
   const [nuevoEspera, setNuevoEspera] = useState(false);
   const [creando, setCreando] = useState(false);
+  const [usuarios, setUsuarios] = useState<OrgUser[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    void fetchOrgUsers(org.id).then((u) => {
+      if (alive) setUsuarios(u);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [org.id]);
 
   const hoy = toDateOnly(new Date());
   const gratis = org.plan === "gratis";
@@ -85,6 +99,14 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
     await refreshOrganizations();
     setBusy(null);
     toast(`Gratis hasta el ${fecha(nueva)}`, "success");
+  };
+
+  const cambiarResponsable = async (branchId: string, usuarioId: string) => {
+    setBusy(branchId);
+    await setBranchManagerDb(branchId, usuarioId || null);
+    await refreshOrganizations();
+    setBusy(null);
+    toast("Responsable actualizado", "success");
   };
 
   const eliminar = async (branchId: string) => {
@@ -172,6 +194,24 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
                   </p>
                 </div>
               </div>
+
+              {usuarios.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-carbon/50">Responsable</span>
+                  <Select
+                    value={s.responsableId ?? ""}
+                    onChange={(v) => void cambiarResponsable(s.id, v)}
+                    options={[
+                      { value: "", label: "Sin asignar" },
+                      ...usuarios.map((u) => ({
+                        value: u.id,
+                        label: u.nombre,
+                      })),
+                    ]}
+                    className="min-w-[11rem]"
+                  />
+                </div>
+              )}
 
               <div className="mt-3 sm:max-w-sm">
                 <PackPicker

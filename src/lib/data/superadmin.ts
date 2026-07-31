@@ -20,6 +20,7 @@ type BranchDb = {
   created_at: string | null;
   cobro_desde: string | null;
   activa: boolean | null;
+  responsable_id: string | null;
 };
 type OrgDb = {
   id: string;
@@ -63,6 +64,7 @@ const mapOrg = (o: OrgDb): OrganizationRow => {
       altaEn: l.created_at ?? null,
       cobroDesde: l.cobro_desde ?? null,
       activo: l.activa !== false,
+      responsableId: l.responsable_id ?? null,
       pedidosHoy: 0,
       moduloPedidos: mods.pedidos,
       moduloEspera: mods.espera,
@@ -112,7 +114,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, estado_suscripcion, prueba_inicio, prueba_fin, proxima_factura, dia_ciclo, ultimo_pago_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera, created_at, cobro_desde, activa)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, estado_suscripcion, prueba_inicio, prueba_fin, proxima_factura, dia_ciclo, ultimo_pago_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera, created_at, cobro_desde, activa, responsable_id)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
@@ -325,4 +327,47 @@ export const setBranchBillingStartDb = async (
     .update({ cobro_desde: desde })
     .eq("id", branchId);
   if (error) console.error("setBranchBillingStartDb", error.message);
+};
+
+export interface OrgUser {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: string;
+}
+
+export const fetchOrgUsers = async (orgId: string): Promise<OrgUser[]> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("id, nombre, email, rol")
+    .eq("organizacion_id", orgId)
+    .order("rol");
+  if (error) {
+    console.error("fetchOrgUsers", error.message);
+    return [];
+  }
+  return (
+    (data as { id: string; nombre: string | null; email: string; rol: string }[] | null) ??
+    []
+  ).map((u) => ({
+    id: u.id,
+    nombre: u.nombre?.trim() || u.email,
+    email: u.email,
+    rol: u.rol,
+  }));
+};
+
+export const setBranchManagerDb = async (
+  branchId: string,
+  usuarioId: string | null,
+): Promise<void> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("locales")
+    .update({ responsable_id: usuarioId })
+    .eq("id", branchId);
+  if (error) console.error("setBranchManagerDb", error.message);
 };
