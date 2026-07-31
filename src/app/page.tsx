@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { Logo } from "@/components/ui/Logo";
-import { Controls } from "@/components/ui/Controls";
 import { SiteFooter } from "@/components/ui/SiteFooter";
+import { LandingHeader } from "@/components/landing/LandingHeader";
 import { CustomerWalkthrough } from "@/components/landing/CustomerWalkthrough";
 import { FaqContent } from "@/components/faq/FaqContent";
 import { useApp } from "@/components/providers/Providers";
@@ -40,6 +40,13 @@ const Home = () => {
     return () => io.disconnect();
   }, []);
 
+  const irAlFaq = () => {
+    document
+      .getElementById("faq")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.history.replaceState(null, "", "/#faq");
+  };
+
   const shopSteps = [
     { key: "1", img: "bell" as const },
     { key: "2", img: "chef" as const },
@@ -48,47 +55,16 @@ const Home = () => {
 
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
-      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
-        <nav className="hidden items-center gap-2 sm:flex">
-          <Link
-            href="/pricing"
-            className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca backdrop-blur transition hover:bg-marca hover:text-crema sm:text-sm"
-          >
-            {t("nav.precios")}
-          </Link>
-          <a
-            href="/#faq"
-            onClick={(e) => {
-              e.preventDefault();
-              document
-                .getElementById("faq")
-                ?.scrollIntoView({ behavior: "smooth", block: "start" });
-              window.history.replaceState(null, "", "/#faq");
-            }}
-            className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca backdrop-blur transition hover:bg-marca hover:text-crema sm:text-sm"
-          >
-            {t("nav.faq")}
-          </a>
-        </nav>
-        <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          <Link
-            href="/login"
-            className="flex min-h-11 items-center justify-center rounded-full bg-marca px-6 text-sm font-semibold text-crema transition hover:bg-marca-fuerte sm:min-h-0 sm:px-5 sm:py-2"
-          >
-            {t("nav.entrar")}
-          </Link>
-          <Controls className="hidden sm:flex" />
-        </div>
-      </header>
+      <LandingHeader onFaqClick={irAlFaq} />
 
       <main className="flex flex-1 flex-col">
-        <section className="relative flex min-h-[85dvh] flex-col items-center justify-center overflow-hidden px-6 pb-12 pt-24 text-center sm:min-h-dvh sm:pb-16">
-          <div className="u-in mb-6" style={{ animationDelay: "0.05s" }}>
-            <Logo linked={false} className="h-14 sm:h-16" />
+        <section className="relative flex min-h-[78dvh] flex-col items-center justify-center overflow-hidden px-6 pb-12 pt-10 text-center sm:min-h-[88dvh] sm:pb-16">
+          <div className="u-in mb-4 sm:mb-6" style={{ animationDelay: "0.05s" }}>
+            <Logo linked={false} className="h-11 sm:h-16" />
           </div>
 
           <h1
-            className="u-in font-display text-5xl uppercase leading-[0.9] tracking-tight text-marca sm:text-6xl md:text-7xl"
+            className="u-in font-display text-[2.6rem] uppercase leading-[0.9] tracking-tight text-marca sm:text-6xl md:text-7xl"
             style={{ animationDelay: "0.12s" }}
           >
             {t("home.h1a")}
@@ -98,23 +74,23 @@ const Home = () => {
             {t("home.h1c")}
           </h1>
 
-          <div className="u-in my-10" style={{ animationDelay: "0.22s" }}>
+          <div className="u-in my-5 sm:my-10" style={{ animationDelay: "0.22s" }}>
             <ThemedImg
               name="bell"
               alt="Cicalino"
-              className="u-float h-52 sm:h-60 md:h-64"
+              className="u-float h-32 sm:h-60 md:h-64"
             />
           </div>
 
           <p
-            className="u-in max-w-xl text-lg font-medium text-marca/85 sm:text-xl"
+            className="u-in max-w-xl text-base font-medium text-marca/85 sm:text-xl"
             style={{ animationDelay: "0.3s" }}
           >
             {t("home.sub")}
           </p>
 
           <div
-            className="u-in mt-9 flex w-full max-w-sm flex-col items-center gap-3"
+            className="u-in mt-6 flex w-full max-w-sm flex-col items-center gap-3 sm:mt-9"
             style={{ animationDelay: "0.38s" }}
           >
             <Link
@@ -124,16 +100,12 @@ const Home = () => {
               {t("home.ctaProbar")}
             </Link>
             <p className="text-xs text-carbon/50">{t("home.ctaProbarNota")}</p>
-            <Link
-              href="/login"
-              className="flex min-h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-carbon/55 underline-offset-4 transition hover:text-marca hover:underline sm:w-auto"
-            >
-              {t("home.ctaEntrar")}
-            </Link>
+            {/* Secundario unico. "Ya tengo cuenta" salio de aca: el header
+                sticky ya tiene Entrar siempre visible. */}
             <button
               type="button"
               onClick={() => setWalkOpen(true)}
-              className="flex min-h-11 w-full items-center justify-center rounded-full border border-marca/25 text-sm font-semibold text-marca/80 transition hover:bg-marca/10 sm:w-auto sm:border-0 sm:underline-offset-4 sm:hover:bg-transparent sm:hover:underline"
+              className="mt-1 flex min-h-11 w-full items-center justify-center rounded-full border border-marca/25 text-sm font-semibold text-marca/80 transition hover:bg-marca/10 sm:w-auto sm:border-0 sm:underline-offset-4 sm:hover:bg-transparent sm:hover:underline"
             >
               {t("home.ctaWalk")}
             </button>
@@ -223,7 +195,7 @@ const Home = () => {
 
         <section
           id="faq"
-          className="scroll-mt-8 border-t border-linea/80 px-6 py-16 sm:px-8 sm:py-20"
+          className="scroll-mt-24 border-t border-linea/80 px-6 py-16 sm:px-8 sm:py-20"
         >
           <div className="mx-auto w-full max-w-3xl">
             <div className="text-center">

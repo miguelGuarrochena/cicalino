@@ -9,7 +9,7 @@ const supabaseHost = (): string => {
   }
 };
 
-export const buildCsp = (nonce: string): string => {
+export const buildCsp = (nonce: string, enforce = false): string => {
   const sb = supabaseHost();
   const conexiones = [
     "'self'",
@@ -33,8 +33,10 @@ export const buildCsp = (nonce: string): string => {
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
-    "upgrade-insecure-requests",
-  ].join("; ");
+    enforce ? "upgrade-insecure-requests" : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
 };
 
 export const cspEnforce = (): boolean => process.env.CSP_ENFORCE === "1";

@@ -12,8 +12,9 @@ const nuevoNonce = (): string => {
 
 export const middleware = async (req: NextRequest) => {
   const nonce = nuevoNonce();
-  const csp = buildCsp(nonce);
-  const cspHeader = cspEnforce()
+  const enforce = cspEnforce();
+  const csp = buildCsp(nonce, enforce);
+  const cspHeader = enforce
     ? "Content-Security-Policy"
     : "Content-Security-Policy-Report-Only";
 
