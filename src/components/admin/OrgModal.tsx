@@ -290,6 +290,9 @@ export const OrgModal = ({
 
   const [newBranch, setNuevaSuc] = useState("");
   const [nuevaTipo, setNuevaTipo] = useState<BusinessType>("cafeteria");
+  const [crearPrimera, setCrearPrimera] = useState(true);
+  const [primeraNombre, setPrimeraNombre] = useState("");
+  const [primeraTipo, setPrimeraTipo] = useState<BusinessType>("cafeteria");
   const [nuevaPedidos, setNuevaPedidos] = useState(true);
   const [nuevaEspera, setNuevaEspera] = useState(false);
 
@@ -393,7 +396,20 @@ export const OrgModal = ({
     if (mode === "crear") {
       if (live) {
         setSaving(true);
-        const res = await createOrganization({ ...data, sucursales: [] });
+        const res = await createOrganization({
+          ...data,
+          sucursales: crearPrimera
+            ? [
+                {
+                  name: (primeraNombre.trim() || name).slice(0, 80),
+                  tipo: primeraTipo,
+                  direccion: address,
+                  moduloPedidos: true,
+                  moduloEspera: false,
+                },
+              ]
+            : [],
+        });
         setSaving(false);
         if (!res.ok) {
           setErrors((e) => ({ ...e, name: res.error }));
@@ -845,10 +861,42 @@ export const OrgModal = ({
               sucursales.
             </p>
             {mode === "crear" && (
-              <p className="mt-2 text-xs text-carbon/50">
-                Creá la empresa y después agregá cada sucursal con su pack en el
-                detalle.
-              </p>
+              <div className="mt-3 rounded-xl border border-linea bg-surface p-3">
+                <label className="flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={crearPrimera}
+                    onChange={(e) => setCrearPrimera(e.target.checked)}
+                    className="mt-0.5 size-4 accent-[var(--marca,#1E22B4)]"
+                  />
+                  <span className="text-sm text-carbon/75">
+                    Crear la primera sucursal ahora
+                    <span className="block text-xs text-carbon/50">
+                      El dueño entra y su local ya está listo. Queda gratis hasta
+                      la primera factura.
+                    </span>
+                  </span>
+                </label>
+                {crearPrimera && (
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      className={INPUT}
+                      value={primeraNombre}
+                      onChange={(e) => setPrimeraNombre(e.target.value)}
+                      placeholder={name.trim() || "Nombre de la sucursal"}
+                    />
+                    <Select
+                      value={primeraTipo}
+                      onChange={(v) => setPrimeraTipo(v as BusinessType)}
+                      options={BUSINESS_TYPES.map((k) => ({
+                        value: k,
+                        label: TIPO_LABEL[k],
+                      }))}
+                      className="sm:min-w-[11rem]"
+                    />
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <div className="rounded-2xl border border-linea bg-crema/50 p-3">

@@ -118,10 +118,17 @@ const Home = () => {
             style={{ animationDelay: "0.38s" }}
           >
             <Link
-              href="/login"
+              href="/probar"
               className="rounded-full bg-marca px-8 py-3.5 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
             >
-              {t("home.cta1")}
+              {t("home.ctaProbar")}
+            </Link>
+            <p className="text-xs text-carbon/50">{t("home.ctaProbarNota")}</p>
+            <Link
+              href="/login"
+              className="text-sm font-semibold text-carbon/55 underline-offset-4 transition hover:text-marca hover:underline"
+            >
+              {t("home.ctaEntrar")}
             </Link>
             <button
               type="button"
@@ -239,12 +246,15 @@ const Home = () => {
             {t("home.cierreTitulo")}
           </h2>
           <p className="mt-3 text-carbon/60">{t("home.cierreSub")}</p>
-          <Link
-            href="/login"
-            className="mt-8 inline-flex rounded-full bg-marca px-8 py-3.5 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
-          >
-            {t("home.cta1")}
-          </Link>
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <Link
+              href="/probar"
+              className="inline-flex rounded-full bg-marca px-8 py-3.5 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
+            >
+              {t("home.ctaProbar")}
+            </Link>
+            <p className="text-xs text-carbon/50">{t("home.ctaProbarNota")}</p>
+          </div>
         </section>
       </main>
 

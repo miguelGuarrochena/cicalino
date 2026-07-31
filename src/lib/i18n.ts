@@ -83,6 +83,9 @@ const dict = {
       h1c: "está listo o hay mesa",
       sub: "Sin buzzers, sin apps. Pedidos listos y espera de mesa, en un solo lugar.",
       cta1: "Entrar a la app",
+      ctaProbar: "Probá gratis 30 días",
+      ctaProbarNota: "Sin tarjeta. Si no te sirve, no pasa nada.",
+      ctaEntrar: "Ya tengo cuenta",
       ctaWalk: "¿Cómo lo ve el cliente?",
       queTitulo: "Avisos por QR para tu local",
       queSub:
@@ -623,6 +626,9 @@ const dict = {
       h1c: "is ready",
       sub: "No buzzers, no apps. Scan a QR and you're set.",
       cta1: "Sign in",
+      ctaProbar: "Try it free for 30 days",
+      ctaProbarNota: "No card. If it is not for you, nothing happens.",
+      ctaEntrar: "I already have an account",
       ctaWalk: "How does the customer see it?",
       queTitulo: "QR notices for your venue",
       queSub:
