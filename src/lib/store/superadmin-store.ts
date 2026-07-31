@@ -209,9 +209,16 @@ const seed = (): OrganizationRow[] => {
 export const enGracia = (org: OrganizationRow): boolean =>
   !!org.freeMonthUntil && new Date(org.freeMonthUntil).getTime() > Date.now();
 
+/**
+ * Única fuente de verdad de qué sucursales generan cobro.
+ * Solo las activas: una dada de baja conserva su historial pero no factura.
+ */
+export const billableBranches = (org: OrganizationRow): BranchRow[] =>
+  org.plan === "gratis" ? [] : org.sucursales.filter((s) => s.activo);
+
 export const monthlyAmount = (org: OrganizationRow): number => {
   if (org.plan === "gratis") return 0;
-  const activas = org.sucursales.filter((s) => s.activo);
+  const activas = billableBranches(org);
   if (activas.length) {
     return monthlyPriceForBranches(
       activas.map((s) => ({
@@ -220,13 +227,7 @@ export const monthlyAmount = (org: OrganizationRow): number => {
       })),
     );
   }
-  return (
-    Math.max(1, org.cupo) *
-    monthlyPriceForBranch({
-      pedidos: org.moduloPedidos !== false,
-      espera: Boolean(org.moduloEspera),
-    })
-  );
+  return 0;
 };
 
 export const monthlyCharge = (org: OrganizationRow): number => {

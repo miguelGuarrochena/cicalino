@@ -54,11 +54,14 @@ const Dato = ({ label, value }: { label: string; value: string }) => (
 
 export const SubscriptionCard = () => {
   const orgId = useSessionStore((s) => s.organizationId);
+  const rol = useSessionStore((s) => s.rol);
   const [sub, setSub] = useState<MySubscription | null>(null);
   const [cargando, setCargando] = useState(true);
 
+  const esDueno = rol === "admin" || rol === "superadmin";
+
   useEffect(() => {
-    if (!supabaseConfigured || !orgId) {
+    if (!esDueno || !supabaseConfigured || !orgId) {
       setCargando(false);
       return;
     }
@@ -71,9 +74,9 @@ export const SubscriptionCard = () => {
     return () => {
       alive = false;
     };
-  }, [orgId]);
+  }, [orgId, esDueno]);
 
-  if (cargando || !sub) return null;
+  if (!esDueno || cargando || !sub) return null;
 
   const estado = ESTADO[sub.status];
   const enPrueba = sub.status === "trial";

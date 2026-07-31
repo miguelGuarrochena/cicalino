@@ -98,10 +98,6 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
 
   const agregar = async () => {
     if (creando || !nuevoNombre.trim()) return;
-    if (org.sucursales.length >= org.cupo) {
-      toast(`El cupo es de ${org.cupo}. Subilo antes de agregar otra.`, "error");
-      return;
-    }
     setCreando(true);
     await insertBranchDb(org.id, {
       name: nuevoNombre.trim(),
@@ -123,7 +119,8 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
           Sucursales
         </h2>
         <p className="text-xs text-carbon/50">
-          {org.sucursales.length} de {org.cupo} del cupo
+          {org.sucursales.filter((s) => s.activo).length} activas ·{" "}
+          {org.sucursales.length} en total
         </p>
       </div>
 

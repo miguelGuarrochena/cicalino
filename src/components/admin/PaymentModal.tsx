@@ -5,7 +5,7 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { useToast } from "@/components/ui/Toast";
 import type { OrganizationRow } from "@/lib/store/superadmin-store";
-import { monthlyAmount } from "@/lib/store/superadmin-store";
+import { monthlyAmount, billableBranches } from "@/lib/store/superadmin-store";
 import { monthlyPriceForBranch, moduleLabel } from "@/lib/pricing";
 import {
   fetchPayments,
@@ -77,9 +77,7 @@ export const PaymentModal = ({
 
   const desglose = useMemo(
     () =>
-      org.sucursales
-        .filter((b) => b.activo)
-        .map((b) => ({
+      billableBranches(org).map((b) => ({
         sucursalId: b.id,
         nombre: b.name,
         pack: moduleLabel({
@@ -91,8 +89,8 @@ export const PaymentModal = ({
             pedidos: b.moduloPedidos,
             espera: b.moduloEspera,
           }) * Math.max(1, ciclos),
-        })),
-    [org.sucursales, ciclos],
+      })),
+    [org, ciclos],
   );
 
   const cycleDay =

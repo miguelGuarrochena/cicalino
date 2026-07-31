@@ -1,5 +1,7 @@
 "use client";
 
+import { useSessionStore } from "@/lib/store/session-store";
+
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
@@ -21,6 +23,8 @@ const INPUT =
 
 export const PedirSucursalCard = () => {
   const toast = useToast();
+  const rol = useSessionStore((s) => s.rol);
+  const esDueno = rol === "admin" || rol === "superadmin";
   const [resumen, setResumen] = useState<QuotaSummary | null | undefined>(
     undefined,
   );
@@ -36,6 +40,8 @@ export const PedirSucursalCard = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  if (!esDueno) return null;
 
   if (resumen === undefined) {
     return (
