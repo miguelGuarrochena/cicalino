@@ -10,7 +10,10 @@ import { BranchSwitcher } from "@/components/panel/BranchSwitcher";
 import { PanelMenu } from "@/components/panel/PanelMenu";
 import { useWakeLock } from "@/lib/hooks/useWakeLock";
 import { useBranchConfigSync } from "@/lib/hooks/useBranchConfigSync";
-import { useSessionStore } from "@/lib/store/session-store";
+import {
+  ADMIN_UNLOCK_MS,
+  useSessionStore,
+} from "@/lib/store/session-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { EsperaCancelWatch } from "@/components/panel/EsperaCancelWatch";
@@ -38,8 +41,8 @@ const BannerImpersonacion = () => {
 
   return (
     <div className="border-b border-carbon/20 bg-carbon text-crema">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6">
-        <p className="text-xs font-medium sm:text-sm">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 py-2 sm:px-6">
+        <p className="min-w-0 text-xs font-medium sm:text-sm">
           {t("super.viendoComo", {
             n: `${impersonating.organizationName} · ${impersonating.branchName}`,
           })}
@@ -50,7 +53,7 @@ const BannerImpersonacion = () => {
             router.replace("/admin");
             exitImpersonation();
           }}
-          className="rounded-full bg-crema/15 px-3 py-1 text-xs font-semibold transition hover:bg-crema/25"
+          className="shrink-0 rounded-full bg-crema/15 px-3 py-1 text-xs font-semibold transition hover:bg-crema/25"
         >
           {t("super.volverAdmin")}
         </button>
@@ -77,7 +80,9 @@ const PanelLayout = ({
   useBranchConfigSync(branchId);
 
   useEffect(() => {
-    if (!enSeccionDueño) bloquearAdmin();
+    if (enSeccionDueño) return;
+    const t = window.setTimeout(bloquearAdmin, ADMIN_UNLOCK_MS);
+    return () => window.clearTimeout(t);
   }, [enSeccionDueño, bloquearAdmin]);
 
   return (
@@ -85,9 +90,9 @@ const PanelLayout = ({
       <BannerImpersonacion />
       {role !== "superadmin" && <EsperaCancelWatch />}
       <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md">
-        <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-8 sm:py-3">
-          <Logo href="/panel" className="h-9 sm:h-12" />
-          <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 sm:flex-nowrap sm:justify-between sm:gap-3 sm:px-8 sm:py-3">
+          <Logo href="/panel" className="h-8 shrink-0 sm:h-12" />
+          <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:flex-nowrap sm:gap-3">
             {role !== "superadmin" && <BranchSwitcher />}
             {role !== "superadmin" && <PanelNav />}
             {mostrarFichaje && <Fichaje />}

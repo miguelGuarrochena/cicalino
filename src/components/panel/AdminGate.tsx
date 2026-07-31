@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { verifyPasswordDueño } from "@/lib/auth/actions";
@@ -11,6 +11,7 @@ export const AdminGate = ({ children }: { children: React.ReactNode }) => {
   const { locale } = useApp();
   const role = useSessionStore((s) => s.rol);
   const unlocked = useSessionStore((s) => s.adminDesbloqueado);
+  const unlockedUntil = useSessionStore((s) => s.adminDesbloqueadoHasta);
   const unlock = useSessionStore((s) => s.desbloquearAdmin);
   const impersonando = useSessionStore((s) => s.impersonando);
 
@@ -19,11 +20,18 @@ export const AdminGate = ({ children }: { children: React.ReactNode }) => {
   const [busy, setBusy] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
+  const vigente =
+    unlocked || (unlockedUntil != null && unlockedUntil > Date.now());
+
+  useEffect(() => {
+    if (vigente) unlock();
+  }, [vigente, unlock]);
+
   if (role === "empleado" || role === "superadmin") {
     return <NoAccess />;
   }
 
-  if (unlocked) return <>{children}</>;
+  if (vigente) return <>{children}</>;
 
   const es = locale !== "en";
 

@@ -27,12 +27,15 @@ interface SessionState {
   fichar: (emp: ActiveEmployee) => void;
   salir: () => void;
   adminDesbloqueado: boolean;
+  adminDesbloqueadoHasta: number | null;
   desbloquearAdmin: () => void;
   bloquearAdmin: () => void;
   impersonando: Impersonation | null;
   entrarComoDueño: (data: Impersonation) => void;
   salirImpersonacion: () => void;
 }
+
+export const ADMIN_UNLOCK_MS = 15 * 60_000;
 
 export const useSessionStore = create<SessionState>()(
   persist(
@@ -65,8 +68,14 @@ export const useSessionStore = create<SessionState>()(
       fichar: (emp) => set({ empleadoActivo: emp }),
       salir: () => set({ empleadoActivo: null }),
       adminDesbloqueado: false,
-      desbloquearAdmin: () => set({ adminDesbloqueado: true }),
-      bloquearAdmin: () => set({ adminDesbloqueado: false }),
+      adminDesbloqueadoHasta: null,
+      desbloquearAdmin: () =>
+        set({
+          adminDesbloqueado: true,
+          adminDesbloqueadoHasta: Date.now() + ADMIN_UNLOCK_MS,
+        }),
+      bloquearAdmin: () =>
+        set({ adminDesbloqueado: false, adminDesbloqueadoHasta: null }),
       impersonando: null,
       entrarComoDueño: (data) =>
         set({
@@ -85,6 +94,7 @@ export const useSessionStore = create<SessionState>()(
           impersonando: null,
           empleadoActivo: null,
           adminDesbloqueado: false,
+          adminDesbloqueadoHasta: null,
         }),
     }),
     {
@@ -96,6 +106,7 @@ export const useSessionStore = create<SessionState>()(
         sucursalId: s.sucursalId,
         empleadoActivo: s.empleadoActivo,
         impersonando: s.impersonando,
+        adminDesbloqueadoHasta: s.adminDesbloqueadoHasta,
       }),
     },
   ),
@@ -109,6 +120,7 @@ export const clearSessionLocal = () => {
     empleadoActivo: null,
     impersonando: null,
     adminDesbloqueado: false,
+    adminDesbloqueadoHasta: null,
   });
   try {
     useSessionStore.persist.clearStorage();
