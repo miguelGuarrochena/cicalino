@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BusinessType } from "@/lib/store/config-store";
+import type { SubscriptionStatus } from "@/lib/subscription";
 import {
   PRICE_PER_BRANCH,
   monthlyPriceForBranch,
@@ -17,6 +18,8 @@ export interface BranchRow {
   id: string;
   organizationId: string;
   name: string;
+  altaEn: string | null;
+  cobroDesde: string | null;
   tipo: BusinessType;
   direccion: string;
   activo: boolean;
@@ -45,6 +48,12 @@ export interface OrganizationRow {
   moduloPedidos: boolean;
   moduloEspera: boolean;
   altaEn: string;
+  estadoSuscripcion: SubscriptionStatus;
+  pruebaInicio: string | null;
+  pruebaFin: string | null;
+  proximaFactura: string | null;
+  diaCiclo: number | null;
+  ultimoPagoEn: string | null;
   sucursales: BranchRow[];
 }
 
@@ -119,6 +128,12 @@ const seed = (): OrganizationRow[] => {
       moduloPedidos: true,
       moduloEspera: true,
       altaEn: dia(40),
+      estadoSuscripcion: "active",
+      pruebaInicio: null,
+      pruebaFin: null,
+      proximaFactura: null,
+      diaCiclo: null,
+      ultimoPagoEn: null,
       sucursales: [
         {
           id: "suc-centro",
@@ -128,6 +143,8 @@ const seed = (): OrganizationRow[] => {
           direccion: "Calle Falsa 742, Rosario",
           activo: true,
           pedidosHoy: 38,
+          altaEn: null,
+          cobroDesde: null,
           moduloPedidos: true,
           moduloEspera: true,
         },
@@ -139,6 +156,8 @@ const seed = (): OrganizationRow[] => {
           direccion: "Av. Pellegrini 1200, Rosario",
           activo: true,
           pedidosHoy: 27,
+          altaEn: null,
+          cobroDesde: null,
           moduloPedidos: true,
           moduloEspera: false,
         },
@@ -162,6 +181,12 @@ const seed = (): OrganizationRow[] => {
       moduloPedidos: true,
       moduloEspera: false,
       altaEn: dia(7),
+      estadoSuscripcion: "active",
+      pruebaInicio: null,
+      pruebaFin: null,
+      proximaFactura: null,
+      diaCiclo: null,
+      ultimoPagoEn: null,
       sucursales: [
         {
           id: "suc-buen",
@@ -171,6 +196,8 @@ const seed = (): OrganizationRow[] => {
           direccion: "San Martín 500, Córdoba",
           activo: true,
           pedidosHoy: 22,
+          altaEn: null,
+          cobroDesde: null,
           moduloPedidos: true,
           moduloEspera: false,
         },
@@ -240,6 +267,12 @@ export const useSuperadminStore = create<SuperadminState>()(
               moduloPedidos: data.moduloPedidos !== false,
               moduloEspera: Boolean(data.moduloEspera),
               altaEn: new Date().toISOString(),
+              estadoSuscripcion: "active",
+              pruebaInicio: null,
+              pruebaFin: null,
+              proximaFactura: null,
+              diaCiclo: null,
+              ultimoPagoEn: null,
               sucursales: [],
             },
             ...s.organizaciones,
@@ -336,6 +369,8 @@ export const useSuperadminStore = create<SuperadminState>()(
                       direccion: data.direccion.trim(),
                       activo: true,
                       pedidosHoy: 0,
+                      altaEn: null,
+                      cobroDesde: null,
                       moduloPedidos: data.moduloPedidos !== false,
                       moduloEspera: Boolean(data.moduloEspera),
                     },

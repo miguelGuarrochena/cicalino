@@ -14,6 +14,7 @@ import { OrgModal } from "@/components/admin/OrgModal";
 import { SolicitudesPanel } from "@/components/admin/SolicitudesPanel";
 import { PedidosSucursalPanel } from "@/components/admin/PedidosSucursalPanel";
 import { CobrosPanel } from "@/components/admin/CobrosPanel";
+import { SubscriptionsPanel } from "@/components/admin/SubscriptionsPanel";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useSuperadminSync } from "@/lib/hooks/useSuperadminSync";
 import { ensureDemoOrg } from "@/lib/actions/superadmin";
@@ -223,6 +224,14 @@ const SuperadminPage = () => {
       />
       <CobrosPanel
         onAbrir={(id) => {
+          const org = organizations.find((o) => o.id === id);
+          if (org) setModal({ mode: "ver", org });
+        }}
+      />
+
+      <SubscriptionsPanel
+        orgs={organizations}
+        onVerCliente={(id) => {
           const org = organizations.find((o) => o.id === id);
           if (org) setModal({ mode: "ver", org });
         }}

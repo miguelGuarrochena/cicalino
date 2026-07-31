@@ -8,6 +8,7 @@ import {
 } from "@/lib/store/superadmin-store";
 import type { BusinessType } from "@/lib/store/config-store";
 import { normalizeModules } from "@/lib/pricing";
+import type { SubscriptionStatus } from "@/lib/subscription";
 
 type BranchDb = {
   id: string;
@@ -16,6 +17,8 @@ type BranchDb = {
   direccion: string | null;
   modulo_pedidos: boolean | null;
   modulo_espera: boolean | null;
+  created_at: string | null;
+  cobro_desde: string | null;
 };
 type OrgDb = {
   id: string;
@@ -35,6 +38,12 @@ type OrgDb = {
   modulo_pedidos: boolean | null;
   modulo_espera: boolean | null;
   creado_en: string;
+  estado_suscripcion: string | null;
+  prueba_inicio: string | null;
+  prueba_fin: string | null;
+  proxima_factura: string | null;
+  dia_ciclo: number | null;
+  ultimo_pago_en: string | null;
   locales: BranchDb[] | null;
 };
 
@@ -50,6 +59,8 @@ const mapOrg = (o: OrgDb): OrganizationRow => {
       name: l.nombre,
       tipo: l.tipo_negocio ?? "otro",
       direccion: l.direccion ?? "",
+      altaEn: l.created_at ?? null,
+      cobroDesde: l.cobro_desde ?? null,
       activo: true,
       pedidosHoy: 0,
       moduloPedidos: mods.pedidos,
@@ -83,6 +94,12 @@ const mapOrg = (o: OrgDb): OrganizationRow => {
     moduloPedidos: agg.moduloPedidos,
     moduloEspera: agg.moduloEspera,
     altaEn: o.creado_en,
+    estadoSuscripcion: (o.estado_suscripcion as SubscriptionStatus) ?? "active",
+    pruebaInicio: o.prueba_inicio ?? null,
+    pruebaFin: o.prueba_fin ?? null,
+    proximaFactura: o.proxima_factura ?? null,
+    diaCiclo: o.dia_ciclo ?? null,
+    ultimoPagoEn: o.ultimo_pago_en ?? null,
     sucursales,
   };
 };
@@ -93,7 +110,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, estado_suscripcion, prueba_inicio, prueba_fin, proxima_factura, dia_ciclo, ultimo_pago_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera, created_at, cobro_desde)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
