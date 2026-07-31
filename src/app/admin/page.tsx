@@ -62,6 +62,7 @@ const SuperadminPage = () => {
   const router = useRouter();
   const { ready: syncReady } = useSuperadminSync();
   const organizations = useSuperadminStore((s) => s.organizaciones);
+  const orgsError = useSuperadminStore((s) => s.orgsError);
   const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
 
   const [abriendoDemo, setAbriendoDemo] = useState(false);
@@ -180,6 +181,19 @@ const SuperadminPage = () => {
           if (org) setModal({ mode: "ver", org });
         }}
       />
+
+      {orgsError && (
+        <div className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3">
+          <p className="text-sm font-semibold text-red-700">
+            No se pudo leer la lista de empresas.
+          </p>
+          <p className="mt-1 text-xs text-red-700/80">{orgsError}</p>
+          <p className="mt-1 text-xs text-red-700/70">
+            Suele ser una migración pendiente en Supabase: falta una columna que
+            la app está pidiendo.
+          </p>
+        </div>
+      )}
 
       <SubscriptionsPanel
         orgs={organizations}

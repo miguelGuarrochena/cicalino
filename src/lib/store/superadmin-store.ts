@@ -84,7 +84,9 @@ export type BranchInput = {
 
 interface SuperadminState {
   organizaciones: OrganizationRow[];
+  orgsError: string | null;
   setOrganizaciones: (list: OrganizationRow[]) => void;
+  setOrgsError: (msg: string | null) => void;
   altaOrg: (data: OrgInput) => string;
   actualizarOrg: (id: string, data: Partial<OrgInput>) => void;
   toggleOrgActivo: (id: string) => void;
@@ -248,8 +250,10 @@ export const useSuperadminStore = create<SuperadminState>()(
   persist(
     (set, get) => ({
       organizaciones: supabaseConfigured ? [] : seed(),
+      orgsError: null,
 
       setOrganizaciones: (list) => set({ organizaciones: list }),
+      setOrgsError: (msg) => set({ orgsError: msg }),
 
       altaOrg: (data) => {
         const id = crypto.randomUUID();

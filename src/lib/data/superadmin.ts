@@ -119,8 +119,12 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
     .order("creado_en", { ascending: false });
   if (error || !data) {
     if (error) console.error("fetchOrganizations", error.message);
+    useSuperadminStore
+      .getState()
+      .setOrgsError(error?.message ?? "No se pudo leer la lista de empresas.");
     return [];
   }
+  useSuperadminStore.getState().setOrgsError(null);
   return (data as unknown as OrgDb[]).map(mapOrg);
 };
 
