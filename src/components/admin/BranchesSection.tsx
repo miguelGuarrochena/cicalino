@@ -17,9 +17,11 @@ import {
   deleteBranchDb,
   insertBranchDb,
   refreshOrganizations,
+  setBranchActiveDb,
+  setBranchBillingStartDb,
   updateBranchModulesDb,
 } from "@/lib/data/superadmin";
-import { toDateOnly } from "@/lib/subscription";
+import { addCycle, toDateOnly } from "@/lib/subscription";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -65,6 +67,24 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
     await refreshOrganizations();
     setBusy(null);
     toast("Pack actualizado", "success");
+  };
+
+  const alternarActiva = async (branchId: string, activa: boolean) => {
+    setBusy(branchId);
+    await setBranchActiveDb(branchId, activa);
+    await refreshOrganizations();
+    setBusy(null);
+    toast(activa ? "Sucursal reactivada" : "Sucursal dada de baja", "info");
+  };
+
+  const darMesGratis = async (branchId: string, desde: string | null) => {
+    setBusy(branchId);
+    const base = desde && desde > hoy ? desde : hoy;
+    const nueva = addCycle(base, Number(base.slice(8, 10)));
+    await setBranchBillingStartDb(branchId, nueva);
+    await refreshOrganizations();
+    setBusy(null);
+    toast(`Gratis hasta el ${fecha(nueva)}`, "success");
   };
 
   const eliminar = async (branchId: string) => {
@@ -114,16 +134,26 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
             espera: s.moduloEspera,
           });
           const enGratis = Boolean(s.cobroDesde && s.cobroDesde > hoy);
+          const deBaja = !s.activo;
           return (
             <div
               key={s.id}
-              className={`rounded-2xl border border-linea bg-crema/30 px-4 py-3.5 ${
-                busy === s.id ? "opacity-50" : ""
-              }`}
+              className={`rounded-2xl border px-4 py-3.5 ${
+                deBaja
+                  ? "border-dashed border-linea bg-crema/10"
+                  : "border-linea bg-crema/30"
+              } ${busy === s.id ? "opacity-50" : ""}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-carbon">{s.name}</p>
+                  <p className="flex items-center gap-2 truncate font-semibold text-carbon">
+                    {s.name}
+                    {deBaja && (
+                      <span className="rounded-full border border-linea bg-carbon/5 px-2 py-0.5 text-[11px] font-semibold text-carbon/55">
+                        De baja
+                      </span>
+                    )}
+                  </p>
                   <p className="truncate text-xs text-carbon/50">
                     {BUSINESS_TYPE_LABEL[s.tipo] ?? s.tipo}
                     {s.direccion ? ` · ${s.direccion}` : ""}
@@ -131,11 +161,17 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-display text-base leading-tight text-marca">
+                  <p
+                    className={`font-display text-base leading-tight ${deBaja ? "text-carbon/35 line-through" : "text-marca"}`}
+                  >
                     {gratis ? "—" : money.format(aporta)}
                   </p>
                   <p className="text-[11px] text-carbon/45">
-                    {gratis ? "sin cargo" : "aporta por mes"}
+                    {gratis
+                      ? "sin cargo"
+                      : deBaja
+                        ? "no se cobra"
+                        : "aporta por mes"}
                   </p>
                 </div>
               </div>
@@ -160,7 +196,23 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
                     <>Entró al cobro el {fecha(s.cobroDesde)}</>
                   )}
                 </p>
-                <div className="flex gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {!deBaja && !gratis && (
+                    <button
+                      type="button"
+                      onClick={() => void darMesGratis(s.id, s.cobroDesde)}
+                      className="rounded-full border border-marca/40 bg-marca/10 px-3 py-1.5 text-xs font-semibold text-marca transition hover:bg-marca/20"
+                    >
+                      + Mes gratis
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void alternarActiva(s.id, deBaja)}
+                    className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5"
+                  >
+                    {deBaja ? "Reactivar" : "Dar de baja"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {

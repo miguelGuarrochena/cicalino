@@ -19,6 +19,7 @@ type BranchDb = {
   modulo_espera: boolean | null;
   created_at: string | null;
   cobro_desde: string | null;
+  activa: boolean | null;
 };
 type OrgDb = {
   id: string;
@@ -61,16 +62,17 @@ const mapOrg = (o: OrgDb): OrganizationRow => {
       direccion: l.direccion ?? "",
       altaEn: l.created_at ?? null,
       cobroDesde: l.cobro_desde ?? null,
-      activo: true,
+      activo: l.activa !== false,
       pedidosHoy: 0,
       moduloPedidos: mods.pedidos,
       moduloEspera: mods.espera,
     };
   });
-  const agg = sucursales.length
+  const activas = sucursales.filter((s) => s.activo);
+  const agg = activas.length
     ? {
-        moduloPedidos: sucursales.some((s) => s.moduloPedidos),
-        moduloEspera: sucursales.some((s) => s.moduloEspera),
+        moduloPedidos: activas.some((s) => s.moduloPedidos),
+        moduloEspera: activas.some((s) => s.moduloEspera),
       }
     : {
         moduloPedidos: o.modulo_pedidos !== false,
@@ -110,7 +112,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, estado_suscripcion, prueba_inicio, prueba_fin, proxima_factura, dia_ciclo, ultimo_pago_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera, created_at, cobro_desde)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, estado_suscripcion, prueba_inicio, prueba_fin, proxima_factura, dia_ciclo, ultimo_pago_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera, created_at, cobro_desde, activa)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
@@ -297,4 +299,30 @@ export const deleteBranchDb = async (id: string): Promise<void> => {
   else if (row?.organizacion_id) {
     await syncOrgModulesFromBranches(row.organizacion_id);
   }
+};
+
+export const setBranchActiveDb = async (
+  branchId: string,
+  activa: boolean,
+): Promise<void> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("locales")
+    .update({ activa, baja_en: activa ? null : new Date().toISOString() })
+    .eq("id", branchId);
+  if (error) console.error("setBranchActiveDb", error.message);
+};
+
+export const setBranchBillingStartDb = async (
+  branchId: string,
+  desde: string,
+): Promise<void> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("locales")
+    .update({ cobro_desde: desde })
+    .eq("id", branchId);
+  if (error) console.error("setBranchBillingStartDb", error.message);
 };

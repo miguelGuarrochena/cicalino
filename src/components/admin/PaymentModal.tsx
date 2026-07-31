@@ -77,7 +77,9 @@ export const PaymentModal = ({
 
   const desglose = useMemo(
     () =>
-      org.sucursales.map((b) => ({
+      org.sucursales
+        .filter((b) => b.activo)
+        .map((b) => ({
         sucursalId: b.id,
         nombre: b.name,
         pack: moduleLabel({
@@ -89,7 +91,7 @@ export const PaymentModal = ({
             pedidos: b.moduloPedidos,
             espera: b.moduloEspera,
           }) * Math.max(1, ciclos),
-      })),
+        })),
     [org.sucursales, ciclos],
   );
 

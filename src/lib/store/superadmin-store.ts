@@ -211,9 +211,10 @@ export const enGracia = (org: OrganizationRow): boolean =>
 
 export const monthlyAmount = (org: OrganizationRow): number => {
   if (org.plan === "gratis") return 0;
-  if (org.sucursales.length) {
+  const activas = org.sucursales.filter((s) => s.activo);
+  if (activas.length) {
     return monthlyPriceForBranches(
-      org.sucursales.map((s) => ({
+      activas.map((s) => ({
         pedidos: s.moduloPedidos !== false,
         espera: Boolean(s.moduloEspera),
       })),
