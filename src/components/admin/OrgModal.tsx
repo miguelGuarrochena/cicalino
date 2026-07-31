@@ -249,6 +249,24 @@ export const OrgModal = ({
 
   const dirty = editing && !draftsIguales(draftActual(), baseline);
 
+  const sucursalesDelPlan =
+    mode === "crear"
+      ? crearPrimera
+        ? [{ pedidos: primeraPedidos, espera: primeraEspera }]
+        : []
+      : (org?.sucursales ?? [])
+          .filter((s) => s.activo)
+          .map((s) => ({ pedidos: s.moduloPedidos, espera: s.moduloEspera }));
+
+  const precioMensual = sucursalesDelPlan.length
+    ? sucursalesDelPlan.reduce((sum, m) => sum + monthlyPriceForBranch(m), 0)
+    : null;
+
+  const detallePrecio =
+    sucursalesDelPlan.length === 1
+      ? "Es el pack que elegiste para la sucursal. Si agregás más, se suma."
+      : `Suma de ${sucursalesDelPlan.length} sucursales activas.`;
+
   const aplicarDraft = (d: DraftOrg) => {
     setName(d.name);
     setResponsable(d.responsable);
@@ -812,11 +830,13 @@ export const OrgModal = ({
                       </span>
                       {p !== "gratis" && (
                         <span className="text-xs font-semibold text-marca">
-                          desde{" "}
+                          {precioMensual == null ? "desde " : ""}
                           {money.format(
-                            p === "anual" ? PRICE_WAITLIST * 10 : PRICE_WAITLIST,
+                            (precioMensual ?? PRICE_WAITLIST) *
+                              (p === "anual" ? 10 : 1),
                           )}
-                          /suc. {p === "anual" ? "por año" : "por mes"}
+                          {precioMensual == null ? "/suc." : ""}{" "}
+                          {p === "anual" ? "por año" : "por mes"}
                         </span>
                       )}
                     </span>
@@ -830,7 +850,9 @@ export const OrgModal = ({
             <p className="mt-2 text-xs text-carbon/50">
               {plan === "gratis"
                 ? "Al guardar: sin cobro recurrente."
-                : "El monto se arma con los packs de cada sucursal (detalle)."}
+                : precioMensual == null
+                  ? "El monto se arma con los packs de cada sucursal (detalle)."
+                  : detallePrecio}
             </p>
           </div>
           <Campo label={t("super.direccion")}>
