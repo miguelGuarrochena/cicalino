@@ -4,36 +4,32 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useConfigStore } from "@/lib/store/config-store";
 import {
-  leerDispositivoModo,
-  modulosVisibles,
-  type ModuloId,
-} from "@/lib/modulos";
+  readDeviceMode,
+  visibleModules,
+  type ModuleId,
+} from "@/lib/modules";
 import { useSyncExternalStore } from "react";
 
 const subscribe = (cb: () => void) => {
   window.addEventListener("storage", cb);
   return () => window.removeEventListener("storage", cb);
 };
-const getSnapshot = () => leerDispositivoModo();
+const getSnapshot = () => readDeviceMode();
 const getServer = () => "ambos" as const;
 
-/**
- * Selector grande Pedidos | Espera.
- * Solo se muestra si la sucursal tiene ambos activos y el dispositivo permite ambos.
- */
 export const ModuleSwitcher = () => {
   const path = usePathname();
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
   const dispositivo = useSyncExternalStore(subscribe, getSnapshot, getServer);
-  const visibles = modulosVisibles(
+  const visibles = visibleModules(
     { pedidos: moduloPedidos, espera: moduloEspera },
     dispositivo,
   );
 
   if (!(visibles.pedidos && visibles.espera)) return null;
 
-  const active: ModuloId = path.startsWith("/panel/espera") ? "espera" : "pedidos";
+  const active: ModuleId = path.startsWith("/panel/espera") ? "espera" : "pedidos";
 
   return (
     <div

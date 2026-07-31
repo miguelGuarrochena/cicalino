@@ -7,13 +7,13 @@ import { Controls } from "@/components/ui/Controls";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { TurnstileField } from "@/components/probar/TurnstileField";
-import { crearSolicitud } from "@/lib/actions/leads";
+import { createLead } from "@/lib/actions/leads";
 import { isCuil, isEmail, formatCuil, isWhatsapp } from "@/lib/validations";
 import {
-  PRECIO_PEDIDOS,
-  PRECIO_ESPERA,
-  PRECIO_PACK,
-} from "@/lib/precios";
+  PRICE_ORDERS,
+  PRICE_WAITLIST,
+  PRICE_BUNDLE,
+} from "@/lib/pricing";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -24,9 +24,9 @@ const money = new Intl.NumberFormat("es-AR", {
 type PackId = "pedidos" | "espera" | "pack";
 
 const PACK_PRECIO: Record<PackId, number> = {
-  pedidos: PRECIO_PEDIDOS,
-  espera: PRECIO_ESPERA,
-  pack: PRECIO_PACK,
+  pedidos: PRICE_ORDERS,
+  espera: PRICE_WAITLIST,
+  pack: PRICE_BUNDLE,
 };
 
 const INPUT =
@@ -189,7 +189,7 @@ const PreciosPage = () => {
 
     setLoading(true);
     try {
-      const res = await crearSolicitud({
+      const res = await createLead({
         nombre: nombre.trim(),
         email: email.trim(),
         telefono: telefono.trim(),

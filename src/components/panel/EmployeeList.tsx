@@ -8,8 +8,8 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/Toast";
-import { isPin4, nombreEmpleadoEnUso } from "@/lib/validations";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { isPin4, isEmployeeNameTaken } from "@/lib/validations";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import {
   insertEmployee,
@@ -42,7 +42,6 @@ const mapPinError = (msg: string, t: (k: string) => string): string => {
   return t("toast.empError");
 };
 
-// Modal para dar de alta un empleado (nombre + puesto + PIN único de 4 dígitos).
 export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const { t } = useApp();
   const toast = useToast();
@@ -50,7 +49,7 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const addEmployee = useConfigStore((s) => s.agregarEmpleado);
   const pushEmpleado = useConfigStore((s) => s.pushEmpleado);
   const branchId = useSessionStore((s) => s.sucursalId);
-  const live = supabaseConfigurado && isRealBranchId(branchId);
+  const live = supabaseConfigured && isRealBranchId(branchId);
 
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
@@ -73,10 +72,9 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const validar = (): FieldErrors => {
     const next: FieldErrors = {};
     if (!name.trim()) next.nombre = t("config.empNombreReq");
-    else if (nombreEmpleadoEnUso(name, employees)) {
+    else if (isEmployeeNameTaken(name, employees)) {
       next.nombre = t("config.empNombreDup");
     }
-    // El duplicado de PIN lo valida `set_empleado_pin` en la base.
     if (!isPin4(pin)) next.pin = t("config.empPinReq");
     return next;
   };
@@ -254,7 +252,6 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
-/** Modal para resetear el PIN de un empleado existente (sin borrarlo). */
 const ChangePinModal = ({
   emp,
   onClose,
@@ -266,7 +263,7 @@ const ChangePinModal = ({
   const toast = useToast();
   const marcarPin = useConfigStore((s) => s.marcarPinEmpleado);
   const branchId = useSessionStore((s) => s.sucursalId);
-  const live = supabaseConfigurado && isRealBranchId(branchId);
+  const live = supabaseConfigured && isRealBranchId(branchId);
 
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | undefined>();
@@ -373,7 +370,7 @@ export const EmployeeList = () => {
   const employees = useConfigStore((s) => s.empleados);
   const removeEmployee = useConfigStore((s) => s.quitarEmpleado);
   const branchId = useSessionStore((s) => s.sucursalId);
-  const live = supabaseConfigurado && isRealBranchId(branchId);
+  const live = supabaseConfigured && isRealBranchId(branchId);
   const [modal, setModal] = useState(false);
   const [pinEmp, setPinEmp] = useState<EmployeeUI | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);

@@ -1,29 +1,29 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import type {
-  EsperaStatus,
-  EsperaView,
-  MesaView,
-  ReservaStatus,
-  ReservaView,
+  WaitlistStatus,
+  WaitlistView,
+  TableView,
+  ReservationStatus,
+  ReservationView,
 } from "@/lib/types";
-import { reservaEnConflicto } from "@/lib/reservas";
+import { conflictingReservation } from "@/lib/reservations";
 
-interface EsperaState {
-  esperas: EsperaView[];
-  mesas: MesaView[];
-  reservas: ReservaView[];
+interface WaitlistState {
+  esperas: WaitlistView[];
+  mesas: TableView[];
+  reservas: ReservationView[];
   seedSiVacio: (cantidadMesas?: number) => void;
   setMesasCount: (n: number) => void;
   agregarEspera: (
     nombre: string,
     personas: number,
     empleado?: string | null,
-  ) => EsperaView;
+  ) => WaitlistView;
   cambiarEstado: (
     id: string,
-    estado: EsperaStatus,
+    estado: WaitlistStatus,
     mesaNumero?: number | null,
     mesasExtra?: number[],
   ) => void;
@@ -32,13 +32,12 @@ interface EsperaState {
     opts?: { soloEsta?: boolean },
   ) => void;
   ocuparMesa: (numero: number, esperaId: string) => void;
-  /** Walk-in: marca mesas ocupadas y deja un registro sentado (sin cola/QR). */
   ocuparWalkIn: (args: {
     mesaNumeros: number[];
     nombre?: string;
     personas?: number;
     empleado?: string | null;
-  }) => EsperaView | null;
+  }) => WaitlistView | null;
   setCapacidad: (numero: number, capacidad: number) => void;
   agregarReserva: (args: {
     nombre: string;
@@ -47,11 +46,10 @@ interface EsperaState {
     horario: string;
     graciaMinutos: 15 | 20;
     empleado?: string | null;
-  }) => ReservaView | null;
+  }) => ReservationView | null;
   sentarReserva: (id: string) => void;
   cancelarReserva: (id: string) => void;
   eliminarEspera: (id: string) => void;
-  /** Reavisa (bump avisadoEn) sin cambiar de sentado/cancelado. */
   reavisarEspera: (id: string) => void;
   expirarReservasDemo: () => void;
 }
@@ -59,7 +57,7 @@ interface EsperaState {
 const iso = (minsAgo = 0) =>
   new Date(Date.now() - minsAgo * 60_000).toISOString();
 
-const buildMesas = (n: number, prev: MesaView[] = []): MesaView[] => {
+const buildTables = (n: number, prev: TableView[] = []): TableView[] => {
   const map = new Map(prev.map((m) => [m.numero, m]));
   return Array.from({ length: Math.max(1, n) }, (_, i) => {
     const num = i + 1;
@@ -78,7 +76,7 @@ const buildMesas = (n: number, prev: MesaView[] = []): MesaView[] => {
   });
 };
 
-export const useEsperaStore = create<EsperaState>()(
+export const useWaitlistStore = create<WaitlistState>()(
   persist(
     (set, get) => ({
       esperas: [],
@@ -88,12 +86,12 @@ export const useEsperaStore = create<EsperaState>()(
       seedSiVacio: (cantidadMesas = 10) => {
         if (get().esperas.length || get().mesas.length || get().reservas.length) {
           if (!get().mesas.length) {
-            set({ mesas: buildMesas(cantidadMesas) });
+            set({ mesas: buildTables(cantidadMesas) });
           }
           return;
         }
-        const mesas = buildMesas(cantidadMesas);
-        const reservaDemo: ReservaView = {
+        const mesas = buildTables(cantidadMesas);
+        const reservaDemo: ReservationView = {
           id: "res-demo-1",
           nombre: "Martínez",
           personas: 3,
@@ -108,8 +106,7 @@ export const useEsperaStore = create<EsperaState>()(
           expiradoEn: null,
           empleado: "Lucía",
         };
-        // Una que falta poco, para ver el aviso en ámbar.
-        const reservaDemoPronto: ReservaView = {
+        const reservaDemoPronto: ReservationView = {
           id: "res-demo-2",
           nombre: "Sosa",
           personas: 2,
@@ -136,7 +133,6 @@ export const useEsperaStore = create<EsperaState>()(
           esperaId: "esp-demo-old2",
           reservaId: null,
         };
-        // La mesa 5 NO se marca: la reserva de las 21 solo avisa.
         set({
           mesas,
           reservas: [reservaDemoPronto, reservaDemo],
@@ -173,10 +169,10 @@ export const useEsperaStore = create<EsperaState>()(
         });
       },
 
-      setMesasCount: (n) => set((s) => ({ mesas: buildMesas(n, s.mesas) })),
+      setMesasCount: (n) => set((s) => ({ mesas: buildTables(n, s.mesas) })),
 
       agregarEspera: (nombre, personas, empleado = null) => {
-        const e: EsperaView = {
+        const e: WaitlistView = {
           id: crypto.randomUUID(),
           nombre: nombre.trim() || "Grupo",
           personas: Math.max(1, personas),
@@ -204,8 +200,6 @@ export const useEsperaStore = create<EsperaState>()(
             if (estado === "sentado") {
               next.sentadoEn = now;
               next.mesaNumero = mesaNumero ?? e.mesaNumero;
-              // Si sentás sin pasar por Avisar, igual dejá marca de aviso
-              // para que el cliente (pestaña abierta) vea el cambio.
               if (!next.avisadoEn) next.avisadoEn = now;
             }
             if (estado === "cancelado") next.canceladoEn = now;
@@ -298,7 +292,7 @@ export const useEsperaStore = create<EsperaState>()(
         const cap = pick.reduce((s, m) => s + (m.capacidad ?? 4), 0);
         const now = new Date().toISOString();
         const primaria = nums[0];
-        const e: EsperaView = {
+        const e: WaitlistView = {
           id: crypto.randomUUID(),
           nombre: (nombre ?? "").trim() || "Walk-in",
           personas: Math.max(1, personas ?? cap),
@@ -355,12 +349,11 @@ export const useEsperaStore = create<EsperaState>()(
         if (!nums.length) return null;
         const pick = get().mesas.filter((m) => nums.includes(m.numero));
         if (pick.length !== nums.length) return null;
-        // Que la mesa esté ocupada AHORA no impide reservarla para más tarde.
         const cap = pick.reduce((s, m) => s + (m.capacidad ?? 4), 0);
         if (cap < Math.max(1, personas)) return null;
-        if (reservaEnConflicto(nums, horario, get().reservas)) return null;
+        if (conflictingReservation(nums, horario, get().reservas)) return null;
         const primaria = nums[0];
-        const r: ReservaView = {
+        const r: ReservationView = {
           id: crypto.randomUUID(),
           nombre: nombre.trim() || "Reserva",
           personas: Math.max(1, personas),
@@ -375,7 +368,6 @@ export const useEsperaStore = create<EsperaState>()(
           expiradoEn: null,
           empleado,
         };
-        // Las mesas NO se marcan: la reserva solo avisa.
         set((s) => ({
           reservas: [...s.reservas, r].sort((a, b) =>
             a.horario.localeCompare(b.horario),
@@ -392,7 +384,6 @@ export const useEsperaStore = create<EsperaState>()(
           const nums = new Set(
             r.mesasNumeros?.length ? r.mesasNumeros : [r.mesaNumero],
           );
-          // También por reservaId (por si mesasNumeros quedó viejo).
           return {
             reservas: s.reservas.map((x) =>
               x.id === id
@@ -412,7 +403,6 @@ export const useEsperaStore = create<EsperaState>()(
           };
         }),
 
-      // Cancelar no toca mesas: la reserva nunca las bloqueó.
       cancelarReserva: (id) =>
         set((s) => {
           const r = s.reservas.find((x) => x.id === id);
@@ -470,21 +460,19 @@ export const useEsperaStore = create<EsperaState>()(
             changed = true;
             return {
               ...r,
-              estado: "expirada" as ReservaStatus,
+              estado: "expirada" as ReservationStatus,
               expiradoEn: new Date().toISOString(),
             };
           });
           if (!changed) return s;
-          // No hay mesas que liberar: la reserva nunca las bloqueó.
           return { reservas };
         }),
     }),
     {
-      // v4: las reservas ya no bloquean mesas (limpia el demo viejo).
       name: "cicalino-espera-demo-v4",
       skipHydration: true,
       partialize: (s) =>
-        supabaseConfigurado
+        supabaseConfigured
           ? { esperas: [], mesas: [], reservas: [] }
           : { esperas: s.esperas, mesas: s.mesas, reservas: s.reservas },
     },

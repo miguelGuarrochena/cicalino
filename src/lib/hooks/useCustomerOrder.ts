@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { useConfigStore } from "@/lib/store/config-store";
 import { orderByToken, useOrdersStore } from "@/lib/store/orders-store";
 import type { IdentificationMode } from "@/lib/store/config-store";
@@ -12,7 +12,6 @@ export interface CustomerOrder {
   status: OrderStatus;
   nombreLocal: string;
   modo: IdentificationMode;
-  /** ISO del último aviso "listo" / re-avisar (para repetir la señal). */
   avisadoEn: string | null;
 }
 
@@ -22,26 +21,19 @@ interface Result {
   order: CustomerOrder | null;
 }
 
-// ~1.2s: el cliente ve el "listo" casi al toque (antes 4s → demora típica 1–2s).
 const POLL_MS = 1200;
 
-// Estado del pedido para la pantalla del cliente. Con Supabase configurado
-// hace polling al endpoint público (/api/p/[token]); en demo lee del store
-// local (mismo navegador que el panel).
 export const useCustomerOrder = (token: string): Result => {
-  const live = supabaseConfigurado;
+  const live = supabaseConfigured;
 
-  // --- Demo (Zustand) ---
   const seed = useOrdersStore((s) => s.seedSiVacio);
   const demoOrders = useOrdersStore((s) => s.pedidos);
   const cfg = useConfigStore();
 
-  // --- Live (polling) ---
   const [remote, setRemote] = useState<CustomerOrder | null>(null);
   const [remoteFound, setRemoteFound] = useState(false);
   const [ready, setReady] = useState(false);
 
-  // Hidratación + sync entre pestañas para el modo demo.
   useEffect(() => {
     if (live) return;
     const done = () => setReady(true);
@@ -62,7 +54,6 @@ export const useCustomerOrder = (token: string): Result => {
     return () => window.removeEventListener("storage", onStorage);
   }, [live, seed]);
 
-  // Polling del endpoint público + refetch al volver a la pestaña.
   useEffect(() => {
     if (!live) return;
     let active = true;
@@ -92,7 +83,6 @@ export const useCustomerOrder = (token: string): Result => {
           setRemoteFound(false);
         }
       } catch {
-        /* sin red: mantenemos el último estado */
       } finally {
         inFlight = false;
         if (active) setReady(true);

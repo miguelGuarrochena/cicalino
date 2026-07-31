@@ -1,13 +1,11 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigurado } from "./config";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigured } from "./config";
 
 type CookieItem = { name: string; value: string; options?: CookieOptions };
 
-// Cliente de Supabase para el server (RSC, route handlers, server actions).
-// Maneja la sesión por cookies. Devuelve null si no está configurado.
 export const createServerSupabase = async () => {
-  if (!supabaseConfigurado) return null;
+  if (!supabaseConfigured) return null;
   const cookieStore = await cookies();
   return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
@@ -18,7 +16,6 @@ export const createServerSupabase = async () => {
             cookieStore.set({ name, value, ...options }),
           );
         } catch {
-          // En un RSC no se pueden setear cookies; lo maneja el middleware.
         }
       },
     },

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSeenWatch } from "@/lib/hooks/useSeenWatch";
 import Link from "next/link";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { QrModal } from "@/components/panel/QrModal";
@@ -9,33 +10,33 @@ import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { HelpLink } from "@/components/panel/HelpLink";
 import { useApp } from "@/components/providers/Providers";
-import { useEsperas } from "@/lib/hooks/useEsperas";
+import { useWaitlist } from "@/lib/hooks/useWaitlist";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
-import { inicioJornada } from "@/lib/businessDay";
+import { businessDayStart } from "@/lib/businessDay";
 import {
-  ETIQUETA_ESPERA,
-  ETIQUETA_RESERVA,
-  esperaClosed,
-  labelMesas,
-  tituloMesas,
-  type EsperaView,
-  type MesaEstado,
-  type ReservaView,
+  WAITLIST_STATUS_LABEL,
+  RESERVATION_STATUS_LABEL,
+  waitlistClosed,
+  tableNumbersLabel,
+  tablesTitle,
+  type WaitlistView,
+  type TableState,
+  type ReservationView,
 } from "@/lib/types";
 import {
-  esReservaPronto,
-  faltaTexto,
-  horaReserva,
-  mesasDeReserva,
-  reservaEnConflicto,
-  reservaProximaPorMesa,
-} from "@/lib/reservas";
+  isReservationSoon,
+  timeUntilLabel,
+  reservationTime,
+  reservationTables,
+  conflictingReservation,
+  nextReservationByTable,
+} from "@/lib/reservations";
 import {
-  leerDispositivoModo,
-  modulosVisibles,
-} from "@/lib/modulos";
+  readDeviceMode,
+  visibleModules,
+} from "@/lib/modules";
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
@@ -46,7 +47,6 @@ const INPUT =
 const BTN_MOBILE =
   "w-full rounded-full px-4 py-3.5 text-sm font-semibold transition active:scale-[0.98] sm:w-auto sm:px-4 sm:py-2.5";
 
-/** Contador − / + usable en mobile (sin input number nativo). */
 const NumberStepper = ({
   value,
   onChange,
@@ -140,13 +140,12 @@ const PersonasChips = ({
 };
 
 const mesaTileClass = (
-  estado: MesaEstado,
+  estado: TableState,
   opts?: {
     pickable?: boolean;
     selected?: boolean;
     tooSmall?: boolean;
     oversized?: boolean;
-    /** Mesa libre pero con una reserva encima: se avisa, no se bloquea. */
     reservaPronto?: boolean;
   },
 ) => {
@@ -159,8 +158,6 @@ const mesaTileClass = (
     return `${base} border-espera/30 bg-espera/15 text-espera/50 cursor-not-allowed`;
   }
   if (estado === "libre") {
-    // Sigue siendo una mesa libre (verde). Si la reserva está cerca,
-    // se le agrega un borde ámbar como aviso: usable, pero con cuidado.
     return `${base} ${
       opts?.reservaPronto
         ? "border-amber-500 ring-2 ring-amber-400/50"
@@ -174,16 +171,12 @@ const mesaTileClass = (
   }`;
 };
 
-/**
- * Aviso al sentar gente en una mesa que tiene reserva más tarde.
- * No bloquea nada: el mozo decide si le da el tiempo o elige otra mesa.
- */
 const AvisoReserva = ({
   avisos,
   locale,
   ahora,
 }: {
-  avisos: { numero: number; reserva: ReservaView }[];
+  avisos: { numero: number; reserva: ReservationView }[];
   locale: string;
   ahora: number;
 }) => {
@@ -204,11 +197,11 @@ const AvisoReserva = ({
           <li key={`${numero}-${reserva.id}`} className="text-sm text-carbon/75">
             <span className="font-semibold text-carbon">
               {locale === "en" ? `Table ${numero}` : `Mesa ${numero}`} ·{" "}
-              {horaReserva(reserva.horario)}
+              {reservationTime(reserva.horario)}
             </span>{" "}
             — {reserva.nombre}, {reserva.personas}{" "}
             {locale === "en" ? "guests" : "personas"} (
-            {faltaTexto(reserva.horario, locale === "en" ? "en" : "es", ahora)})
+            {timeUntilLabel(reserva.horario, locale === "en" ? "en" : "es", ahora)})
           </li>
         ))}
       </ul>
@@ -229,10 +222,9 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 const toLocalInput = (d: Date) =>
   `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
-/** Reservas de restaurante: cada 15 min (21:00, 21:15, 21:30…). */
 const SLOT_STEP_MIN = 15;
-const SLOT_START_MIN = 11 * 60; // 11:00
-const SLOT_END_MIN = 23 * 60 + 45; // 23:45
+const SLOT_START_MIN = 11 * 60;
+const SLOT_END_MIN = 23 * 60 + 45;
 
 const snapToSlot = (d: Date) => {
   const out = new Date(d);
@@ -417,10 +409,10 @@ const EsperaPanelPage = () => {
       window.addEventListener("storage", cb);
       return () => window.removeEventListener("storage", cb);
     },
-    leerDispositivoModo,
+    readDeviceMode,
     () => "ambos" as const,
   );
-  const visibles = modulosVisibles(
+  const visibles = visibleModules(
     { pedidos: moduloPedidos, espera: moduloEspera },
     dispositivo,
   );
@@ -441,9 +433,9 @@ const EsperaPanelPage = () => {
     liberarMesa,
     ocuparMesas,
     setCapacidad,
-  } = useEsperas(branchId);
+  } = useWaitlist(branchId);
 
-  const [qr, setQr] = useState<EsperaView | null>(null);
+  const [qr, setQr] = useState<WaitlistView | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [reservaOpen, setReservaOpen] = useState(false);
   const [nombre, setNombre] = useState("");
@@ -479,7 +471,6 @@ const EsperaPanelPage = () => {
   >("todas");
   const [qMesa, setQMesa] = useState("");
   const [page, setPage] = useState(1);
-  // Reloj propio: mantiene frescos los avisos de reserva ("en 40 min").
   const [ahora, setAhora] = useState(() => Date.now());
 
   useEffect(() => {
@@ -488,8 +479,6 @@ const EsperaPanelPage = () => {
   }, []);
 
   useEffect(() => {
-    // Esperar config real: al refrescar el store arranca con espera=false y
-    // si no, te manda a pedidos aunque estés en /panel/espera.
     if (!branchConfigReady) return;
     if (!visibles.espera && visibles.pedidos) router.replace("/panel");
   }, [branchConfigReady, visibles, router]);
@@ -500,6 +489,9 @@ const EsperaPanelPage = () => {
     if (fresh?.vistoEn) setQr(null);
   }, [esperas, qr]);
 
+  const closeQr = useCallback(() => setQr(null), []);
+  useSeenWatch("waitlist", qr?.id ?? null, closeQr);
+
   const cola = useMemo(
     () =>
       esperas
@@ -508,7 +500,7 @@ const EsperaPanelPage = () => {
     [esperas],
   );
   const canceladasHoy = useMemo(() => {
-    const desde = inicioJornada(horaCorte).toISOString();
+    const desde = businessDayStart(horaCorte).toISOString();
     return esperas
       .filter(
         (e) =>
@@ -526,22 +518,18 @@ const EsperaPanelPage = () => {
     [reservas],
   );
   const reservaById = useMemo(() => {
-    const map = new Map<string, ReservaView>();
+    const map = new Map<string, ReservationView>();
     for (const r of reservas) map.set(r.id, r);
     return map;
   }, [reservas]);
   const esperaById = useMemo(() => {
-    const map = new Map<string, EsperaView>();
+    const map = new Map<string, WaitlistView>();
     for (const e of esperas) map.set(e.id, e);
     return map;
   }, [esperas]);
 
-  /**
-   * Reserva vigente de cada mesa. La mesa NO se bloquea: esto es solo el aviso
-   * que se muestra en el mapa y al sentar a alguien.
-   */
   const reservaPorMesa = useMemo(
-    () => reservaProximaPorMesa(reservas, ahora),
+    () => nextReservationByTable(reservas, ahora),
     [reservas, ahora],
   );
 
@@ -577,19 +565,15 @@ const EsperaPanelPage = () => {
   const paginated = slicePage(cola, page, PAGE_SIZE);
   const sentarEspera = esperas.find((e) => e.id === sentarId);
   const mesasLibres = mesas.filter((m) => m.estado === "libre");
-  /**
-   * Para reservar da igual si la mesa está ocupada AHORA (la reserva es para
-   * más tarde). Lo único que la descarta es tener otra reserva a esa hora.
-   */
   const reservaHorarioIso = useMemo(() => {
     const d = new Date(reservaHorario);
     return Number.isNaN(d.getTime()) ? null : d.toISOString();
   }, [reservaHorario]);
   const reservaChoquePorMesa = useMemo(() => {
-    const map = new Map<number, ReservaView>();
+    const map = new Map<number, ReservationView>();
     if (!reservaHorarioIso) return map;
     for (const m of mesas) {
-      const choque = reservaEnConflicto(
+      const choque = conflictingReservation(
         [m.numero],
         reservaHorarioIso,
         reservas,
@@ -628,18 +612,16 @@ const EsperaPanelPage = () => {
       ? mesas.find((m) => m.numero === ocuparPrimaria)
       : undefined;
   const ocuparNecesitaMapa = ocuparMesasSel.length > 0 && !ocuparOk;
-  /** Reservas que pisan las mesas elegidas para sentar (walk-in). */
   const ocuparAvisos = ocuparMesasSel
     .map((n) => ({ numero: n, reserva: reservaPorMesa.get(n) }))
     .filter(
-      (x): x is { numero: number; reserva: ReservaView } => x.reserva != null,
+      (x): x is { numero: number; reserva: ReservationView } => x.reserva != null,
     )
     .sort((a, b) => a.reserva.horario.localeCompare(b.reserva.horario));
-  /** Reservas que pisan las mesas elegidas al sentar a alguien de la cola. */
   const sentarAvisos = sentarMesas
     .map((n) => ({ numero: n, reserva: reservaPorMesa.get(n) }))
     .filter(
-      (x): x is { numero: number; reserva: ReservaView } => x.reserva != null,
+      (x): x is { numero: number; reserva: ReservationView } => x.reserva != null,
     )
     .sort((a, b) => a.reserva.horario.localeCompare(b.reserva.horario));
   const confirmCancelEspera = esperas.find(
@@ -682,8 +664,8 @@ const EsperaPanelPage = () => {
       : liberarNumero != null
         ? [liberarNumero]
         : [];
-  const liberarGrupoLabel = labelMesas(liberarGrupoMesas);
-  const liberarGrupoTitulo = tituloMesas(
+  const liberarGrupoLabel = tableNumbersLabel(liberarGrupoMesas);
+  const liberarGrupoTitulo = tablesTitle(
     liberarGrupoMesas,
     locale === "en" ? "en" : "es",
   );
@@ -784,7 +766,7 @@ const EsperaPanelPage = () => {
         setReservaMesas([]);
         setReservaHorario(defaultHorarioInput());
         setReservaGracia(15);
-        const label = tituloMesas(created.mesasNumeros, locale === "en" ? "en" : "es");
+        const label = tablesTitle(created.mesasNumeros, locale === "en" ? "en" : "es");
         toast(
           locale === "en"
             ? `${label} reserved`
@@ -852,7 +834,6 @@ const EsperaPanelPage = () => {
         </div>
       </div>
 
-      {/* Resumen mesas (como pedidos) */}
       <div className="grid grid-cols-3 gap-2">
         <button
           type="button"
@@ -958,7 +939,6 @@ const EsperaPanelPage = () => {
         </p>
       </div>
 
-      {/* Grid de mesas */}
       <section className="rounded-[24px] border border-espera/20 bg-surface p-4 shadow-sm sm:p-5">
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
           {mesasFiltradas.map((m) => {
@@ -967,11 +947,9 @@ const EsperaPanelPage = () => {
             const reservaSentada =
               m.reservaId != null ? reservaById.get(m.reservaId) : undefined;
             const libre = m.estado === "libre";
-            // Reserva que viene: avisa, no bloquea. Se muestra también en
-            // mesas ocupadas, para saber que hay que apurar el turno.
             const reservaProx = reservaPorMesa.get(m.numero);
             const pronto = reservaProx
-              ? esReservaPronto(reservaProx, ahora)
+              ? isReservationSoon(reservaProx, ahora)
               : false;
             const etiquetaGrupo = libre
               ? reservaProx?.nombre
@@ -995,8 +973,8 @@ const EsperaPanelPage = () => {
                   libre
                     ? reservaProx
                       ? locale === "en"
-                        ? `Free now · booking ${horaReserva(reservaProx.horario)} (${reservaProx.nombre})`
-                        : `Libre ahora · reserva ${horaReserva(reservaProx.horario)} (${reservaProx.nombre})`
+                        ? `Free now · booking ${reservationTime(reservaProx.horario)} (${reservaProx.nombre})`
+                        : `Libre ahora · reserva ${reservationTime(reservaProx.horario)} (${reservaProx.nombre})`
                       : locale === "en"
                         ? "Tap to seat now"
                         : "Tocar para sentar"
@@ -1017,7 +995,7 @@ const EsperaPanelPage = () => {
                         : "bg-carbon/70 text-crema"
                     }`}
                   >
-                    {horaReserva(reservaProx.horario)}
+                    {reservationTime(reservaProx.horario)}
                   </span>
                 )}
                 <span className="font-display text-lg leading-none">
@@ -1060,7 +1038,6 @@ const EsperaPanelPage = () => {
         </div>
       </section>
 
-      {/* Reservas */}
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-carbon/70">
@@ -1091,10 +1068,10 @@ const EsperaPanelPage = () => {
                       {r.nombre}
                     </h3>
                     <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 dark:bg-amber-400/30 dark:text-amber-100">
-                      {ETIQUETA_RESERVA[r.estado]}
+                      {RESERVATION_STATUS_LABEL[r.estado]}
                     </span>
                     <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
-                      {tituloMesas(
+                      {tablesTitle(
                         r.mesasNumeros ?? [r.mesaNumero],
                         locale === "en" ? "en" : "es",
                       )}
@@ -1114,8 +1091,8 @@ const EsperaPanelPage = () => {
                       void sentarReserva(r.id).then(() =>
                         toast(
                           locale === "en"
-                            ? `Seated at ${tituloMesas(r.mesasNumeros ?? [r.mesaNumero], "en")}`
-                            : `Sentados en ${tituloMesas(r.mesasNumeros ?? [r.mesaNumero], "es")}`,
+                            ? `Seated at ${tablesTitle(r.mesasNumeros ?? [r.mesaNumero], "en")}`
+                            : `Sentados en ${tablesTitle(r.mesasNumeros ?? [r.mesaNumero], "es")}`,
                           "success",
                         ),
                       );
@@ -1145,7 +1122,6 @@ const EsperaPanelPage = () => {
         )}
       </section>
 
-      {/* Cola */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-carbon/70">
           {locale === "en" ? "Waiting list" : "Lista de espera"}
@@ -1183,7 +1159,7 @@ const EsperaPanelPage = () => {
                           : "bg-amber-100 text-amber-800"
                       }`}
                     >
-                      {ETIQUETA_ESPERA[e.estado]}
+                      {WAITLIST_STATUS_LABEL[e.estado]}
                     </span>
                   </div>
                   <p className={`mt-1 text-sm text-carbon/55 ${urgencia}`}>
@@ -1259,7 +1235,7 @@ const EsperaPanelPage = () => {
                     >
                       QR
                     </button>
-                    {!esperaClosed(e.estado) && (
+                    {!waitlistClosed(e.estado) && (
                       <button
                         type="button"
                         onClick={() => setConfirmCancelEsperaId(e.id)}
@@ -1321,7 +1297,7 @@ const EsperaPanelPage = () => {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700">
-                    {ETIQUETA_ESPERA.cancelado}
+                    {WAITLIST_STATUS_LABEL.cancelado}
                   </span>
                   <button
                     type="button"
@@ -1566,8 +1542,8 @@ const EsperaPanelPage = () => {
               ) : reservaMesasOk ? (
                 <p className="mb-3 text-sm font-semibold text-espera">
                   {locale === "en"
-                    ? `${reservaCapSeleccionada} / ${reservaPersonas} seats · ${tituloMesas(reservaMesas, "en")}`
-                    : `${reservaCapSeleccionada} / ${reservaPersonas} plazas · ${tituloMesas(reservaMesas, "es")}`}
+                    ? `${reservaCapSeleccionada} / ${reservaPersonas} seats · ${tablesTitle(reservaMesas, "en")}`
+                    : `${reservaCapSeleccionada} / ${reservaPersonas} plazas · ${tablesTitle(reservaMesas, "es")}`}
                 </p>
               ) : (
                 <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
@@ -1587,8 +1563,6 @@ const EsperaPanelPage = () => {
               {mesas.length ? (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                   {mesas.map((m) => {
-                    // Para reservar solo importa que no tenga otra reserva a
-                    // esa hora. Que esté ocupada ahora es irrelevante.
                     const choque = reservaChoquePorMesa.get(m.numero);
                     const elegible = !choque;
                     const selected = reservaMesas.includes(m.numero);
@@ -1602,8 +1576,8 @@ const EsperaPanelPage = () => {
                         title={
                           choque
                             ? locale === "en"
-                              ? `Booked ${horaReserva(choque.horario)} — ${choque.nombre}`
-                              : `Reservada ${horaReserva(choque.horario)} — ${choque.nombre}`
+                              ? `Booked ${reservationTime(choque.horario)} — ${choque.nombre}`
+                              : `Reservada ${reservationTime(choque.horario)} — ${choque.nombre}`
                             : undefined
                         }
                         onClick={() => {
@@ -1629,7 +1603,7 @@ const EsperaPanelPage = () => {
                         </span>
                         <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
                           {choque
-                            ? horaReserva(choque.horario)
+                            ? reservationTime(choque.horario)
                             : m.estado === "ocupada"
                               ? locale === "en"
                                 ? "Busy now"
@@ -1733,8 +1707,8 @@ const EsperaPanelPage = () => {
           </h2>
           <p className="mt-2 text-sm text-carbon/60">
             {locale === "en"
-              ? `${tituloMesas(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero], "en")} · ${confirmCancelReserva.nombre} will be freed.`
-              : `${tituloMesas(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero], "es")} · ${confirmCancelReserva.nombre} se libera.`}
+              ? `${tablesTitle(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero], "en")} · ${confirmCancelReserva.nombre} will be freed.`
+              : `${tablesTitle(confirmCancelReserva.mesasNumeros ?? [confirmCancelReserva.mesaNumero], "es")} · ${confirmCancelReserva.nombre} se libera.`}
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <button
@@ -1779,7 +1753,7 @@ const EsperaPanelPage = () => {
                 onClick={() => {
                   if (!sentarId || !sentarMesas.length) return;
                   void sentar(sentarId, sentarMesas).then(() => {
-                    const titulo = tituloMesas(
+                    const titulo = tablesTitle(
                       sentarMesas,
                       locale === "en" ? "en" : "es",
                     );
@@ -1859,8 +1833,8 @@ const EsperaPanelPage = () => {
                   : `${selectedCap} / ${need} plazas elegidas`}
                 {sentarMesas.length > 1
                   ? locale === "en"
-                    ? ` · ${tituloMesas(sentarMesas, "en")}`
-                    : ` · ${tituloMesas(sentarMesas, "es")}`
+                    ? ` · ${tablesTitle(sentarMesas, "en")}`
+                    : ` · ${tablesTitle(sentarMesas, "es")}`
                   : ""}
               </p>
             );
@@ -1926,7 +1900,7 @@ const EsperaPanelPage = () => {
                 >
                   {reservaProx && !selected && (
                     <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold leading-none text-amber-950 shadow-sm">
-                      {horaReserva(reservaProx.horario)}
+                      {reservationTime(reservaProx.horario)}
                     </span>
                   )}
                   <span className="font-display text-xl leading-none">
@@ -1984,7 +1958,7 @@ const EsperaPanelPage = () => {
                         );
                         return;
                       }
-                      const titulo = tituloMesas(
+                      const titulo = tablesTitle(
                         ocuparMesasSel,
                         locale === "en" ? "en" : "es",
                       );
@@ -2111,7 +2085,7 @@ const EsperaPanelPage = () => {
             }`}
           >
             <p className="text-sm font-semibold text-carbon">
-              {tituloMesas(
+              {tablesTitle(
                 ocuparMesasSel,
                 locale === "en" ? "en" : "es",
               )}
@@ -2168,7 +2142,7 @@ const EsperaPanelPage = () => {
                     >
                       {reservaProx && !selected && (
                         <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold leading-none text-amber-950 shadow-sm">
-                          {horaReserva(reservaProx.horario)}
+                          {reservationTime(reservaProx.horario)}
                         </span>
                       )}
                       <span className="font-display text-xl leading-none">

@@ -1,14 +1,14 @@
 "use server";
 
-import { getPerfilActual } from "@/lib/auth/profile";
+import { getCurrentProfile } from "@/lib/auth/profile";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import {
-  crearOrganizacionSchema,
+  createOrganizationSchema,
   idSchema,
-  parsear,
-  type CrearOrganizacionInput,
+  parseInput,
+  type CreateOrgInput,
 } from "@/lib/schemas";
-import type { Solicitud } from "@/lib/db/schema";
+import type { Lead } from "@/lib/db/schema";
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 type SimpleResult = { ok: true } | { ok: false; error: string };
@@ -22,28 +22,24 @@ const slugify = (s: string): string =>
     .replace(/(^-|-$)/g, "")
     .slice(0, 40) || "sucursal";
 
-// Sufijo del slug con randomness criptográfica (Math.random es predecible).
 const sufijoAleatorio = (): string => {
   const b = new Uint8Array(4);
   crypto.getRandomValues(b);
   return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 };
 
-// Solo superadmin. Crea la organización + sucursales e invita al dueño por email.
-// Usa service_role porque organizaciones no tiene policy de INSERT para anon.
-export const crearOrganizacion = async (input: unknown): Promise<Resultado> => {
-  const perfil = await getPerfilActual();
+export const createOrganization = async (input: unknown): Promise<Resultado> => {
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
-  const v = parsear(crearOrganizacionSchema, input);
+  const v = parseInput(createOrganizationSchema, input);
   if (!v.ok) return { ok: false, error: v.error };
-  return crearOrganizacionValidada(v.data);
+  return createOrganizationValidated(v.data);
 };
 
-// Alta ya validada. Se reutiliza desde activarSolicitud sin re-parsear.
-const crearOrganizacionValidada = async (
-  data: CrearOrganizacionInput,
+const createOrganizationValidated = async (
+  data: CreateOrgInput,
 ): Promise<Resultado> => {
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
@@ -57,8 +53,6 @@ const crearOrganizacionValidada = async (
     proximoCobroEn = mesGratisHasta;
   }
 
-  // El cupo contratado tiene que alcanzar para las sucursales que se dan de
-  // alta: antes se podía crear una empresa con cupo 1 y 10 sucursales.
   if (data.sucursales.length > data.cupo) {
     return {
       ok: false,
@@ -66,8 +60,6 @@ const crearOrganizacionValidada = async (
     };
   }
 
-  // Queda inactiva hasta que el cliente acepte condiciones (o el
-  // superadmin la active a mano desde el popup).
   const { data: org, error } = await admin
     .from("organizaciones")
     .insert({
@@ -122,12 +114,9 @@ const crearOrganizacionValidada = async (
     }
   }
 
-  // No invitamos acá: el mail de alta va al activar la cuenta.
-  // Al preparar un lead solo se manda el link de condiciones.
   return { ok: true, id: org.id };
 };
 
-/** ¿Ya existe un usuario Auth con este email? */
 const authUserPorEmail = async (
   admin: NonNullable<ReturnType<typeof createAdminSupabase>>,
   email: string,
@@ -149,18 +138,14 @@ const authUserPorEmail = async (
   return null;
 };
 
-/**
- * Invita al dueño solo si todavía no tiene usuario Auth.
- * Se usa al activar la cuenta (no al crear la org / mandar condiciones).
- */
-export const invitarDuenoAlActivar = async (
+export const inviteOwnerOnActivate = async (
   organizacionId: string,
 ): Promise<SimpleResult> => {
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
-  const v = parsear(idSchema, { id: organizacionId });
+  const v = parseInput(idSchema, { id: organizacionId });
   if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
@@ -177,7 +162,6 @@ export const invitarDuenoAlActivar = async (
 
   const ya = await authUserPorEmail(admin, email);
   if (ya) {
-    // Asegura vínculo org en el perfil por si quedó suelto.
     await admin
       .from("usuarios")
       .update({ organizacion_id: org.id, rol: "admin" })
@@ -196,15 +180,14 @@ export const invitarDuenoAlActivar = async (
   return { ok: true };
 };
 
-/** Activa la cuenta e invita al dueño (mail de alta). */
-export const activarOrganizacion = async (
+export const activateOrg = async (
   id: string,
 ): Promise<SimpleResult> => {
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
-  const v = parsear(idSchema, { id });
+  const v = parseInput(idSchema, { id });
   if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
@@ -218,9 +201,8 @@ export const activarOrganizacion = async (
     return { ok: false, error: "No se pudo activar la cuenta." };
   }
 
-  const inv = await invitarDuenoAlActivar(v.data.id);
+  const inv = await inviteOwnerOnActivate(v.data.id);
   if (!inv.ok) {
-    // La cuenta ya quedó activa; avisamos el fallo del mail.
     return {
       ok: false,
       error: `Cuenta activa, pero falló la invitación: ${inv.error}`,
@@ -229,16 +211,14 @@ export const activarOrganizacion = async (
   return { ok: true };
 };
 
-// Elimina la organización (cascade borra sucursales, pedidos y perfiles).
-// También libera el mail: Auth + solicitudes previas, para poder volver a contratar.
-export const eliminarOrganizacion = async (
+export const deleteOrg = async (
   id: string,
 ): Promise<SimpleResult> => {
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
-  const v = parsear(idSchema, { id });
+  const v = parseInput(idSchema, { id });
   if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
@@ -282,10 +262,9 @@ export const eliminarOrganizacion = async (
   return { ok: true };
 };
 
-// En "use server" solo se exportan async actions (no constantes ni types).
 const DEMO_ORG_EMAIL = "demo@cicalino.net";
-const DEMO_ORG_NOMBRE = "Cicalino Demo";
-const DEMO_SUC_NOMBRE = "Mostrador";
+const DEMO_ORG_NAME = "Cicalino Demo";
+const DEMO_BRANCH_NAME = "Mostrador";
 const DEMO_SUC_SLUG = "cicalino-demo";
 
 type DemoContexto = {
@@ -295,14 +274,10 @@ type DemoContexto = {
   sucursalNombre: string;
 };
 
-/**
- * Asegura la org + sucursal de demo para el superadmin.
- * Idempotente: si ya existe, la reutiliza y deja Pedidos + Espera activos.
- */
-export const asegurarOrgDemo = async (): Promise<
+export const ensureDemoOrg = async (): Promise<
   { ok: true; demo: DemoContexto } | { ok: false; error: string }
 > => {
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
@@ -347,7 +322,7 @@ export const asegurarOrgDemo = async (): Promise<
         .from("locales")
         .insert({
           organizacion_id: existente.id,
-          nombre: DEMO_SUC_NOMBRE,
+          nombre: DEMO_BRANCH_NAME,
           tipo_negocio: "cafeteria",
           slug: DEMO_SUC_SLUG,
           modulo_pedidos: true,
@@ -376,7 +351,7 @@ export const asegurarOrgDemo = async (): Promise<
   const { data: org, error } = await admin
     .from("organizaciones")
     .insert({
-      nombre: DEMO_ORG_NOMBRE,
+      nombre: DEMO_ORG_NAME,
       responsable: "Cicalino",
       telefono: "1100000000",
       dueno_email: DEMO_ORG_EMAIL,
@@ -397,7 +372,7 @@ export const asegurarOrgDemo = async (): Promise<
     .from("locales")
     .insert({
       organizacion_id: org.id,
-      nombre: DEMO_SUC_NOMBRE,
+      nombre: DEMO_BRANCH_NAME,
       tipo_negocio: "cafeteria",
       slug: DEMO_SUC_SLUG,
       modulo_pedidos: true,
@@ -421,10 +396,8 @@ export const asegurarOrgDemo = async (): Promise<
   };
 };
 
-// --- Solicitudes de prueba (leads) — solo superadmin --------------------------
-
-export const listarSolicitudes = async (): Promise<Solicitud[]> => {
-  const perfil = await getPerfilActual();
+export const listLeads = async (): Promise<Lead[]> => {
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") return [];
   const admin = createAdminSupabase();
   if (!admin) return [];
@@ -432,17 +405,15 @@ export const listarSolicitudes = async (): Promise<Solicitud[]> => {
     .from("solicitudes")
     .select("*")
     .order("creado_en", { ascending: false });
-  return (data ?? []) as Solicitud[];
+  return (data ?? []) as Lead[];
 };
 
-// Atiende una solicitud: crea la org (inactiva) y manda el link de
-// condiciones. El mail de alta (invitar dueño) se manda al activar.
-export const activarSolicitud = async (id: string): Promise<Resultado> => {
-  const perfil = await getPerfilActual();
+export const activateLead = async (id: string): Promise<Resultado> => {
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
-  const v = parsear(idSchema, { id });
+  const v = parseInput(idSchema, { id });
   if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
@@ -468,7 +439,6 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
     };
   }
 
-  // Prueba → 1 mes gratis + pedidos. Contrato → plan/pack elegido.
   const esContrato = sol.tipo === "contrato";
   const planSol =
     sol.plan === "anual" || sol.plan === "mensual" ? sol.plan : "mensual";
@@ -479,7 +449,7 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
   const moduloPedidos = packSol === "pedidos" || packSol === "pack";
   const moduloEspera = packSol === "espera" || packSol === "pack";
 
-  const alta = parsear(crearOrganizacionSchema, {
+  const alta = parseInput(createOrganizationSchema, {
     nombre: sol.local || sol.nombre,
     responsable: sol.nombre,
     telefono: typeof sol.telefono === "string" ? sol.telefono : "",
@@ -511,7 +481,7 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
   });
   if (!alta.ok) return { ok: false, error: alta.error };
 
-  const res = await crearOrganizacionValidada(alta.data);
+  const res = await createOrganizationValidated(alta.data);
   if (!res.ok) return res;
 
   await admin
@@ -519,11 +489,10 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
     .update({ estado: "atendida" })
     .eq("id", v.data.id);
 
-  // Mail con bases + alias MP (best-effort: no tumba la activación).
   if (res.id) {
     try {
-      const { enviarLinkContratoInterno } = await import("@/lib/actions/contrato");
-      const mail = await enviarLinkContratoInterno(res.id);
+      const { sendContractLinkInternal } = await import("@/lib/actions/contract");
+      const mail = await sendContractLinkInternal(res.id);
       if (!mail.ok) console.error("activarSolicitud/contrato", mail.error);
     } catch (e) {
       console.error("activarSolicitud/contrato", e);
@@ -532,14 +501,14 @@ export const activarSolicitud = async (id: string): Promise<Resultado> => {
   return res;
 };
 
-export const descartarSolicitud = async (
+export const dismissLead = async (
   id: string,
 ): Promise<SimpleResult> => {
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
-  const v = parsear(idSchema, { id });
+  const v = parseInput(idSchema, { id });
   if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };

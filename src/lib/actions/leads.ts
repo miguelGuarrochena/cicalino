@@ -3,15 +3,14 @@
 import { headers } from "next/headers";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { appBaseUrl } from "@/lib/appUrl";
-import { enviarEmail } from "@/lib/email/resend";
+import { sendEmail } from "@/lib/email/resend";
 import { emailLayout } from "@/lib/email/templates";
-import { verificarTurnstile } from "@/lib/security/turnstile";
-import { rateLimitCompartido } from "@/lib/security/rateLimitShared";
-import { parsear, solicitudSchema } from "@/lib/schemas";
+import { verifyTurnstile } from "@/lib/security/turnstile";
+import { sharedRateLimit } from "@/lib/security/rateLimitShared";
+import { parseInput, leadSchema } from "@/lib/schemas";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
-// Escapa el input del usuario antes de meterlo en el HTML del email.
 const esc = (s: string): string =>
   s
     .replace(/&/g, "&amp;")
@@ -20,9 +19,8 @@ const esc = (s: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-// Alta de lead público: /probar (prueba) o /precios «Contratar plan» (contrato).
-export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
-  const v = parsear(solicitudSchema, input);
+export const createLead = async (input: unknown): Promise<Resultado> => {
+  const v = parseInput(leadSchema, input);
   if (!v.ok) return { ok: false, error: v.error };
   const { nombre, email, turnstileToken } = v.data;
   const tipo = v.data.tipo ?? "prueba";
@@ -31,12 +29,12 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
 
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined;
-  const humano = await verificarTurnstile(turnstileToken, ip);
+  const humano = await verifyTurnstile(turnstileToken, ip);
   if (!humano) {
     return { ok: false, error: "No pudimos verificar que sos humano. Reintentá." };
   }
 
-  const porIp = await rateLimitCompartido(`lead:ip:${ip ?? "sin-ip"}`, 5, 60 * 60_000);
+  const porIp = await sharedRateLimit(`lead:ip:${ip ?? "sin-ip"}`, 5, 60 * 60_000);
   if (!porIp.ok) {
     return { ok: false, error: "Ya recibimos tu pedido. Te escribimos en breve." };
   }
@@ -51,7 +49,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
   const cuilVal = v.data.cuil && v.data.cuil.length === 11 ? v.data.cuil : null;
   const mail = email.trim().toLowerCase();
 
-  const porMail = await rateLimitCompartido(`lead:mail:${mail}`, 3, 24 * 60 * 60_000);
+  const porMail = await sharedRateLimit(`lead:mail:${mail}`, 3, 24 * 60 * 60_000);
   if (!porMail.ok) {
     return {
       ok: false,
@@ -85,8 +83,6 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
       error: "Ya recibimos tu pedido con este mail. Te escribimos en breve.",
     };
   }
-  // Las «atendida» no bloquean: si borraste la empresa, el mail queda libre.
-  // El anti-abuso real es «¿hay organización con este mail?» + rate limit.
 
   const { error } = await admin.from("solicitudes").insert({
     nombre,
@@ -102,7 +98,6 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
   });
   if (error) {
     console.error("crearSolicitud", error.message);
-    // Si falta una migración (tipo/plan/cuil/…), el mensaje de PostgREST ayuda.
     if (/column|schema cache|does not exist/i.test(error.message)) {
       return {
         ok: false,
@@ -137,7 +132,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
     .join(" · ");
 
   const avisos = await Promise.all([
-    enviarEmail({
+    sendEmail({
       to: notify,
       subject: esContrato
         ? `Quiere contratar ${planTxt}${packTxt ? ` · ${packTxt}` : ""}: ${nombre}`
@@ -156,7 +151,7 @@ export const crearSolicitud = async (input: unknown): Promise<Resultado> => {
         pie: "Panel de Superadmin → Solicitudes",
       }),
     }),
-    enviarEmail({
+    sendEmail({
       to: mail,
       subject: esContrato
         ? "Recibimos tu pedido de contratación · Cicalino"

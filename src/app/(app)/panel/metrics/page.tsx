@@ -9,9 +9,9 @@ import {
 } from "@/lib/store/superadmin-store";
 import { NoAccess } from "@/components/ui/NoAccess";
 import { AdminGate } from "@/components/panel/AdminGate";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
-import { fetchMetrics, fetchEsperaMetrics, type MetricsData } from "@/lib/data/metrics";
+import { fetchMetrics, fetchWaitlistMetrics, type MetricsData } from "@/lib/data/metrics";
 import { useConfigStore } from "@/lib/store/config-store";
 import { HelpLink } from "@/components/panel/HelpLink";
 
@@ -108,7 +108,7 @@ const MetricasPage = () => {
     moduloPedidos ? "pedidos" : "espera",
   );
 
-  const live = supabaseConfigurado && isRealBranchId(branchId);
+  const live = supabaseConfigured && isRealBranchId(branchId);
   const [liveData, setLiveData] = useState<MetricsData | null>(null);
   const [liveEspera, setLiveEspera] = useState<MetricsData | null>(null);
   useEffect(() => {
@@ -121,7 +121,7 @@ const MetricasPage = () => {
     void fetchMetrics(branchId, periodo).then((m) => {
       if (active) setLiveData(m);
     });
-    void fetchEsperaMetrics(branchId, periodo).then((m) => {
+    void fetchWaitlistMetrics(branchId, periodo).then((m) => {
       if (active) setLiveEspera(m);
     });
     return () => {
@@ -153,7 +153,6 @@ const MetricasPage = () => {
       : live
         ? liveData ?? EMPTY
         : DATA[periodo];
-  // En live el alcance es por sucursal (sin multiplicador demo).
   const factor = !live && tab === "pedidos" && alcance === "global" && multi ? 1.7 : 1;
   const ordersNum = Math.round(
     Number(d.pedidos.replace(/\./g, "").replace(",", ".")) * factor,

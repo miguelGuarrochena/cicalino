@@ -7,31 +7,27 @@ import { Controls } from "@/components/ui/Controls";
 import { useApp } from "@/components/providers/Providers";
 import { useCustomerOrder } from "@/lib/hooks/useCustomerOrder";
 import {
-  mostrarAvisoListo,
-  pedirPermisoNotificaciones,
-  registrarServiceWorker,
-  suscribirWebPush,
+  showReadyNotice,
+  requestNotificationPermission,
+  registerServiceWorker,
+  subscribeWebPush,
 } from "@/lib/notifications";
-import { lanzarConfetiListo } from "@/lib/confetti";
+import { fireReadyConfetti } from "@/lib/confetti";
 
 interface Props {
   token: string;
 }
 
-/** Confeti + vibración + flash (también en re-avisos).
- * Si hay Web Push activo, NO mostramos notificación local: el SW ya la
- * entrega y duplicar avisos hace que Chrome Android marque “posible spam”. */
 const senalListo = (opts?: {
   referencia?: string;
   token?: string;
   body?: string;
-  /** Solo fallback local si NO hay push (permiso sí, suscripción no). */
   notifLocal?: boolean;
 }) => {
   if ("vibrate" in navigator) {
     navigator.vibrate?.([200, 100, 200]);
   }
-  void lanzarConfetiListo();
+  void fireReadyConfetti();
   if (
     opts?.notifLocal &&
     opts.referencia &&
@@ -40,7 +36,7 @@ const senalListo = (opts?: {
     typeof document !== "undefined" &&
     document.visibilityState === "hidden"
   ) {
-    void mostrarAvisoListo({
+    void showReadyNotice({
       referencia: opts.referencia,
       url: `/p/${opts.token}`,
       body: opts.body,
@@ -48,8 +44,6 @@ const senalListo = (opts?: {
   }
 };
 
-// Pantalla del cliente tras escanear el QR. Con Supabase hace polling al
-// endpoint público (/api/p/[token]); en demo lee del store local.
 export const CustomerWaiting = ({ token }: Props) => {
   const { t, locale } = useApp();
   const { ready: hydrated, order } = useCustomerOrder(token);
@@ -66,20 +60,17 @@ export const CustomerWaiting = ({ token }: Props) => {
     try {
       await fetch(`/api/p/${token}/retirado`, { method: "POST" });
     } catch {
-      /* el polling lo reflejará igual */
     }
   };
 
-  // Registrar SW y, si ya había permiso, re-suscribir (antes solo marcábamos
-  // "activado" sin guardar la suscripción → el push en otra app no llegaba).
   useEffect(() => {
     let alive = true;
     void (async () => {
-      await registrarServiceWorker();
+      await registerServiceWorker();
       if (!("Notification" in window) || Notification.permission !== "granted") {
         return;
       }
-      const r = await suscribirWebPush(token);
+      const r = await subscribeWebPush(token);
       if (!alive) return;
       setPushActivo(r.ok);
       setPushError(r.ok ? null : t("cliente.pushError"));
@@ -114,7 +105,6 @@ export const CustomerWaiting = ({ token }: Props) => {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [waiting]);
 
-  // Señal al pasar a listo y cada "Volver a avisar" (cambia avisado_en).
   useEffect(() => {
     if (!order || order.status !== "listo") return;
     const clave = order.avisadoEn ?? "listo";
@@ -131,7 +121,6 @@ export const CustomerWaiting = ({ token }: Props) => {
     setFlash(true);
     window.setTimeout(() => setFlash(false), 900);
     senalListo({
-      // Con push activo el SW avisa; local solo como respaldo.
       notifLocal: !pushActivo,
       referencia: order.referencia,
       token,
@@ -142,15 +131,15 @@ export const CustomerWaiting = ({ token }: Props) => {
   const activarAvisos = async () => {
     setPushCargando(true);
     setPushError(null);
-    await registrarServiceWorker();
-    const permiso = await pedirPermisoNotificaciones();
+    await registerServiceWorker();
+    const permiso = await requestNotificationPermission();
     if (!permiso) {
       setPushActivo(false);
       setPushError(t("cliente.pushDenegado"));
       setPushCargando(false);
       return;
     }
-    const r = await suscribirWebPush(token);
+    const r = await subscribeWebPush(token);
     setPushActivo(r.ok);
     setPushError(r.ok ? null : t("cliente.pushError"));
     setPushCargando(false);

@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { webpush, vapidConfigurado } from "@/lib/push/server";
-import { parsear, pushNotifySchema } from "@/lib/schemas";
+import { webpush, vapidConfigured } from "@/lib/push/server";
+import { parseInput, pushNotifySchema } from "@/lib/schemas";
 
-// POST /api/push/notify  Body: { orderId } | { esperaId }
-// Pedidos: marcar listo / volver a avisar.
-// Espera: avisar que hay mesa.
 export const dynamic = "force-dynamic";
 
 export const POST = async (req: Request) => {
-  const v = parsear(pushNotifySchema, await req.json().catch(() => null));
+  const v = parseInput(pushNotifySchema, await req.json().catch(() => null));
   if (!v.ok) {
     return NextResponse.json({ ok: false, reason: "bad-request" }, { status: 400 });
   }
@@ -30,7 +27,6 @@ export const POST = async (req: Request) => {
 
   const ahora = new Date().toISOString();
 
-  // ── Espera de mesa ──────────────────────────────────────────────────────
   if (esperaId) {
     const { data: espera } = await supabase
       .from("esperas")
@@ -46,7 +42,7 @@ export const POST = async (req: Request) => {
       .update({ avisado_en: ahora })
       .eq("id", esperaId);
 
-    if (!vapidConfigurado) {
+    if (!vapidConfigured) {
       return NextResponse.json({ ok: true, enviados: 0, reason: "no-vapid" });
     }
 
@@ -85,7 +81,6 @@ export const POST = async (req: Request) => {
     return NextResponse.json({ ok: true, enviados });
   }
 
-  // ── Pedido listo ────────────────────────────────────────────────────────
   const { data: pedido } = await supabase
     .from("pedidos")
     .select("id, referencia, qr_token")
@@ -97,7 +92,7 @@ export const POST = async (req: Request) => {
 
   await admin.from("pedidos").update({ avisado_en: ahora }).eq("id", orderId!);
 
-  if (!vapidConfigurado) {
+  if (!vapidConfigured) {
     return NextResponse.json({ ok: true, enviados: 0, reason: "no-vapid" });
   }
 

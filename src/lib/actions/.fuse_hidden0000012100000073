@@ -1,0 +1,520 @@
+"use server";
+
+import { getPerfilActual } from "@/lib/auth/profile";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import {
+  crearOrganizacionSchema,
+  idSchema,
+  parsear,
+  type CrearOrganizacionInput,
+} from "@/lib/schemas";
+import type { Solicitud } from "@/lib/db/schema";
+
+type Resultado = { ok: true; id: string } | { ok: false; error: string };
+type SimpleResult = { ok: true } | { ok: false; error: string };
+
+const slugify = (s: string): string =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 40) || "sucursal";
+
+const sufijoAleatorio = (): string => {
+  const b = new Uint8Array(4);
+  crypto.getRandomValues(b);
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+};
+
+export const crearOrganizacion = async (input: unknown): Promise<Resultado> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(crearOrganizacionSchema, input);
+  if (!v.ok) return { ok: false, error: v.error };
+  return crearOrganizacionValidada(v.data);
+};
+
+const crearOrganizacionValidada = async (
+  data: CrearOrganizacionInput,
+): Promise<Resultado> => {
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  let mesGratisHasta: string | null = null;
+  let proximoCobroEn: string | null = null;
+  if (data.mesGratis) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    mesGratisHasta = d.toISOString();
+    proximoCobroEn = mesGratisHasta;
+  }
+
+  if (data.sucursales.length > data.cupo) {
+    return {
+      ok: false,
+      error: `El cupo (${data.cupo}) no alcanza para ${data.sucursales.length} sucursales.`,
+    };
+  }
+
+  const { data: org, error } = await admin
+    .from("organizaciones")
+    .insert({
+      nombre: data.nombre,
+      responsable: data.responsable,
+      telefono: data.telefono || null,
+      cuil: data.cuil || null,
+      direccion: data.direccion ?? null,
+      dueno_email: data.duenoEmail,
+      cupo: data.cupo,
+      plan: data.plan,
+      activo: false,
+      mes_gratis_hasta: mesGratisHasta,
+      proximo_cobro_en: proximoCobroEn,
+      modulo_pedidos: data.moduloPedidos !== false,
+      modulo_espera: Boolean(data.moduloEspera),
+    })
+    .select("id")
+    .single();
+  if (error || !org) {
+    console.error("crearOrganizacion", error?.message);
+    return { ok: false, error: "No se pudo crear la empresa." };
+  }
+
+  if (data.sucursales.length) {
+    const rows = data.sucursales.map((b) => {
+      let pedidos = b.moduloPedidos !== false;
+      let espera = Boolean(b.moduloEspera);
+      if (!pedidos && !espera) pedidos = true;
+      return {
+        organizacion_id: org.id,
+        nombre: b.nombre,
+        tipo_negocio: b.tipo,
+        direccion: b.direccion ?? null,
+        slug: `${slugify(b.nombre)}-${sufijoAleatorio()}`,
+        modulo_pedidos: pedidos,
+        modulo_espera: espera,
+      };
+    });
+    const { error: errSuc } = await admin.from("locales").insert(rows);
+    if (errSuc) console.error("crearOrganizacion/locales", errSuc.message);
+    else {
+      const pedidos = rows.some((r) => r.modulo_pedidos);
+      const espera = rows.some((r) => r.modulo_espera);
+      await admin
+        .from("organizaciones")
+        .update({
+          modulo_pedidos: pedidos || !espera,
+          modulo_espera: espera,
+        })
+        .eq("id", org.id);
+    }
+  }
+
+  return { ok: true, id: org.id };
+};
+
+const authUserPorEmail = async (
+  admin: NonNullable<ReturnType<typeof createAdminSupabase>>,
+  email: string,
+): Promise<{ id: string } | null> => {
+  const mail = email.trim().toLowerCase();
+  for (let page = 1; page <= 5; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+    if (error) {
+      console.error("authUserPorEmail", error.message);
+      return null;
+    }
+    const hit = data?.users?.find((u) => u.email?.toLowerCase() === mail);
+    if (hit) return { id: hit.id };
+    if (!data?.users?.length) break;
+  }
+  return null;
+};
+
+export const invitarDuenoAlActivar = async (
+  organizacionId: string,
+): Promise<SimpleResult> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(idSchema, { id: organizacionId });
+  if (!v.ok) return { ok: false, error: v.error };
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: org } = await admin
+    .from("organizaciones")
+    .select("id, dueno_email")
+    .eq("id", v.data.id)
+    .maybeSingle();
+  if (!org) return { ok: false, error: "Empresa no encontrada." };
+
+  const email = String(org.dueno_email ?? "").trim();
+  if (!email) return { ok: false, error: "La empresa no tiene email de dueño." };
+
+  const ya = await authUserPorEmail(admin, email);
+  if (ya) {
+    await admin
+      .from("usuarios")
+      .update({ organizacion_id: org.id, rol: "admin" })
+      .eq("id", ya.id);
+    return { ok: true };
+  }
+
+  const meta = { rol: "admin", organizacion_id: org.id };
+  const { error } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: meta,
+  });
+  if (error) {
+    console.error("invitarDuenoAlActivar", error.message);
+    return { ok: false, error: "No se pudo enviar la invitación de alta." };
+  }
+  return { ok: true };
+};
+
+export const activarOrganizacion = async (
+  id: string,
+): Promise<SimpleResult> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { error } = await admin
+    .from("organizaciones")
+    .update({ activo: true })
+    .eq("id", v.data.id);
+  if (error) {
+    console.error("activarOrganizacion", error.message);
+    return { ok: false, error: "No se pudo activar la cuenta." };
+  }
+
+  const inv = await invitarDuenoAlActivar(v.data.id);
+  if (!inv.ok) {
+    return {
+      ok: false,
+      error: `Cuenta activa, pero falló la invitación: ${inv.error}`,
+    };
+  }
+  return { ok: true };
+};
+
+export const eliminarOrganizacion = async (
+  id: string,
+): Promise<SimpleResult> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: org } = await admin
+    .from("organizaciones")
+    .select("id, dueno_email")
+    .eq("id", v.data.id)
+    .maybeSingle();
+  if (!org) return { ok: false, error: "Empresa no encontrada." };
+
+  const { data: perfiles } = await admin
+    .from("usuarios")
+    .select("id")
+    .eq("organizacion_id", v.data.id);
+
+  const { error } = await admin
+    .from("organizaciones")
+    .delete()
+    .eq("id", v.data.id);
+  if (error) {
+    console.error("eliminarOrganizacion", error.message);
+    return { ok: false, error: "No se pudo eliminar la empresa." };
+  }
+
+  const mail = String(org.dueno_email ?? "").trim().toLowerCase();
+  if (mail) {
+    const { error: solErr } = await admin
+      .from("solicitudes")
+      .update({ estado: "descartada" })
+      .ilike("email", mail)
+      .in("estado", ["nueva", "atendida"]);
+    if (solErr) console.error("eliminarOrganizacion/solicitudes", solErr.message);
+  }
+
+  for (const p of perfiles ?? []) {
+    const { error: authErr } = await admin.auth.admin.deleteUser(p.id);
+    if (authErr) console.error("eliminarOrganizacion/auth", authErr.message);
+  }
+
+  return { ok: true };
+};
+
+const DEMO_ORG_EMAIL = "demo@cicalino.net";
+const DEMO_ORG_NOMBRE = "Cicalino Demo";
+const DEMO_SUC_NOMBRE = "Mostrador";
+const DEMO_SUC_SLUG = "cicalino-demo";
+
+type DemoContexto = {
+  organizacionId: string;
+  organizacionNombre: string;
+  sucursalId: string;
+  sucursalNombre: string;
+};
+
+export const asegurarOrgDemo = async (): Promise<
+  { ok: true; demo: DemoContexto } | { ok: false; error: string }
+> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const aplicarModulosDemo = async (orgId: string, sucId: string) => {
+    await admin
+      .from("organizaciones")
+      .update({
+        modulo_pedidos: true,
+        modulo_espera: true,
+        plan: "gratis",
+        pagado: true,
+        activo: true,
+      })
+      .eq("id", orgId);
+    await admin
+      .from("locales")
+      .update({
+        modulo_pedidos: true,
+        modulo_espera: true,
+        cantidad_mesas: 12,
+      })
+      .eq("id", sucId);
+  };
+
+  const { data: existente } = await admin
+    .from("organizaciones")
+    .select("id, nombre, locales(id, nombre)")
+    .eq("dueno_email", DEMO_ORG_EMAIL)
+    .maybeSingle();
+
+  if (existente) {
+    const locales = (existente.locales ?? []) as {
+      id: string;
+      nombre: string;
+    }[];
+    let suc = locales[0];
+    if (!suc) {
+      const { data: creada, error } = await admin
+        .from("locales")
+        .insert({
+          organizacion_id: existente.id,
+          nombre: DEMO_SUC_NOMBRE,
+          tipo_negocio: "cafeteria",
+          slug: DEMO_SUC_SLUG,
+          modulo_pedidos: true,
+          modulo_espera: true,
+          cantidad_mesas: 12,
+        })
+        .select("id, nombre")
+        .single();
+      if (error || !creada) {
+        return { ok: false, error: error?.message ?? "No se pudo crear sucursal demo" };
+      }
+      suc = creada;
+    }
+    await aplicarModulosDemo(existente.id, suc.id);
+    return {
+      ok: true,
+      demo: {
+        organizacionId: existente.id,
+        organizacionNombre: existente.nombre,
+        sucursalId: suc.id,
+        sucursalNombre: suc.nombre,
+      },
+    };
+  }
+
+  const { data: org, error } = await admin
+    .from("organizaciones")
+    .insert({
+      nombre: DEMO_ORG_NOMBRE,
+      responsable: "Cicalino",
+      telefono: "1100000000",
+      dueno_email: DEMO_ORG_EMAIL,
+      cupo: 1,
+      plan: "gratis",
+      pagado: true,
+      activo: true,
+      modulo_pedidos: true,
+      modulo_espera: true,
+    })
+    .select("id, nombre")
+    .single();
+  if (error || !org) {
+    return { ok: false, error: error?.message ?? "No se pudo crear la demo" };
+  }
+
+  const { data: suc, error: errSuc } = await admin
+    .from("locales")
+    .insert({
+      organizacion_id: org.id,
+      nombre: DEMO_SUC_NOMBRE,
+      tipo_negocio: "cafeteria",
+      slug: DEMO_SUC_SLUG,
+      modulo_pedidos: true,
+      modulo_espera: true,
+      cantidad_mesas: 12,
+    })
+    .select("id, nombre")
+    .single();
+  if (errSuc || !suc) {
+    return { ok: false, error: errSuc?.message ?? "No se pudo crear sucursal demo" };
+  }
+
+  return {
+    ok: true,
+    demo: {
+      organizacionId: org.id,
+      organizacionNombre: org.nombre,
+      sucursalId: suc.id,
+      sucursalNombre: suc.nombre,
+    },
+  };
+};
+
+export const listarSolicitudes = async (): Promise<Solicitud[]> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") return [];
+  const admin = createAdminSupabase();
+  if (!admin) return [];
+  const { data } = await admin
+    .from("solicitudes")
+    .select("*")
+    .order("creado_en", { ascending: false });
+  return (data ?? []) as Solicitud[];
+};
+
+export const activarSolicitud = async (id: string): Promise<Resultado> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: sol } = await admin
+    .from("solicitudes")
+    .select("*")
+    .eq("id", v.data.id)
+    .single();
+  if (!sol) return { ok: false, error: "Solicitud no encontrada" };
+
+  const mail = String(sol.email ?? "").trim().toLowerCase();
+  const { data: orgExistente } = await admin
+    .from("organizaciones")
+    .select("id, nombre")
+    .ilike("dueno_email", mail)
+    .limit(1)
+    .maybeSingle();
+  if (orgExistente) {
+    return {
+      ok: false,
+      error: `Este mail ya tiene la empresa «${orgExistente.nombre}». Sumá una sucursal o usá «+ Mes gratis» a mano si corresponde.`,
+    };
+  }
+
+  const esContrato = sol.tipo === "contrato";
+  const planSol =
+    sol.plan === "anual" || sol.plan === "mensual" ? sol.plan : "mensual";
+  const packSol =
+    sol.pack === "espera" || sol.pack === "pack" || sol.pack === "pedidos"
+      ? sol.pack
+      : "pedidos";
+  const moduloPedidos = packSol === "pedidos" || packSol === "pack";
+  const moduloEspera = packSol === "espera" || packSol === "pack";
+
+  const alta = parsear(crearOrganizacionSchema, {
+    nombre: sol.local || sol.nombre,
+    responsable: sol.nombre,
+    telefono: typeof sol.telefono === "string" ? sol.telefono : "",
+    cuil: typeof sol.cuil === "string" && sol.cuil.replace(/\D/g, "").length === 11
+      ? sol.cuil.replace(/\D/g, "")
+      : "",
+    direccion:
+      (typeof sol.direccion === "string" && sol.direccion) ||
+      (typeof sol.ciudad === "string" && sol.ciudad) ||
+      "",
+    duenoEmail: mail,
+    cupo: 1,
+    plan: esContrato ? planSol : "mensual",
+    mesGratis: !esContrato,
+    moduloPedidos: esContrato ? moduloPedidos : true,
+    moduloEspera: esContrato ? moduloEspera : false,
+    sucursales: [
+      {
+        nombre: sol.local || "Principal",
+        tipo: "otro",
+        direccion:
+          (typeof sol.direccion === "string" && sol.direccion) ||
+          (typeof sol.ciudad === "string" && sol.ciudad) ||
+          "",
+        moduloPedidos: esContrato ? moduloPedidos : true,
+        moduloEspera: esContrato ? moduloEspera : false,
+      },
+    ],
+  });
+  if (!alta.ok) return { ok: false, error: alta.error };
+
+  const res = await crearOrganizacionValidada(alta.data);
+  if (!res.ok) return res;
+
+  await admin
+    .from("solicitudes")
+    .update({ estado: "atendida" })
+    .eq("id", v.data.id);
+
+  if (res.id) {
+    try {
+      const { enviarLinkContratoInterno } = await import("@/lib/actions/contrato");
+      const mail = await enviarLinkContratoInterno(res.id);
+      if (!mail.ok) console.error("activarSolicitud/contrato", mail.error);
+    } catch (e) {
+      console.error("activarSolicitud/contrato", e);
+    }
+  }
+  return res;
+};
+
+export const descartarSolicitud = async (
+  id: string,
+): Promise<SimpleResult> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+  await admin
+    .from("solicitudes")
+    .update({ estado: "descartada" })
+    .eq("id", v.data.id);
+  return { ok: true };
+};

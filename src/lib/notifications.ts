@@ -1,21 +1,14 @@
-// Helpers de notificaciones del cliente (Web Push + aviso local).
-// En Android/Chrome el aviso sale en la barra del sistema (a menudo con ícono
-// de Chrome). Para que llegue en OTRA app hace falta:
-//   1) VAPID en el build (NEXT_PUBLIC_VAPID_PUBLIC_KEY)
-//   2) permiso concedido
-//   3) suscripción guardada en push_subscriptions (este módulo)
 
 export type PushSubscribeResult =
   | { ok: true }
   | { ok: false; reason: "no-vapid" | "unsupported" | "denied" | "server" | "error" };
 
-export const registrarServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
+export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
     return null;
   }
   try {
     const reg = await navigator.serviceWorker.register("/sw.js");
-    // Sin esto, pushManager.subscribe a veces corre antes de que el SW esté activo.
     await navigator.serviceWorker.ready;
     return reg;
   } catch {
@@ -37,11 +30,7 @@ const clavesOk = (sub: PushSubscription): boolean => {
   return Boolean(j.endpoint && j.keys?.p256dh && j.keys?.auth);
 };
 
-/**
- * Suscribe este navegador al Web Push del pedido y lo guarda en el server.
- * Devuelve ok solo si quedó persistido (si no, el panel manda 0 pushes).
- */
-export const suscribirWebPush = async (
+export const subscribeWebPush = async (
   token: string,
 ): Promise<PushSubscribeResult> => {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -54,7 +43,7 @@ export const suscribirWebPush = async (
   }
 
   try {
-    const reg = await registrarServiceWorker();
+    const reg = await registerServiceWorker();
     if (!reg) return { ok: false, reason: "unsupported" };
 
     let sub = await reg.pushManager.getSubscription();
@@ -91,7 +80,6 @@ export const suscribirWebPush = async (
     return { ok: true };
   } catch (err) {
     console.error("suscribirWebPush", err);
-    // Suscripción vieja con otra clave VAPID: reintentar limpio.
     try {
       const reg = await navigator.serviceWorker.ready;
       const old = await reg.pushManager.getSubscription();
@@ -123,7 +111,7 @@ export const suscribirWebPush = async (
   }
 };
 
-export const pedirPermisoNotificaciones = async (): Promise<boolean> => {
+export const requestNotificationPermission = async (): Promise<boolean> => {
   if (!("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;
   if (Notification.permission === "denied") return false;
@@ -131,7 +119,7 @@ export const pedirPermisoNotificaciones = async (): Promise<boolean> => {
   return permiso === "granted";
 };
 
-export const mostrarAvisoListo = async (opts: {
+export const showReadyNotice = async (opts: {
   referencia: string;
   url: string;
   body: string;
@@ -145,7 +133,6 @@ export const mostrarAvisoListo = async (opts: {
     body: opts.body,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    // Mismo tag por referencia: un solo aviso, no una pila de spam.
     tag: `cicalino-${opts.referencia}`,
     renotify: true,
     data: { url: opts.url },
@@ -155,18 +142,16 @@ export const mostrarAvisoListo = async (opts: {
   try {
     const reg =
       (await navigator.serviceWorker?.getRegistration()) ??
-      (await registrarServiceWorker());
+      (await registerServiceWorker());
     if (reg) {
       await reg.showNotification(titulo, options);
       return;
     }
   } catch {
-    /* fallback abajo */
   }
 
   try {
     new Notification(titulo, options);
   } catch {
-    /* ignore */
   }
 };

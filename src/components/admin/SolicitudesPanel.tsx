@@ -5,22 +5,21 @@ import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
 import { Spinner } from "@/components/ui/Spinner";
 import {
-  listarSolicitudes,
-  activarSolicitud,
-  descartarSolicitud,
+  listLeads,
+  activateLead,
+  dismissLead,
 } from "@/lib/actions/superadmin";
 import { refreshOrganizations } from "@/lib/data/superadmin";
-import type { Solicitud } from "@/lib/db/schema";
+import type { Lead } from "@/lib/db/schema";
 
-// Solicitudes de prueba (leads) pendientes. Solo aparece si hay alguna nueva.
 export const SolicitudesPanel = () => {
   const { t } = useApp();
   const toast = useToast();
-  const [items, setItems] = useState<Solicitud[]>([]);
+  const [items, setItems] = useState<Lead[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setItems(await listarSolicitudes());
+    setItems(await listLeads());
   }, []);
 
   useEffect(() => {
@@ -33,7 +32,7 @@ export const SolicitudesPanel = () => {
   const activar = async (id: string) => {
     setBusy(id);
     try {
-      const r = await activarSolicitud(id);
+      const r = await activateLead(id);
       if (r.ok) {
         await load();
         await refreshOrganizations();
@@ -51,7 +50,7 @@ export const SolicitudesPanel = () => {
 
   const descartar = async (id: string) => {
     setBusy(id);
-    await descartarSolicitud(id);
+    await dismissLead(id);
     setBusy(null);
     await load();
     toast(t("toast.leadDescartada"), "info");

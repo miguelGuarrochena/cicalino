@@ -1,0 +1,335 @@
+"use server";
+
+import { getPerfilActual } from "@/lib/auth/profile";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { enviarEmail } from "@/lib/email/resend";
+import { emailLayout } from "@/lib/email/templates";
+import { appBaseUrl } from "@/lib/appUrl";
+import { PRECIO_POR_SUCURSAL } from "@/lib/precios";
+import {
+  mpAlias,
+  montoContrato,
+  etiquetaCiclo,
+  type PlanCobroUI,
+} from "@/lib/contrato";
+import { parsear, idSchema } from "@/lib/schemas";
+
+type Simple = { ok: true } | { ok: false; error: string };
+
+const esc = (s: string): string =>
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+const money = (n: number): string =>
+  new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(n);
+
+export type PedidoSucursalAdmin = {
+  id: string;
+  organizacionId: string;
+  cupoActual: number;
+  cupoPedido: number;
+  nombreSucursal: string | null;
+  estado: string;
+  creadoEn: string;
+  orgNombre: string;
+  orgEmail: string;
+  orgPlan: PlanCobroUI;
+};
+
+export type ResumenCupo = {
+  cupo: number;
+  usadas: number;
+  plan: PlanCobroUI;
+  activo: boolean;
+  pendiente: boolean;
+  montoExtra: number;
+  ciclo: string;
+  alias: string;
+};
+
+export const obtenerResumenCupo = async (): Promise<ResumenCupo | null> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "admin" || !perfil.organizacionId) return null;
+  const admin = createAdminSupabase();
+  if (!admin) return null;
+
+  const { data: org } = await admin
+    .from("organizaciones")
+    .select("id, cupo, plan, activo")
+    .eq("id", perfil.organizacionId)
+    .maybeSingle();
+  if (!org) return null;
+
+  const { count } = await admin
+    .from("locales")
+    .select("id", { count: "exact", head: true })
+    .eq("organizacion_id", org.id);
+
+  const { data: pend } = await admin
+    .from("pedidos_sucursal")
+    .select("id")
+    .eq("organizacion_id", org.id)
+    .eq("estado", "nueva")
+    .limit(1)
+    .maybeSingle();
+
+  const plan = (org.plan as PlanCobroUI) ?? "mensual";
+  return {
+    cupo: org.cupo ?? 1,
+    usadas: count ?? 0,
+    plan,
+    activo: Boolean(org.activo),
+    pendiente: Boolean(pend),
+    montoExtra: montoContrato(plan === "gratis" ? "mensual" : plan, 1),
+    ciclo: etiquetaCiclo(plan === "gratis" ? "mensual" : plan),
+    alias: mpAlias(),
+  };
+};
+
+export const pedirSucursalExtra = async (input: {
+  nombreSucursal?: string;
+  confirmar: boolean;
+}): Promise<Simple> => {
+  if (!input.confirmar) {
+    return { ok: false, error: "Confirmá que querés contratar otra sucursal." };
+  }
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "admin" || !perfil.organizacionId) {
+    return { ok: false, error: "No autorizado" };
+  }
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Servicio no configurado." };
+
+  const { data: org } = await admin
+    .from("organizaciones")
+    .select(
+      "id, nombre, dueno_email, responsable, cupo, plan, activo, contrato_aceptado_en",
+    )
+    .eq("id", perfil.organizacionId)
+    .maybeSingle();
+  if (!org) return { ok: false, error: "Empresa no encontrada." };
+  if (!org.activo) {
+    return { ok: false, error: "La cuenta está pausada. Escribinos a Cicalino." };
+  }
+  if (org.plan === "gratis") {
+    return {
+      ok: false,
+      error: "En plan cortesía no se suman sucursales. Escribinos a info@cicalino.net.",
+    };
+  }
+
+  const { data: ya } = await admin
+    .from("pedidos_sucursal")
+    .select("id")
+    .eq("organizacion_id", org.id)
+    .eq("estado", "nueva")
+    .limit(1)
+    .maybeSingle();
+  if (ya) {
+    return {
+      ok: false,
+      error: "Ya tenés un pedido en curso. Te avisamos cuando veamos el pago.",
+    };
+  }
+
+  const cupoActual = org.cupo ?? 1;
+  const cupoPedido = cupoActual + 1;
+  const nombre =
+    (input.nombreSucursal ?? "").trim().slice(0, 80) || null;
+
+  const { data: pedido, error } = await admin
+    .from("pedidos_sucursal")
+    .insert({
+      organizacion_id: org.id,
+      cupo_actual: cupoActual,
+      cupo_pedido: cupoPedido,
+      nombre_sucursal: nombre,
+      estado: "nueva",
+    })
+    .select("id")
+    .single();
+  if (error || !pedido) {
+    console.error("pedirSucursalExtra", error?.message);
+    return { ok: false, error: "No se pudo registrar el pedido." };
+  }
+
+  const plan = (org.plan as PlanCobroUI) ?? "mensual";
+  const monto = montoContrato(plan, 1);
+  const alias = mpAlias();
+  const ciclo = etiquetaCiclo(plan);
+  const contact = org.responsable || org.nombre;
+  const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
+
+  await enviarEmail({
+    to: org.dueno_email,
+    subject: "Pedido de sucursal · pago Cicalino",
+    html: emailLayout({
+      titulo: "Nueva sucursal",
+      cuerpoHtml: `<p style="margin:0 0 8px;">¡Hola ${esc(String(contact))}!</p>
+        <p style="margin:0 0 12px;">Confirmaste que querés sumar <b>1 sucursal</b> a
+        <b>${esc(org.nombre)}</b>${nombre ? ` («${esc(nombre)}»)` : ""}.</p>
+        <p style="margin:0 0 8px;">Para activarla, transferí
+        <b>${money(monto)}</b> (${ciclo}) al alias de Mercado Pago:</p>
+        <p style="margin:0 0 12px;font-size:22px;font-weight:800;letter-spacing:.02em;color:#2536d4;">${esc(alias)}</p>
+        <p style="margin:0;font-size:13px;opacity:.75;">En el concepto poné el nombre del local.
+        Cuando veamos el pago, sumamos el cupo y te avisamos.</p>`,
+      cta: { label: "Ver bases y condiciones", url: `${appBaseUrl()}/terms` },
+      pie: "Cicalino · Si no pediste esto, escribinos a info@cicalino.net.",
+    }),
+  });
+
+  void enviarEmail({
+    to: notify,
+    subject: `Pedido sucursal: ${org.nombre}`,
+    replyTo: org.dueno_email,
+    html: emailLayout({
+      titulo: "Pedido de sucursal",
+      cuerpoHtml: `<p style="margin:0;"><b>${esc(org.nombre)}</b> pide pasar de
+        cupo ${cupoActual} → ${cupoPedido} (${money(monto)} / ${ciclo}).</p>
+        <p style="margin:8px 0 0;font-size:14px;">Mail: ${esc(org.dueno_email)}
+        ${nombre ? ` · Nueva: ${esc(nombre)}` : ""}</p>
+        <p style="margin:8px 0 0;font-size:13px;opacity:.75;">Cuando veas el pago,
+        aprobá desde Superadmin (suma el cupo).</p>`,
+      cta: { label: "Abrir Superadmin", url: `${appBaseUrl()}/admin` },
+    }),
+  });
+
+  return { ok: true };
+};
+
+export const listarPedidosSucursal = async (): Promise<PedidoSucursalAdmin[]> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") return [];
+  const admin = createAdminSupabase();
+  if (!admin) return [];
+
+  const { data } = await admin
+    .from("pedidos_sucursal")
+    .select(
+      "id, organizacion_id, cupo_actual, cupo_pedido, nombre_sucursal, estado, creado_en, organizaciones(nombre, dueno_email, plan)",
+    )
+    .eq("estado", "nueva")
+    .order("creado_en", { ascending: false });
+
+  type Row = {
+    id: string;
+    organizacion_id: string;
+    cupo_actual: number;
+    cupo_pedido: number;
+    nombre_sucursal: string | null;
+    estado: string;
+    creado_en: string;
+    organizaciones:
+      | { nombre: string; dueno_email: string; plan: string | null }
+      | { nombre: string; dueno_email: string; plan: string | null }[]
+      | null;
+  };
+
+  return ((data ?? []) as unknown as Row[]).map((r) => {
+    const org = Array.isArray(r.organizaciones)
+      ? r.organizaciones[0]
+      : r.organizaciones;
+    return {
+      id: r.id,
+      organizacionId: r.organizacion_id,
+      cupoActual: r.cupo_actual,
+      cupoPedido: r.cupo_pedido,
+      nombreSucursal: r.nombre_sucursal,
+      estado: r.estado,
+      creadoEn: r.creado_en,
+      orgNombre: org?.nombre ?? "—",
+      orgEmail: org?.dueno_email ?? "",
+      orgPlan: ((org?.plan as PlanCobroUI) ?? "mensual") as PlanCobroUI,
+    };
+  });
+};
+
+export const aprobarPedidoSucursal = async (
+  id: string,
+): Promise<Simple & { organizacionId?: string }> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: ped } = await admin
+    .from("pedidos_sucursal")
+    .select("id, organizacion_id, cupo_pedido, nombre_sucursal, estado")
+    .eq("id", v.data.id)
+    .maybeSingle();
+  if (!ped || ped.estado !== "nueva") {
+    return { ok: false, error: "Pedido no encontrado o ya atendido." };
+  }
+
+  const { data: org } = await admin
+    .from("organizaciones")
+    .select("id, nombre, dueno_email, cupo, plan")
+    .eq("id", ped.organizacion_id)
+    .maybeSingle();
+  if (!org) return { ok: false, error: "Empresa no encontrada." };
+
+  const nuevoCupo = Math.max(org.cupo ?? 1, ped.cupo_pedido);
+  const { error: errOrg } = await admin
+    .from("organizaciones")
+    .update({ cupo: nuevoCupo })
+    .eq("id", org.id);
+  if (errOrg) {
+    console.error("aprobarPedidoSucursal/cupo", errOrg.message);
+    return { ok: false, error: "No se pudo actualizar el cupo." };
+  }
+
+  await admin
+    .from("pedidos_sucursal")
+    .update({ estado: "atendida" })
+    .eq("id", ped.id);
+
+  const plan = (org.plan as PlanCobroUI) ?? "mensual";
+  void enviarEmail({
+    to: org.dueno_email,
+    subject: "Cupo actualizado · Cicalino",
+    html: emailLayout({
+      titulo: "Sucursal habilitada",
+      cuerpoHtml: `<p style="margin:0 0 8px;">¡Listo!</p>
+        <p style="margin:0;">Ya sumamos el cupo de <b>${esc(org.nombre)}</b>
+        (${nuevoCupo} sucursales contratadas${
+          ped.nombre_sucursal
+            ? `; pediste «${esc(ped.nombre_sucursal)}»`
+            : ""
+        }).</p>
+        <p style="margin:8px 0 0;">Desde el panel podés operar; si falta crear el local,
+        Cicalino lo carga o lo hacemos juntos.</p>
+        <p style="margin:8px 0 0;font-size:13px;opacity:.75;">Plan ${esc(etiquetaCiclo(plan))}
+        · ${money(PRECIO_POR_SUCURSAL)} por sucursal / mes de lista.</p>`,
+      cta: { label: "Abrir panel", url: `${appBaseUrl()}/panel` },
+    }),
+  });
+
+  return { ok: true, organizacionId: org.id };
+};
+
+export const descartarPedidoSucursal = async (id: string): Promise<Simple> => {
+  const perfil = await getPerfilActual();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parsear(idSchema, { id });
+  if (!v.ok) return { ok: false, error: v.error };
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+  await admin
+    .from("pedidos_sucursal")
+    .update({ estado: "descartada" })
+    .eq("id", v.data.id);
+  return { ok: true };
+};

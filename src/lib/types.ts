@@ -1,6 +1,3 @@
-// Tipos de dominio compartidos entre el panel del local y la vista del cliente.
-// Los tipos de fila de la base viven en lib/db/schema.ts; aca van los tipos
-// de la capa de UI / API (lo que viaja al cliente, sin datos sensibles).
 
 export type OrderStatus =
   | "creado"
@@ -9,7 +6,7 @@ export type OrderStatus =
   | "retirado"
   | "cancelado";
 
-export type TipoNegocio =
+export type BusinessType =
   | "cafeteria"
   | "panaderia"
   | "rotiseria"
@@ -20,7 +17,7 @@ export type TipoNegocio =
   | "food_truck"
   | "otro";
 
-export const TIPO_NEGOCIO_LABEL: Record<TipoNegocio, string> = {
+export const BUSINESS_TYPE_LABEL: Record<BusinessType, string> = {
   cafeteria: "Cafetería",
   panaderia: "Panadería",
   rotiseria: "Rotisería",
@@ -32,24 +29,22 @@ export const TIPO_NEGOCIO_LABEL: Record<TipoNegocio, string> = {
   otro: "Otro",
 };
 
-export const TIPOS_NEGOCIO = Object.keys(TIPO_NEGOCIO_LABEL) as TipoNegocio[];
+export const BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_LABEL) as BusinessType[];
 
-// Lo que ve el panel del local por cada pedido.
 export interface OrderView {
   id: string;
   referencia: string;
   estado: OrderStatus;
-  creadoEn: string; // ISO
+  creadoEn: string;
   enPreparacionEn: string | null;
   listoEn: string | null;
   retiradoEn: string | null;
   canceladoEn: string | null;
   qrToken: string;
-  empleado?: string | null; // nombre del empleado que lo atendió
-  vistoEn?: string | null; // cuándo el cliente abrió el link (para cerrar el QR)
+  empleado?: string | null;
+  vistoEn?: string | null;
 }
 
-// Lo minimo que necesita la pantalla del cliente (sin exponer datos internos).
 export interface CustomerStatusView {
   referencia: string;
   estado: OrderStatus;
@@ -57,8 +52,7 @@ export interface CustomerStatusView {
   listo: boolean;
 }
 
-// Metricas del dia para el dashboard del local.
-export interface MetricasDia {
+export interface DailyMetrics {
   fecha: string;
   totalPedidos: number;
   tiempoPrepPromedioMin: number | null;
@@ -66,7 +60,7 @@ export interface MetricasDia {
   pedidosPorHora: { hora: number; cantidad: number }[];
 }
 
-export const ETIQUETA_ESTADO: Record<OrderStatus, string> = {
+export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   creado: "En curso",
   en_preparacion: "En curso",
   listo: "Listo",
@@ -78,25 +72,17 @@ export const orderClosed = (status: OrderStatus): boolean => {
   return status === "retirado" || status === "cancelado";
 };
 
-// ---------------------------------------------------------------------------
-// Espera de mesa
-// ---------------------------------------------------------------------------
+export type WaitlistStatus = "esperando" | "avisado" | "sentado" | "cancelado";
 
-export type EsperaStatus = "esperando" | "avisado" | "sentado" | "cancelado";
+export type TableState = "libre" | "ocupada";
 
-/**
- * Estado FÍSICO de la mesa, ahora mismo.
- * Una reserva futura NO bloquea la mesa: solo avisa (ver `src/lib/reservas.ts`).
- */
-export type MesaEstado = "libre" | "ocupada";
+export type ReservationStatus = "activa" | "sentada" | "cancelada" | "expirada";
 
-export type ReservaStatus = "activa" | "sentada" | "cancelada" | "expirada";
-
-export interface EsperaView {
+export interface WaitlistView {
   id: string;
   nombre: string;
   personas: number;
-  estado: EsperaStatus;
+  estado: WaitlistStatus;
   mesaNumero: number | null;
   qrToken: string;
   creadoEn: string;
@@ -107,26 +93,24 @@ export interface EsperaView {
   empleado?: string | null;
 }
 
-export interface MesaView {
+export interface TableView {
   id: string;
   numero: number;
-  estado: MesaEstado;
+  estado: TableState;
   capacidad: number;
   esperaId: string | null;
   reservaId: string | null;
 }
 
-export interface ReservaView {
+export interface ReservationView {
   id: string;
   nombre: string;
   personas: number;
-  /** Mesa principal (compat / primera elegida). */
   mesaNumero: number;
-  /** Todas las mesas de la reserva (puede ser varias juntadas). */
   mesasNumeros: number[];
   horario: string;
   graciaMinutos: 15 | 20;
-  estado: ReservaStatus;
+  estado: ReservationStatus;
   creadoEn: string;
   sentadoEn: string | null;
   canceladoEn: string | null;
@@ -134,34 +118,32 @@ export interface ReservaView {
   empleado?: string | null;
 }
 
-export const ETIQUETA_ESPERA: Record<EsperaStatus, string> = {
+export const WAITLIST_STATUS_LABEL: Record<WaitlistStatus, string> = {
   esperando: "Esperando",
   avisado: "Avisado",
   sentado: "Sentado",
   cancelado: "Cancelado",
 };
 
-export const ETIQUETA_RESERVA: Record<ReservaStatus, string> = {
+export const RESERVATION_STATUS_LABEL: Record<ReservationStatus, string> = {
   activa: "Reservada",
   sentada: "Sentada",
   cancelada: "Cancelada",
   expirada: "No llegó",
 };
 
-export const esperaClosed = (status: EsperaStatus): boolean =>
+export const waitlistClosed = (status: WaitlistStatus): boolean =>
   status === "sentado" || status === "cancelado";
 
-export const reservaClosed = (status: ReservaStatus): boolean =>
+export const reservationClosed = (status: ReservationStatus): boolean =>
   status === "sentada" || status === "cancelada" || status === "expirada";
 
-/** Números: "8" o "8 + 5". */
-export const labelMesas = (nums: number[]): string => {
+export const tableNumbersLabel = (nums: number[]): string => {
   const sorted = [...new Set(nums)].filter((n) => n >= 1).sort((a, b) => a - b);
   return sorted.join(" + ") || "—";
 };
 
-/** Título: "Mesa 8" / "Mesas 8 + 5" (o Table/Tables en EN). */
-export const tituloMesas = (
+export const tablesTitle = (
   nums: number[],
   locale: "es" | "en" = "es",
 ): string => {

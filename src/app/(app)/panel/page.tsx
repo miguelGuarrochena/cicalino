@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useOrders } from "@/lib/hooks/useOrders";
+import { useSeenWatch } from "@/lib/hooks/useSeenWatch";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
@@ -19,7 +20,7 @@ import {
 } from "@/lib/store/superadmin-store";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/Toast";
-import { dingNuevo, notifyReady } from "@/lib/sound";
+import { dingNew, notifyReady } from "@/lib/sound";
 import type { OrderStatus, OrderView } from "@/lib/types";
 import { orderClosed } from "@/lib/types";
 
@@ -33,7 +34,6 @@ const ORDEN: Record<OrderStatus, number> = {
 
 const PAGE_SIZE = 9;
 
-// Filtros de UI (estados operativos + cancelado).
 type FiltroEstado = "todos" | "creado" | "listo" | "retirado" | "cancelado";
 
 const FILTROS: FiltroEstado[] = [
@@ -87,12 +87,14 @@ const PanelOrdersPage = () => {
     setPage(1);
   }, [filtro, q]);
 
-  // Cerrar el popup del QR cuando el cliente abre el link (queda "visto").
   useEffect(() => {
     if (!qrOrder) return;
     const fresh = orders.find((o) => o.id === qrOrder.id);
     if (fresh?.vistoEn) setQrOrder(null);
   }, [orders, qrOrder]);
+
+  const closeQrOrder = useCallback(() => setQrOrder(null), []);
+  useSeenWatch("order", qrOrder?.id ?? null, closeQrOrder);
 
   const filtrados = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -107,8 +109,6 @@ const PanelOrdersPage = () => {
       });
   }, [orders, filtro, q]);
 
-  // Próximo N° de turno: derivado de los pedidos de la jornada. Compartido
-  // entre cajas por realtime, arranca en 1 y se reinicia cada jornada.
   const nextNumero = useMemo(() => {
     const nums = orders
       .map((p) => parseInt(p.referencia, 10))
@@ -130,7 +130,6 @@ const PanelOrdersPage = () => {
         ? t("panel.buscarNombre")
         : t("panel.buscarPedido");
 
-  // Reenvía el aviso "pasá a retirar" al cliente (push + señal en la pestaña).
   const reavisar = async (id: string) => {
     try {
       const res = await fetch("/api/push/notify", {
@@ -163,7 +162,7 @@ const PanelOrdersPage = () => {
     setQrOrder(created);
     setFiltro("todos");
     setQ("");
-    dingNuevo();
+    dingNew();
     toast(t("toast.creado", { n: reference }), "success");
     return true;
   };
@@ -258,7 +257,6 @@ const PanelOrdersPage = () => {
         </button>
       </div>
 
-      {/* Resumen rápido (tablet/celular del mostrador) */}
       <div className="grid grid-cols-3 gap-2">
         <button
           type="button"

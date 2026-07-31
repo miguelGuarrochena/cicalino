@@ -2,9 +2,6 @@ import "server-only";
 
 import { assetUrl } from "@/lib/appUrl";
 
-// Layout de email branded (mascota + colores/tipografía de Cicalino).
-// HTML con estilos inline y tablas para compatibilidad con clientes de mail.
-
 const MARCA = "#2536d4";
 const MARCA_FUERTE = "#1b28a8";
 const CREMA = "#f4f1da";
@@ -14,7 +11,7 @@ const LINEA = "#e7e3cf";
 const FONT =
   "'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif";
 
-export interface EmailOpts {
+export interface EmailOptions {
   titulo: string;
   cuerpoHtml: string;
   cta?: { label: string; url: string };
@@ -26,8 +23,7 @@ export const emailLayout = ({
   cuerpoHtml,
   cta,
   pie,
-}: EmailOpts): string => {
-  // URL absoluta al momento del envío (no al import del módulo).
+}: EmailOptions): string => {
   const logo = assetUrl("/bell-light.png");
   return `<!doctype html>
 <html lang="es">

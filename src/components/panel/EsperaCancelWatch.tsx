@@ -1,9 +1,8 @@
 "use client";
 
-import { useEsperaCancelWatch } from "@/lib/hooks/useEsperaCancelWatch";
+import { useWaitlistCancelWatch } from "@/lib/hooks/useWaitlistCancelWatch";
 
-/** Escucha cancelaciones de espera en todo el panel (toast + sonido). */
 export const EsperaCancelWatch = () => {
-  useEsperaCancelWatch();
+  useWaitlistCancelWatch();
   return null;
 };

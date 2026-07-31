@@ -4,10 +4,9 @@ import { useApp } from "@/components/providers/Providers";
 import { Select } from "@/components/ui/Select";
 import { useSessionStore } from "@/lib/store/session-store";
 import { orgById, useSuperadminStore } from "@/lib/store/superadmin-store";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { useMyBranches } from "@/lib/hooks/useMyBranches";
 
-/** Switcher de sucursal para el dueño (y SA impersonando). */
 export const BranchSwitcher = () => {
   const { t } = useApp();
   const role = useSessionStore((s) => s.rol);
@@ -20,7 +19,7 @@ export const BranchSwitcher = () => {
   if (role !== "admin") return null;
 
   let options: { id: string; nombre: string }[];
-  if (supabaseConfigurado) {
+  if (supabaseConfigured) {
     options = liveBranches;
   } else {
     const org = orgById(orgs, organizationId);

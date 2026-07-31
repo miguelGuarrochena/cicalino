@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/security/rateLimit";
-import { parsear, pushSubscribeSchema } from "@/lib/schemas";
+import { parseInput, pushSubscribeSchema } from "@/lib/schemas";
 
-// POST /api/push/subscribe
-// Body: { token, subscription }. Asocia la suscripción a un pedido O una espera
-// (mismo qr_token). Usa service_role.
 export const dynamic = "force-dynamic";
 
 export const POST = async (req: Request) => {
@@ -13,7 +10,7 @@ export const POST = async (req: Request) => {
   if (!admin) return NextResponse.json({ ok: false, reason: "not-configured" });
 
   const crudo = await req.json().catch(() => null);
-  const v = parsear(pushSubscribeSchema, crudo);
+  const v = parseInput(pushSubscribeSchema, crudo);
   if (!v.ok) {
     return NextResponse.json(
       { ok: false, reason: "bad-request" },

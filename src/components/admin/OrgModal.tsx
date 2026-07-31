@@ -7,34 +7,34 @@ import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
-  cobroProximo,
-  montoMensual,
+  upcomingCharge,
+  monthlyAmount,
   enGracia,
-  pendienteContrato,
-  precioMensualPorSucursal,
+  isContractPending,
+  monthlyPriceForBranch,
   type OrganizationRow,
   type OrgInput,
   type BranchInput,
   type PlanTipo,
 } from "@/lib/store/superadmin-store";
 import {
-  PRECIO_PEDIDOS,
-  PRECIO_ESPERA,
-  PRECIO_PACK,
-  etiquetaModulos,
-} from "@/lib/precios";
-import { sumarCicloCobro } from "@/lib/billing";
-import type { TipoNegocio } from "@/lib/store/config-store";
-import { TIPO_NEGOCIO_LABEL, TIPOS_NEGOCIO } from "@/lib/store/config-store";
+  PRICE_ORDERS,
+  PRICE_WAITLIST,
+  PRICE_BUNDLE,
+  moduleLabel,
+} from "@/lib/pricing";
+import { addBillingCycle } from "@/lib/billing";
+import type { BusinessType } from "@/lib/store/config-store";
+import { BUSINESS_TYPE_LABEL, BUSINESS_TYPES } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { isEmail, isCuil, isWhatsapp } from "@/lib/validations";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import {
-  crearOrganizacion,
-  eliminarOrganizacion,
-  activarOrganizacion,
+  createOrganization,
+  deleteOrg,
+  activateOrg,
 } from "@/lib/actions/superadmin";
 import {
   refreshOrganizations,
@@ -43,7 +43,7 @@ import {
   updateBranchModulesDb,
   deleteBranchDb,
 } from "@/lib/data/superadmin";
-import { enviarLinkContrato } from "@/lib/actions/contrato";
+import { sendContractLink } from "@/lib/actions/contract";
 
 const required = (v: string) => v.trim().length > 0;
 const emailOk = isEmail;
@@ -92,14 +92,13 @@ const draftsIguales = (a: DraftOrg, b: DraftOrg): boolean =>
   a.cupo === b.cupo &&
   a.plan === b.plan;
 
-
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
   currency: "ARS",
   maximumFractionDigits: 0,
 });
 
-const TIPO_LABEL = TIPO_NEGOCIO_LABEL;
+const TIPO_LABEL = BUSINESS_TYPE_LABEL;
 
 const PLAN_LABEL: Record<PlanTipo, string> = {
   mensual: "Mensual",
@@ -120,9 +119,8 @@ const fechaCorta = (iso: string): string =>
     year: "numeric",
   });
 
-/** Texto del próximo cobro según plan / cortesía / pagado. */
 const textoProximoCobro = (org: OrganizationRow): string => {
-  if (pendienteContrato(org) && !org.activo) {
+  if (isContractPending(org) && !org.activo) {
     return "Esperando que el cliente acepte las condiciones.";
   }
   if (org.plan === "gratis") return "Sin próximo cobro (plan gratis).";
@@ -157,7 +155,7 @@ const montoPlanPreview = (
   },
 ): number => {
   if (plan === "gratis") return 0;
-  const mes = cupo * precioMensualPorSucursal(modulos);
+  const mes = cupo * monthlyPriceForBranch(modulos);
   return plan === "anual" ? mes * 10 : mes;
 };
 
@@ -180,9 +178,9 @@ const PackPicker = ({
   >
     {(
       [
-        [true, false, "Pedidos", PRECIO_PEDIDOS],
-        [false, true, "Espera", PRECIO_ESPERA],
-        [true, true, "Pack", PRECIO_PACK],
+        [true, false, "Pedidos", PRICE_ORDERS],
+        [false, true, "Espera", PRICE_WAITLIST],
+        [true, true, "Pack", PRICE_BUNDLE],
       ] as const
     ).map(([p, e, label, precio]) => {
       const activo = pedidos === p && espera === e;
@@ -256,7 +254,7 @@ export const OrgModal = ({
     darMesGratis: giveFreeMonth,
   } = useSuperadminStore();
   const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
-  const live = supabaseConfigurado;
+  const live = supabaseConfigured;
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [saving, setSaving] = useState(false);
@@ -290,9 +288,8 @@ export const OrgModal = ({
   const [confirmDel, setConfirmDel] = useState(false);
   const [quotaError, setCupoError] = useState(false);
 
-  // Alta sucursal rápida
   const [newBranch, setNuevaSuc] = useState("");
-  const [nuevaTipo, setNuevaTipo] = useState<TipoNegocio>("cafeteria");
+  const [nuevaTipo, setNuevaTipo] = useState<BusinessType>("cafeteria");
   const [nuevaPedidos, setNuevaPedidos] = useState(true);
   const [nuevaEspera, setNuevaEspera] = useState(false);
 
@@ -353,7 +350,7 @@ export const OrgModal = ({
   const mandarContrato = async () => {
     if (!vista || busy) return;
     await conBusy("Enviando condiciones…", async () => {
-      const r = await enviarLinkContrato(vista.id);
+      const r = await sendContractLink(vista.id);
       if (!r.ok) {
         toast(r.error, "error");
         return;
@@ -362,7 +359,6 @@ export const OrgModal = ({
         try {
           await navigator.clipboard.writeText(r.url);
         } catch {
-          /* ignore */
         }
       }
       toast("Link de condiciones enviado (y copiado)", "success");
@@ -397,7 +393,7 @@ export const OrgModal = ({
     if (mode === "crear") {
       if (live) {
         setSaving(true);
-        const res = await crearOrganizacion({ ...data, sucursales: [] });
+        const res = await createOrganization({ ...data, sucursales: [] });
         setSaving(false);
         if (!res.ok) {
           setErrors((e) => ({ ...e, nombre: res.error }));
@@ -415,7 +411,6 @@ export const OrgModal = ({
     if (org) {
       if (live) {
         setSaving(true);
-        // Cupo se maneja en el detalle (sucursales), no en este formulario.
         await updateOrgDb(org.id, { ...data, cupo: org.cupo });
         await refreshOrganizations();
         setSaving(false);
@@ -514,8 +509,6 @@ export const OrgModal = ({
   const togglePagado = async () => {
     if (!vista || busy) return;
     const next = !vista.pagado;
-    // Si pagan un adicional anual (nueva sucursal) y el aniversario de la org
-    // sigue en el futuro, no lo movemos.
     let proximoCobroEn: string | null;
     if (!next) {
       proximoCobroEn = new Date().toISOString();
@@ -526,7 +519,7 @@ export const OrgModal = ({
     ) {
       proximoCobroEn = vista.proximoCobroEn;
     } else {
-      const prox = sumarCicloCobro(vista.plan);
+      const prox = addBillingCycle(vista.plan);
       proximoCobroEn = prox ? prox.toISOString() : null;
     }
     await conBusy(next ? "Marcando pagado…" : "Marcando impago…", async () => {
@@ -549,7 +542,7 @@ export const OrgModal = ({
     const next = !vista.activo;
     if (
       next &&
-      pendienteContrato(vista) &&
+      isContractPending(vista) &&
       !window.confirm(
         "El cliente todavía no aceptó las condiciones. ¿Activar la cuenta de todas formas?",
       )
@@ -561,7 +554,7 @@ export const OrgModal = ({
       async () => {
         if (live) {
           if (next) {
-            const r = await activarOrganizacion(vista.id);
+            const r = await activateOrg(vista.id);
             if (!r.ok) {
               await refreshOrganizations();
               toast(r.error, "error");
@@ -588,7 +581,6 @@ export const OrgModal = ({
     if (!vista || busy) return;
     await conBusy("Eliminando sucursal…", async () => {
       if (live) {
-        // Front primero para que la lista no espere el round-trip.
         removeBranch(vista.id, sucId);
         actualizarOrg(vista.id, {
           cupo: Math.max(1, vista.sucursales.length - 1),
@@ -612,7 +604,7 @@ export const OrgModal = ({
     const id = vista.id;
     await conBusy("Eliminando empresa…", async () => {
       if (live) {
-        const r = await eliminarOrganizacion(id);
+        const r = await deleteOrg(id);
         if (!r.ok) {
           toast(r.error, "error");
           return;
@@ -842,15 +834,14 @@ export const OrgModal = ({
               </div>
             )}
           </div>
-          {/* Módulos: se eligen por sucursal */}
           <div className="rounded-2xl border border-linea bg-crema/50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
               Módulos por sucursal
             </p>
             <p className="mt-1 text-sm text-carbon/60">
-              Cada local tiene su pack (Pedidos {money.format(PRECIO_PEDIDOS)} ·
-              Espera {money.format(PRECIO_ESPERA)} · Pack{" "}
-              {money.format(PRECIO_PACK)}). El cobro es la suma de las
+              Cada local tiene su pack (Pedidos {money.format(PRICE_ORDERS)} ·
+              Espera {money.format(PRICE_WAITLIST)} · Pack{" "}
+              {money.format(PRICE_BUNDLE)}). El cobro es la suma de las
               sucursales.
             </p>
             {mode === "crear" && (
@@ -888,7 +879,7 @@ export const OrgModal = ({
                       </span>
                       {p !== "gratis" && (
                         <span className="text-xs font-semibold text-marca">
-                          desde {money.format(PRECIO_ESPERA)}/suc.
+                          desde {money.format(PRICE_WAITLIST)}/suc.
                         </span>
                       )}
                     </span>
@@ -929,7 +920,6 @@ export const OrgModal = ({
             />
           </div>
 
-          {/* Bloque de cobro: lo más importante para el superadmin */}
           <div className="rounded-2xl border border-linea bg-crema/50 p-3.5">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
@@ -942,9 +932,9 @@ export const OrgModal = ({
                     <span className="ml-2 font-sans text-sm font-semibold normal-case tracking-normal text-marca">
                       {money.format(
                         enGracia(vista)
-                          ? montoMensual(vista) *
+                          ? monthlyAmount(vista) *
                               (vista.plan === "anual" ? 10 : 1)
-                          : cobroProximo(vista) || montoMensual(vista),
+                          : upcomingCharge(vista) || monthlyAmount(vista),
                       )}
                       {vista.plan === "anual" ? "/año" : "/mes"}
                     </span>
@@ -956,7 +946,7 @@ export const OrgModal = ({
               </div>
               <span
                 className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                  pendienteContrato(vista) && !vista.activo
+                  isContractPending(vista) && !vista.activo
                     ? "bg-amber-100 text-amber-800"
                     : !vista.activo
                       ? "bg-carbon/10 text-carbon/55"
@@ -967,7 +957,7 @@ export const OrgModal = ({
                           : "bg-red-100 text-red-600"
                 }`}
               >
-                {pendienteContrato(vista) && !vista.activo
+                {isContractPending(vista) && !vista.activo
                   ? "Esperando condiciones"
                   : !vista.activo
                     ? vista.contratoAceptadoEn
@@ -981,7 +971,7 @@ export const OrgModal = ({
               </span>
             </div>
 
-            {pendienteContrato(vista) && (
+            {isContractPending(vista) && (
               <p className="mt-3 rounded-xl border border-amber-300/80 bg-amber-100 px-3 py-2 text-xs font-medium text-amber-950">
                 Esperando que el cliente acepte las condiciones.
                 {!vista.activo
@@ -990,7 +980,7 @@ export const OrgModal = ({
               </p>
             )}
 
-            {!pendienteContrato(vista) && !vista.activo && (
+            {!isContractPending(vista) && !vista.activo && (
               <p className="mt-3 rounded-xl border border-emerald-300/80 bg-emerald-100 px-3 py-2 text-xs font-medium text-emerald-950">
                 Condiciones aceptadas
                 {vista.contratoAceptadoEn
@@ -1078,8 +1068,8 @@ export const OrgModal = ({
                   · cobro{" "}
                   {money.format(
                     vista.plan === "anual"
-                      ? montoMensual(vista) * 10
-                      : montoMensual(vista),
+                      ? monthlyAmount(vista) * 10
+                      : monthlyAmount(vista),
                   )}
                   {vista.plan === "anual" ? "/año" : "/mes"}
                 </span>
@@ -1138,8 +1128,8 @@ export const OrgModal = ({
                       onChange={(p, e) => void cambiarModulosSuc(suc.id, p, e)}
                     />
                     <p className="text-xs font-medium text-carbon/60">
-                      {etiquetaModulos(mods)} ·{" "}
-                      {money.format(precioMensualPorSucursal(mods))}/mes
+                      {moduleLabel(mods)} ·{" "}
+                      {money.format(monthlyPriceForBranch(mods))}/mes
                     </p>
                   </li>
                 );
@@ -1170,8 +1160,8 @@ export const OrgModal = ({
                 </div>
                 <Select
                   value={nuevaTipo}
-                  onChange={(v) => setNuevaTipo(v as TipoNegocio)}
-                  options={TIPOS_NEGOCIO.map((k) => ({
+                  onChange={(v) => setNuevaTipo(v as BusinessType)}
+                  options={BUSINESS_TYPES.map((k) => ({
                     value: k,
                     label: TIPO_LABEL[k],
                   }))}

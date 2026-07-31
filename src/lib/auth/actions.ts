@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { getPerfilActual } from "@/lib/auth/profile";
-import { rateLimitCompartido } from "@/lib/security/rateLimitShared";
+import { getCurrentProfile } from "@/lib/auth/profile";
+import { sharedRateLimit } from "@/lib/security/rateLimitShared";
 import type { UserRole } from "@/lib/db/schema";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -18,18 +18,14 @@ type LoginOk = {
 };
 type LoginResultado = LoginOk | { ok: false; error: string };
 
-// Mensajes de Supabase → español, para mostrar al usuario.
 const traducirError = (m: string): string => {
   if (/invalid login credentials/i.test(m))
     return "Email o contraseña incorrectos.";
   if (/email not confirmed/i.test(m))
     return "Falta confirmar el email de la invitación.";
-  // Mensaje genérico: no exponemos detalle interno de Supabase al cliente
-  // (evita enumeración de usuarios y fuga de información).
   return "No pudimos iniciar sesión. Revisá los datos e intentá de nuevo.";
 };
 
-// Login con email + contraseña (usuarios ya invitados por el superadmin/admin).
 export const signIn = async (
   email: string,
   password: string,
@@ -37,13 +33,11 @@ export const signIn = async (
   const supabase = await createServerSupabase();
   if (!supabase) return { ok: false, error: "Supabase no configurado" };
 
-  // Anti fuerza bruta: por email y por IP. Sin esto, el action de login es un
-  // oráculo de contraseñas sin límite.
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || "sin-ip";
   const cuenta = email.trim().toLowerCase();
-  const porCuenta = await rateLimitCompartido(`login:mail:${cuenta}`, 8, 10 * 60_000);
-  const porIp = await rateLimitCompartido(`login:ip:${ip}`, 30, 10 * 60_000);
+  const porCuenta = await sharedRateLimit(`login:mail:${cuenta}`, 8, 10 * 60_000);
+  const porIp = await sharedRateLimit(`login:ip:${ip}`, 30, 10 * 60_000);
   if (!porCuenta.ok || !porIp.ok) {
     return {
       ok: false,
@@ -54,7 +48,7 @@ export const signIn = async (
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: traducirError(error.message) };
 
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   return {
     ok: true,
     rol: perfil?.rol ?? "admin",
@@ -69,17 +63,11 @@ export const signOut = async () => {
   redirect("/login");
 };
 
-// Invitación de un dueño (admin) por email al dar de alta una organización.
-// Solo el superadmin: usa el service_role. El invitado recibe un mail para
-// definir su contraseña. No hay registro público.
 export const invitarAdmin = async (
   email: string,
   organizationId: string,
 ): Promise<Resultado> => {
-  // AUTORIZACIÓN: cada export de un archivo "use server" es un endpoint RPC
-  // público. Sin este chequeo, cualquiera —incluso sin sesión— podía invitarse
-  // a sí mismo como admin de cualquier organización usando el service_role.
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
@@ -95,11 +83,7 @@ export const invitarAdmin = async (
   return { ok: true };
 };
 
-/**
- * Re-autentica al dueño con su contraseña de cuenta (no el PIN de 4 dígitos).
- * Sirve para desbloquear Config / Métricas en una tablet compartida.
- */
-export const verificarPasswordDueño = async (
+export const verifyPasswordDueño = async (
   password: string,
 ): Promise<Resultado> => {
   const pass = password.trim();
@@ -107,7 +91,7 @@ export const verificarPasswordDueño = async (
     return { ok: false, error: "Ingresá la contraseña de tu cuenta." };
   }
 
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil) return { ok: false, error: "Sesión vencida. Volvé a entrar." };
   if (perfil.rol !== "admin" && perfil.rol !== "supervisor") {
     return { ok: false, error: "No autorizado." };
@@ -118,12 +102,12 @@ export const verificarPasswordDueño = async (
 
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || "sin-ip";
-  const porCuenta = await rateLimitCompartido(
+  const porCuenta = await sharedRateLimit(
     `reauth:mail:${perfil.email.toLowerCase()}`,
     6,
     10 * 60_000,
   );
-  const porIp = await rateLimitCompartido(`reauth:ip:${ip}`, 20, 10 * 60_000);
+  const porIp = await sharedRateLimit(`reauth:ip:${ip}`, 20, 10 * 60_000);
   if (!porCuenta.ok || !porIp.ok) {
     return {
       ok: false,

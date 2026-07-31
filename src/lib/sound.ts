@@ -1,6 +1,3 @@
-// Sonidos y vibración de avisos del mostrador (sin archivos: WebAudio).
-// El navegador deja AudioContext en "suspended" hasta un gesto del usuario.
-// Por eso el toggle de sonido (y cualquier click del panel) llama unlockAudio().
 
 let ctx: AudioContext | null = null;
 
@@ -16,7 +13,6 @@ export const setSoundMuted = (m: boolean) => {
   try {
     localStorage.setItem("cicalino-mute", m ? "1" : "0");
   } catch {
-    /* noop */
   }
 };
 
@@ -34,7 +30,6 @@ const getCtx = (): AudioContext | null => {
   }
 };
 
-/** Desbloquea WebAudio (llamar desde un click). */
 export const unlockAudio = async (): Promise<boolean> => {
   const c = getCtx();
   if (!c) return false;
@@ -46,7 +41,7 @@ export const unlockAudio = async (): Promise<boolean> => {
   }
 };
 
-const tono = (freq: number, ms: number, delay = 0) => {
+const tone = (freq: number, ms: number, delay = 0) => {
   if (isSoundMuted() || typeof window === "undefined") return;
   try {
     const c = getCtx();
@@ -65,7 +60,6 @@ const tono = (freq: number, ms: number, delay = 0) => {
     o.start(t0);
     o.stop(t0 + ms / 1000);
   } catch {
-    /* noop */
   }
 };
 
@@ -73,31 +67,26 @@ export const vibrate = (pattern: number | number[] = 120) => {
   try {
     navigator.vibrate?.(pattern);
   } catch {
-    /* noop */
   }
 };
 
-/** Beep corto para probar / confirmar que el audio está activo. */
-export const dingPrueba = () => {
-  tono(880, 100);
+export const dingTest = () => {
+  tone(880, 100);
 };
 
-// Pedido nuevo: un "ding" corto.
-export const dingNuevo = () => {
-  tono(660, 120);
+export const dingNew = () => {
+  tone(660, 120);
   vibrate(50);
 };
 
-// Pedido listo (aviso al cliente): dos notas ascendentes + vibración.
 export const notifyReady = () => {
-  tono(988, 150);
-  tono(1319, 190, 0.13);
+  tone(988, 150);
+  tone(1319, 190, 0.13);
   vibrate([120, 60, 120]);
 };
 
-// Cliente canceló espera/pedido: tono grave corto.
-export const dingCancelado = () => {
-  tono(392, 140);
-  tono(294, 180, 0.12);
+export const dingCancelled = () => {
+  tone(392, 140);
+  tone(294, 180, 0.12);
   vibrate([80, 40, 80]);
 };

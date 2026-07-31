@@ -1,43 +1,44 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useEsperaStore } from "@/lib/store/espera-store";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { throttled } from "@/lib/realtime";
+import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { useConfigStore } from "@/lib/store/config-store";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   isRealBranchId,
-  fetchTodayEsperas,
-  fetchTodayReservas,
-  fetchMesas,
-  syncMesas,
-  insertEspera,
-  insertReserva,
-  ocuparMesasWalkIn,
-  updateEsperaStatus,
-  updateReservaStatus,
-  deleteEspera,
-  setMesaEstado,
-  setMesaCapacidad,
-  expirarReservasVencidas,
-  subscribeEsperas,
-} from "@/lib/data/espera";
-import type { EsperaView, MesaView, ReservaView } from "@/lib/types";
-import { mesasDeReserva } from "@/lib/reservas";
-import { staffEsperaCancelIds } from "@/lib/store/espera-alerts-store";
+  fetchTodayWaitlist,
+  fetchTodayReservations,
+  fetchTables,
+  syncTables,
+  insertWaitlistEntry,
+  insertReservation,
+  seatWalkIn,
+  updateWaitlistStatus,
+  updateReservationStatus,
+  deleteWaitlistEntry,
+  setTableState,
+  setTableCapacity,
+  expireOverdueReservations,
+  subscribeWaitlist,
+} from "@/lib/data/waitlist";
+import type { WaitlistView, TableView, ReservationView } from "@/lib/types";
+import { reservationTables } from "@/lib/reservations";
+import { staffWaitlistCancelIds } from "@/lib/store/waitlist-alerts-store";
 
 type EmployeeRef = { id: string; nombre: string } | null;
 
-export interface UseEsperas {
-  esperas: EsperaView[];
-  mesas: MesaView[];
-  reservas: ReservaView[];
+export interface UseWaitlist {
+  esperas: WaitlistView[];
+  mesas: TableView[];
+  reservas: ReservationView[];
   ready: boolean;
   live: boolean;
   crearEspera: (
     nombre: string,
     personas: number,
     employee?: EmployeeRef,
-  ) => Promise<EsperaView | null>;
+  ) => Promise<WaitlistView | null>;
   crearReserva: (args: {
     nombre: string;
     personas: number;
@@ -45,9 +46,8 @@ export interface UseEsperas {
     horario: string;
     graciaMinutos: 15 | 20;
     employee?: EmployeeRef;
-  }) => Promise<ReservaView | null>;
+  }) => Promise<ReservationView | null>;
   avisar: (id: string) => Promise<void>;
-  /** Reenvía el push / señal (estado avisado). */
   reavisar: (id: string) => Promise<{ enviados: number } | null>;
   sentar: (id: string, mesasNumeros: number[]) => Promise<void>;
   cancelar: (id: string) => Promise<void>;
@@ -63,55 +63,63 @@ export interface UseEsperas {
     nombre?: string;
     personas?: number;
     employee?: EmployeeRef;
-  }) => Promise<EsperaView | null>;
+  }) => Promise<WaitlistView | null>;
   setCapacidad: (numero: number, capacidad: number) => Promise<void>;
-  /** Reaplica cantidad_mesas de config al mapa (tras Guardar). */
   sincronizarCantidadMesas: () => Promise<void>;
 }
 
-export const useEsperas = (branchId: string | null): UseEsperas => {
-  const live = supabaseConfigurado && isRealBranchId(branchId);
+export const useWaitlist = (branchId: string | null): UseWaitlist => {
+  const live = supabaseConfigured && isRealBranchId(branchId);
   const cantidadMesas = useConfigStore((s) => s.cantidadMesas);
 
-  const demoEsperas = useEsperaStore((s) => s.esperas);
-  const demoMesas = useEsperaStore((s) => s.mesas);
-  const demoReservas = useEsperaStore((s) => s.reservas);
-  const seed = useEsperaStore((s) => s.seedSiVacio);
-  const setMesasCount = useEsperaStore((s) => s.setMesasCount);
-  const demoAdd = useEsperaStore((s) => s.agregarEspera);
-  const demoChange = useEsperaStore((s) => s.cambiarEstado);
-  const demoLiberar = useEsperaStore((s) => s.liberarMesa);
-  const demoSetCapacidad = useEsperaStore((s) => s.setCapacidad);
-  const demoAddReserva = useEsperaStore((s) => s.agregarReserva);
-  const demoSentarReserva = useEsperaStore((s) => s.sentarReserva);
-  const demoCancelarReserva = useEsperaStore((s) => s.cancelarReserva);
-  const demoEliminar = useEsperaStore((s) => s.eliminarEspera);
-  const demoReavisar = useEsperaStore((s) => s.reavisarEspera);
-  const demoExpirar = useEsperaStore((s) => s.expirarReservasDemo);
-  const demoWalkIn = useEsperaStore((s) => s.ocuparWalkIn);
+  const demoEsperas = useWaitlistStore((s) => s.esperas);
+  const demoMesas = useWaitlistStore((s) => s.mesas);
+  const demoReservas = useWaitlistStore((s) => s.reservas);
+  const seed = useWaitlistStore((s) => s.seedSiVacio);
+  const setMesasCount = useWaitlistStore((s) => s.setMesasCount);
+  const demoAdd = useWaitlistStore((s) => s.agregarEspera);
+  const demoChange = useWaitlistStore((s) => s.cambiarEstado);
+  const demoLiberar = useWaitlistStore((s) => s.liberarMesa);
+  const demoSetCapacidad = useWaitlistStore((s) => s.setCapacidad);
+  const demoAddReserva = useWaitlistStore((s) => s.agregarReserva);
+  const demoSentarReserva = useWaitlistStore((s) => s.sentarReserva);
+  const demoCancelarReserva = useWaitlistStore((s) => s.cancelarReserva);
+  const demoEliminar = useWaitlistStore((s) => s.eliminarEspera);
+  const demoReavisar = useWaitlistStore((s) => s.reavisarEspera);
+  const demoExpirar = useWaitlistStore((s) => s.expirarReservasDemo);
+  const demoWalkIn = useWaitlistStore((s) => s.ocuparWalkIn);
 
-  const [liveEsperas, setLiveEsperas] = useState<EsperaView[]>([]);
-  const [liveMesas, setLiveMesas] = useState<MesaView[]>([]);
-  const [liveReservas, setLiveReservas] = useState<ReservaView[]>([]);
+  const [liveEsperas, setLiveEsperas] = useState<WaitlistView[]>([]);
+  const [liveMesas, setLiveMesas] = useState<TableView[]>([]);
+  const [liveReservas, setLiveReservas] = useState<ReservationView[]>([]);
   const [ready, setReady] = useState(false);
+
+  const expire = useMemo(
+    () =>
+      throttled(
+        () => (branchId ? expireOverdueReservations(branchId) : undefined),
+        60_000,
+      ),
+    [branchId],
+  );
 
   const reload = useCallback(async () => {
     if (!live || !branchId) return;
-    await expirarReservasVencidas(branchId);
+    expire();
     const [e, m, r] = await Promise.all([
-      fetchTodayEsperas(branchId),
-      fetchMesas(branchId),
-      fetchTodayReservas(branchId),
+      fetchTodayWaitlist(branchId),
+      fetchTables(branchId),
+      fetchTodayReservations(branchId),
     ]);
     setLiveEsperas(e);
     setLiveMesas(m);
     setLiveReservas(r);
     setReady(true);
-  }, [live, branchId]);
+  }, [live, branchId, expire]);
 
   useEffect(() => {
     if (!live || !branchId) {
-      if (!supabaseConfigurado) {
+      if (!supabaseConfigured) {
         seed(cantidadMesas);
         setMesasCount(cantidadMesas);
         demoExpirar();
@@ -122,27 +130,31 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     }
     setReady(false);
     void (async () => {
-      // Solo al cargar la sucursal: la cantidad la fija Config → Guardar.
-      await syncMesas(branchId, cantidadMesas);
+      await syncTables(branchId, cantidadMesas);
       await reload();
     })();
-    const unsub = subscribeEsperas(branchId, reload);
+    const sub = subscribeWaitlist(branchId, reload);
     const onWake = () => {
       if (document.visibilityState === "visible") void reload();
     };
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
     window.addEventListener("online", onWake);
-    const iv = window.setInterval(() => void reload(), 5_000);
+
+    let ticks = 0;
+    const iv = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      ticks++;
+      if (ticks % (sub.isHealthy() ? 4 : 1) === 0) void reload();
+    }, 5_000);
+
     return () => {
-      unsub();
+      sub.unsubscribe();
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
       window.removeEventListener("online", onWake);
       window.clearInterval(iv);
     };
-    // cantidadMesas a propósito fuera: no re-sincronizar el mapa al tipear en Config.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync solo al montar/cambiar sucursal
   }, [
     live,
     branchId,
@@ -157,7 +169,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       setMesasCount(cantidadMesas);
       return;
     }
-    await syncMesas(branchId, cantidadMesas);
+    await syncTables(branchId, cantidadMesas);
     await reload();
   };
 
@@ -169,7 +181,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     if (!live || !branchId) {
       return demoAdd(nombre, personas, employee?.nombre ?? null);
     }
-    const created = await insertEspera({
+    const created = await insertWaitlistEntry({
       branchId,
       nombre,
       personas,
@@ -193,7 +205,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
         empleado: args.employee?.nombre ?? null,
       });
     }
-    const created = await insertReserva({
+    const created = await insertReservation({
       branchId,
       nombre: args.nombre,
       personas: args.personas,
@@ -211,7 +223,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       demoChange(id, "avisado");
       return;
     }
-    await updateEsperaStatus(id, "avisado");
+    await updateWaitlistStatus(id, "avisado");
     void fetch("/api/push/notify", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -260,25 +272,24 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       demoChange(id, "sentado", primaria, nums);
       return;
     }
-    await updateEsperaStatus(id, "sentado", primaria);
+    await updateWaitlistStatus(id, "sentado", primaria);
     for (const n of nums) {
-      await setMesaEstado(branchId, n, "ocupada", {
+      await setTableState(branchId, n, "ocupada", {
         esperaId: id,
         reservaId: null,
       });
     }
-    // Sentar sin Avisar: igual avisá al celular / pestaña.
     if (veniaEsperando) void pingEspera(id);
     await reload();
   };
 
   const cancelar = async (id: string) => {
-    staffEsperaCancelIds.add(id);
+    staffWaitlistCancelIds.add(id);
     if (!live) {
       demoChange(id, "cancelado");
       return;
     }
-    await updateEsperaStatus(id, "cancelado");
+    await updateWaitlistStatus(id, "cancelado");
     await reload();
   };
 
@@ -287,7 +298,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       demoEliminar(id);
       return;
     }
-    await deleteEspera(id);
+    await deleteWaitlistEntry(id);
     setLiveEsperas((prev) => prev.filter((e) => e.id !== id));
     await reload();
   };
@@ -299,9 +310,9 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     }
     const reserva = liveReservas.find((r) => r.id === id);
     if (!reserva) return;
-    await updateReservaStatus(id, "sentada");
-    for (const n of mesasDeReserva(reserva)) {
-      await setMesaEstado(branchId, n, "ocupada", {
+    await updateReservationStatus(id, "sentada");
+    for (const n of reservationTables(reserva)) {
+      await setTableState(branchId, n, "ocupada", {
         reservaId: id,
         esperaId: null,
       });
@@ -314,8 +325,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       demoCancelarReserva(id);
       return;
     }
-    // Cancelar una reserva no toca las mesas: nunca las bloqueó.
-    await updateReservaStatus(id, "cancelada");
+    await updateReservationStatus(id, "cancelada");
     await reload();
   };
 
@@ -329,17 +339,16 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     }
     const mesa = liveMesas.find((m) => m.numero === numero);
     if (opts?.soloEsta) {
-      await setMesaEstado(branchId, numero, "libre");
+      await setTableState(branchId, numero, "libre");
       await reload();
       return;
     }
-    // Grupo ocupado (espera o reserva sentada): liberar todas las juntas.
     if (mesa?.esperaId && mesa.estado === "ocupada") {
       const mismas = liveMesas.filter(
         (m) => m.esperaId === mesa.esperaId && m.estado === "ocupada",
       );
       for (const m of mismas) {
-        await setMesaEstado(branchId, m.numero, "libre");
+        await setTableState(branchId, m.numero, "libre");
       }
       await reload();
       return;
@@ -349,12 +358,12 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
         (m) => m.reservaId === mesa.reservaId && m.estado === "ocupada",
       );
       for (const m of mismas) {
-        await setMesaEstado(branchId, m.numero, "libre");
+        await setTableState(branchId, m.numero, "libre");
       }
       await reload();
       return;
     }
-    await setMesaEstado(branchId, numero, "libre");
+    await setTableState(branchId, numero, "libre");
     await reload();
   };
 
@@ -363,7 +372,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       demoSetCapacidad(numero, capacidad);
       return;
     }
-    await setMesaCapacidad(branchId, numero, capacidad);
+    await setTableCapacity(branchId, numero, capacidad);
     await reload();
   };
 
@@ -381,7 +390,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
         empleado: args.employee?.nombre ?? null,
       });
     }
-    const created = await ocuparMesasWalkIn({
+    const created = await seatWalkIn({
       branchId,
       mesaNumeros: args.mesaNumeros,
       nombre: args.nombre,
@@ -414,4 +423,4 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
   };
 };
 
-export type { EsperaStatus } from "@/lib/types";
+export type { WaitlistStatus } from "@/lib/types";

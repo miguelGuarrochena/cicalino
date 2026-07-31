@@ -1,7 +1,7 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/db/schema";
 
-export interface PerfilActual {
+export interface CurrentProfile {
   id: string;
   email: string;
   rol: UserRole;
@@ -9,9 +9,7 @@ export interface PerfilActual {
   localId: string | null;
 }
 
-// Perfil del usuario logueado (rol + organización + sucursal), leído de la
-// tabla `usuarios`. null si no hay sesión o Supabase no está configurado.
-export const getPerfilActual = async (): Promise<PerfilActual | null> => {
+export const getCurrentProfile = async (): Promise<CurrentProfile | null> => {
   const supabase = await createServerSupabase();
   if (!supabase) return null;
 

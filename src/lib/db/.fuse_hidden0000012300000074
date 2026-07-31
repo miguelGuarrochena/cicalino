@@ -1,0 +1,397 @@
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  pgEnum,
+  index,
+  uniqueIndex,
+  integer,
+  boolean,
+} from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+
+export const businessTypeEnum = pgEnum("business_type", [
+  "cafeteria",
+  "panaderia",
+  "rotiseria",
+  "heladeria",
+  "bar",
+  "restaurante",
+  "pasteleria",
+  "food_truck",
+  "otro",
+]);
+
+export const orderStatusEnum = pgEnum("order_status", [
+  "creado",
+  "en_preparacion",
+  "listo",
+  "retirado",
+  "cancelado",
+]);
+
+export const identificationModeEnum = pgEnum("modo_identificacion", [
+  "pedido",
+  "nombre",
+  "mesa",
+]);
+
+export const userRoleEnum = pgEnum("rol_usuario", [
+  "superadmin",
+  "admin",
+  "supervisor",
+]);
+
+export const organizations = pgTable("organizaciones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  nombre: text("nombre").notNull(),
+  responsable: text("responsable"),
+  telefono: text("telefono"),
+  cuil: text("cuil"),
+  direccion: text("direccion"),
+  duenoEmail: text("dueno_email").notNull(),
+  cupo: integer("cupo").notNull().default(1),
+  pagado: boolean("pagado").notNull().default(true),
+  activo: boolean("activo").notNull().default(true),
+  plan: text("plan").notNull().default("mensual"),
+  mesGratisHasta: timestamp("mes_gratis_hasta", { withTimezone: true }),
+  proximoCobroEn: timestamp("proximo_cobro_en", { withTimezone: true }),
+  avisoCobroEn: timestamp("aviso_cobro_en", { withTimezone: true }),
+  moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
+  moduloEspera: boolean("modulo_espera").notNull().default(false),
+  contratoToken: text("contrato_token"),
+  contratoAceptadoEn: timestamp("contrato_aceptado_en", { withTimezone: true }),
+  terminosVersion: text("terminos_version"),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const locales = pgTable("locales", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizacionId: uuid("organizacion_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  nombre: text("nombre").notNull(),
+  tipoNegocio: businessTypeEnum("tipo_negocio").notNull().default("otro"),
+  whatsapp: text("whatsapp"),
+  direccion: text("direccion"),
+  slug: text("slug").notNull(),
+  modoIdentificacion: identificationModeEnum("modo_identificacion")
+    .notNull()
+    .default("pedido"),
+  cantidadMesas: integer("cantidad_mesas"),
+  horaCorte: integer("hora_corte").notNull().default(6),
+  moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
+  moduloEspera: boolean("modulo_espera").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const employees = pgTable(
+  "empleados",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => locales.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    rol: text("rol"),
+    pinHash: text("pin_hash"),
+    activo: boolean("activo").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("idx_empleados_local").on(t.localId),
+    uniqueIndex("uq_empleados_local_nombre").on(
+      t.localId,
+      sql`lower(trim(${t.nombre}))`,
+    ),
+  ],
+);
+
+export const users = pgTable(
+  "usuarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    nombre: text("nombre"),
+    rol: userRoleEnum("rol").notNull().default("admin"),
+    organizacionId: uuid("organizacion_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    localId: uuid("local_id").references(() => locales.id, {
+      onDelete: "cascade",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_usuarios_email").on(t.email)],
+);
+
+export const orders = pgTable(
+  "pedidos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => locales.id, { onDelete: "cascade" }),
+
+    referencia: text("referencia").notNull(),
+
+    estado: orderStatusEnum("estado").notNull().default("creado"),
+
+    empleadoId: uuid("empleado_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+
+    qrToken: text("qr_token").notNull(),
+    qrExpiraEn: timestamp("qr_expira_en", { withTimezone: true }).notNull(),
+
+    creadoEn: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    enPreparacionEn: timestamp("en_preparacion_en", { withTimezone: true }),
+    listoEn: timestamp("listo_en", { withTimezone: true }),
+    retiradoEn: timestamp("retirado_en", { withTimezone: true }),
+    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
+    vistoEn: timestamp("visto_en", { withTimezone: true }),
+    avisadoEn: timestamp("avisado_en", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_pedidos_local_estado").on(t.localId, t.estado),
+    uniqueIndex("uq_pedidos_qr_token").on(t.qrToken),
+    index("idx_pedidos_local_creado").on(t.localId, t.creadoEn),
+  ],
+);
+
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pedidoId: uuid("pedido_id").references(() => orders.id, {
+      onDelete: "cascade",
+    }),
+    esperaId: uuid("espera_id"),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("idx_push_pedido").on(t.pedidoId)],
+);
+
+export const solicitudes = pgTable("solicitudes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  nombre: text("nombre").notNull(),
+  email: text("email").notNull(),
+  telefono: text("telefono"),
+  local: text("local"),
+  ciudad: text("ciudad"),
+  direccion: text("direccion"),
+  cuil: text("cuil"),
+  estado: text("estado").notNull().default("nueva"),
+  tipo: text("tipo").notNull().default("prueba"),
+  plan: text("plan"),
+  pack: text("pack"),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type Solicitud = typeof solicitudes.$inferSelect;
+
+export const pedidosSucursal = pgTable("pedidos_sucursal", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizacionId: uuid("organizacion_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  cupoActual: integer("cupo_actual").notNull(),
+  cupoPedido: integer("cupo_pedido").notNull(),
+  nombreSucursal: text("nombre_sucursal"),
+  estado: text("estado").notNull().default("nueva"),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type PedidoSucursal = typeof pedidosSucursal.$inferSelect;
+
+export const esperaStatusEnum = pgEnum("espera_estado", [
+  "esperando",
+  "avisado",
+  "sentado",
+  "cancelado",
+]);
+
+export const esperas = pgTable(
+  "esperas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => locales.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    personas: integer("personas").notNull().default(2),
+    estado: esperaStatusEnum("estado").notNull().default("esperando"),
+    mesaNumero: integer("mesa_numero"),
+    qrToken: text("qr_token").notNull(),
+    qrExpiraEn: timestamp("qr_expira_en", { withTimezone: true }).notNull(),
+    empleadoId: uuid("empleado_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+    creadoEn: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    avisadoEn: timestamp("avisado_en", { withTimezone: true }),
+    sentadoEn: timestamp("sentado_en", { withTimezone: true }),
+    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
+    vistoEn: timestamp("visto_en", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_esperas_local_estado").on(t.localId, t.estado),
+    uniqueIndex("uq_esperas_qr_token").on(t.qrToken),
+    index("idx_esperas_local_creado").on(t.localId, t.creadoEn),
+  ],
+);
+
+export const reservaStatusEnum = pgEnum("reserva_estado", [
+  "activa",
+  "sentada",
+  "cancelada",
+  "expirada",
+]);
+
+export const reservas = pgTable(
+  "reservas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => locales.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    personas: integer("personas").notNull().default(2),
+    mesaNumero: integer("mesa_numero").notNull(),
+    mesasNumeros: integer("mesas_numeros").array().notNull().default([]),
+    horario: timestamp("horario", { withTimezone: true }).notNull(),
+    graciaMinutos: integer("gracia_minutos").notNull().default(15),
+    estado: reservaStatusEnum("estado").notNull().default("activa"),
+    empleadoId: uuid("empleado_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+    creadoEn: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    sentadoEn: timestamp("sentado_en", { withTimezone: true }),
+    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
+    expiradoEn: timestamp("expirado_en", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_reservas_local_horario").on(t.localId, t.horario),
+    index("idx_reservas_local_estado").on(t.localId, t.estado),
+  ],
+);
+
+export const mesas = pgTable(
+  "mesas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => locales.id, { onDelete: "cascade" }),
+    numero: integer("numero").notNull(),
+    estado: text("estado").notNull().default("libre"),
+    capacidad: integer("capacidad").notNull().default(4),
+    esperaId: uuid("espera_id").references(() => esperas.id, {
+      onDelete: "set null",
+    }),
+    reservaId: uuid("reserva_id").references(() => reservas.id, {
+      onDelete: "set null",
+    }),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("idx_mesas_local").on(t.localId),
+    uniqueIndex("uq_mesas_local_numero").on(t.localId, t.numero),
+  ],
+);
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  locales: many(locales),
+  usuarios: many(users),
+}));
+
+export const localesRelations = relations(locales, ({ one, many }) => ({
+  organizacion: one(organizations, {
+    fields: [locales.organizacionId],
+    references: [organizations.id],
+  }),
+  pedidos: many(orders),
+  empleados: many(employees),
+}));
+
+export const employeesRelations = relations(employees, ({ one }) => ({
+  local: one(locales, {
+    fields: [employees.localId],
+    references: [locales.id],
+  }),
+}));
+
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+  local: one(locales, {
+    fields: [orders.localId],
+    references: [locales.id],
+  }),
+  empleado: one(employees, {
+    fields: [orders.empleadoId],
+    references: [employees.id],
+  }),
+  pushSubscriptions: many(pushSubscriptions),
+}));
+
+export const usersRelations = relations(users, ({ one }) => ({
+  organizacion: one(organizations, {
+    fields: [users.organizacionId],
+    references: [organizations.id],
+  }),
+  local: one(locales, {
+    fields: [users.localId],
+    references: [locales.id],
+  }),
+}));
+
+export const pushSubscriptionsRelations = relations(
+  pushSubscriptions,
+  ({ one }) => ({
+    pedido: one(orders, {
+      fields: [pushSubscriptions.pedidoId],
+      references: [orders.id],
+    }),
+  }),
+);
+
+export type Organization = typeof organizations.$inferSelect;
+export type NewOrganization = typeof organizations.$inferInsert;
+export type Local = typeof locales.$inferSelect;
+export type NuevoLocal = typeof locales.$inferInsert;
+export type Order = typeof orders.$inferSelect;
+export type NewOrder = typeof orders.$inferInsert;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type Employee = typeof employees.$inferSelect;
+export type NewEmployee = typeof employees.$inferInsert;
+export type Usuario = typeof users.$inferSelect;
+export type NuevoUsuario = typeof users.$inferInsert;
+export type IdentificationMode = (typeof identificationModeEnum.enumValues)[number];
+export type UserRole = (typeof userRoleEnum.enumValues)[number];

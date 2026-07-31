@@ -1,5 +1,4 @@
-/** Confeti corto al pasar el pedido a listo (solo si el cliente mira la pestaña). */
-export const lanzarConfetiListo = async () => {
+export const fireReadyConfetti = async () => {
   if (typeof window === "undefined") return;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
@@ -18,7 +17,6 @@ export const lanzarConfetiListo = async () => {
     disableForReducedMotion: true,
   });
 
-  // Segundo burst lateral, más chico
   window.setTimeout(() => {
     void confetti({
       particleCount: 35,

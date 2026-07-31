@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   monthlyCharge,
-  cobroProximo,
+  upcomingCharge,
   orgById,
   branchById,
-  PRECIO_POR_SUCURSAL,
-  precioMensualPorSucursal,
+  PRICE_PER_BRANCH,
+  monthlyPriceForBranch,
   type OrganizationRow,
 } from "@/lib/store/superadmin-store";
-import { PRECIO_PACK } from "@/lib/precios";
+import { PRICE_BUNDLE } from "@/lib/pricing";
 
 const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
   id: "o1",
@@ -46,7 +46,7 @@ const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
 
 describe("monthlyCharge", () => {
   it("cobra la suma de packs de cada sucursal", () => {
-    expect(monthlyCharge(mkOrg())).toBe(PRECIO_POR_SUCURSAL);
+    expect(monthlyCharge(mkOrg())).toBe(PRICE_PER_BRANCH);
     expect(
       monthlyCharge(
         mkOrg({
@@ -77,7 +77,7 @@ describe("monthlyCharge", () => {
           ],
         }),
       ),
-    ).toBe(PRECIO_POR_SUCURSAL + PRECIO_PACK);
+    ).toBe(PRICE_PER_BRANCH + PRICE_BUNDLE);
   });
   it("no cobra si está pausada, es gratis o en cortesía", () => {
     expect(monthlyCharge(mkOrg({ activo: false }))).toBe(0);
@@ -89,13 +89,13 @@ describe("monthlyCharge", () => {
 
 describe("cobroProximo", () => {
   it("anual cobra 10 meses (2 de regalo)", () => {
-    expect(cobroProximo(mkOrg({ plan: "anual" }))).toBe(
-      10 * PRECIO_POR_SUCURSAL,
+    expect(upcomingCharge(mkOrg({ plan: "anual" }))).toBe(
+      10 * PRICE_PER_BRANCH,
     );
   });
   it("mensual cobra 1 mes", () => {
-    expect(cobroProximo(mkOrg({ plan: "mensual" }))).toBe(
-      PRECIO_POR_SUCURSAL,
+    expect(upcomingCharge(mkOrg({ plan: "mensual" }))).toBe(
+      PRICE_PER_BRANCH,
     );
   });
 });
@@ -103,8 +103,8 @@ describe("cobroProximo", () => {
 describe("precioMensualPorSucursal", () => {
   it("pack es más barato que sumar ambos", () => {
     expect(
-      precioMensualPorSucursal({ pedidos: true, espera: true }),
-    ).toBe(PRECIO_PACK);
+      monthlyPriceForBranch({ pedidos: true, espera: true }),
+    ).toBe(PRICE_BUNDLE);
   });
 });
 

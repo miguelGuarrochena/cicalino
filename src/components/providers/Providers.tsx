@@ -37,7 +37,6 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
   const [theme, setThemeState] = useState<ThemePref>("system");
   const [locale, setLocaleState] = useState<Locale>("es");
 
-  // Alinea rol/org/sucursal con la cookie de Supabase (sobrevive landing / app kill).
   useAuthSessionSync();
 
   useEffect(() => {
@@ -46,15 +45,13 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
     setThemeState(st);
     setLocaleState(sl);
     applyTheme(st);
-    // Rehidratar stores persistidos despues del montaje (evita mismatch de SSR).
     useConfigStore.persist.rehydrate();
     useSessionStore.persist.rehydrate();
     useSuperadminStore.persist.rehydrate();
     useOrdersStore.persist.rehydrate();
-    void import("@/lib/store/espera-store").then(({ useEsperaStore }) => {
-      useEsperaStore.persist.rehydrate();
+    void import("@/lib/store/waitlist-store").then(({ useWaitlistStore }) => {
+      useWaitlistStore.persist.rehydrate();
     });
-    // PWA: registrar el service worker (solo en producción).
     if (
       process.env.NODE_ENV === "production" &&
       "serviceWorker" in navigator

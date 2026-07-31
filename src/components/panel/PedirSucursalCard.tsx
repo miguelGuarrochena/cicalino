@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
 import { Spinner } from "@/components/ui/Spinner";
 import {
-  obtenerResumenCupo,
-  pedirSucursalExtra,
-  type ResumenCupo,
-} from "@/lib/actions/pedidoSucursal";
+  getQuotaSummary,
+  requestExtraBranch,
+  type QuotaSummary,
+} from "@/lib/actions/branchRequest";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -19,10 +19,9 @@ const money = new Intl.NumberFormat("es-AR", {
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 
-/** Bloque del dueño: cupo actual + pedido de otra sucursal (pago). */
 export const PedirSucursalCard = () => {
   const toast = useToast();
-  const [resumen, setResumen] = useState<ResumenCupo | null | undefined>(
+  const [resumen, setResumen] = useState<QuotaSummary | null | undefined>(
     undefined,
   );
   const [abierto, setAbierto] = useState(false);
@@ -31,7 +30,7 @@ export const PedirSucursalCard = () => {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    setResumen(await obtenerResumenCupo());
+    setResumen(await getQuotaSummary());
   }, []);
 
   useEffect(() => {
@@ -55,7 +54,7 @@ export const PedirSucursalCard = () => {
     if (busy) return;
     setBusy(true);
     try {
-      const r = await pedirSucursalExtra({
+      const r = await requestExtraBranch({
         nombreSucursal: nombre,
         confirmar,
       });

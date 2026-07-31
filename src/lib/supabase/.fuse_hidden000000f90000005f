@@ -1,0 +1,9 @@
+"use client";
+
+import { createBrowserClient } from "@supabase/ssr";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigurado } from "./config";
+
+export const createBrowserSupabase = () =>
+  supabaseConfigurado
+    ? createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;

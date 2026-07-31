@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useOrdersStore } from "@/lib/store/orders-store";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   isRealBranchId,
   fetchTodayOrders,
@@ -27,10 +27,8 @@ export interface UseOrders {
   changeStatus: (id: string, status: OrderStatus) => Promise<void>;
 }
 
-// Fuente de pedidos del panel: con Supabase + sucursal real usa la base y
-// realtime (sync multi-caja); si no, cae al store demo (Zustand).
 export const useOrders = (branchId: string | null): UseOrders => {
-  const live = supabaseConfigurado && isRealBranchId(branchId);
+  const live = supabaseConfigured && isRealBranchId(branchId);
 
   const demoOrders = useOrdersStore((s) => s.pedidos);
   const seed = useOrdersStore((s) => s.seedSiVacio);
@@ -49,28 +47,30 @@ export const useOrders = (branchId: string | null): UseOrders => {
 
   useEffect(() => {
     if (!live || !branchId) {
-      // Solo sembrar ejemplos en demo real (sin Supabase). En producción, si aún
-      // no hay sucursal, quedamos vacíos (no se filtran los pedidos demo).
-      if (!supabaseConfigurado) seed();
+      if (!supabaseConfigured) seed();
       setReady(true);
       return;
     }
     setReady(false);
-    reload();
-    fetchBranchName(branchId).then(setBranchName);
-    // Primario: realtime por WebSocket (Supabase). Safety net por si el socket
-    // se cae o la tablet se duerme: re-sincronizamos al volver el foco / la red,
-    // y con un refresco periódico. Así el panel nunca se queda desactualizado.
-    const unsub = subscribeOrders(branchId, reload);
+    void reload();
+    void fetchBranchName(branchId).then(setBranchName);
+    const sub = subscribeOrders(branchId, reload);
     const onWake = () => {
       if (document.visibilityState === "visible") void reload();
     };
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
     window.addEventListener("online", onWake);
-    const iv = window.setInterval(() => void reload(), 30_000);
+
+    let ticks = 0;
+    const iv = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      ticks++;
+      if (ticks % (sub.isHealthy() ? 6 : 1) === 0) void reload();
+    }, 5_000);
+
     return () => {
-      unsub();
+      sub.unsubscribe();
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
       window.removeEventListener("online", onWake);
@@ -96,7 +96,6 @@ export const useOrders = (branchId: string | null): UseOrders => {
         demoAdd(o);
         return o;
       }
-      // Empleados aún no están en la base: solo mando id si es UUID real.
       const employeeId =
         employee && isRealBranchId(employee.id) ? employee.id : null;
       const created = await insertOrder({ branchId, reference, employeeId });
@@ -117,8 +116,6 @@ export const useOrders = (branchId: string | null): UseOrders => {
         demoChange(id, status);
         return;
       }
-      // Estado actual, para validar la transición y para el WHERE optimista
-      // (si otra caja ya lo movió, este update no pisa nada).
       let desde: OrderStatus | undefined;
       setLiveOrders((cur) => {
         desde = cur.find((o) => o.id === id)?.estado;
@@ -126,7 +123,6 @@ export const useOrders = (branchId: string | null): UseOrders => {
       });
       await updateOrderStatus(id, status, desde);
       if (status === "listo") {
-        // Aviso Web Push al cliente (best-effort; requiere VAPID configurado).
         void fetch("/api/push/notify", {
           method: "POST",
           headers: { "content-type": "application/json" },

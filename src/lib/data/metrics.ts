@@ -1,7 +1,7 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { inicioJornada } from "@/lib/businessDay";
+import { businessDayStart } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 
 export type Periodo = "dia" | "semana" | "mes" | "ano";
@@ -28,7 +28,7 @@ const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MESES = ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 
 const desde = (period: Periodo): Date => {
-  if (period === "dia") return inicioJornada(useConfigStore.getState().horaCorte);
+  if (period === "dia") return businessDayStart(useConfigStore.getState().horaCorte);
   const d = new Date();
   if (period === "semana") d.setDate(d.getDate() - 6);
   else if (period === "mes") d.setDate(d.getDate() - 29);
@@ -107,7 +107,6 @@ const buckets = (
     }
     return { labels, valores, pico: pico(labels, valores) };
   }
-  // dia: por hora, ventana de horas con actividad
   const porHora = new Array(24).fill(0) as number[];
   rows.forEach((r) => porHora[new Date(r.creado_en).getHours()]++);
   let min = 8;
@@ -184,15 +183,14 @@ export const fetchMetrics = async (
   };
 };
 
-type EsperaRow = {
+type WaitlistRow = {
   estado: string;
   creado_en: string;
   avisado_en: string | null;
   sentado_en: string | null;
 };
 
-/** Métricas del módulo Espera (grupos / tiempos de aviso). */
-export const fetchEsperaMetrics = async (
+export const fetchWaitlistMetrics = async (
   branchId: string,
   period: Periodo,
 ): Promise<MetricsData> => {
@@ -222,7 +220,7 @@ export const fetchEsperaMetrics = async (
       : Promise.resolve({ data: null as { estado: string }[] | null }),
   ]);
   if (error || !data) return vacio;
-  const rows = data as EsperaRow[];
+  const rows = data as WaitlistRow[];
   const total = rows.length;
   const avisados = rows.filter(
     (r) => r.estado === "avisado" || r.estado === "sentado",

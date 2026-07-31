@@ -1,28 +1,22 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { branchOperacionSchema, empleadoSchema, parsear } from "@/lib/schemas";
-import { nombreEmpleadoEnUso } from "@/lib/validations";
+import { branchOperacionSchema, employeeSchema, parseInput } from "@/lib/schemas";
+import { isEmployeeNameTaken } from "@/lib/validations";
 import type {
   EmployeeUI,
   IdentificationMode,
-  TipoNegocio,
+  BusinessType,
 } from "@/lib/store/config-store";
-
-// ---------------------------------------------------------------------------
-// Capa de datos de la SUCURSAL: config (tabla `locales`) y empleados
-// (tabla `empleados`), con RLS del usuario logueado.
-// ---------------------------------------------------------------------------
 
 export interface BranchConfig {
   nombre: string;
-  tipo: TipoNegocio;
+  tipo: BusinessType;
   whatsapp: string;
   direccion: string;
   modo: IdentificationMode;
   cantidadMesas: number;
   horaCorte: number;
-  /** Contratados en esta sucursal (solo lectura para el dueño). */
   moduloPedidos: boolean;
   moduloEspera: boolean;
 }
@@ -42,7 +36,7 @@ export const fetchBranchConfig = async (
   if (error || !data) return null;
   return {
     nombre: data.nombre ?? "",
-    tipo: (data.tipo_negocio as TipoNegocio) ?? "otro",
+    tipo: (data.tipo_negocio as BusinessType) ?? "otro",
     whatsapp: data.whatsapp ?? "",
     direccion: data.direccion ?? "",
     modo: (data.modo_identificacion as IdentificationMode) ?? "pedido",
@@ -59,7 +53,7 @@ export const saveBranchConfig = async (
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
-  const v = parsear(branchOperacionSchema, {
+  const v = parseInput(branchOperacionSchema, {
     modo: cfg.modo,
     cantidadMesas: cfg.cantidadMesas,
     horaCorte: cfg.horaCorte,
@@ -68,7 +62,6 @@ export const saveBranchConfig = async (
     console.error("saveBranchConfig", v.error);
     return false;
   }
-  // Identidad del local (nombre, tipo, whatsapp, dirección, módulos): solo superadmin.
   const { error } = await supabase
     .from("locales")
     .update({
@@ -82,8 +75,6 @@ export const saveBranchConfig = async (
   return !error;
 };
 
-// El PIN NO viaja al navegador: la base solo expone `tiene_pin`. Definirlo y
-// verificarlo pasa por funciones del servidor (ver security-fixes-03.sql).
 type EmpRow = {
   id: string;
   nombre: string;
@@ -113,7 +104,6 @@ export const fetchEmployees = async (
   return (data as EmpRow[]).map(mapEmp);
 };
 
-/** Define o borra el PIN de un empleado (pasa por RPC: se guarda hasheado). */
 export const setEmployeePin = async (
   empleadoId: string,
   pin: string,
@@ -128,7 +118,6 @@ export const setEmployeePin = async (
   return { ok: true };
 };
 
-/** Verifica el PIN al fichar. El cliente nunca ve el hash. */
 export const verifyEmployeePin = async (
   empleadoId: string,
   pin: string,
@@ -157,13 +146,12 @@ export const insertEmployee = async (
 ): Promise<InsertEmployeeResult> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return { ok: false, reason: "error" };
-  const v = parsear(empleadoSchema, data);
+  const v = parseInput(employeeSchema, data);
   if (!v.ok) {
     console.error("insertEmployee", v.error);
     return { ok: false, reason: "error" };
   }
 
-  // Chequeo previo (UX); el índice único en la base es la garantía real.
   const { data: existentes } = await supabase
     .from("empleados")
     .select("id, nombre")
@@ -171,7 +159,7 @@ export const insertEmployee = async (
     .eq("activo", true);
   if (
     existentes &&
-    nombreEmpleadoEnUso(v.data.nombre, existentes as { id: string; nombre: string }[])
+    isEmployeeNameTaken(v.data.nombre, existentes as { id: string; nombre: string }[])
   ) {
     return { ok: false, reason: "nombre_dup" };
   }
@@ -192,8 +180,6 @@ export const insertEmployee = async (
   }
   const emp = mapEmp(row as EmpRow);
 
-  // El PIN se setea aparte, por RPC (queda hasheado del lado del servidor).
-  // Si falla, rollback: no dejamos un empleado sin el PIN que el admin pidió.
   if (v.data.pin) {
     const res = await setEmployeePin(emp.id, v.data.pin);
     if (!res.ok) {
@@ -215,7 +201,6 @@ export interface BranchLite {
   nombre: string;
 }
 
-// Sucursales de la organización del dueño (para el selector de sucursal).
 export const fetchMyBranches = async (
   orgId: string,
 ): Promise<BranchLite[]> => {

@@ -1,0 +1,14 @@
+export const HORA_CORTE_DEFAULT = 6;
+
+export const inicioJornada = (hora: number = HORA_CORTE_DEFAULT): Date => {
+  const d = new Date();
+  if (d.getHours() < hora) d.setDate(d.getDate() - 1);
+  d.setHours(hora, 0, 0, 0);
+  return d;
+};
+
+export const finJornada = (hora: number = HORA_CORTE_DEFAULT): Date => {
+  const d = inicioJornada(hora);
+  d.setDate(d.getDate() + 1);
+  return d;
+};

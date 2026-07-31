@@ -1,18 +1,18 @@
 "use server";
 
-import { getPerfilActual } from "@/lib/auth/profile";
+import { getCurrentProfile } from "@/lib/auth/profile";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { enviarEmail } from "@/lib/email/resend";
+import { sendEmail } from "@/lib/email/resend";
 import { emailLayout } from "@/lib/email/templates";
 import { appBaseUrl } from "@/lib/appUrl";
-import { PRECIO_POR_SUCURSAL } from "@/lib/precios";
+import { PRICE_PER_BRANCH } from "@/lib/pricing";
 import {
   mpAlias,
-  montoContrato,
-  etiquetaCiclo,
-  type PlanCobroUI,
-} from "@/lib/contrato";
-import { parsear, idSchema } from "@/lib/schemas";
+  contractAmount,
+  billingCycleLabel,
+  type BillingPlanUI,
+} from "@/lib/contract";
+import { parseInput, idSchema } from "@/lib/schemas";
 
 type Simple = { ok: true } | { ok: false; error: string };
 
@@ -30,7 +30,7 @@ const money = (n: number): string =>
     maximumFractionDigits: 0,
   }).format(n);
 
-export type PedidoSucursalAdmin = {
+export type BranchRequestAdmin = {
   id: string;
   organizacionId: string;
   cupoActual: number;
@@ -40,13 +40,13 @@ export type PedidoSucursalAdmin = {
   creadoEn: string;
   orgNombre: string;
   orgEmail: string;
-  orgPlan: PlanCobroUI;
+  orgPlan: BillingPlanUI;
 };
 
-export type ResumenCupo = {
+export type QuotaSummary = {
   cupo: number;
   usadas: number;
-  plan: PlanCobroUI;
+  plan: BillingPlanUI;
   activo: boolean;
   pendiente: boolean;
   montoExtra: number;
@@ -54,9 +54,8 @@ export type ResumenCupo = {
   alias: string;
 };
 
-/** Datos para el bloque "Pedir sucursal" del panel del dueño. */
-export const obtenerResumenCupo = async (): Promise<ResumenCupo | null> => {
-  const perfil = await getPerfilActual();
+export const getQuotaSummary = async (): Promise<QuotaSummary | null> => {
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "admin" || !perfil.organizacionId) return null;
   const admin = createAdminSupabase();
   if (!admin) return null;
@@ -81,30 +80,27 @@ export const obtenerResumenCupo = async (): Promise<ResumenCupo | null> => {
     .limit(1)
     .maybeSingle();
 
-  const plan = (org.plan as PlanCobroUI) ?? "mensual";
+  const plan = (org.plan as BillingPlanUI) ?? "mensual";
   return {
     cupo: org.cupo ?? 1,
     usadas: count ?? 0,
     plan,
     activo: Boolean(org.activo),
     pendiente: Boolean(pend),
-    montoExtra: montoContrato(plan === "gratis" ? "mensual" : plan, 1),
-    ciclo: etiquetaCiclo(plan === "gratis" ? "mensual" : plan),
+    montoExtra: contractAmount(plan === "gratis" ? "mensual" : plan, 1),
+    ciclo: billingCycleLabel(plan === "gratis" ? "mensual" : plan),
     alias: mpAlias(),
   };
 };
 
-/**
- * Dueño confirma que quiere otra sucursal: crea el pedido y manda mail de pago.
- */
-export const pedirSucursalExtra = async (input: {
+export const requestExtraBranch = async (input: {
   nombreSucursal?: string;
   confirmar: boolean;
 }): Promise<Simple> => {
   if (!input.confirmar) {
     return { ok: false, error: "Confirmá que querés contratar otra sucursal." };
   }
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "admin" || !perfil.organizacionId) {
     return { ok: false, error: "No autorizado" };
   }
@@ -164,14 +160,14 @@ export const pedirSucursalExtra = async (input: {
     return { ok: false, error: "No se pudo registrar el pedido." };
   }
 
-  const plan = (org.plan as PlanCobroUI) ?? "mensual";
-  const monto = montoContrato(plan, 1);
+  const plan = (org.plan as BillingPlanUI) ?? "mensual";
+  const monto = contractAmount(plan, 1);
   const alias = mpAlias();
-  const ciclo = etiquetaCiclo(plan);
+  const ciclo = billingCycleLabel(plan);
   const contact = org.responsable || org.nombre;
   const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
 
-  await enviarEmail({
+  await sendEmail({
     to: org.dueno_email,
     subject: "Pedido de sucursal · pago Cicalino",
     html: emailLayout({
@@ -189,7 +185,7 @@ export const pedirSucursalExtra = async (input: {
     }),
   });
 
-  void enviarEmail({
+  void sendEmail({
     to: notify,
     subject: `Pedido sucursal: ${org.nombre}`,
     replyTo: org.dueno_email,
@@ -208,9 +204,8 @@ export const pedirSucursalExtra = async (input: {
   return { ok: true };
 };
 
-/** Superadmin: pedidos abiertos. */
-export const listarPedidosSucursal = async (): Promise<PedidoSucursalAdmin[]> => {
-  const perfil = await getPerfilActual();
+export const listBranchRequests = async (): Promise<BranchRequestAdmin[]> => {
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") return [];
   const admin = createAdminSupabase();
   if (!admin) return [];
@@ -251,20 +246,19 @@ export const listarPedidosSucursal = async (): Promise<PedidoSucursalAdmin[]> =>
       creadoEn: r.creado_en,
       orgNombre: org?.nombre ?? "—",
       orgEmail: org?.dueno_email ?? "",
-      orgPlan: ((org?.plan as PlanCobroUI) ?? "mensual") as PlanCobroUI,
+      orgPlan: ((org?.plan as BillingPlanUI) ?? "mensual") as BillingPlanUI,
     };
   });
 };
 
-/** Superadmin: vio el pago → sube el cupo y cierra el pedido. */
-export const aprobarPedidoSucursal = async (
+export const approveBranchRequest = async (
   id: string,
 ): Promise<Simple & { organizacionId?: string }> => {
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
-  const v = parsear(idSchema, { id });
+  const v = parseInput(idSchema, { id });
   if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
@@ -300,8 +294,8 @@ export const aprobarPedidoSucursal = async (
     .update({ estado: "atendida" })
     .eq("id", ped.id);
 
-  const plan = (org.plan as PlanCobroUI) ?? "mensual";
-  void enviarEmail({
+  const plan = (org.plan as BillingPlanUI) ?? "mensual";
+  void sendEmail({
     to: org.dueno_email,
     subject: "Cupo actualizado · Cicalino",
     html: emailLayout({
@@ -315,8 +309,8 @@ export const aprobarPedidoSucursal = async (
         }).</p>
         <p style="margin:8px 0 0;">Desde el panel podés operar; si falta crear el local,
         Cicalino lo carga o lo hacemos juntos.</p>
-        <p style="margin:8px 0 0;font-size:13px;opacity:.75;">Plan ${esc(etiquetaCiclo(plan))}
-        · ${money(PRECIO_POR_SUCURSAL)} por sucursal / mes de lista.</p>`,
+        <p style="margin:8px 0 0;font-size:13px;opacity:.75;">Plan ${esc(billingCycleLabel(plan))}
+        · ${money(PRICE_PER_BRANCH)} por sucursal / mes de lista.</p>`,
       cta: { label: "Abrir panel", url: `${appBaseUrl()}/panel` },
     }),
   });
@@ -324,12 +318,12 @@ export const aprobarPedidoSucursal = async (
   return { ok: true, organizacionId: org.id };
 };
 
-export const descartarPedidoSucursal = async (id: string): Promise<Simple> => {
-  const perfil = await getPerfilActual();
+export const dismissBranchRequest = async (id: string): Promise<Simple> => {
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
-  const v = parsear(idSchema, { id });
+  const v = parseInput(idSchema, { id });
   if (!v.ok) return { ok: false, error: v.error };
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };

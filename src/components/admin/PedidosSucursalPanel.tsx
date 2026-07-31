@@ -4,13 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { Spinner } from "@/components/ui/Spinner";
 import {
-  listarPedidosSucursal,
-  aprobarPedidoSucursal,
-  descartarPedidoSucursal,
-  type PedidoSucursalAdmin,
-} from "@/lib/actions/pedidoSucursal";
+  listBranchRequests,
+  approveBranchRequest,
+  dismissBranchRequest,
+  type BranchRequestAdmin,
+} from "@/lib/actions/branchRequest";
 import { refreshOrganizations } from "@/lib/data/superadmin";
-import { montoContrato, etiquetaCiclo } from "@/lib/contrato";
+import { contractAmount, billingCycleLabel } from "@/lib/contract";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -18,18 +18,17 @@ const money = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-/** Pedidos de +1 sucursal del dueño. Solo aparecen si hay alguno nuevo. */
 export const PedidosSucursalPanel = ({
   onAbrir,
 }: {
   onAbrir?: (orgId: string) => void;
 }) => {
   const toast = useToast();
-  const [items, setItems] = useState<PedidoSucursalAdmin[]>([]);
+  const [items, setItems] = useState<BranchRequestAdmin[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setItems(await listarPedidosSucursal());
+    setItems(await listBranchRequests());
   }, []);
 
   useEffect(() => {
@@ -41,7 +40,7 @@ export const PedidosSucursalPanel = ({
   const aprobar = async (id: string) => {
     setBusy(id);
     try {
-      const r = await aprobarPedidoSucursal(id);
+      const r = await approveBranchRequest(id);
       if (!r.ok) {
         toast(r.error, "error");
         return;
@@ -57,7 +56,7 @@ export const PedidosSucursalPanel = ({
 
   const descartar = async (id: string) => {
     setBusy(id);
-    await descartarPedidoSucursal(id);
+    await dismissBranchRequest(id);
     setBusy(null);
     await load();
     toast("Pedido descartado", "info");
@@ -73,7 +72,7 @@ export const PedidosSucursalPanel = ({
       </h2>
       <ul className="flex flex-col gap-2">
         {items.map((p) => {
-          const monto = montoContrato(
+          const monto = contractAmount(
             p.orgPlan === "gratis" ? "mensual" : p.orgPlan,
             1,
           );
@@ -93,7 +92,7 @@ export const PedidosSucursalPanel = ({
                   {p.orgEmail}
                   {p.nombreSucursal ? ` · ${p.nombreSucursal}` : ""}
                   {" · "}
-                  {money.format(monto)} / {etiquetaCiclo(p.orgPlan)}
+                  {money.format(monto)} / {billingCycleLabel(p.orgPlan)}
                 </p>
               </div>
               <div className="flex shrink-0 gap-1.5">

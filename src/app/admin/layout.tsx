@@ -3,14 +3,12 @@ import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
 import { LogoutButton } from "@/components/ui/LogoutButton";
 import { SiteFooter } from "@/components/ui/SiteFooter";
-import { getPerfilActual } from "@/lib/auth/profile";
+import { getCurrentProfile } from "@/lib/auth/profile";
 
-// Layout del area de superadmin (Cicalino) — separada del panel del local.
-// Gate server-side: solo entra el rol="superadmin".
 const AdminLayout = async ({
   children,
 }: Readonly<{ children: React.ReactNode }>) => {
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") redirect("/login");
   return (
     <div className="flex min-h-dvh flex-col bg-crema">

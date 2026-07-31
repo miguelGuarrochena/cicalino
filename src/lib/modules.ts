@@ -1,34 +1,31 @@
-/** Tipos y helpers del producto multi-módulo (Pedidos / Espera). */
 
-export type ModuloId = "pedidos" | "espera";
+export type ModuleId = "pedidos" | "espera";
 
-export type ModulosFlags = {
+export type ModuleFlags = {
   pedidos: boolean;
   espera: boolean;
 };
 
-/** Preferencia de este dispositivo (localStorage). */
-export type DispositivoModo = "pedidos" | "espera" | "ambos";
+export type DeviceMode = "pedidos" | "espera" | "ambos";
 
-export const DEVICE_MODULO_KEY = "cicalino-dispositivo-modulo";
+export const DEVICE_MODE_KEY = "cicalino-dispositivo-modulo";
 
-export const leerDispositivoModo = (): DispositivoModo => {
+export const readDeviceMode = (): DeviceMode => {
   if (typeof window === "undefined") return "ambos";
-  const v = window.localStorage.getItem(DEVICE_MODULO_KEY);
+  const v = window.localStorage.getItem(DEVICE_MODE_KEY);
   if (v === "pedidos" || v === "espera" || v === "ambos") return v;
   return "ambos";
 };
 
-export const guardarDispositivoModo = (modo: DispositivoModo): void => {
+export const saveDeviceMode = (modo: DeviceMode): void => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(DEVICE_MODULO_KEY, modo);
+  window.localStorage.setItem(DEVICE_MODE_KEY, modo);
 };
 
-/** Módulos visibles en este dispositivo dado lo contratado/activo en sucursal. */
-export const modulosVisibles = (
-  activos: ModulosFlags,
-  dispositivo: DispositivoModo = "ambos",
-): ModulosFlags => {
+export const visibleModules = (
+  activos: ModuleFlags,
+  dispositivo: DeviceMode = "ambos",
+): ModuleFlags => {
   if (dispositivo === "pedidos") {
     return { pedidos: activos.pedidos, espera: false };
   }
@@ -38,9 +35,9 @@ export const modulosVisibles = (
   return activos;
 };
 
-export const tieneAmbos = (m: ModulosFlags): boolean => m.pedidos && m.espera;
+export const hasBothModules = (m: ModuleFlags): boolean => m.pedidos && m.espera;
 
-export const soloUno = (m: ModulosFlags): ModuloId | null => {
+export const onlyModule = (m: ModuleFlags): ModuleId | null => {
   if (m.pedidos && !m.espera) return "pedidos";
   if (m.espera && !m.pedidos) return "espera";
   return null;

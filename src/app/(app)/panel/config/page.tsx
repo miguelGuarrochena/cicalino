@@ -13,17 +13,17 @@ import {
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { saveBranchConfig } from "@/lib/data/branch";
-import { syncMesas } from "@/lib/data/espera";
+import { syncTables } from "@/lib/data/waitlist";
 import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { HelpLink } from "@/components/panel/HelpLink";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
-import { TIPO_NEGOCIO_LABEL } from "@/lib/types";
+import { BUSINESS_TYPE_LABEL } from "@/lib/types";
 import {
-  guardarDispositivoModo,
-  leerDispositivoModo,
-  type DispositivoModo,
-} from "@/lib/modulos";
+  saveDeviceMode,
+  readDeviceMode,
+  type DeviceMode,
+} from "@/lib/modules";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
@@ -66,10 +66,10 @@ const ConfigPage = () => {
   const [guardado, setGuardado] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [dispositivo, setDispositivo] = useState<DispositivoModo>("ambos");
+  const [dispositivo, setDispositivo] = useState<DeviceMode>("ambos");
 
   useEffect(() => {
-    setDispositivo(leerDispositivoModo());
+    setDispositivo(readDeviceMode());
   }, []);
 
   const modes: {
@@ -100,7 +100,7 @@ const ConfigPage = () => {
     if (Object.keys(next).length) return;
     setSaving(true);
     try {
-      if (supabaseConfigurado && isRealBranchId(branchId)) {
+      if (supabaseConfigured && isRealBranchId(branchId)) {
         const ok = await saveBranchConfig(branchId, {
           modo: c.modo,
           cantidadMesas: c.cantidadMesas,
@@ -111,7 +111,7 @@ const ConfigPage = () => {
           return;
         }
         if (c.moduloEspera || c.modo === "mesa") {
-          await syncMesas(branchId, c.cantidadMesas);
+          await syncTables(branchId, c.cantidadMesas);
         }
       }
       setGuardado(true);
@@ -174,7 +174,7 @@ const ConfigPage = () => {
                 {t("config.tipo")}
               </span>
               <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
-                {TIPO_NEGOCIO_LABEL[c.tipo] ?? c.tipo}
+                {BUSINESS_TYPE_LABEL[c.tipo] ?? c.tipo}
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -197,7 +197,7 @@ const ConfigPage = () => {
         </section>
       )}
 
-      {role === "admin" && supabaseConfigurado && isRealBranchId(branchId) && (
+      {role === "admin" && supabaseConfigured && isRealBranchId(branchId) && (
         <PedirSucursalCard />
       )}
 
@@ -283,7 +283,7 @@ const ConfigPage = () => {
                 type="button"
                 onClick={() => {
                   setDispositivo(id);
-                  guardarDispositivoModo(id);
+                  saveDeviceMode(id);
                 }}
                 className={`rounded-2xl border p-4 text-left transition ${
                   dispositivo === id

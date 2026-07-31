@@ -5,19 +5,18 @@ import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
-import { useEsperaStore } from "@/lib/store/espera-store";
-import { staffEsperaCancelIds } from "@/lib/store/espera-alerts-store";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { useWaitlistStore } from "@/lib/store/waitlist-store";
+import { staffWaitlistCancelIds } from "@/lib/store/waitlist-alerts-store";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isRealBranchId } from "@/lib/data/orders";
 import {
-  fetchTodayEsperas,
-  subscribeEsperas,
-} from "@/lib/data/espera";
-import { dingCancelado } from "@/lib/sound";
-import type { EsperaStatus } from "@/lib/types";
+  fetchTodayWaitlist,
+  subscribeWaitlist,
+} from "@/lib/data/waitlist";
+import { dingCancelled } from "@/lib/sound";
+import type { WaitlistStatus } from "@/lib/types";
 
-/** Backup si falla el broadcast (realtime postgres). */
 const POLL_MS = 15_000;
 
 const announce = (args: {
@@ -31,7 +30,7 @@ const announce = (args: {
   if (args.seen.has(args.id)) return;
   args.seen.add(args.id);
   if (args.fromGuest) {
-    dingCancelado();
+    dingCancelled();
     args.toast(
       args.locale === "en"
         ? `${args.nombre} cancelled their wait`
@@ -48,19 +47,15 @@ const announce = (args: {
   }
 };
 
-/**
- * Cancelaciones de espera en todo el panel (toast + sonido).
- * Instantáneo vía broadcast; postgres + poll como respaldo.
- */
-export const useEsperaCancelWatch = () => {
+export const useWaitlistCancelWatch = () => {
   const { locale } = useApp();
   const toast = useToast();
   const branchId = useSessionStore((s) => s.sucursalId);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
   const live = Boolean(
-    supabaseConfigurado && branchId && isRealBranchId(branchId),
+    supabaseConfigured && branchId && isRealBranchId(branchId),
   );
-  const prev = useRef<Map<string, EsperaStatus>>(new Map());
+  const prev = useRef<Map<string, WaitlistStatus>>(new Map());
   const ready = useRef(false);
   const seen = useRef(new Set<string>());
 
@@ -70,7 +65,7 @@ export const useEsperaCancelWatch = () => {
     if (!live) {
       ready.current = false;
       const apply = () => {
-        const rows = useEsperaStore.getState().esperas;
+        const rows = useWaitlistStore.getState().esperas;
         const next = new Map(rows.map((e) => [e.id, e.estado]));
         if (!ready.current) {
           prev.current = next;
@@ -81,8 +76,8 @@ export const useEsperaCancelWatch = () => {
           const before = prev.current.get(e.id);
           if (!before || before === "cancelado" || e.estado !== "cancelado")
             continue;
-          const fromStaff = staffEsperaCancelIds.has(e.id);
-          staffEsperaCancelIds.delete(e.id);
+          const fromStaff = staffWaitlistCancelIds.has(e.id);
+          staffWaitlistCancelIds.delete(e.id);
           announce({
             id: e.id,
             nombre: e.nombre,
@@ -95,10 +90,10 @@ export const useEsperaCancelWatch = () => {
         prev.current = next;
       };
       apply();
-      const unsub = useEsperaStore.subscribe(apply);
+      const unsub = useWaitlistStore.subscribe(apply);
       const onStorage = (e: StorageEvent) => {
         if (e.key === "cicalino-espera-demo-v3") {
-          const r = useEsperaStore.persist.rehydrate();
+          const r = useWaitlistStore.persist.rehydrate();
           if (r && typeof (r as Promise<void>).then === "function") {
             void (r as Promise<void>).then(apply);
           } else {
@@ -118,7 +113,7 @@ export const useEsperaCancelWatch = () => {
     const supabase = createBrowserSupabase();
 
     const tick = async () => {
-      const rows = await fetchTodayEsperas(branchId);
+      const rows = await fetchTodayWaitlist(branchId);
       if (!active) return;
       const next = new Map(rows.map((e) => [e.id, e.estado]));
       if (!ready.current) {
@@ -133,8 +128,8 @@ export const useEsperaCancelWatch = () => {
         const before = prev.current.get(e.id);
         if (!before || before === "cancelado" || e.estado !== "cancelado")
           continue;
-        const fromStaff = staffEsperaCancelIds.has(e.id);
-        staffEsperaCancelIds.delete(e.id);
+        const fromStaff = staffWaitlistCancelIds.has(e.id);
+        staffWaitlistCancelIds.delete(e.id);
         announce({
           id: e.id,
           nombre: e.nombre,
@@ -149,7 +144,7 @@ export const useEsperaCancelWatch = () => {
 
     void tick();
     const iv = window.setInterval(() => void tick(), POLL_MS);
-    const unsubPg = subscribeEsperas(
+    const unsubPg = subscribeWaitlist(
       branchId,
       () => {
         void tick();
@@ -182,7 +177,7 @@ export const useEsperaCancelWatch = () => {
     return () => {
       active = false;
       window.clearInterval(iv);
-      unsubPg();
+      unsubPg.unsubscribe();
       if (supabase && broadcastCh) void supabase.removeChannel(broadcastCh);
     };
   }, [moduloEspera, branchId, live, toast, locale]);

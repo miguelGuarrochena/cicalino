@@ -6,19 +6,13 @@ import {
   type OrganizationRow,
   type PlanTipo,
 } from "@/lib/store/superadmin-store";
-import type { TipoNegocio } from "@/lib/store/config-store";
-import { normalizarModulos } from "@/lib/precios";
-
-// ---------------------------------------------------------------------------
-// Datos del superadmin: organizaciones + sucursales (tabla locales).
-// Lectura/updates van con la sesión del superadmin (RLS lo deja ver todo).
-// El alta y la baja de organización van por server action (service_role).
-// ---------------------------------------------------------------------------
+import type { BusinessType } from "@/lib/store/config-store";
+import { normalizeModules } from "@/lib/pricing";
 
 type BranchDb = {
   id: string;
   nombre: string;
-  tipo_negocio: TipoNegocio;
+  tipo_negocio: BusinessType;
   direccion: string | null;
   modulo_pedidos: boolean | null;
   modulo_espera: boolean | null;
@@ -46,7 +40,7 @@ type OrgDb = {
 
 const mapOrg = (o: OrgDb): OrganizationRow => {
   const sucursales = (o.locales ?? []).map((l) => {
-    const mods = normalizarModulos({
+    const mods = normalizeModules({
       pedidos: l.modulo_pedidos !== false,
       espera: Boolean(l.modulo_espera),
     });
@@ -109,10 +103,8 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   return (data as unknown as OrgDb[]).map(mapOrg);
 };
 
-// Evita que un fetch lento (poll / realtime) pise uno más nuevo.
 let refreshGen = 0;
 
-// Recarga las orgs de la base al store (fuente de la UI del /admin).
 export const refreshOrganizations = async (): Promise<void> => {
   const gen = ++refreshGen;
   const orgs = await fetchOrganizations();
@@ -163,8 +155,7 @@ export const updateOrgDb = async (
   if (error) console.error("updateOrgDb", error.message);
 };
 
-/** Recalcula organizaciones.modulo_* como OR de sus locales. */
-export const syncOrgModulosFromLocales = async (
+export const syncOrgModulesFromBranches = async (
   orgId: string,
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
@@ -190,7 +181,7 @@ export const insertBranchDb = async (
   orgId: string,
   data: {
     nombre: string;
-    tipo: TipoNegocio;
+    tipo: BusinessType;
     direccion: string;
     whatsapp?: string;
     moduloPedidos?: boolean;
@@ -199,7 +190,7 @@ export const insertBranchDb = async (
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;
-  const mods = normalizarModulos({
+  const mods = normalizeModules({
     pedidos: data.moduloPedidos,
     espera: data.moduloEspera,
   });
@@ -219,14 +210,14 @@ export const insertBranchDb = async (
     modulo_espera: mods.espera,
   });
   if (error) console.error("insertBranchDb", error.message);
-  else await syncOrgModulosFromLocales(orgId);
+  else await syncOrgModulesFromBranches(orgId);
 };
 
 export const updateBranchIdentityDb = async (
   branchId: string,
   data: {
     nombre?: string;
-    tipo?: TipoNegocio;
+    tipo?: BusinessType;
     direccion?: string;
     whatsapp?: string;
   },
@@ -251,7 +242,7 @@ export const updateBranchModulesDb = async (
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;
-  const n = normalizarModulos({
+  const n = normalizeModules({
     pedidos: mods.moduloPedidos,
     espera: mods.moduloEspera,
   });
@@ -264,7 +255,7 @@ export const updateBranchModulesDb = async (
     })
     .eq("id", branchId);
   if (error) console.error("updateBranchModulesDb", error.message);
-  else await syncOrgModulosFromLocales(orgId);
+  else await syncOrgModulesFromBranches(orgId);
 };
 
 export const deleteBranchDb = async (id: string): Promise<void> => {
@@ -278,6 +269,6 @@ export const deleteBranchDb = async (id: string): Promise<void> => {
   const { error } = await supabase.from("locales").delete().eq("id", id);
   if (error) console.error("deleteBranchDb", error.message);
   else if (row?.organizacion_id) {
-    await syncOrgModulosFromLocales(row.organizacion_id);
+    await syncOrgModulesFromBranches(row.organizacion_id);
   }
 };

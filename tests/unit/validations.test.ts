@@ -5,8 +5,8 @@ import {
   formatCuil,
   isWhatsapp,
   isPin4,
-  nombreEmpleadoEnUso,
-  normalizarNombreEmpleado,
+  isEmployeeNameTaken,
+  normalizeEmployeeName,
 } from "@/lib/validations";
 
 describe("isEmail", () => {
@@ -61,24 +61,24 @@ describe("nombreEmpleadoEnUso", () => {
   ];
 
   it("detecta el mismo nombre sin importar mayúsculas ni espacios", () => {
-    expect(nombreEmpleadoEnUso("lucía", lista)).toBe(true);
-    expect(nombreEmpleadoEnUso("  Lucía  ", lista)).toBe(true);
-    expect(nombreEmpleadoEnUso("LUCÍA", lista)).toBe(true);
+    expect(isEmployeeNameTaken("lucía", lista)).toBe(true);
+    expect(isEmployeeNameTaken("  Lucía  ", lista)).toBe(true);
+    expect(isEmployeeNameTaken("LUCÍA", lista)).toBe(true);
   });
 
   it("permite variantes distintas", () => {
-    expect(nombreEmpleadoEnUso("Lucy", lista)).toBe(false);
-    expect(nombreEmpleadoEnUso("Lucía B", lista)).toBe(false);
-    expect(nombreEmpleadoEnUso("Luli", lista)).toBe(false);
+    expect(isEmployeeNameTaken("Lucy", lista)).toBe(false);
+    expect(isEmployeeNameTaken("Lucía B", lista)).toBe(false);
+    expect(isEmployeeNameTaken("Luli", lista)).toBe(false);
   });
 
   it("ignora un id al editar", () => {
-    expect(nombreEmpleadoEnUso("Lucía", lista, "1")).toBe(false);
-    expect(nombreEmpleadoEnUso("Lucía", lista, "2")).toBe(true);
+    expect(isEmployeeNameTaken("Lucía", lista, "1")).toBe(false);
+    expect(isEmployeeNameTaken("Lucía", lista, "2")).toBe(true);
   });
 
   it("normaliza espacios internos", () => {
-    expect(normalizarNombreEmpleado("  Lucía   B  ")).toBe("lucía b");
+    expect(normalizeEmployeeName("  Lucía   B  ")).toBe("lucía b");
   });
 });
 

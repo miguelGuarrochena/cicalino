@@ -6,10 +6,10 @@ import { Logo } from "@/components/ui/Logo";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import {
-  aceptarContrato,
-  obtenerContratoPorToken,
-  type ContratoPublico,
-} from "@/lib/actions/contrato";
+  acceptContract,
+  getContractByToken,
+  type PublicContract,
+} from "@/lib/actions/contract";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -26,7 +26,7 @@ const fecha = (iso: string) =>
 
 const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
   const { token } = use(params);
-  const [data, setData] = useState<ContratoPublico | null | undefined>(
+  const [data, setData] = useState<PublicContract | null | undefined>(
     undefined,
   );
   const [acepto, setAcepto] = useState(false);
@@ -38,7 +38,7 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const r = await obtenerContratoPorToken(token);
+      const r = await getContractByToken(token);
       if (alive) {
         setData(r);
         if (r?.yaAceptado) setListo(true);
@@ -56,7 +56,6 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
       setCopiado(true);
       setTimeout(() => setCopiado(false), 1600);
     } catch {
-      /* ignore */
     }
   };
 
@@ -64,7 +63,7 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
     if (!acepto || saving) return;
     setSaving(true);
     setError(null);
-    const r = await aceptarContrato(token);
+    const r = await acceptContract(token);
     setSaving(false);
     if (!r.ok) {
       setError(r.error);

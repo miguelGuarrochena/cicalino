@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 
-import type { TipoNegocio } from "@/lib/types";
-export type { TipoNegocio };
-export { TIPO_NEGOCIO_LABEL, TIPOS_NEGOCIO } from "@/lib/types";
+import type { BusinessType } from "@/lib/types";
+export type { BusinessType };
+export { BUSINESS_TYPE_LABEL, BUSINESS_TYPES } from "@/lib/types";
 
 export type IdentificationMode = "pedido" | "nombre" | "mesa";
 
@@ -12,10 +12,6 @@ export interface EmployeeUI {
   id: string;
   nombre: string;
   rol: string;
-  /**
-   * Solo indica SI tiene PIN configurado. El PIN en sí nunca baja al navegador:
-   * se define y se verifica en el servidor (ver security-fixes-03.sql).
-   */
   tienePin: boolean;
 }
 
@@ -27,13 +23,12 @@ export type NewEmployeeInput = {
 
 interface ConfigState {
   nombre: string;
-  tipo: TipoNegocio;
+  tipo: BusinessType;
   whatsapp: string;
   direccion: string;
   modo: IdentificationMode;
   cantidadMesas: number;
   horaCorte: number;
-  /** Módulos contratados en esta sucursal (solo lectura en config). */
   moduloPedidos: boolean;
   moduloEspera: boolean;
   empleados: EmployeeUI[];
@@ -45,7 +40,6 @@ interface ConfigState {
   setModo: (mode: IdentificationMode) => void;
   setCantidadMesas: (n: number) => void;
   setHoraCorte: (n: number) => void;
-  /** Sobrescribe varios campos de config de una (al cargar desde la base). */
   hydrate: (
     partial: Partial<
       Pick<
@@ -62,9 +56,7 @@ interface ConfigState {
       >
     >,
   ) => void;
-  /** Reemplaza la lista de empleados (al cargar desde la base). */
   setEmpleados: (list: EmployeeUI[]) => void;
-  /** Agrega un empleado ya formado (con id real de la base). */
   pushEmpleado: (emp: EmployeeUI) => void;
   agregarEmpleado: (data: NewEmployeeInput) => void;
   actualizarEmpleado: (
@@ -72,25 +64,16 @@ interface ConfigState {
     campo: "nombre" | "rol",
     valor: string,
   ) => void;
-  /** Marca si el empleado tiene PIN (el valor del PIN nunca vive en el store). */
   marcarPinEmpleado: (id: string, tienePin: boolean) => void;
   quitarEmpleado: (id: string) => void;
-  /**
-   * true cuando ya cargamos config de la sucursal (o no hace falta).
-   * Evita que /panel/espera redirija a pedidos antes del fetch.
-   */
   branchConfigReady: boolean;
   setBranchConfigReady: (v: boolean) => void;
 }
 
-// Store de configuracion del local. Persistido en localStorage para el
-// prototipo; en produccion sincroniza con la tabla `locales` + `empleados`.
-// Estado inicial. En producción (Supabase) arranca vacío y se hidrata desde la
-// base (tabla `locales` + `empleados`); en demo trae datos de ejemplo.
-const INICIAL = supabaseConfigurado
+const INICIAL = supabaseConfigured
   ? {
       nombre: "",
-      tipo: "otro" as TipoNegocio,
+      tipo: "otro" as BusinessType,
       whatsapp: "",
       direccion: "",
       modo: "pedido" as IdentificationMode,
@@ -103,7 +86,7 @@ const INICIAL = supabaseConfigurado
     }
   : {
       nombre: "La Esquina Centro",
-      tipo: "panaderia" as TipoNegocio,
+      tipo: "panaderia" as BusinessType,
       whatsapp: "+54 9 341 555 1234",
       direccion: "Calle Falsa 742, Rosario",
       modo: "pedido" as IdentificationMode,
@@ -141,7 +124,6 @@ export const useConfigStore = create<ConfigState>()(
               id: crypto.randomUUID(),
               nombre: data.nombre.trim(),
               rol: (data.rol ?? "").trim(),
-              // Modo demo (sin Supabase): no guardamos PINs en el navegador.
               tienePin: Boolean((data.pin ?? "").trim()),
             },
           ],
@@ -173,8 +155,7 @@ export const useConfigStore = create<ConfigState>()(
           moduloEspera: s.moduloEspera,
           empleados: s.empleados,
         };
-        // En live, la identidad del local viene de la base (no del localStorage).
-        if (supabaseConfigurado) return operacion;
+        if (supabaseConfigured) return operacion;
         return {
           ...operacion,
           nombre: s.nombre,
@@ -187,7 +168,6 @@ export const useConfigStore = create<ConfigState>()(
   ),
 );
 
-// Etiqueta de la referencia segun el modo (para mostrar en panel / cliente).
 export const modeLabel = (mode: IdentificationMode): string => {
   return mode === "mesa" ? "Mesa" : mode === "pedido" ? "Pedido" : "Cliente";
 };

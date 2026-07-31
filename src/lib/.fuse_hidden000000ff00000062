@@ -1,0 +1,157 @@
+
+export type OrderStatus =
+  | "creado"
+  | "en_preparacion"
+  | "listo"
+  | "retirado"
+  | "cancelado";
+
+export type TipoNegocio =
+  | "cafeteria"
+  | "panaderia"
+  | "rotiseria"
+  | "heladeria"
+  | "bar"
+  | "restaurante"
+  | "pasteleria"
+  | "food_truck"
+  | "otro";
+
+export const TIPO_NEGOCIO_LABEL: Record<TipoNegocio, string> = {
+  cafeteria: "Cafetería",
+  panaderia: "Panadería",
+  rotiseria: "Rotisería",
+  heladeria: "Heladería",
+  bar: "Bar",
+  restaurante: "Restaurante",
+  pasteleria: "Pastelería",
+  food_truck: "Food truck",
+  otro: "Otro",
+};
+
+export const TIPOS_NEGOCIO = Object.keys(TIPO_NEGOCIO_LABEL) as TipoNegocio[];
+
+export interface OrderView {
+  id: string;
+  referencia: string;
+  estado: OrderStatus;
+  creadoEn: string;
+  enPreparacionEn: string | null;
+  listoEn: string | null;
+  retiradoEn: string | null;
+  canceladoEn: string | null;
+  qrToken: string;
+  empleado?: string | null;
+  vistoEn?: string | null;
+}
+
+export interface CustomerStatusView {
+  referencia: string;
+  estado: OrderStatus;
+  nombreLocal: string;
+  listo: boolean;
+}
+
+export interface MetricasDia {
+  fecha: string;
+  totalPedidos: number;
+  tiempoPrepPromedioMin: number | null;
+  tiempoRetiroPromedioMin: number | null;
+  pedidosPorHora: { hora: number; cantidad: number }[];
+}
+
+export const ETIQUETA_ESTADO: Record<OrderStatus, string> = {
+  creado: "En curso",
+  en_preparacion: "En curso",
+  listo: "Listo",
+  retirado: "Retirado",
+  cancelado: "Cancelado",
+};
+
+export const orderClosed = (status: OrderStatus): boolean => {
+  return status === "retirado" || status === "cancelado";
+};
+
+export type EsperaStatus = "esperando" | "avisado" | "sentado" | "cancelado";
+
+export type MesaEstado = "libre" | "ocupada";
+
+export type ReservaStatus = "activa" | "sentada" | "cancelada" | "expirada";
+
+export interface EsperaView {
+  id: string;
+  nombre: string;
+  personas: number;
+  estado: EsperaStatus;
+  mesaNumero: number | null;
+  qrToken: string;
+  creadoEn: string;
+  avisadoEn: string | null;
+  sentadoEn: string | null;
+  canceladoEn: string | null;
+  vistoEn: string | null;
+  empleado?: string | null;
+}
+
+export interface MesaView {
+  id: string;
+  numero: number;
+  estado: MesaEstado;
+  capacidad: number;
+  esperaId: string | null;
+  reservaId: string | null;
+}
+
+export interface ReservaView {
+  id: string;
+  nombre: string;
+  personas: number;
+  mesaNumero: number;
+  mesasNumeros: number[];
+  horario: string;
+  graciaMinutos: 15 | 20;
+  estado: ReservaStatus;
+  creadoEn: string;
+  sentadoEn: string | null;
+  canceladoEn: string | null;
+  expiradoEn: string | null;
+  empleado?: string | null;
+}
+
+export const ETIQUETA_ESPERA: Record<EsperaStatus, string> = {
+  esperando: "Esperando",
+  avisado: "Avisado",
+  sentado: "Sentado",
+  cancelado: "Cancelado",
+};
+
+export const ETIQUETA_RESERVA: Record<ReservaStatus, string> = {
+  activa: "Reservada",
+  sentada: "Sentada",
+  cancelada: "Cancelada",
+  expirada: "No llegó",
+};
+
+export const esperaClosed = (status: EsperaStatus): boolean =>
+  status === "sentado" || status === "cancelado";
+
+export const reservaClosed = (status: ReservaStatus): boolean =>
+  status === "sentada" || status === "cancelada" || status === "expirada";
+
+export const labelMesas = (nums: number[]): string => {
+  const sorted = [...new Set(nums)].filter((n) => n >= 1).sort((a, b) => a - b);
+  return sorted.join(" + ") || "—";
+};
+
+export const tituloMesas = (
+  nums: number[],
+  locale: "es" | "en" = "es",
+): string => {
+  const sorted = [...new Set(nums)].filter((n) => n >= 1).sort((a, b) => a - b);
+  const label = sorted.join(" + ");
+  if (!sorted.length) return locale === "en" ? "Table" : "Mesa";
+  if (sorted.length === 1) {
+    return locale === "en" ? `Table ${label}` : `Mesa ${label}`;
+  }
+  return locale === "en" ? `Tables ${label}` : `Mesas ${label}`;
+};

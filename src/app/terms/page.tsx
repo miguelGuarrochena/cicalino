@@ -5,7 +5,7 @@ import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { useApp } from "@/components/providers/Providers";
-import { TERMINOS_VERSION } from "@/lib/contrato";
+import { TERMS_VERSION } from "@/lib/contract";
 
 const TerminosPage = () => {
   const { t, locale } = useApp();
@@ -25,7 +25,7 @@ const TerminosPage = () => {
           {t("nav.terminos")}
         </h1>
         <p className="mt-2 text-xs text-carbon/45">
-          {es ? "Versión" : "Version"} {TERMINOS_VERSION}
+          {es ? "Versión" : "Version"} {TERMS_VERSION}
         </p>
         <div className="mt-6 space-y-4 text-sm leading-relaxed text-carbon/70">
           {es ? (

@@ -1,20 +1,13 @@
 import { z } from "zod";
 
-// ---------------------------------------------------------------------------
-// Piezas reutilizables. Criterio: allowlist y límites explícitos en todo.
-// Un `z.string()` pelado acepta megabytes de texto — siempre acotamos.
-// ---------------------------------------------------------------------------
-
-/** Texto obligatorio, sin espacios de sobra, con tope de longitud. */
-export const texto = (min: number, max: number, campo: string) =>
+export const textField = (min: number, max: number, campo: string) =>
   z
     .string({ required_error: `Falta ${campo}.`, invalid_type_error: `${campo} inválido.` })
     .trim()
     .min(min, `${campo}: mínimo ${min} caracteres.`)
     .max(max, `${campo}: máximo ${max} caracteres.`);
 
-/** Texto opcional: "" y null se normalizan a undefined. */
-export const textoOpcional = (max: number, campo: string) =>
+export const optionalTextField = (max: number, campo: string) =>
   z
     .string()
     .trim()
@@ -33,7 +26,6 @@ export const email = z
 
 export const uuid = z.string().uuid("Identificador inválido.");
 
-/** CUIL/CUIT argentino: 11 dígitos (con o sin guiones). Opcional. */
 export const cuil = z
   .string()
   .trim()
@@ -42,7 +34,6 @@ export const cuil = z
   .transform((v) => (v ? v.replace(/\D/g, "") : ""))
   .refine((d) => d === "" || d.length === 11, "El CUIL/CUIT debe tener 11 dígitos.");
 
-/** Teléfono flexible (AR): al menos 8 dígitos si viene cargado. */
 export const telefono = z
   .string()
   .trim()
@@ -55,7 +46,6 @@ export const telefono = z
     "El teléfono necesita al menos 8 dígitos.",
   );
 
-/** PIN de fichaje: exactamente 4 dígitos. Opcional. */
 export const pin4 = z
   .string()
   .trim()
@@ -79,11 +69,11 @@ export const tipoNegocio = z.enum(
   { errorMap: () => ({ message: "Tipo de negocio inválido." }) },
 );
 
-export const modoIdentificacion = z.enum(["pedido", "nombre", "mesa"], {
+export const identificationMode = z.enum(["pedido", "nombre", "mesa"], {
   errorMap: () => ({ message: "Modo de identificación inválido." }),
 });
 
-export const estadoPedido = z.enum(
+export const orderStatus = z.enum(
   ["creado", "en_preparacion", "listo", "retirado", "cancelado"],
   { errorMap: () => ({ message: "Estado de pedido inválido." }) },
 );
@@ -92,22 +82,14 @@ export const plan = z.enum(["mensual", "anual", "gratis"], {
   errorMap: () => ({ message: "Plan inválido." }),
 });
 
-// ---------------------------------------------------------------------------
-// Helper de parseo para actions y route handlers.
-// Devuelve el primer mensaje de error, listo para mostrarle al usuario, sin
-// filtrar la estructura interna del esquema.
-// ---------------------------------------------------------------------------
-
-export type ParseResultado<T> =
+export type ParseResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
-// Genérico sobre el esquema (no sobre T) para que `data` sea el tipo de SALIDA,
-// ya con los transform y default aplicados.
-export const parsear = <S extends z.ZodTypeAny>(
+export const parseInput = <S extends z.ZodTypeAny>(
   schema: S,
   input: unknown,
-): ParseResultado<z.infer<S>> => {
+): ParseResult<z.infer<S>> => {
   const r = schema.safeParse(input);
   if (r.success) return { ok: true, data: r.data };
   const primero = r.error.issues[0];

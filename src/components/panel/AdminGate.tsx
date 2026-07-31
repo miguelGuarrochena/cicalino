@@ -3,15 +3,10 @@
 import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
-import { verificarPasswordDueño } from "@/lib/auth/actions";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { verifyPasswordDueño } from "@/lib/auth/actions";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { NoAccess } from "@/components/ui/NoAccess";
 
-/**
- * Protege Config / Métricas: pide la contraseña de la cuenta del dueño
- * (no el PIN de 4 dígitos del fichaje). El layout vuelve a bloquear al
- * salir de estas secciones.
- */
 export const AdminGate = ({ children }: { children: React.ReactNode }) => {
   const { locale } = useApp();
   const role = useSessionStore((s) => s.rol);
@@ -36,8 +31,7 @@ export const AdminGate = ({ children }: { children: React.ReactNode }) => {
     setError(null);
     setBusy(true);
     try {
-      if (!supabaseConfigurado) {
-        // Demo local: sin backend de auth; pedimos algo no trivial.
+      if (!supabaseConfigured) {
         if (password.trim().length < 6) {
           setError(
             es
@@ -50,7 +44,7 @@ export const AdminGate = ({ children }: { children: React.ReactNode }) => {
         setPassword("");
         return;
       }
-      const res = await verificarPasswordDueño(password);
+      const res = await verifyPasswordDueño(password);
       if (!res.ok) {
         setError(res.error);
         setPassword("");

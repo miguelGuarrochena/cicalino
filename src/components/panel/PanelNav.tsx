@@ -6,9 +6,9 @@ import { useApp } from "@/components/providers/Providers";
 import { useSessionStore, type CurrentRole } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
 import {
-  leerDispositivoModo,
-  modulosVisibles,
-} from "@/lib/modulos";
+  readDeviceMode,
+  visibleModules,
+} from "@/lib/modules";
 import { useSyncExternalStore } from "react";
 
 type IconKey = "orders" | "espera" | "chart" | "settings";
@@ -24,8 +24,6 @@ const LINKS: {
   { href: "/panel/metrics", key: "nav.metricas", roles: ["admin"], icon: "chart" },
   { href: "/panel/config", key: "nav.config", roles: ["admin", "supervisor"], icon: "settings" },
 ];
-
-// Superadmin no opera el panel del local: su área es /admin.
 
 const Icon = ({ k }: { k: IconKey }) => {
   const common = {
@@ -67,7 +65,6 @@ const Icon = ({ k }: { k: IconKey }) => {
   );
 };
 
-// variant "top": pills horizontales (desktop). "bottom": tab bar fija (mobile).
 export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) => {
   const path = usePathname();
   const { t } = useApp();
@@ -79,10 +76,10 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
       window.addEventListener("storage", cb);
       return () => window.removeEventListener("storage", cb);
     },
-    leerDispositivoModo,
+    readDeviceMode,
     () => "ambos" as const,
   );
-  const visibles = modulosVisibles(
+  const visibles = visibleModules(
     { pedidos: moduloPedidos, espera: moduloEspera },
     dispositivo,
   );

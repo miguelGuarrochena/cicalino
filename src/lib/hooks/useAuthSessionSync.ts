@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   useSessionStore,
   type CurrentRole,
@@ -14,18 +14,15 @@ type PerfilRow = {
   local_id: string | null;
 };
 
-/** Aplica el perfil de `usuarios` al store de sesión (sin tocar impersonación). */
 const aplicarPerfil = (row: PerfilRow | null) => {
   if (!row) return;
   const s = useSessionStore.getState();
-  // Si el SA está impersonando, no pisar el contexto local.
   if (s.impersonando) return;
 
   const rol = (row.rol as CurrentRole) || "admin";
   useSessionStore.setState({
     rol,
     organizacionId: row.organizacion_id,
-    // Dueño: conservar sucursal elegida si sigue en la misma org.
     sucursalId:
       rol === "admin" &&
       s.organizacionId === row.organizacion_id &&
@@ -46,14 +43,9 @@ const cargarPerfil = async (userId: string) => {
   aplicarPerfil(data as PerfilRow | null);
 };
 
-/**
- * Mantiene la sesión del panel alineada con Supabase Auth.
- * Corre después de rehydrate del store para no pisar ni ser pisado.
- * Ir a la landing o matar la app no limpia la cookie ni el perfil.
- */
 export const useAuthSessionSync = () => {
   useEffect(() => {
-    if (!supabaseConfigurado) return;
+    if (!supabaseConfigured) return;
 
     let alive = true;
     let started = false;

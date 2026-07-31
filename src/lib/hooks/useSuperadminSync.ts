@@ -1,17 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { refreshOrganizations } from "@/lib/data/superadmin";
 
-// Carga orgs al entrar a /admin y se mantiene al día (aceptación de
-// condiciones, cambios de cupo, etc.) vía realtime + poll de respaldo.
 export const useSuperadminSync = (): { ready: boolean } => {
-  const [ready, setReady] = useState(!supabaseConfigurado);
+  const [ready, setReady] = useState(!supabaseConfigured);
 
   useEffect(() => {
-    if (!supabaseConfigurado) return;
+    if (!supabaseConfigured) return;
 
     let alive = true;
     void (async () => {

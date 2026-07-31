@@ -1,17 +1,17 @@
 "use server";
 
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { getPerfilActual } from "@/lib/auth/profile";
-import { enviarEmail } from "@/lib/email/resend";
+import { getCurrentProfile } from "@/lib/auth/profile";
+import { sendEmail } from "@/lib/email/resend";
 import { emailLayout } from "@/lib/email/templates";
 import { appBaseUrl } from "@/lib/appUrl";
 import {
-  orgCobroPendiente,
-  motivoCobro,
-  type OrgCobro,
+  isOrgBillingDue,
+  billingReason,
+  type OrgBilling,
 } from "@/lib/billing";
 
-type OrgRow = OrgCobro & {
+type OrgRow = OrgBilling & {
   id: string;
   nombre: string;
   dueno_email: string;
@@ -37,7 +37,7 @@ const mapRow = (r: {
   dueno_email: r.dueno_email,
   activo: r.activo,
   pagado: r.pagado,
-  plan: r.plan as OrgCobro["plan"],
+  plan: r.plan as OrgBilling["plan"],
   mesGratisHasta: r.mes_gratis_hasta,
   proximoCobroEn: r.proximo_cobro_en,
   aviso_cobro_en: r.aviso_cobro_en,
@@ -63,11 +63,10 @@ const esc = (s: string): string =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-/** Lista orgs que requieren atención de cobro (para el panel). */
-export const listarCobrosPendientes = async (): Promise<
+export const listPendingCharges = async (): Promise<
   { id: string; nombre: string; motivo: string; email: string }[]
 > => {
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") return [];
   const admin = createAdminSupabase();
   if (!admin) return [];
@@ -81,21 +80,16 @@ export const listarCobrosPendientes = async (): Promise<
 
   return (data ?? [])
     .map(mapRow)
-    .filter(orgCobroPendiente)
+    .filter(isOrgBillingDue)
     .map((o) => ({
       id: o.id,
       nombre: o.nombre,
-      motivo: motivoCobro(o),
+      motivo: billingReason(o),
       email: o.dueno_email,
     }));
 };
 
-/**
- * Manda un mail resumen a LEAD_NOTIFY_EMAIL con los cobros a revisar.
- * Anti-spam: como máximo 1 mail por org por día (aviso_cobro_en).
- * Lo llama el cron diario y también al abrir /admin.
- */
-export const enviarAvisosCobro = async (): Promise<{
+export const sendBillingReminders = async (): Promise<{
   ok: boolean;
   avisados: number;
 }> => {
@@ -111,7 +105,7 @@ export const enviarAvisosCobro = async (): Promise<{
 
   const pendientes = (data ?? [])
     .map(mapRow)
-    .filter(orgCobroPendiente)
+    .filter(isOrgBillingDue)
     .filter((o) => !avisadoHoy(o.aviso_cobro_en));
 
   if (pendientes.length === 0) return { ok: true, avisados: 0 };
@@ -120,11 +114,11 @@ export const enviarAvisosCobro = async (): Promise<{
   const filas = pendientes
     .map(
       (o) =>
-        `<li style="margin:0 0 8px;"><b>${esc(o.nombre)}</b>: ${esc(motivoCobro(o))}<br/><span style="font-size:13px;opacity:.75;">${esc(o.dueno_email)}</span></li>`,
+        `<li style="margin:0 0 8px;"><b>${esc(o.nombre)}</b>: ${esc(billingReason(o))}<br/><span style="font-size:13px;opacity:.75;">${esc(o.dueno_email)}</span></li>`,
     )
     .join("");
 
-  const ok = await enviarEmail({
+  const ok = await sendEmail({
     to: notify,
     subject:
       pendientes.length === 1
@@ -153,9 +147,8 @@ export const enviarAvisosCobro = async (): Promise<{
   return { ok, avisados: ok ? pendientes.length : 0 };
 };
 
-/** Superadmin abre el panel: refresca avisos por mail si hace falta. */
-export const revisarCobrosAlAbrirAdmin = async (): Promise<void> => {
-  const perfil = await getPerfilActual();
+export const checkBillingOnAdminOpen = async (): Promise<void> => {
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") return;
-  await enviarAvisosCobro();
+  await sendBillingReminders();
 };

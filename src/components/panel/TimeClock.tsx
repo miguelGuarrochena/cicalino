@@ -8,7 +8,7 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { verifyEmployeePin } from "@/lib/data/branch";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 
 const inicial = (name: string) => {
   return (name.trim()[0] || "?").toUpperCase();
@@ -16,8 +16,6 @@ const inicial = (name: string) => {
 
 const PAGE_SIZE = 8;
 
-// Fichaje: elegís tu nombre y después tu PIN (único del local).
-// Si ponés el PIN de otro, no entra: el PIN tiene que coincidir con esa persona.
 export const Fichaje = () => {
   const { t } = useApp();
   const employees = useConfigStore((s) => s.empleados);
@@ -46,7 +44,6 @@ export const Fichaje = () => {
     }
   };
 
-  // La verificación del PIN es del SERVIDOR (RPC verificar_pin_empleado).
   const confirmar = async (id: string, pinIngresado?: string) => {
     const emp = employees.find((e) => e.id === id);
     if (!emp) return;
@@ -57,7 +54,7 @@ export const Fichaje = () => {
       return;
     }
 
-    if (!supabaseConfigurado) {
+    if (!supabaseConfigured) {
       fichar({ id: emp.id, nombre: emp.nombre });
       cerrar();
       return;

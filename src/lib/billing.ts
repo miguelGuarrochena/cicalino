@@ -1,10 +1,8 @@
-/** Helpers de facturación manual (ciclo mensual/anual + recordatorios). */
 
-export type PlanCobro = "mensual" | "anual" | "gratis";
+export type BillingPlan = "mensual" | "anual" | "gratis";
 
-/** Suma un ciclo de cobro a partir de `desde`. */
-export const sumarCicloCobro = (
-  plan: PlanCobro,
+export const addBillingCycle = (
+  plan: BillingPlan,
   desde: Date = new Date(),
 ): Date | null => {
   if (plan === "gratis") return null;
@@ -14,39 +12,38 @@ export const sumarCicloCobro = (
   return d;
 };
 
-export const diasHasta = (iso: string): number => {
+export const daysUntil = (iso: string): number => {
   const fin = new Date(iso);
   fin.setHours(23, 59, 59, 999);
   return Math.ceil((fin.getTime() - Date.now()) / 86_400_000);
 };
 
-export type OrgCobro = {
+export type OrgBilling = {
   activo: boolean;
   pagado: boolean;
-  plan: PlanCobro;
+  plan: BillingPlan;
   mesGratisHasta: string | null;
   proximoCobroEn: string | null;
 };
 
-/** ¿Hay que mirar esta org por cobro / fin de prueba (hoy o en ≤3 días)? */
-export const orgCobroPendiente = (org: OrgCobro): boolean => {
+export const isOrgBillingDue = (org: OrgBilling): boolean => {
   if (!org.activo || org.plan === "gratis") return false;
   if (!org.pagado) return true;
-  if (org.mesGratisHasta && diasHasta(org.mesGratisHasta) <= 3) return true;
-  if (org.proximoCobroEn && diasHasta(org.proximoCobroEn) <= 3) return true;
+  if (org.mesGratisHasta && daysUntil(org.mesGratisHasta) <= 3) return true;
+  if (org.proximoCobroEn && daysUntil(org.proximoCobroEn) <= 3) return true;
   return false;
 };
 
-export const motivoCobro = (org: OrgCobro): string => {
+export const billingReason = (org: OrgBilling): string => {
   if (!org.pagado) return "Marcado como impago";
-  if (org.mesGratisHasta && diasHasta(org.mesGratisHasta) <= 3) {
-    const d = diasHasta(org.mesGratisHasta);
+  if (org.mesGratisHasta && daysUntil(org.mesGratisHasta) <= 3) {
+    const d = daysUntil(org.mesGratisHasta);
     if (d < 0) return "Terminó el mes gratis";
     if (d === 0) return "El mes gratis termina hoy";
     return `El mes gratis termina en ${d} día${d === 1 ? "" : "s"}`;
   }
   if (org.proximoCobroEn) {
-    const d = diasHasta(org.proximoCobroEn);
+    const d = daysUntil(org.proximoCobroEn);
     if (d < 0) return "Venció el cobro";
     if (d === 0) return "Cobro vence hoy";
     return `Cobro en ${d} día${d === 1 ? "" : "s"}`;

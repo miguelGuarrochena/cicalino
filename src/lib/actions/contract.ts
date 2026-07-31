@@ -1,22 +1,22 @@
 "use server";
 
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { getPerfilActual } from "@/lib/auth/profile";
-import { enviarEmail } from "@/lib/email/resend";
+import { getCurrentProfile } from "@/lib/auth/profile";
+import { sendEmail } from "@/lib/email/resend";
 import { emailLayout } from "@/lib/email/templates";
 import { appBaseUrl } from "@/lib/appUrl";
-import type { PlanCobroUI } from "@/lib/contrato";
-import { parsear, idSchema } from "@/lib/schemas";
+import type { BillingPlanUI } from "@/lib/contract";
+import { parseInput, idSchema } from "@/lib/schemas";
 import {
-  TERMINOS_VERSION,
+  TERMS_VERSION,
   mpAlias,
-  montoContratoSucursales,
-  etiquetaCiclo,
-} from "@/lib/contrato";
+  contractAmountForBranches,
+  billingCycleLabel,
+} from "@/lib/contract";
 import {
-  etiquetaModulosSucursales,
-  type ModulosFlags,
-} from "@/lib/precios";
+  branchesModuleLabel,
+  type ModuleFlags,
+} from "@/lib/pricing";
 
 type Simple = { ok: true } | { ok: false; error: string };
 
@@ -34,9 +34,9 @@ const money = (n: number): string =>
     maximumFractionDigits: 0,
   }).format(n);
 
-export type ContratoPublico = {
+export type PublicContract = {
   nombre: string;
-  plan: PlanCobroUI;
+  plan: BillingPlanUI;
   cupo: number;
   monto: number;
   ciclo: string;
@@ -55,10 +55,9 @@ const nuevoToken = (): string => {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 };
 
-/** Datos públicos del contrato (por token). Sin login. */
-export const obtenerContratoPorToken = async (
+export const getContractByToken = async (
   token: string,
-): Promise<ContratoPublico | null> => {
+): Promise<PublicContract | null> => {
   const t = token.trim();
   if (t.length < 16) return null;
   const admin = createAdminSupabase();
@@ -71,13 +70,13 @@ export const obtenerContratoPorToken = async (
     .eq("contrato_token", t)
     .maybeSingle();
   if (!data) return null;
-  const plan = (data.plan as PlanCobroUI) ?? "mensual";
+  const plan = (data.plan as BillingPlanUI) ?? "mensual";
   const cupo = data.cupo ?? 1;
   const locales = (data.locales ?? []) as {
     modulo_pedidos: boolean | null;
     modulo_espera: boolean | null;
   }[];
-  const packs: ModulosFlags[] = locales.length
+  const packs: ModuleFlags[] = locales.length
     ? locales.map((l) => ({
         pedidos: l.modulo_pedidos !== false,
         espera: Boolean(l.modulo_espera),
@@ -93,20 +92,19 @@ export const obtenerContratoPorToken = async (
     nombre: data.nombre,
     plan,
     cupo,
-    monto: montoContratoSucursales(plan, packs),
-    ciclo: etiquetaCiclo(plan),
+    monto: contractAmountForBranches(plan, packs),
+    ciclo: billingCycleLabel(plan),
     alias: mpAlias(),
     yaAceptado: Boolean(data.contrato_aceptado_en),
     aceptadoEn: data.contrato_aceptado_en,
     enPrueba,
     pruebaHasta,
-    terminosVersion: data.terminos_version ?? TERMINOS_VERSION,
-    modulos: etiquetaModulosSucursales(packs),
+    terminosVersion: data.terminos_version ?? TERMS_VERSION,
+    modulos: branchesModuleLabel(packs),
   };
 };
 
-/** Aceptación pública: checkbox en /aceptar/[token]. */
-export const aceptarContrato = async (token: string): Promise<Simple> => {
+export const acceptContract = async (token: string): Promise<Simple> => {
   const t = token.trim();
   if (t.length < 16) return { ok: false, error: "Link inválido." };
   const admin = createAdminSupabase();
@@ -127,7 +125,7 @@ export const aceptarContrato = async (token: string): Promise<Simple> => {
     .from("organizaciones")
     .update({
       contrato_aceptado_en: ahora,
-      terminos_version: TERMINOS_VERSION,
+      terminos_version: TERMS_VERSION,
     })
     .eq("id", org.id);
   if (error) {
@@ -136,13 +134,13 @@ export const aceptarContrato = async (token: string): Promise<Simple> => {
   }
 
   const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
-  void enviarEmail({
+  void sendEmail({
     to: notify,
     subject: `Listo para activar: ${org.nombre}`,
     replyTo: org.dueno_email,
     html: emailLayout({
       titulo: "Condiciones aceptadas",
-      cuerpoHtml: `<p style="margin:0;"><b>${esc(org.nombre)}</b> aceptó las bases (${TERMINOS_VERSION}).</p>
+      cuerpoHtml: `<p style="margin:0;"><b>${esc(org.nombre)}</b> aceptó las bases (${TERMS_VERSION}).</p>
         <p style="margin:8px 0 0;font-size:14px;">Mail: ${esc(org.dueno_email)}</p>
         <p style="margin:8px 0 0;font-size:14px;">Ya podés <b>activar</b> la cuenta desde Superadmin
         (ahí se manda el mail de alta al dueño).</p>`,
@@ -153,24 +151,19 @@ export const aceptarContrato = async (token: string): Promise<Simple> => {
   return { ok: true };
 };
 
-/**
- * Genera (o reusa) el token y manda el mail con link + alias MP.
- * Solo superadmin. También se llama al activar un lead.
- */
-export const enviarLinkContrato = async (
+export const sendContractLink = async (
   organizacionId: string,
 ): Promise<Simple & { url?: string }> => {
-  const perfil = await getPerfilActual();
+  const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
   }
-  const v = parsear(idSchema, { id: organizacionId });
+  const v = parseInput(idSchema, { id: organizacionId });
   if (!v.ok) return { ok: false, error: v.error };
-  return enviarLinkContratoInterno(v.data.id);
+  return sendContractLinkInternal(v.data.id);
 };
 
-/** Uso interno (activar lead): no chequea rol de nuevo. */
-export const enviarLinkContratoInterno = async (
+export const sendContractLinkInternal = async (
   organizacionId: string,
 ): Promise<Simple & { url?: string }> => {
   const admin = createAdminSupabase();
@@ -199,13 +192,13 @@ export const enviarLinkContratoInterno = async (
   }
 
   const url = `${appBaseUrl()}/aceptar/${token}`;
-  const plan = (org.plan as PlanCobroUI) ?? "mensual";
+  const plan = (org.plan as BillingPlanUI) ?? "mensual";
   const cupo = org.cupo ?? 1;
   const locales = (org.locales ?? []) as {
     modulo_pedidos: boolean | null;
     modulo_espera: boolean | null;
   }[];
-  const packs: ModulosFlags[] = locales.length
+  const packs: ModuleFlags[] = locales.length
     ? locales.map((l) => ({
         pedidos: l.modulo_pedidos !== false,
         espera: Boolean(l.modulo_espera),
@@ -214,8 +207,8 @@ export const enviarLinkContratoInterno = async (
         pedidos: true,
         espera: false,
       }));
-  const monto = montoContratoSucursales(plan, packs);
-  const packLbl = etiquetaModulosSucursales(packs);
+  const monto = contractAmountForBranches(plan, packs);
+  const packLbl = branchesModuleLabel(packs);
   const alias = mpAlias();
   const prueba =
     org.mes_gratis_hasta &&
@@ -224,12 +217,12 @@ export const enviarLinkContratoInterno = async (
 
   const cuerpoPago = prueba
     ? `<p style="margin:0 0 8px;">Mientras dura tu mes gratis no hace falta pagar.
-      Al terminar, transferí <b>${money(monto)}</b> (${etiquetaCiclo(plan)} · ${esc(packLbl)})
+      Al terminar, transferí <b>${money(monto)}</b> (${billingCycleLabel(plan)} · ${esc(packLbl)})
       al alias de Mercado Pago:</p>`
     : `<p style="margin:0 0 8px;">Para activar / continuar el servicio, transferí
-      <b>${money(monto)}</b> (${etiquetaCiclo(plan)} · ${esc(packLbl)}) al alias de Mercado Pago:</p>`;
+      <b>${money(monto)}</b> (${billingCycleLabel(plan)} · ${esc(packLbl)}) al alias de Mercado Pago:</p>`;
 
-  await enviarEmail({
+  await sendEmail({
     to: org.dueno_email,
     subject: "Condiciones y pago · Cicalino",
     html: emailLayout({

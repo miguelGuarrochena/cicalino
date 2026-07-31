@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { revisarCobrosAlAbrirAdmin } from "@/lib/actions/cobros";
-import { motivoCobro, orgCobroPendiente } from "@/lib/billing";
+import { checkBillingOnAdminOpen } from "@/lib/actions/billing";
+import { billingReason, isOrgBillingDue } from "@/lib/billing";
 import { useSuperadminStore } from "@/lib/store/superadmin-store";
 
-/** Avisos de cobro / fin de prueba en el panel de Superadmin. */
 export const CobrosPanel = ({
   onAbrir,
 }: {
@@ -17,7 +16,7 @@ export const CobrosPanel = ({
     () =>
       organizations
         .filter((o) =>
-          orgCobroPendiente({
+          isOrgBillingDue({
             activo: o.activo,
             pagado: o.pagado,
             plan: o.plan,
@@ -28,7 +27,7 @@ export const CobrosPanel = ({
         .map((o) => ({
           id: o.id,
           nombre: o.nombre,
-          motivo: motivoCobro({
+          motivo: billingReason({
             activo: o.activo,
             pagado: o.pagado,
             plan: o.plan,
@@ -41,8 +40,7 @@ export const CobrosPanel = ({
   );
 
   useEffect(() => {
-    // Mail diario (anti-spam adentro de la action).
-    void revisarCobrosAlAbrirAdmin();
+    void checkBillingOnAdminOpen();
   }, []);
 
   if (items.length === 0) return null;

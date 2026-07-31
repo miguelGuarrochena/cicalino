@@ -1,0 +1,56 @@
+import "server-only";
+import { rateLimit as rateLimitLocal, type RateResult } from "./rateLimit";
+
+const URL_BASE = process.env.UPSTASH_REDIS_REST_URL;
+const TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+export const rateLimitDistribuido = Boolean(URL_BASE && TOKEN);
+
+type Pipeline = [string, ...string[]][];
+
+const ejecutar = async (comandos: Pipeline): Promise<unknown[] | null> => {
+  try {
+    const res = await fetch(`${URL_BASE}/pipeline`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(comandos),
+      cache: "no-store",
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { result?: unknown; error?: string }[];
+    return json.map((r) => r.result);
+  } catch {
+    return null;
+  }
+};
+
+export const rateLimitCompartido = async (
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateResult> => {
+  const local = rateLimitLocal(key, limit, windowMs);
+  if (!local.ok) return local;
+  if (!rateLimitDistribuido) return local;
+
+  const ttl = Math.ceil(windowMs / 1000);
+  const clave = `rl:${key}`;
+  const r = await ejecutar([
+    ["INCR", clave],
+    ["EXPIRE", clave, String(ttl), "NX"],
+    ["TTL", clave],
+  ]);
+
+  if (!r) return local;
+
+  const cuenta = Number(r[0] ?? 0);
+  const restante = Number(r[2] ?? ttl);
+  if (cuenta > limit) {
+    return { ok: false, retryAfter: restante > 0 ? restante : ttl };
+  }
+  return { ok: true, retryAfter: 0 };
+};

@@ -1,20 +1,19 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 
 export interface ActiveEmployee {
   id: string;
   nombre: string;
 }
 
-export interface Impersonacion {
+export interface Impersonation {
   organizacionId: string;
   organizacionNombre: string;
   sucursalId: string;
   sucursalNombre: string;
 }
 
-// Roles: dueño = org; supervisor/empleado = una sucursal; SA = Cicalino.
 export type CurrentRole = "superadmin" | "admin" | "supervisor" | "empleado";
 
 interface SessionState {
@@ -22,21 +21,16 @@ interface SessionState {
   organizacionId: string | null;
   sucursalId: string | null;
   setRol: (role: CurrentRole) => void;
-  /** Dueño / supervisor: fijar contexto de empresa y sucursal activa. */
   setContexto: (orgId: string | null, branchId: string | null) => void;
   setSucursalId: (branchId: string | null) => void;
   empleadoActivo: ActiveEmployee | null;
   fichar: (emp: ActiveEmployee) => void;
   salir: () => void;
-  /**
-   * Dueño desbloqueó Config/Métricas con su contraseña de cuenta.
-   * No se persiste: al refrescar o salir de la sección se vuelve a pedir.
-   */
   adminDesbloqueado: boolean;
   desbloquearAdmin: () => void;
   bloquearAdmin: () => void;
-  impersonando: Impersonacion | null;
-  entrarComoDueño: (data: Impersonacion) => void;
+  impersonando: Impersonation | null;
+  entrarComoDueño: (data: Impersonation) => void;
   salirImpersonacion: () => void;
 }
 
@@ -44,16 +38,14 @@ export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
       rol: "admin",
-      // En producción el contexto lo fija el login; en demo, La Esquina · Centro.
-      organizacionId: supabaseConfigurado ? null : "org-esquina",
-      sucursalId: supabaseConfigurado ? null : "suc-centro",
+      organizacionId: supabaseConfigured ? null : "org-esquina",
+      sucursalId: supabaseConfigured ? null : "suc-centro",
       setRol: (role) =>
         set(
-          supabaseConfigurado
+          supabaseConfigured
             ? {
                 rol: role,
                 impersonando: null,
-                // En vivo el contexto lo fija login / sync de perfil, no demos.
                 ...(role === "superadmin"
                   ? { organizacionId: null, sucursalId: null }
                   : {}),
@@ -104,18 +96,16 @@ export const useSessionStore = create<SessionState>()(
         sucursalId: s.sucursalId,
         empleadoActivo: s.empleadoActivo,
         impersonando: s.impersonando,
-        // adminDesbloqueado a propósito fuera: no guardar el desbloqueo.
       }),
     },
   ),
 );
 
-/** Limpia sesión de panel (memoria + localStorage). Solo al cerrar sesión a propósito. */
 export const clearSessionLocal = () => {
   useSessionStore.setState({
     rol: "admin",
-    organizacionId: supabaseConfigurado ? null : "org-esquina",
-    sucursalId: supabaseConfigurado ? null : "suc-centro",
+    organizacionId: supabaseConfigured ? null : "org-esquina",
+    sucursalId: supabaseConfigured ? null : "suc-centro",
     empleadoActivo: null,
     impersonando: null,
     adminDesbloqueado: false,
@@ -123,6 +113,5 @@ export const clearSessionLocal = () => {
   try {
     useSessionStore.persist.clearStorage();
   } catch {
-    /* sin storage */
   }
 };

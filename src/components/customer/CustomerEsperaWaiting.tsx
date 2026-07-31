@@ -6,16 +6,16 @@ import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { useApp } from "@/components/providers/Providers";
-import { useCustomerEspera } from "@/lib/hooks/useCustomerEspera";
-import { useEsperaStore } from "@/lib/store/espera-store";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { useCustomerWaitlist } from "@/lib/hooks/useCustomerWaitlist";
+import { useWaitlistStore } from "@/lib/store/waitlist-store";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import {
-  mostrarAvisoListo,
-  pedirPermisoNotificaciones,
-  registrarServiceWorker,
-  suscribirWebPush,
+  showReadyNotice,
+  requestNotificationPermission,
+  registerServiceWorker,
+  subscribeWebPush,
 } from "@/lib/notifications";
-import { lanzarConfetiListo } from "@/lib/confetti";
+import { fireReadyConfetti } from "@/lib/confetti";
 
 interface Props {
   token: string;
@@ -30,7 +30,7 @@ const senalMesa = (opts?: {
   if ("vibrate" in navigator) {
     navigator.vibrate?.([200, 100, 200, 100, 200]);
   }
-  void lanzarConfetiListo();
+  void fireReadyConfetti();
   if (
     opts?.notifLocal &&
     opts.nombre &&
@@ -39,7 +39,7 @@ const senalMesa = (opts?: {
     typeof document !== "undefined" &&
     document.visibilityState === "hidden"
   ) {
-    void mostrarAvisoListo({
+    void showReadyNotice({
       referencia: opts.nombre,
       url: `/e/${opts.token}`,
       body: opts.body,
@@ -49,8 +49,8 @@ const senalMesa = (opts?: {
 
 export const CustomerEsperaWaiting = ({ token }: Props) => {
   const { t, locale } = useApp();
-  const { ready, found, espera } = useCustomerEspera(token);
-  const demoCancelar = useEsperaStore((s) => s.cambiarEstado);
+  const { ready, found, espera } = useCustomerWaitlist(token);
+  const demoCancelar = useWaitlistStore((s) => s.cambiarEstado);
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
@@ -63,11 +63,11 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      await registrarServiceWorker();
+      await registerServiceWorker();
       if (!("Notification" in window) || Notification.permission !== "granted") {
         return;
       }
-      const r = await suscribirWebPush(token);
+      const r = await subscribeWebPush(token);
       if (!alive) return;
       setPushActivo(r.ok);
     })();
@@ -128,15 +128,15 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const activarAvisos = async () => {
     setPushCargando(true);
     setPushError(null);
-    await registrarServiceWorker();
-    const permiso = await pedirPermisoNotificaciones();
+    await registerServiceWorker();
+    const permiso = await requestNotificationPermission();
     if (!permiso) {
       setPushActivo(false);
       setPushError(t("clienteMesa.pushDenegado"));
       setPushCargando(false);
       return;
     }
-    const r = await suscribirWebPush(token);
+    const r = await subscribeWebPush(token);
     setPushActivo(r.ok);
     setPushError(r.ok ? null : t("clienteMesa.pushError"));
     setPushCargando(false);
@@ -146,8 +146,8 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     if (cancelando) return;
     setCancelando(true);
     try {
-      if (!supabaseConfigurado) {
-        const demo = useEsperaStore
+      if (!supabaseConfigured) {
+        const demo = useWaitlistStore
           .getState()
           .esperas.find((e) => e.qrToken === token);
         if (demo) demoCancelar(demo.id, "cancelado");

@@ -6,7 +6,7 @@ import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
   monthlyCharge,
-  pendienteContrato,
+  isContractPending,
   type OrganizationRow,
 } from "@/lib/store/superadmin-store";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -16,7 +16,7 @@ import { PedidosSucursalPanel } from "@/components/admin/PedidosSucursalPanel";
 import { CobrosPanel } from "@/components/admin/CobrosPanel";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useSuperadminSync } from "@/lib/hooks/useSuperadminSync";
-import { asegurarOrgDemo } from "@/lib/actions/superadmin";
+import { ensureDemoOrg } from "@/lib/actions/superadmin";
 import { refreshOrganizations } from "@/lib/data/superadmin";
 import { useToast } from "@/components/ui/Toast";
 import { Spinner } from "@/components/ui/Spinner";
@@ -103,7 +103,7 @@ const SuperadminPage = () => {
 
   const abrirDemo = async () => {
     setAbriendoDemo(true);
-    const res = await asegurarOrgDemo();
+    const res = await ensureDemoOrg();
     if (!res.ok) {
       setAbriendoDemo(false);
       toast(res.error || t("super.demoError"), "error");
@@ -303,7 +303,7 @@ const SuperadminPage = () => {
                   </p>
                   <p className="text-[10px] text-carbon/45">{t("super.cobro")}</p>
                 </div>
-                {pendienteContrato(o) && !o.activo ? (
+                {isContractPending(o) && !o.activo ? (
                   <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
                     Esperando condiciones
                   </span>

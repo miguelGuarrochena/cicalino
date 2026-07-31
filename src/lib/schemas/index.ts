@@ -2,40 +2,30 @@ import { z } from "zod";
 import {
   cuil,
   email,
-  estadoPedido,
-  modoIdentificacion,
+  orderStatus,
+  identificationMode,
   pin4,
   plan,
   telefono,
-  texto,
-  textoOpcional,
+  textField,
+  optionalTextField,
   tipoNegocio,
   uuid,
-} from "./comunes";
+} from "./common";
 
-export * from "./comunes";
+export * from "./common";
 
-// ---------------------------------------------------------------------------
-// Leads — formulario público /probar. Es el único input de gente anónima que
-// llega a la base, así que es el que más ajustado tiene que estar.
-// ---------------------------------------------------------------------------
-
-export const solicitudSchema = z.object({
-  // Responsable / contacto
-  nombre: texto(2, 120, "tu nombre"),
+export const leadSchema = z.object({
+  nombre: textField(2, 120, "tu nombre"),
   email,
   telefono,
   cuil,
-  // Empresa / local
-  local: textoOpcional(120, "el nombre del local"),
-  ciudad: textoOpcional(80, "la ciudad"),
-  direccion: textoOpcional(160, "la dirección"),
-  // prueba = /probar; contrato = /precios «Contratar plan»
+  local: optionalTextField(120, "el nombre del local"),
+  ciudad: optionalTextField(80, "la ciudad"),
+  direccion: optionalTextField(160, "la dirección"),
   tipo: z.enum(["prueba", "contrato"]).optional().default("prueba"),
   plan: z.enum(["mensual", "anual"]).optional(),
-  // pedidos | espera | pack (solo contrato)
   pack: z.enum(["pedidos", "espera", "pack"]).optional(),
-  // El token de Turnstile lo emite Cloudflare; solo acotamos el tamaño.
   turnstileToken: z.string().max(2048).optional(),
 }).superRefine((v, ctx) => {
   if (v.tipo !== "contrato") return;
@@ -75,28 +65,23 @@ export const solicitudSchema = z.object({
     });
   }
 });
-export type SolicitudInput = z.infer<typeof solicitudSchema>;
+export type LeadInput = z.infer<typeof leadSchema>;
 
-// ---------------------------------------------------------------------------
-// Organizaciones y sucursales — solo superadmin.
-// ---------------------------------------------------------------------------
-
-export const sucursalInputSchema = z.object({
-  nombre: texto(2, 80, "el nombre de la sucursal"),
+export const branchInputSchema = z.object({
+  nombre: textField(2, 80, "el nombre de la sucursal"),
   tipo: tipoNegocio,
-  direccion: textoOpcional(160, "la dirección"),
+  direccion: optionalTextField(160, "la dirección"),
   moduloPedidos: z.boolean().optional().default(true),
   moduloEspera: z.boolean().optional().default(false),
 });
 
-export const crearOrganizacionSchema = z.object({
-  nombre: texto(2, 120, "el nombre de la empresa"),
-  responsable: texto(2, 120, "el responsable"),
+export const createOrganizationSchema = z.object({
+  nombre: textField(2, 120, "el nombre de la empresa"),
+  responsable: textField(2, 120, "el responsable"),
   telefono,
   cuil,
-  direccion: textoOpcional(160, "la dirección"),
+  direccion: optionalTextField(160, "la dirección"),
   duenoEmail: email,
-  // Tope alto pero finito: evita que un typo genere un cobro absurdo.
   cupo: z.coerce
     .number()
     .int("El cupo tiene que ser un número entero.")
@@ -104,11 +89,10 @@ export const crearOrganizacionSchema = z.object({
     .max(500, "El cupo máximo es 500."),
   plan: plan.optional().default("mensual"),
   mesGratis: z.boolean().optional().default(false),
-  /** Defaults / agregado; el cobro real sale de cada sucursal. */
   moduloPedidos: z.boolean().optional().default(true),
   moduloEspera: z.boolean().optional().default(false),
   sucursales: z
-    .array(sucursalInputSchema)
+    .array(branchInputSchema)
     .max(500, "Demasiadas sucursales en un solo alta.")
     .default([]),
 }).superRefine((v, ctx) => {
@@ -120,21 +104,17 @@ export const crearOrganizacionSchema = z.object({
     });
   }
 });
-export type CrearOrganizacionInput = z.infer<typeof crearOrganizacionSchema>;
+export type CreateOrgInput = z.infer<typeof createOrganizationSchema>;
 
 export const idSchema = z.object({ id: uuid });
 
-// ---------------------------------------------------------------------------
-// Configuración de sucursal (la edita el dueño desde el panel).
-// ---------------------------------------------------------------------------
-
 export const branchConfigSchema = z
   .object({
-    nombre: texto(2, 80, "el nombre de la sucursal"),
+    nombre: textField(2, 80, "el nombre de la sucursal"),
     tipo: tipoNegocio,
     whatsapp: telefono,
-    direccion: textoOpcional(160, "la dirección"),
-    modo: modoIdentificacion,
+    direccion: optionalTextField(160, "la dirección"),
+    modo: identificationMode,
     cantidadMesas: z.coerce
       .number()
       .int()
@@ -152,10 +132,9 @@ export const branchConfigSchema = z
   });
 export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 
-/** Lo que el dueño puede guardar desde Config (no toca identidad del local). */
 export const branchOperacionSchema = z
   .object({
-    modo: modoIdentificacion,
+    modo: identificationMode,
     cantidadMesas: z.coerce
       .number()
       .int()
@@ -173,30 +152,20 @@ export const branchOperacionSchema = z
   });
 export type BranchOperacionInput = z.infer<typeof branchOperacionSchema>;
 
-// ---------------------------------------------------------------------------
-// Empleados.
-// ---------------------------------------------------------------------------
-
-export const empleadoSchema = z.object({
-  nombre: texto(2, 80, "el nombre del empleado"),
-  rol: textoOpcional(60, "el rol"),
+export const employeeSchema = z.object({
+  nombre: textField(2, 80, "el nombre del empleado"),
+  rol: optionalTextField(60, "el rol"),
   pin: pin4,
 });
-export type EmpleadoInput = z.infer<typeof empleadoSchema>;
+export type EmployeeInput = z.infer<typeof employeeSchema>;
 
-// ---------------------------------------------------------------------------
-// Pedidos.
-// ---------------------------------------------------------------------------
-
-export const nuevoPedidoSchema = z.object({
+export const newOrderSchema = z.object({
   branchId: uuid,
-  // La referencia se imprime en el QR y se muestra en pantalla: corta.
-  reference: texto(1, 40, "la referencia del pedido"),
+  reference: textField(1, 40, "la referencia del pedido"),
   employeeId: uuid.nullable().optional(),
 });
-export type NuevoPedidoInput = z.infer<typeof nuevoPedidoSchema>;
+export type NewOrderInput = z.infer<typeof newOrderSchema>;
 
-/** Transiciones de estado permitidas. Antes cualquier estado iba a cualquiera. */
 const TRANSICIONES: Record<string, readonly string[]> = {
   creado: ["en_preparacion", "listo", "cancelado"],
   en_preparacion: ["listo", "cancelado"],
@@ -205,25 +174,20 @@ const TRANSICIONES: Record<string, readonly string[]> = {
   cancelado: [],
 };
 
-export const transicionValida = (desde: string, hacia: string): boolean =>
+export const isValidTransition = (desde: string, hacia: string): boolean =>
   (TRANSICIONES[desde] ?? []).includes(hacia);
 
-export const cambioEstadoSchema = z
+export const statusChangeSchema = z
   .object({
     id: uuid,
-    desde: estadoPedido,
-    hacia: estadoPedido,
+    desde: orderStatus,
+    hacia: orderStatus,
   })
-  .refine((v) => transicionValida(v.desde, v.hacia), {
+  .refine((v) => isValidTransition(v.desde, v.hacia), {
     message: "Ese cambio de estado no está permitido.",
     path: ["hacia"],
   });
 
-// ---------------------------------------------------------------------------
-// Web Push.
-// ---------------------------------------------------------------------------
-
-/** Servicios de push legítimos. Sin esto, el endpoint es un vector de SSRF. */
 const PUSH_HOSTS = [
   "android.googleapis.com",
   "fcm.googleapis.com",
@@ -242,7 +206,6 @@ const hostDePushValido = (raw: string): boolean => {
   const h = u.hostname.toLowerCase();
   return (
     PUSH_HOSTS.some((d) => h === d || h.endsWith(`.${d}`)) ||
-    // Chrome / Google a veces usan otros subdominios de googleapis.
     (h.endsWith(".googleapis.com") &&
       (h.includes("fcm") || h.includes("android") || h.startsWith("jnn-"))) ||
     h.endsWith(".push.services.mozilla.com") ||
@@ -251,7 +214,6 @@ const hostDePushValido = (raw: string): boolean => {
 };
 
 export const pushSubscribeSchema = z.object({
-  // qr_token es un UUID v4 generado por nosotros.
   token: uuid,
   subscription: z.object({
     endpoint: z
@@ -276,5 +238,4 @@ export const pushNotifySchema = z
     message: "Mandá orderId o esperaId (uno solo).",
   });
 
-/** Token del QR en la URL pública /p/[token] y /api/p/[token]. */
 export const qrTokenSchema = uuid;

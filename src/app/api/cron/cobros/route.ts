@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import { enviarAvisosCobro } from "@/lib/actions/cobros";
+import { sendBillingReminders } from "@/lib/actions/billing";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// GET /api/cron/cobros — Vercel Cron diario.
-// Auth: Authorization: Bearer CRON_SECRET (o header de Vercel Cron).
 export const GET = async (req: Request) => {
   const secret = process.env.CRON_SECRET;
   const auth = req.headers.get("authorization");
@@ -17,6 +15,6 @@ export const GET = async (req: Request) => {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const r = await enviarAvisosCobro();
+  const r = await sendBillingReminders();
   return NextResponse.json(r);
 };

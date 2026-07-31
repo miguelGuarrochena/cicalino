@@ -7,7 +7,7 @@ import { Controls } from "@/components/ui/Controls";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { TurnstileField } from "@/components/probar/TurnstileField";
-import { crearSolicitud } from "@/lib/actions/leads";
+import { createLead } from "@/lib/actions/leads";
 import { isEmail } from "@/lib/validations";
 
 const INPUT =
@@ -55,7 +55,7 @@ const ProbarPage = () => {
     }
     setLoading(true);
     try {
-      const res = await crearSolicitud({
+      const res = await createLead({
         nombre,
         email,
         local,

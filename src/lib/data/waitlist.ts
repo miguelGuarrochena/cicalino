@@ -1,26 +1,28 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { inicioJornada, finJornada } from "@/lib/businessDay";
+import { businessDayStart, businessDayEnd } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import { isRealBranchId } from "@/lib/data/orders";
-import { reservaEnConflicto } from "@/lib/reservas";
+import { conflictingReservation } from "@/lib/reservations";
+import { debounced, watchChannel } from "@/lib/realtime";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import type {
-  EsperaStatus,
-  EsperaView,
-  MesaEstado,
-  MesaView,
-  ReservaStatus,
-  ReservaView,
+  WaitlistStatus,
+  WaitlistView,
+  TableState,
+  TableView,
+  ReservationStatus,
+  ReservationView,
 } from "@/lib/types";
 
 export { isRealBranchId };
 
-type EsperaRow = {
+type WaitlistRow = {
   id: string;
   nombre: string;
   personas: number;
-  estado: EsperaStatus;
+  estado: WaitlistStatus;
   mesa_numero: number | null;
   qr_token: string;
   creado_en: string;
@@ -31,17 +33,16 @@ type EsperaRow = {
   empleados?: { nombre: string | null } | null;
 };
 
-type MesaRow = {
+type TableRow = {
   id: string;
   numero: number;
-  /** "reservada" ya no se usa; puede venir de filas viejas. */
-  estado: MesaEstado | "reservada";
+  estado: TableState | "reservada";
   capacidad: number | null;
   espera_id: string | null;
   reserva_id: string | null;
 };
 
-type ReservaRow = {
+type ReservationRow = {
   id: string;
   nombre: string;
   personas: number;
@@ -49,7 +50,7 @@ type ReservaRow = {
   mesas_numeros: number[] | null;
   horario: string;
   gracia_minutos: number;
-  estado: ReservaStatus;
+  estado: ReservationStatus;
   creado_en: string;
   sentado_en: string | null;
   cancelado_en: string | null;
@@ -57,7 +58,7 @@ type ReservaRow = {
   empleados?: { nombre: string | null } | null;
 };
 
-const mapEspera = (r: EsperaRow): EsperaView => ({
+const mapWaitlistEntry = (r: WaitlistRow): WaitlistView => ({
   id: r.id,
   nombre: r.nombre,
   personas: r.personas,
@@ -72,17 +73,16 @@ const mapEspera = (r: EsperaRow): EsperaView => ({
   empleado: r.empleados?.nombre ?? null,
 });
 
-const mapMesa = (r: MesaRow): MesaView => ({
+const mapTable = (r: TableRow): TableView => ({
   id: r.id,
   numero: r.numero,
-  // La mesa solo puede estar libre u ocupada: una reserva futura no la bloquea.
   estado: r.estado === "ocupada" ? "ocupada" : "libre",
   capacidad: Math.max(1, Math.min(50, r.capacidad ?? 4)),
   esperaId: r.espera_id ?? null,
   reservaId: r.reserva_id ?? null,
 });
 
-const mapReserva = (r: ReservaRow, mesasNumeros?: number[]): ReservaView => {
+const mapReservation = (r: ReservationRow, mesasNumeros?: number[]): ReservationView => {
   const raw =
     mesasNumeros?.length
       ? mesasNumeros
@@ -107,27 +107,26 @@ const mapReserva = (r: ReservaRow, mesasNumeros?: number[]): ReservaView => {
   };
 };
 
-const SELECT_ESPERA = "*, empleados(nombre)";
-const SELECT_RESERVA = "*, empleados(nombre)";
-const SELECT_MESA = "id, numero, estado, capacidad, espera_id, reserva_id";
-const horaCorte = (): number => useConfigStore.getState().horaCorte;
-const inicioDelDia = (): string => inicioJornada(horaCorte()).toISOString();
-const finDelDia = (): string => finJornada(horaCorte()).toISOString();
+const SELECT_WAITLIST = "*, empleados(nombre)";
+const SELECT_RESERVATION = "*, empleados(nombre)";
+const SELECT_TABLE = "id, numero, estado, capacidad, espera_id, reserva_id";
+const cutoffHour = (): number => useConfigStore.getState().horaCorte;
+const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
+const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString();
 
-/** Asegura que existan N mesas (1..N) para la sucursal. */
-export const syncMesas = async (
+export const syncTables = async (
   branchId: string,
   cantidad: number,
-): Promise<MesaView[]> => {
+): Promise<TableView[]> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return [];
   const n = Math.max(1, Math.min(500, cantidad));
   const { data: existing } = await supabase
     .from("mesas")
-    .select(SELECT_MESA)
+    .select(SELECT_TABLE)
     .eq("local_id", branchId)
     .order("numero");
-  const rows = (existing as MesaRow[] | null) ?? [];
+  const rows = (existing as TableRow[] | null) ?? [];
   const have = new Set(rows.map((r) => r.numero));
   const missing = [];
   for (let i = 1; i <= n; i++) {
@@ -149,70 +148,66 @@ export const syncMesas = async (
   }
   const { data } = await supabase
     .from("mesas")
-    .select(SELECT_MESA)
+    .select(SELECT_TABLE)
     .eq("local_id", branchId)
     .lte("numero", n)
     .order("numero");
-  return ((data as MesaRow[] | null) ?? []).map(mapMesa);
+  return ((data as TableRow[] | null) ?? []).map(mapTable);
 };
 
-export const fetchTodayEsperas = async (
+export const fetchTodayWaitlist = async (
   branchId: string,
-): Promise<EsperaView[]> => {
+): Promise<WaitlistView[]> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("esperas")
-    .select(SELECT_ESPERA)
+    .select(SELECT_WAITLIST)
     .eq("local_id", branchId)
-    .gte("creado_en", inicioDelDia())
+    .gte("creado_en", startOfBusinessDay())
     .order("creado_en", { ascending: false });
   if (error) {
     console.error("fetchTodayEsperas", error.message);
     return [];
   }
-  return ((data as unknown as EsperaRow[]) ?? []).map(mapEspera);
+  return ((data as unknown as WaitlistRow[]) ?? []).map(mapWaitlistEntry);
 };
 
-export const fetchMesas = async (branchId: string): Promise<MesaView[]> => {
+export const fetchTables = async (branchId: string): Promise<TableView[]> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("mesas")
-    .select(SELECT_MESA)
+    .select(SELECT_TABLE)
     .eq("local_id", branchId)
     .order("numero");
   if (error) {
     console.error("fetchMesas", error.message);
     return [];
   }
-  return ((data as MesaRow[] | null) ?? []).map(mapMesa);
+  return ((data as TableRow[] | null) ?? []).map(mapTable);
 };
 
-export const fetchTodayReservas = async (
+export const fetchTodayReservations = async (
   branchId: string,
-): Promise<ReservaView[]> => {
+): Promise<ReservationView[]> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("reservas")
-    .select(SELECT_RESERVA)
+    .select(SELECT_RESERVATION)
     .eq("local_id", branchId)
-    .gte("horario", inicioDelDia())
-    .lte("horario", finDelDia())
+    .gte("horario", startOfBusinessDay())
+    .lte("horario", endOfBusinessDay())
     .order("horario", { ascending: true });
   if (error) {
     console.error("fetchTodayReservas", error.message);
     return [];
   }
-  return ((data as unknown as ReservaRow[]) ?? []).map((r) => mapReserva(r));
+  return ((data as unknown as ReservationRow[]) ?? []).map((r) => mapReservation(r));
 };
 
-/**
- * Marca como "no llegó" las reservas activas cuyo horario + gracia ya pasó.
- * No toca las mesas: la reserva nunca las bloqueó.
- */
-export const expirarReservasVencidas = async (
+export const expireOverdueReservations = async (
   branchId: string,
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
@@ -245,12 +240,12 @@ export const expirarReservasVencidas = async (
     .eq("estado", "activa");
 };
 
-export const insertEspera = async (args: {
+export const insertWaitlistEntry = async (args: {
   branchId: string;
   nombre: string;
   personas: number;
   employeeId?: string | null;
-}): Promise<EsperaView | null> => {
+}): Promise<WaitlistView | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
   const nombre = args.nombre.trim().slice(0, 80) || "Grupo";
@@ -264,18 +259,18 @@ export const insertEspera = async (args: {
       estado: "esperando",
       empleado_id: args.employeeId ?? null,
       qr_token: crypto.randomUUID(),
-      qr_expira_en: finDelDia(),
+      qr_expira_en: endOfBusinessDay(),
     })
-    .select(SELECT_ESPERA)
+    .select(SELECT_WAITLIST)
     .single();
   if (error) {
     console.error("insertEspera", error.message);
     return null;
   }
-  return mapEspera(data as unknown as EsperaRow);
+  return mapWaitlistEntry(data as unknown as WaitlistRow);
 };
 
-export const insertReserva = async (args: {
+export const insertReservation = async (args: {
   branchId: string;
   nombre: string;
   personas: number;
@@ -283,7 +278,7 @@ export const insertReserva = async (args: {
   horario: string;
   graciaMinutos: 15 | 20;
   employeeId?: string | null;
-}): Promise<ReservaView | null> => {
+}): Promise<ReservationView | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
   const nombre = args.nombre.trim().slice(0, 80) || "Reserva";
@@ -298,32 +293,29 @@ export const insertReserva = async (args: {
 
   const { data: mesasRows } = await supabase
     .from("mesas")
-    .select(SELECT_MESA)
+    .select(SELECT_TABLE)
     .eq("local_id", args.branchId)
     .in("numero", nums);
-  const mesasPick = ((mesasRows as MesaRow[] | null) ?? []).map(mapMesa);
+  const mesasPick = ((mesasRows as TableRow[] | null) ?? []).map(mapTable);
   if (mesasPick.length !== nums.length) {
     console.error("insertReserva: mesa inexistente");
     return null;
   }
-  // Ojo: NO se exige que la mesa esté libre ahora. La reserva es para más
-  // tarde; que ahora esté ocupada no impide reservarla para las 21:00.
   const cap = mesasPick.reduce((s, m) => s + m.capacidad, 0);
   if (cap < personas) {
     console.error("insertReserva: capacidad insuficiente");
     return null;
   }
 
-  // Lo único que sí se valida: que no haya otra reserva pisando el horario.
   const { data: activasRows } = await supabase
     .from("reservas")
-    .select(SELECT_RESERVA)
+    .select(SELECT_RESERVATION)
     .eq("local_id", args.branchId)
     .eq("estado", "activa");
-  const activas = ((activasRows as unknown as ReservaRow[]) ?? []).map((r) =>
-    mapReserva(r),
+  const activas = ((activasRows as unknown as ReservationRow[]) ?? []).map((r) =>
+    mapReservation(r),
   );
-  const choque = reservaEnConflicto(nums, args.horario, activas);
+  const choque = conflictingReservation(nums, args.horario, activas);
   if (choque) {
     console.error("insertReserva: choca con otra reserva", choque.id);
     return null;
@@ -343,24 +335,22 @@ export const insertReserva = async (args: {
       estado: "activa",
       empleado_id: args.employeeId ?? null,
     })
-    .select(SELECT_RESERVA)
+    .select(SELECT_RESERVATION)
     .single();
   if (error) {
     console.error("insertReserva", error.message);
     return null;
   }
-  // La mesa NO se marca: sigue libre hasta que alguien se siente.
-  return mapReserva(data as unknown as ReservaRow, nums);
+  return mapReservation(data as unknown as ReservationRow, nums);
 };
 
-/** Walk-in: ocupa mesas ya, sin cola ni QR (queda sentado vinculado a las mesas). */
-export const ocuparMesasWalkIn = async (args: {
+export const seatWalkIn = async (args: {
   branchId: string;
   mesaNumeros: number[];
   nombre?: string;
   personas?: number;
   employeeId?: string | null;
-}): Promise<EsperaView | null> => {
+}): Promise<WaitlistView | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
   const nums = [...new Set(args.mesaNumeros)]
@@ -370,10 +360,10 @@ export const ocuparMesasWalkIn = async (args: {
 
   const { data: mesasRows } = await supabase
     .from("mesas")
-    .select(SELECT_MESA)
+    .select(SELECT_TABLE)
     .eq("local_id", args.branchId)
     .in("numero", nums);
-  const mesasPick = ((mesasRows as MesaRow[] | null) ?? []).map(mapMesa);
+  const mesasPick = ((mesasRows as TableRow[] | null) ?? []).map(mapTable);
   if (mesasPick.length !== nums.length) {
     console.error("ocuparMesasWalkIn: mesa inexistente");
     return null;
@@ -398,16 +388,16 @@ export const ocuparMesasWalkIn = async (args: {
       mesa_numero: primaria,
       empleado_id: args.employeeId ?? null,
       qr_token: crypto.randomUUID(),
-      qr_expira_en: finDelDia(),
+      qr_expira_en: endOfBusinessDay(),
       sentado_en: now,
     })
-    .select(SELECT_ESPERA)
+    .select(SELECT_WAITLIST)
     .single();
   if (error) {
     console.error("ocuparMesasWalkIn", error.message);
     return null;
   }
-  const espera = mapEspera(data as unknown as EsperaRow);
+  const espera = mapWaitlistEntry(data as unknown as WaitlistRow);
   const marcadas: number[] = [];
   for (const n of nums) {
     const { error: mesaErr, data: updated } = await supabase
@@ -445,9 +435,9 @@ export const ocuparMesasWalkIn = async (args: {
   return espera;
 };
 
-export const updateEsperaStatus = async (
+export const updateWaitlistStatus = async (
   id: string,
-  estado: EsperaStatus,
+  estado: WaitlistStatus,
   mesaNumero?: number | null,
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
@@ -468,8 +458,7 @@ export const updateEsperaStatus = async (
   return true;
 };
 
-/** Borra una espera (p. ej. cancelado que ya no hace falta ver). */
-export const deleteEspera = async (id: string): Promise<boolean> => {
+export const deleteWaitlistEntry = async (id: string): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
   await supabase
@@ -489,9 +478,9 @@ export const deleteEspera = async (id: string): Promise<boolean> => {
   return true;
 };
 
-export const updateReservaStatus = async (
+export const updateReservationStatus = async (
   id: string,
-  estado: ReservaStatus,
+  estado: ReservationStatus,
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
@@ -508,7 +497,7 @@ export const updateReservaStatus = async (
   return true;
 };
 
-export const setMesaCapacidad = async (
+export const setTableCapacity = async (
   branchId: string,
   numero: number,
   capacidad: number,
@@ -531,10 +520,10 @@ export const setMesaCapacidad = async (
   return true;
 };
 
-export const setMesaEstado = async (
+export const setTableState = async (
   branchId: string,
   numero: number,
-  estado: MesaEstado,
+  estado: TableState,
   opts: { esperaId?: string | null; reservaId?: string | null } = {},
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
@@ -561,32 +550,44 @@ export const setMesaEstado = async (
   return true;
 };
 
-export const subscribeEsperas = (
+export const subscribeWaitlist = (
   branchId: string,
   onChange: () => void,
   channelSuffix = "",
-): (() => void) => {
+): { unsubscribe: () => void; isHealthy: () => boolean } => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return () => undefined;
-  const ch = supabase
-    .channel(`esperas-${branchId}${channelSuffix}`)
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "esperas", filter: `local_id=eq.${branchId}` },
-      () => onChange(),
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "mesas", filter: `local_id=eq.${branchId}` },
-      () => onChange(),
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "reservas", filter: `local_id=eq.${branchId}` },
-      () => onChange(),
-    )
-    .subscribe();
-  return () => {
-    void supabase.removeChannel(ch);
+  if (!supabase) return { unsubscribe: () => {}, isHealthy: () => false };
+
+  const fire = debounced(onChange);
+  const filter = `local_id=eq.${branchId}`;
+  let channel: RealtimeChannel | null = null;
+  let watcher: { state: { healthy: boolean }; dispose: () => void } | null =
+    null;
+  let disposed = false;
+
+  const connect = () => {
+    if (disposed) return;
+    if (channel) void supabase.removeChannel(channel);
+    watcher?.dispose();
+    channel = supabase.channel(`esperas-${branchId}${channelSuffix}`);
+    for (const table of ["esperas", "mesas", "reservas"] as const) {
+      channel = channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table, filter },
+        fire,
+      );
+    }
+    watcher = watchChannel(channel, connect);
+  };
+
+  connect();
+
+  return {
+    unsubscribe: () => {
+      disposed = true;
+      watcher?.dispose();
+      if (channel) void supabase.removeChannel(channel);
+    },
+    isHealthy: () => watcher?.state.healthy ?? false,
   };
 };

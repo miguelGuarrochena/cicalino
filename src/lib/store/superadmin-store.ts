@@ -1,27 +1,26 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { TipoNegocio } from "@/lib/store/config-store";
+import type { BusinessType } from "@/lib/store/config-store";
 import {
-  PRECIO_POR_SUCURSAL,
-  precioMensualPorSucursal,
-  precioMensualSucursales,
-  type ModulosFlags,
-} from "@/lib/precios";
-import { supabaseConfigurado } from "@/lib/supabase/config";
-import { sumarCicloCobro } from "@/lib/billing";
+  PRICE_PER_BRANCH,
+  monthlyPriceForBranch,
+  monthlyPriceForBranches,
+  type ModuleFlags,
+} from "@/lib/pricing";
+import { supabaseConfigured } from "@/lib/supabase/config";
+import { addBillingCycle } from "@/lib/billing";
 
-export { PRECIO_POR_SUCURSAL, precioMensualPorSucursal, precioMensualSucursales };
-export type { ModulosFlags };
+export { PRICE_PER_BRANCH, monthlyPriceForBranch, monthlyPriceForBranches };
+export type { ModuleFlags };
 
 export interface BranchRow {
   id: string;
   organizacionId: string;
   nombre: string;
-  tipo: TipoNegocio;
+  tipo: BusinessType;
   direccion: string;
   activo: boolean;
   pedidosHoy: number;
-  /** Módulos contratados de esta sucursal (cobro + menú). */
   moduloPedidos: boolean;
   moduloEspera: boolean;
 }
@@ -36,27 +35,20 @@ export interface OrganizationRow {
   cuil: string;
   direccion: string;
   duenoEmail: string;
-  /** Sucursales que puede tener activas (cobro = cupo × precio). */
   cupo: number;
   pagado: boolean;
   activo: boolean;
-  /** Ciclo de cobro: mensual, anual o cortesía (gratis). */
   plan: PlanTipo;
-  /** Fecha hasta la cual no se cobra (mes gratis / prueba). ISO o null. */
   mesGratisHasta: string | null;
-  /** Próximo cobro esperado (ISO). Null = sin fecha cargada. */
   proximoCobroEn: string | null;
-  /** Cuándo el dueño aceptó bases y condiciones. Null = pendiente. */
   contratoAceptadoEn: string | null;
-  /** Agregado de módulos (OR de sucursales). Cobro real = suma por local. */
   moduloPedidos: boolean;
   moduloEspera: boolean;
   altaEn: string;
   sucursales: BranchRow[];
 }
 
-/** Todavía no aceptó las condiciones (link /aceptar). */
-export const pendienteContrato = (org: OrganizationRow): boolean =>
+export const isContractPending = (org: OrganizationRow): boolean =>
   !org.contratoAceptadoEn;
 
 export type OrgInput = {
@@ -74,7 +66,7 @@ export type OrgInput = {
 
 export type BranchInput = {
   nombre: string;
-  tipo: TipoNegocio;
+  tipo: BusinessType;
   direccion: string;
   moduloPedidos?: boolean;
   moduloEspera?: boolean;
@@ -82,13 +74,11 @@ export type BranchInput = {
 
 interface SuperadminState {
   organizaciones: OrganizationRow[];
-  /** Reemplaza la lista completa (al cargar desde la base). */
   setOrganizaciones: (list: OrganizationRow[]) => void;
-  altaOrg: (data: OrgInput) => string; // id
+  altaOrg: (data: OrgInput) => string;
   actualizarOrg: (id: string, data: Partial<OrgInput>) => void;
   toggleOrgActivo: (id: string) => void;
   toggleOrgPagado: (id: string) => void;
-  /** Da N meses de cortesía (por defecto 1) desde hoy. */
   darMesGratis: (id: string, meses?: number) => void;
   quitarOrg: (id: string) => void;
   altaSucursal: (
@@ -189,39 +179,34 @@ const seed = (): OrganizationRow[] => {
   ];
 };
 
-/** ¿La organización está en período de cortesía (mes gratis / prueba)? */
 export const enGracia = (org: OrganizationRow): boolean =>
   !!org.mesGratisHasta && new Date(org.mesGratisHasta).getTime() > Date.now();
 
-/** Monto mensual = suma de packs de cada sucursal; 0 si el plan es gratis. */
-export const montoMensual = (org: OrganizationRow): number => {
+export const monthlyAmount = (org: OrganizationRow): number => {
   if (org.plan === "gratis") return 0;
   if (org.sucursales.length) {
-    return precioMensualSucursales(
+    return monthlyPriceForBranches(
       org.sucursales.map((s) => ({
         pedidos: s.moduloPedidos !== false,
         espera: Boolean(s.moduloEspera),
       })),
     );
   }
-  // Sin locales aún: estimación por cupo × agregado org (alta en curso).
   return (
     Math.max(1, org.cupo) *
-    precioMensualPorSucursal({
+    monthlyPriceForBranch({
       pedidos: org.moduloPedidos !== false,
       espera: Boolean(org.moduloEspera),
     })
   );
 };
 
-// Cobro mensual efectivo: 0 si está pausada, es gratis o está en cortesía.
 export const monthlyCharge = (org: OrganizationRow): number => {
   if (!org.activo || org.plan === "gratis" || enGracia(org)) return 0;
-  return montoMensual(org);
+  return monthlyAmount(org);
 };
 
-// Total del próximo cobro según el ciclo. Anual = 10 meses (2 de regalo).
-export const cobroProximo = (org: OrganizationRow): number => {
+export const upcomingCharge = (org: OrganizationRow): number => {
   const base = monthlyCharge(org);
   return org.plan === "anual" ? base * 10 : base;
 };
@@ -229,8 +214,7 @@ export const cobroProximo = (org: OrganizationRow): number => {
 export const useSuperadminStore = create<SuperadminState>()(
   persist(
     (set, get) => ({
-      // En producción arranca vacío y se llena desde la base; en demo, ejemplos.
-      organizaciones: supabaseConfigurado ? [] : seed(),
+      organizaciones: supabaseConfigured ? [] : seed(),
 
       setOrganizaciones: (list) => set({ organizaciones: list }),
 
@@ -303,7 +287,7 @@ export const useSuperadminStore = create<SuperadminState>()(
             if (!next) {
               return { ...o, pagado: false, proximoCobroEn: new Date().toISOString() };
             }
-            const prox = sumarCicloCobro(o.plan);
+            const prox = addBillingCycle(o.plan);
             return {
               ...o,
               pagado: true,
@@ -434,18 +418,16 @@ export const useSuperadminStore = create<SuperadminState>()(
         })),
     }),
     {
-      // v3: en live no persistimos orgs (la base es la fuente).
       name: "cicalino-superadmin-v3",
       skipHydration: true,
       partialize: (state) =>
-        supabaseConfigurado
+        supabaseConfigured
           ? {}
           : { organizaciones: state.organizaciones },
     },
   ),
 );
 
-/** Helpers para UI. */
 export const orgById = (
   orgs: OrganizationRow[],
   id: string | null | undefined,

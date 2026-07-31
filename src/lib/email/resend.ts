@@ -1,13 +1,11 @@
 import "server-only";
 
-// Envío de emails con Resend (opcional). Si no hay RESEND_API_KEY, no hace nada
-// y el flujo sigue funcionando (la solicitud igual queda guardada).
 const API_KEY = process.env.RESEND_API_KEY ?? "";
 const FROM = process.env.RESEND_FROM ?? "Cicalino <info@cicalino.net>";
 
-export const resendConfigurado = Boolean(API_KEY);
+export const resendConfigured = Boolean(API_KEY);
 
-export const enviarEmail = async (opts: {
+export const sendEmail = async (opts: {
   to: string;
   subject: string;
   html: string;

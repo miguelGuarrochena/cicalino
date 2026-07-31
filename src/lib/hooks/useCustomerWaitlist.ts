@@ -1,37 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabaseConfigurado } from "@/lib/supabase/config";
+import { supabaseConfigured } from "@/lib/supabase/config";
 import { useConfigStore } from "@/lib/store/config-store";
-import { useEsperaStore } from "@/lib/store/espera-store";
-import type { EsperaStatus } from "@/lib/types";
+import { useWaitlistStore } from "@/lib/store/waitlist-store";
+import type { WaitlistStatus } from "@/lib/types";
 
-export interface CustomerEsperaCola {
+export interface CustomerWaitlistQueue {
   gruposDelante: number;
   personasDelante: number;
   gruposEnCola: number;
   personasEnCola: number;
 }
 
-export interface CustomerEspera {
+export interface CustomerWaitlist {
   nombre: string;
   personas: number;
-  status: EsperaStatus;
+  status: WaitlistStatus;
   mesaNumero: number | null;
   nombreLocal: string;
   avisadoEn: string | null;
-  cola: CustomerEsperaCola;
+  cola: CustomerWaitlistQueue;
 }
 
 interface Result {
   ready: boolean;
   found: boolean;
-  espera: CustomerEspera | null;
+  espera: CustomerWaitlist | null;
 }
 
 const POLL_MS = 1200;
 
-const emptyCola = (): CustomerEsperaCola => ({
+const emptyCola = (): CustomerWaitlistQueue => ({
   gruposDelante: 0,
   personasDelante: 0,
   gruposEnCola: 0,
@@ -39,8 +39,8 @@ const emptyCola = (): CustomerEsperaCola => ({
 });
 
 const normalizeCola = (
-  raw: Partial<CustomerEsperaCola> | null | undefined,
-): CustomerEsperaCola => ({
+  raw: Partial<CustomerWaitlistQueue> | null | undefined,
+): CustomerWaitlistQueue => ({
   ...emptyCola(),
   ...raw,
 });
@@ -54,7 +54,7 @@ const colaFromDemo = (
     estado: string;
     creadoEn: string;
   }[],
-): CustomerEsperaCola => {
+): CustomerWaitlistQueue => {
   const yo = esperas.find((e) => e.qrToken === token);
   const activos = esperas.filter(
     (e) => e.estado === "esperando" || e.estado === "avisado",
@@ -83,20 +83,20 @@ const colaFromDemo = (
   };
 };
 
-export const useCustomerEspera = (token: string): Result => {
-  const live = supabaseConfigurado;
-  const seed = useEsperaStore((s) => s.seedSiVacio);
-  const demoEsperas = useEsperaStore((s) => s.esperas);
+export const useCustomerWaitlist = (token: string): Result => {
+  const live = supabaseConfigured;
+  const seed = useWaitlistStore((s) => s.seedSiVacio);
+  const demoEsperas = useWaitlistStore((s) => s.esperas);
   const cfg = useConfigStore();
 
-  const [remote, setRemote] = useState<CustomerEspera | null>(null);
+  const [remote, setRemote] = useState<CustomerWaitlist | null>(null);
   const [remoteFound, setRemoteFound] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (live) return;
     const done = () => setReady(true);
-    const r = useEsperaStore.persist.rehydrate();
+    const r = useWaitlistStore.persist.rehydrate();
     if (r && typeof (r as Promise<void>).then === "function") {
       void (r as Promise<void>).then(() => {
         seed(cfg.cantidadMesas);
@@ -108,7 +108,7 @@ export const useCustomerEspera = (token: string): Result => {
     }
     const onStorage = (e: StorageEvent) => {
       if (e.key === "cicalino-espera-demo-v3")
-        void useEsperaStore.persist.rehydrate();
+        void useWaitlistStore.persist.rehydrate();
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
@@ -143,7 +143,6 @@ export const useCustomerEspera = (token: string): Result => {
           setRemoteFound(false);
         }
       } catch {
-        /* retry */
       } finally {
         inFlight = false;
         if (active) setReady(true);
