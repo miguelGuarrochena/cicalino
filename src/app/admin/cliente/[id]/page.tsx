@@ -7,6 +7,7 @@ import { useSuperadminStore, monthlyAmount } from "@/lib/store/superadmin-store"
 import { refreshOrganizations } from "@/lib/data/superadmin";
 import { OrgModal } from "@/components/admin/OrgModal";
 import { PaymentModal } from "@/components/admin/PaymentModal";
+import { BranchesSection } from "@/components/admin/BranchesSection";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import {
   fetchPayments,
@@ -222,45 +223,7 @@ const ClientePage = () => {
         </p>
       </Bloque>
 
-      <Bloque titulo={`Sucursales · ${org.sucursales.length}`}>
-        {org.sucursales.length ? (
-          <ul className="flex flex-col gap-1.5">
-            {org.sucursales.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-linea bg-crema/30 px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-carbon">
-                    {s.name}
-                  </p>
-                  <p className="truncate text-xs text-carbon/50">
-                    {s.moduloPedidos && s.moduloEspera
-                      ? "Pack"
-                      : s.moduloEspera
-                        ? "Espera"
-                        : "Pedidos"}
-                    {s.direccion ? ` · ${s.direccion}` : ""}
-                  </p>
-                </div>
-                <p className="shrink-0 text-right text-xs text-carbon/55">
-                  {s.cobroDesde && s.cobroDesde > hoy ? (
-                    <span className="text-amber-700">
-                      gratis hasta {fecha(s.cobroDesde)}
-                    </span>
-                  ) : (
-                    <>cobrando</>
-                  )}
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-carbon/45">
-            Esta empresa no tiene sucursales cargadas.
-          </p>
-        )}
-      </Bloque>
+      <BranchesSection org={org} />
 
       <Bloque titulo="Historial de pagos">
         {pagos.length ? (
