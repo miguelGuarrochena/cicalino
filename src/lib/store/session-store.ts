@@ -8,17 +8,17 @@ export interface ActiveEmployee {
 }
 
 export interface Impersonation {
-  organizacionId: string;
-  organizacionNombre: string;
+  organizationId: string;
+  organizationName: string;
   sucursalId: string;
-  sucursalNombre: string;
+  branchName: string;
 }
 
 export type CurrentRole = "superadmin" | "admin" | "supervisor" | "empleado";
 
 interface SessionState {
   rol: CurrentRole;
-  organizacionId: string | null;
+  organizationId: string | null;
   sucursalId: string | null;
   setRol: (role: CurrentRole) => void;
   setContexto: (orgId: string | null, branchId: string | null) => void;
@@ -38,7 +38,7 @@ export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
       rol: "admin",
-      organizacionId: supabaseConfigured ? null : "org-esquina",
+      organizationId: supabaseConfigured ? null : "org-esquina",
       sucursalId: supabaseConfigured ? null : "suc-centro",
       setRol: (role) =>
         set(
@@ -47,19 +47,19 @@ export const useSessionStore = create<SessionState>()(
                 rol: role,
                 impersonando: null,
                 ...(role === "superadmin"
-                  ? { organizacionId: null, sucursalId: null }
+                  ? { organizationId: null, sucursalId: null }
                   : {}),
               }
             : {
                 rol: role,
                 impersonando: null,
-                organizacionId:
+                organizationId:
                   role === "superadmin" ? null : "org-esquina",
                 sucursalId: role === "superadmin" ? null : "suc-centro",
               },
         ),
       setContexto: (organizationId, branchId) =>
-        set({ organizacionId: organizationId, sucursalId: branchId }),
+        set({ organizationId: organizationId, sucursalId: branchId }),
       setSucursalId: (branchId) => set({ sucursalId: branchId }),
       empleadoActivo: null,
       fichar: (emp) => set({ empleadoActivo: emp }),
@@ -71,7 +71,7 @@ export const useSessionStore = create<SessionState>()(
       entrarComoDueño: (data) =>
         set({
           rol: "admin",
-          organizacionId: data.organizacionId,
+          organizationId: data.organizationId,
           sucursalId: data.sucursalId,
           impersonando: data,
           empleadoActivo: null,
@@ -80,7 +80,7 @@ export const useSessionStore = create<SessionState>()(
       salirImpersonacion: () =>
         set({
           rol: "superadmin",
-          organizacionId: null,
+          organizationId: null,
           sucursalId: null,
           impersonando: null,
           empleadoActivo: null,
@@ -92,7 +92,7 @@ export const useSessionStore = create<SessionState>()(
       skipHydration: true,
       partialize: (s) => ({
         rol: s.rol,
-        organizacionId: s.organizacionId,
+        organizationId: s.organizationId,
         sucursalId: s.sucursalId,
         empleadoActivo: s.empleadoActivo,
         impersonando: s.impersonando,
@@ -104,7 +104,7 @@ export const useSessionStore = create<SessionState>()(
 export const clearSessionLocal = () => {
   useSessionStore.setState({
     rol: "admin",
-    organizacionId: supabaseConfigured ? null : "org-esquina",
+    organizationId: supabaseConfigured ? null : "org-esquina",
     sucursalId: supabaseConfigured ? null : "suc-centro",
     empleadoActivo: null,
     impersonando: null,

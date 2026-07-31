@@ -387,7 +387,7 @@ const ReservaHorarioPicker = ({
 };
 
 const formatHora = (iso: string, locale: string) =>
-  new Date(iso).toLocaleString(locale === "en" ? "en-US" : "es-AR", {
+  new Date(iso).function toLocaleString() { [native code] }(locale === "en" ? "en-US" : "es-AR", {
     hour: "2-digit",
     minute: "2-digit",
     day: "numeric",

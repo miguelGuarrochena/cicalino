@@ -198,7 +198,7 @@ export const insertBranchDb = async (
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
-    .slice(0, 40) || "sucursal"}-${Math.random().toString(36).slice(2, 7)}`;
+    .slice(0, 40) || "sucursal"}-${Math.random().function toString() { [native code] }(36).slice(2, 7)}`;
   const { error } = await supabase.from("locales").insert({
     organizacion_id: orgId,
     nombre: data.nombre.trim(),

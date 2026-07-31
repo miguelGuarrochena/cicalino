@@ -35,20 +35,20 @@ export interface OrderView {
   id: string;
   referencia: string;
   estado: OrderStatus;
-  creadoEn: string;
-  enPreparacionEn: string | null;
-  listoEn: string | null;
-  retiradoEn: string | null;
-  canceladoEn: string | null;
+  createdAt: string;
+  preparingAt: string | null;
+  readyAt: string | null;
+  pickedUpAt: string | null;
+  cancelledAt: string | null;
   qrToken: string;
   empleado?: string | null;
-  vistoEn?: string | null;
+  seenAt?: string | null;
 }
 
 export interface CustomerStatusView {
   referencia: string;
   estado: OrderStatus;
-  nombreLocal: string;
+  branchName: string;
   listo: boolean;
 }
 
@@ -83,13 +83,13 @@ export interface WaitlistView {
   nombre: string;
   personas: number;
   estado: WaitlistStatus;
-  mesaNumero: number | null;
+  tableNumber: number | null;
   qrToken: string;
-  creadoEn: string;
-  avisadoEn: string | null;
-  sentadoEn: string | null;
-  canceladoEn: string | null;
-  vistoEn: string | null;
+  createdAt: string;
+  notifiedAt: string | null;
+  seatedAt: string | null;
+  cancelledAt: string | null;
+  seenAt: string | null;
   empleado?: string | null;
 }
 
@@ -98,23 +98,23 @@ export interface TableView {
   numero: number;
   estado: TableState;
   capacidad: number;
-  esperaId: string | null;
-  reservaId: string | null;
+  waitlistId: string | null;
+  reservationId: string | null;
 }
 
 export interface ReservationView {
   id: string;
   nombre: string;
   personas: number;
-  mesaNumero: number;
-  mesasNumeros: number[];
+  tableNumber: number;
+  tableNumbers: number[];
   horario: string;
-  graciaMinutos: 15 | 20;
+  graceMinutes: 15 | 20;
   estado: ReservationStatus;
-  creadoEn: string;
-  sentadoEn: string | null;
-  canceladoEn: string | null;
-  expiradoEn: string | null;
+  createdAt: string;
+  seatedAt: string | null;
+  cancelledAt: string | null;
+  expiredAt: string | null;
   empleado?: string | null;
 }
 

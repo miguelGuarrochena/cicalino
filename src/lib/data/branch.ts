@@ -15,8 +15,8 @@ export interface BranchConfig {
   whatsapp: string;
   direccion: string;
   modo: IdentificationMode;
-  cantidadMesas: number;
-  horaCorte: number;
+  tableCount: number;
+  cutoffHour: number;
   moduloPedidos: boolean;
   moduloEspera: boolean;
 }
@@ -40,8 +40,8 @@ export const fetchBranchConfig = async (
     whatsapp: data.whatsapp ?? "",
     direccion: data.direccion ?? "",
     modo: (data.modo_identificacion as IdentificationMode) ?? "pedido",
-    cantidadMesas: data.cantidad_mesas ?? 10,
-    horaCorte: data.hora_corte ?? 6,
+    tableCount: data.cantidad_mesas ?? 10,
+    cutoffHour: data.hora_corte ?? 6,
     moduloPedidos: data.modulo_pedidos !== false,
     moduloEspera: Boolean(data.modulo_espera),
   };
@@ -49,14 +49,14 @@ export const fetchBranchConfig = async (
 
 export const saveBranchConfig = async (
   branchId: string,
-  cfg: Pick<BranchConfig, "modo" | "cantidadMesas" | "horaCorte">,
+  cfg: Pick<BranchConfig, "modo" | "tableCount" | "cutoffHour">,
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
   const v = parseInput(branchOperacionSchema, {
     modo: cfg.modo,
-    cantidadMesas: cfg.cantidadMesas,
-    horaCorte: cfg.horaCorte,
+    tableCount: cfg.tableCount,
+    cutoffHour: cfg.cutoffHour,
   });
   if (!v.ok) {
     console.error("saveBranchConfig", v.error);
@@ -66,8 +66,8 @@ export const saveBranchConfig = async (
     .from("locales")
     .update({
       modo_identificacion: v.data.modo,
-      cantidad_mesas: v.data.cantidadMesas,
-      hora_corte: v.data.horaCorte,
+      cantidad_mesas: v.data.tableCount,
+      hora_corte: v.data.cutoffHour,
       updated_at: new Date().toISOString(),
     })
     .eq("id", branchId);
@@ -105,13 +105,13 @@ export const fetchEmployees = async (
 };
 
 export const setEmployeePin = async (
-  empleadoId: string,
+  employeeId: string,
   pin: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return { ok: false, error: "Sin conexión." };
   const { error } = await supabase.rpc("set_empleado_pin", {
-    p_empleado: empleadoId,
+    p_empleado: employeeId,
     p_pin: pin || null,
   });
   if (error) return { ok: false, error: error.message };
@@ -119,13 +119,13 @@ export const setEmployeePin = async (
 };
 
 export const verifyEmployeePin = async (
-  empleadoId: string,
+  employeeId: string,
   pin: string,
 ): Promise<{ id: string; nombre: string } | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
   const { data, error } = await supabase.rpc("verificar_pin_empleado", {
-    p_empleado: empleadoId,
+    p_empleado: employeeId,
     p_pin: pin,
   });
   if (error) {

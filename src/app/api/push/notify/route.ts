@@ -11,7 +11,7 @@ export const POST = async (req: Request) => {
   if (!v.ok) {
     return NextResponse.json({ ok: false, reason: "bad-request" }, { status: 400 });
   }
-  const { orderId, esperaId } = v.data;
+  const { orderId, waitlistId } = v.data;
 
   const supabase = await createServerSupabase();
   if (!supabase) return NextResponse.json({ ok: false, reason: "not-configured" });
@@ -27,11 +27,11 @@ export const POST = async (req: Request) => {
 
   const ahora = new Date().toISOString();
 
-  if (esperaId) {
+  if (waitlistId) {
     const { data: espera } = await supabase
       .from("esperas")
       .select("id, nombre, qr_token")
-      .eq("id", esperaId)
+      .eq("id", waitlistId)
       .single();
     if (!espera) {
       return NextResponse.json({ ok: false, reason: "forbidden" }, { status: 403 });
@@ -40,7 +40,7 @@ export const POST = async (req: Request) => {
     await admin
       .from("esperas")
       .update({ avisado_en: ahora })
-      .eq("id", esperaId);
+      .eq("id", waitlistId);
 
     if (!vapidConfigured) {
       return NextResponse.json({ ok: true, enviados: 0, reason: "no-vapid" });
@@ -49,14 +49,14 @@ export const POST = async (req: Request) => {
     const { data: subs } = await admin
       .from("push_subscriptions")
       .select("id, endpoint, p256dh, auth")
-      .eq("espera_id", esperaId);
+      .eq("espera_id", waitlistId);
 
-    const tag = `cicalino-espera-${esperaId}`;
+    const tag = `cicalino-espera-${waitlistId}`;
     const payload = JSON.stringify({
       titulo: "Cicalino",
       body: `¡${espera.nombre}, tu mesa está lista!`,
       url: `/e/${espera.qr_token}`,
-      esperaId,
+      waitlistId,
       tag,
     });
 

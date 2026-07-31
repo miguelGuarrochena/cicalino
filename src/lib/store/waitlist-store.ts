@@ -14,7 +14,7 @@ interface WaitlistState {
   esperas: WaitlistView[];
   mesas: TableView[];
   reservas: ReservationView[];
-  seedSiVacio: (cantidadMesas?: number) => void;
+  seedSiVacio: (tableCount?: number) => void;
   setMesasCount: (n: number) => void;
   agregarEspera: (
     nombre: string,
@@ -24,16 +24,16 @@ interface WaitlistState {
   cambiarEstado: (
     id: string,
     estado: WaitlistStatus,
-    mesaNumero?: number | null,
+    tableNumber?: number | null,
     mesasExtra?: number[],
   ) => void;
   liberarMesa: (
     numero: number,
     opts?: { soloEsta?: boolean },
   ) => void;
-  ocuparMesa: (numero: number, esperaId: string) => void;
+  ocuparMesa: (numero: number, waitlistId: string) => void;
   ocuparWalkIn: (args: {
-    mesaNumeros: number[];
+    tableNumbers: number[];
     nombre?: string;
     personas?: number;
     empleado?: string | null;
@@ -42,9 +42,9 @@ interface WaitlistState {
   agregarReserva: (args: {
     nombre: string;
     personas: number;
-    mesaNumeros: number[];
+    tableNumbers: number[];
     horario: string;
-    graciaMinutos: 15 | 20;
+    graceMinutes: 15 | 20;
     empleado?: string | null;
   }) => ReservationView | null;
   sentarReserva: (id: string) => void;
@@ -70,8 +70,8 @@ const buildTables = (n: number, prev: TableView[] = []): TableView[] => {
       numero: num,
       estado: "libre" as const,
       capacidad: 4,
-      esperaId: null,
-      reservaId: null,
+      waitlistId: null,
+      reservationId: null,
     };
   });
 };
@@ -83,55 +83,55 @@ export const useWaitlistStore = create<WaitlistState>()(
       mesas: [],
       reservas: [],
 
-      seedSiVacio: (cantidadMesas = 10) => {
+      seedSiVacio: (tableCount = 10) => {
         if (get().esperas.length || get().mesas.length || get().reservas.length) {
           if (!get().mesas.length) {
-            set({ mesas: buildTables(cantidadMesas) });
+            set({ mesas: buildTables(tableCount) });
           }
           return;
         }
-        const mesas = buildTables(cantidadMesas);
+        const mesas = buildTables(tableCount);
         const reservaDemo: ReservationView = {
           id: "res-demo-1",
           nombre: "Martínez",
           personas: 3,
-          mesaNumero: 5,
-          mesasNumeros: [5],
+          tableNumber: 5,
+          tableNumbers: [5],
           horario: new Date(Date.now() + 90 * 60_000).toISOString(),
-          graciaMinutos: 15,
+          graceMinutes: 15,
           estado: "activa",
-          creadoEn: iso(30),
-          sentadoEn: null,
-          canceladoEn: null,
-          expiradoEn: null,
+          createdAt: iso(30),
+          seatedAt: null,
+          cancelledAt: null,
+          expiredAt: null,
           empleado: "Lucía",
         };
         const reservaDemoPronto: ReservationView = {
           id: "res-demo-2",
           nombre: "Sosa",
           personas: 2,
-          mesaNumero: 7,
-          mesasNumeros: [7],
+          tableNumber: 7,
+          tableNumbers: [7],
           horario: new Date(Date.now() + 35 * 60_000).toISOString(),
-          graciaMinutos: 15,
+          graceMinutes: 15,
           estado: "activa",
-          creadoEn: iso(45),
-          sentadoEn: null,
-          canceladoEn: null,
-          expiradoEn: null,
+          createdAt: iso(45),
+          seatedAt: null,
+          cancelledAt: null,
+          expiredAt: null,
           empleado: "Marcos",
         };
         mesas[0] = {
           ...mesas[0],
           estado: "ocupada",
-          esperaId: "esp-demo-old",
-          reservaId: null,
+          waitlistId: "esp-demo-old",
+          reservationId: null,
         };
         mesas[2] = {
           ...mesas[2],
           estado: "ocupada",
-          esperaId: "esp-demo-old2",
-          reservaId: null,
+          waitlistId: "esp-demo-old2",
+          reservationId: null,
         };
         set({
           mesas,
@@ -142,13 +142,13 @@ export const useWaitlistStore = create<WaitlistState>()(
               nombre: "García",
               personas: 4,
               estado: "esperando",
-              mesaNumero: null,
+              tableNumber: null,
               qrToken: "11111111-1111-4111-8111-111111111111",
-              creadoEn: iso(12),
-              avisadoEn: null,
-              sentadoEn: null,
-              canceladoEn: null,
-              vistoEn: iso(11),
+              createdAt: iso(12),
+              notifiedAt: null,
+              seatedAt: null,
+              cancelledAt: null,
+              seenAt: iso(11),
               empleado: "Lucía",
             },
             {
@@ -156,13 +156,13 @@ export const useWaitlistStore = create<WaitlistState>()(
               nombre: "López",
               personas: 2,
               estado: "avisado",
-              mesaNumero: null,
+              tableNumber: null,
               qrToken: "22222222-2222-4222-8222-222222222222",
-              creadoEn: iso(25),
-              avisadoEn: iso(2),
-              sentadoEn: null,
-              canceladoEn: null,
-              vistoEn: iso(24),
+              createdAt: iso(25),
+              notifiedAt: iso(2),
+              seatedAt: null,
+              cancelledAt: null,
+              seenAt: iso(24),
               empleado: "Marcos",
             },
           ],
@@ -177,44 +177,44 @@ export const useWaitlistStore = create<WaitlistState>()(
           nombre: nombre.trim() || "Grupo",
           personas: Math.max(1, personas),
           estado: "esperando",
-          mesaNumero: null,
+          tableNumber: null,
           qrToken: crypto.randomUUID(),
-          creadoEn: new Date().toISOString(),
-          avisadoEn: null,
-          sentadoEn: null,
-          canceladoEn: null,
-          vistoEn: null,
+          createdAt: new Date().toISOString(),
+          notifiedAt: null,
+          seatedAt: null,
+          cancelledAt: null,
+          seenAt: null,
           empleado,
         };
         set((s) => ({ esperas: [e, ...s.esperas] }));
         return e;
       },
 
-      cambiarEstado: (id, estado, mesaNumero = null, mesasExtra = []) =>
+      cambiarEstado: (id, estado, tableNumber = null, mesasExtra = []) =>
         set((s) => {
           const now = new Date().toISOString();
           const esperas = s.esperas.map((e) => {
             if (e.id !== id) return e;
             const next = { ...e, estado };
-            if (estado === "avisado") next.avisadoEn = now;
+            if (estado === "avisado") next.notifiedAt = now;
             if (estado === "sentado") {
-              next.sentadoEn = now;
-              next.mesaNumero = mesaNumero ?? e.mesaNumero;
-              if (!next.avisadoEn) next.avisadoEn = now;
+              next.seatedAt = now;
+              next.tableNumber = tableNumber ?? e.tableNumber;
+              if (!next.notifiedAt) next.notifiedAt = now;
             }
-            if (estado === "cancelado") next.canceladoEn = now;
+            if (estado === "cancelado") next.cancelledAt = now;
             return next;
           });
           let mesas = s.mesas;
-          if (estado === "sentado" && mesaNumero) {
-            const nums = new Set([mesaNumero, ...mesasExtra]);
+          if (estado === "sentado" && tableNumber) {
+            const nums = new Set([tableNumber, ...mesasExtra]);
             mesas = s.mesas.map((m) =>
               nums.has(m.numero)
                 ? {
                     ...m,
                     estado: "ocupada" as const,
-                    esperaId: id,
-                    reservaId: null,
+                    waitlistId: id,
+                    reservationId: null,
                   }
                 : m,
             );
@@ -234,55 +234,55 @@ export const useWaitlistStore = create<WaitlistState>()(
                   ? {
                       ...m,
                       estado: "libre" as const,
-                      esperaId: null,
-                      reservaId: null,
+                      waitlistId: null,
+                      reservationId: null,
                     }
                   : m,
               ),
             };
           }
-          const esperaId =
-            mesa?.estado === "ocupada" ? mesa.esperaId : null;
+          const waitlistId =
+            mesa?.estado === "ocupada" ? mesa.waitlistId : null;
           const reservaOcupadaId =
-            mesa?.estado === "ocupada" ? mesa.reservaId : null;
+            mesa?.estado === "ocupada" ? mesa.reservationId : null;
           return {
             reservas,
             mesas: s.mesas.map((m) =>
-              (esperaId && m.esperaId === esperaId) ||
-              (reservaOcupadaId && m.reservaId === reservaOcupadaId) ||
+              (waitlistId && m.waitlistId === waitlistId) ||
+              (reservaOcupadaId && m.reservationId === reservaOcupadaId) ||
               m.numero === numero
                 ? {
                     ...m,
                     estado: "libre" as const,
-                    esperaId: null,
-                    reservaId: null,
+                    waitlistId: null,
+                    reservationId: null,
                   }
                 : m,
             ),
           };
         }),
 
-      ocuparMesa: (numero, esperaId) =>
+      ocuparMesa: (numero, waitlistId) =>
         set((s) => ({
           mesas: s.mesas.map((m) =>
             m.numero === numero
               ? {
                   ...m,
                   estado: "ocupada" as const,
-                  esperaId,
-                  reservaId: null,
+                  waitlistId,
+                  reservationId: null,
                 }
               : m,
           ),
         })),
 
       ocuparWalkIn: ({
-        mesaNumeros,
+        tableNumbers,
         nombre,
         personas,
         empleado = null,
       }) => {
-        const nums = [...new Set(mesaNumeros)]
+        const nums = [...new Set(tableNumbers)]
           .filter((n) => n >= 1)
           .sort((a, b) => a - b);
         if (!nums.length) return null;
@@ -297,13 +297,13 @@ export const useWaitlistStore = create<WaitlistState>()(
           nombre: (nombre ?? "").trim() || "Walk-in",
           personas: Math.max(1, personas ?? cap),
           estado: "sentado",
-          mesaNumero: primaria,
+          tableNumber: primaria,
           qrToken: crypto.randomUUID(),
-          creadoEn: now,
-          avisadoEn: null,
-          sentadoEn: now,
-          canceladoEn: null,
-          vistoEn: null,
+          createdAt: now,
+          notifiedAt: null,
+          seatedAt: now,
+          cancelledAt: null,
+          seenAt: null,
           empleado,
         };
         const setNums = new Set(nums);
@@ -314,8 +314,8 @@ export const useWaitlistStore = create<WaitlistState>()(
               ? {
                   ...m,
                   estado: "ocupada" as const,
-                  esperaId: e.id,
-                  reservaId: null,
+                  waitlistId: e.id,
+                  reservationId: null,
                 }
               : m,
           ),
@@ -338,12 +338,12 @@ export const useWaitlistStore = create<WaitlistState>()(
       agregarReserva: ({
         nombre,
         personas,
-        mesaNumeros,
+        tableNumbers,
         horario,
-        graciaMinutos,
+        graceMinutes,
         empleado = null,
       }) => {
-        const nums = [...new Set(mesaNumeros)]
+        const nums = [...new Set(tableNumbers)]
           .filter((n) => n >= 1)
           .sort((a, b) => a - b);
         if (!nums.length) return null;
@@ -357,15 +357,15 @@ export const useWaitlistStore = create<WaitlistState>()(
           id: crypto.randomUUID(),
           nombre: nombre.trim() || "Reserva",
           personas: Math.max(1, personas),
-          mesaNumero: primaria,
-          mesasNumeros: nums,
+          tableNumber: primaria,
+          tableNumbers: nums,
           horario,
-          graciaMinutos,
+          graceMinutes,
           estado: "activa",
-          creadoEn: new Date().toISOString(),
-          sentadoEn: null,
-          canceladoEn: null,
-          expiradoEn: null,
+          createdAt: new Date().toISOString(),
+          seatedAt: null,
+          cancelledAt: null,
+          expiredAt: null,
           empleado,
         };
         set((s) => ({
@@ -382,21 +382,21 @@ export const useWaitlistStore = create<WaitlistState>()(
           if (!r || r.estado !== "activa") return s;
           const now = new Date().toISOString();
           const nums = new Set(
-            r.mesasNumeros?.length ? r.mesasNumeros : [r.mesaNumero],
+            r.tableNumbers?.length ? r.tableNumbers : [r.tableNumber],
           );
           return {
             reservas: s.reservas.map((x) =>
               x.id === id
-                ? { ...x, estado: "sentada" as const, sentadoEn: now }
+                ? { ...x, estado: "sentada" as const, seatedAt: now }
                 : x,
             ),
             mesas: s.mesas.map((m) =>
-              nums.has(m.numero) || m.reservaId === id
+              nums.has(m.numero) || m.reservationId === id
                 ? {
                     ...m,
                     estado: "ocupada" as const,
-                    reservaId: id,
-                    esperaId: null,
+                    reservationId: id,
+                    waitlistId: null,
                   }
                 : m,
             ),
@@ -411,7 +411,7 @@ export const useWaitlistStore = create<WaitlistState>()(
           return {
             reservas: s.reservas.map((x) =>
               x.id === id
-                ? { ...x, estado: "cancelada" as const, canceladoEn: now }
+                ? { ...x, estado: "cancelada" as const, cancelledAt: now }
                 : x,
             ),
           };
@@ -421,12 +421,12 @@ export const useWaitlistStore = create<WaitlistState>()(
         set((s) => ({
           esperas: s.esperas.filter((e) => e.id !== id),
           mesas: s.mesas.map((m) =>
-            m.esperaId === id
+            m.waitlistId === id
               ? {
                   ...m,
                   estado: "libre" as const,
-                  esperaId: null,
-                  reservaId: null,
+                  waitlistId: null,
+                  reservationId: null,
                 }
               : m,
           ),
@@ -442,7 +442,7 @@ export const useWaitlistStore = create<WaitlistState>()(
               return {
                 ...e,
                 estado: e.estado === "esperando" ? ("avisado" as const) : e.estado,
-                avisadoEn: now,
+                notifiedAt: now,
               };
             }),
           };
@@ -455,13 +455,13 @@ export const useWaitlistStore = create<WaitlistState>()(
           const reservas = s.reservas.map((r) => {
             if (r.estado !== "activa") return r;
             const limite =
-              new Date(r.horario).getTime() + r.graciaMinutos * 60_000;
+              new Date(r.horario).getTime() + r.graceMinutes * 60_000;
             if (now <= limite) return r;
             changed = true;
             return {
               ...r,
               estado: "expirada" as ReservationStatus,
-              expiradoEn: new Date().toISOString(),
+              expiredAt: new Date().toISOString(),
             };
           });
           if (!changed) return s;

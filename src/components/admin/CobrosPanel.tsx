@@ -20,8 +20,8 @@ export const CobrosPanel = ({
             activo: o.activo,
             pagado: o.pagado,
             plan: o.plan,
-            mesGratisHasta: o.mesGratisHasta,
-            proximoCobroEn: o.proximoCobroEn,
+            freeMonthUntil: o.freeMonthUntil,
+            nextChargeAt: o.nextChargeAt,
           }),
         )
         .map((o) => ({
@@ -31,10 +31,10 @@ export const CobrosPanel = ({
             activo: o.activo,
             pagado: o.pagado,
             plan: o.plan,
-            mesGratisHasta: o.mesGratisHasta,
-            proximoCobroEn: o.proximoCobroEn,
+            freeMonthUntil: o.freeMonthUntil,
+            nextChargeAt: o.nextChargeAt,
           }),
-          email: o.duenoEmail,
+          email: o.ownerEmail,
         })),
     [organizations],
   );

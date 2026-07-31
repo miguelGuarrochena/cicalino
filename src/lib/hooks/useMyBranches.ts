@@ -8,7 +8,7 @@ import { fetchMyBranches, type BranchLite } from "@/lib/data/branch";
 
 export const useMyBranches = (): { branches: BranchLite[]; ready: boolean } => {
   const role = useSessionStore((s) => s.rol);
-  const orgId = useSessionStore((s) => s.organizacionId);
+  const orgId = useSessionStore((s) => s.organizationId);
   const branchId = useSessionStore((s) => s.sucursalId);
   const setBranchId = useSessionStore((s) => s.setSucursalId);
   const live = supabaseConfigured;

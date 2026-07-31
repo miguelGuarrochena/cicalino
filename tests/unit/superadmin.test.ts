@@ -17,21 +17,21 @@ const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
   telefono: "+54 9 11 5555 5555",
   cuil: "30-71234567-8",
   direccion: "",
-  duenoEmail: "d@x.com",
+  ownerEmail: "d@x.com",
   cupo: 2,
   pagado: true,
   activo: true,
   plan: "mensual",
-  mesGratisHasta: null,
-  proximoCobroEn: null,
-  contratoAceptadoEn: "2026-01-01T00:00:00Z",
+  freeMonthUntil: null,
+  nextChargeAt: null,
+  contractAcceptedAt: "2026-01-01T00:00:00Z",
   moduloPedidos: true,
   moduloEspera: false,
   altaEn: "2026-01-01T00:00:00Z",
   sucursales: [
     {
       id: "s1",
-      organizacionId: "o1",
+      organizationId: "o1",
       nombre: "Centro",
       tipo: "panaderia",
       direccion: "",
@@ -54,7 +54,7 @@ describe("monthlyCharge", () => {
           sucursales: [
             {
               id: "s1",
-              organizacionId: "o1",
+              organizationId: "o1",
               nombre: "A",
               tipo: "panaderia",
               direccion: "",
@@ -65,7 +65,7 @@ describe("monthlyCharge", () => {
             },
             {
               id: "s2",
-              organizacionId: "o1",
+              organizationId: "o1",
               nombre: "B",
               tipo: "panaderia",
               direccion: "",
@@ -83,7 +83,7 @@ describe("monthlyCharge", () => {
     expect(monthlyCharge(mkOrg({ activo: false }))).toBe(0);
     expect(monthlyCharge(mkOrg({ plan: "gratis" }))).toBe(0);
     const futuro = new Date(Date.now() + 5 * 86400000).toISOString();
-    expect(monthlyCharge(mkOrg({ mesGratisHasta: futuro }))).toBe(0);
+    expect(monthlyCharge(mkOrg({ freeMonthUntil: futuro }))).toBe(0);
   });
 });
 

@@ -104,7 +104,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   useEffect(() => {
     if (!espera) return;
     if (espera.status !== "avisado" && espera.status !== "sentado") return;
-    const key = espera.avisadoEn ?? espera.status;
+    const key = espera.notifiedAt ?? espera.status;
 
     if (ultimoAviso.current === null) {
       ultimoAviso.current = key;
@@ -203,9 +203,9 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
 
       <div className="u-in flex flex-1 flex-col items-center justify-center">
         <div className="flex flex-col items-center gap-1">
-          {espera.nombreLocal && (
+          {espera.branchName && (
             <span className="mb-1 max-w-[16rem] truncate font-display text-lg uppercase tracking-tight text-carbon/70 sm:max-w-xs sm:text-xl">
-              {espera.nombreLocal}
+              {espera.branchName}
             </span>
           )}
           <span className="text-xs uppercase tracking-widest text-espera/70">
@@ -275,7 +275,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
             <>
               <p className="font-display text-3xl uppercase tracking-tight text-espera">
                 {t("clienteMesa.sentadoTitulo", {
-                  n: String(espera.mesaNumero ?? ""),
+                  n: String(espera.tableNumber ?? ""),
                 })}
               </p>
               <p className="mt-2 max-w-sm text-carbon/60">

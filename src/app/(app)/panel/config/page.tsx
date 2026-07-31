@@ -84,10 +84,10 @@ const ConfigPage = () => {
 
   const validar = (): FormErrors => {
     const next: FormErrors = {};
-    if (c.modo === "mesa" && (!c.cantidadMesas || c.cantidadMesas < 1)) {
+    if (c.modo === "mesa" && (!c.tableCount || c.tableCount < 1)) {
       next.mesas = t("config.errMesas");
     }
-    if (c.moduloEspera && (!c.cantidadMesas || c.cantidadMesas < 1)) {
+    if (c.moduloEspera && (!c.tableCount || c.tableCount < 1)) {
       next.mesas = t("config.errMesas");
     }
     return next;
@@ -103,15 +103,15 @@ const ConfigPage = () => {
       if (supabaseConfigured && isRealBranchId(branchId)) {
         const ok = await saveBranchConfig(branchId, {
           modo: c.modo,
-          cantidadMesas: c.cantidadMesas,
-          horaCorte: c.horaCorte,
+          tableCount: c.tableCount,
+          cutoffHour: c.cutoffHour,
         });
         if (!ok) {
           toast(t("toast.configError"), "error");
           return;
         }
         if (c.moduloEspera || c.modo === "mesa") {
-          await syncTables(branchId, c.cantidadMesas);
+          await syncTables(branchId, c.tableCount);
         }
       }
       setGuardado(true);
@@ -246,7 +246,7 @@ const ConfigPage = () => {
                 type="number"
                 min={1}
                 className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
-                value={c.cantidadMesas}
+                value={c.tableCount}
                 onChange={(e) => {
                   c.setCantidadMesas(parseInt(e.target.value, 10));
                   setErrors((er) => ({ ...er, mesas: undefined }));
@@ -336,7 +336,7 @@ const ConfigPage = () => {
                 type="number"
                 min={1}
                 className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
-                value={c.cantidadMesas}
+                value={c.tableCount}
                 onChange={(e) => {
                   c.setCantidadMesas(parseInt(e.target.value, 10));
                   setErrors((er) => ({ ...er, mesas: undefined }));
@@ -349,7 +349,7 @@ const ConfigPage = () => {
         <div className="mt-4 max-w-xs border-t border-linea pt-4">
           <Campo label="Corte del día">
             <Select
-              value={String(c.horaCorte)}
+              value={String(c.cutoffHour)}
               onChange={(v) => c.setHoraCorte(parseInt(v, 10))}
               options={HORAS_CORTE}
               triggerClassName="px-4 py-3"

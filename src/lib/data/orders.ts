@@ -31,19 +31,19 @@ const mapRow = (r: Row): OrderView => ({
   id: r.id,
   referencia: r.referencia,
   estado: r.estado,
-  creadoEn: r.creado_en,
-  enPreparacionEn: r.en_preparacion_en,
-  listoEn: r.listo_en,
-  retiradoEn: r.retirado_en,
-  canceladoEn: r.cancelado_en,
-  vistoEn: r.visto_en,
+  createdAt: r.creado_en,
+  preparingAt: r.en_preparacion_en,
+  readyAt: r.listo_en,
+  pickedUpAt: r.retirado_en,
+  cancelledAt: r.cancelado_en,
+  seenAt: r.visto_en,
   qrToken: r.qr_token,
   empleado: r.empleados?.nombre ?? null,
 });
 
 const SELECT = "*, empleados(nombre)";
 
-const cutoffHour = (): number => useConfigStore.getState().horaCorte;
+const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
 const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
 const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString();
 

@@ -10,7 +10,7 @@ import { useMyBranches } from "@/lib/hooks/useMyBranches";
 export const BranchSwitcher = () => {
   const { t } = useApp();
   const role = useSessionStore((s) => s.rol);
-  const organizationId = useSessionStore((s) => s.organizacionId);
+  const organizationId = useSessionStore((s) => s.organizationId);
   const branchId = useSessionStore((s) => s.sucursalId);
   const setBranchId = useSessionStore((s) => s.setSucursalId);
   const orgs = useSuperadminStore((s) => s.organizaciones);

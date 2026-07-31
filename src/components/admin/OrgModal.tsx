@@ -55,7 +55,7 @@ type DraftOrg = {
   telefono: string;
   cuil: string;
   direccion: string;
-  duenoEmail: string;
+  ownerEmail: string;
   cupo: number;
   plan: PlanTipo;
 };
@@ -66,7 +66,7 @@ const draftVacio = (): DraftOrg => ({
   telefono: "",
   cuil: "",
   direccion: "",
-  duenoEmail: "",
+  ownerEmail: "",
   cupo: 1,
   plan: "mensual",
 });
@@ -77,7 +77,7 @@ const draftDesdeOrg = (o: OrganizationRow): DraftOrg => ({
   telefono: o.telefono,
   cuil: o.cuil,
   direccion: o.direccion,
-  duenoEmail: o.duenoEmail,
+  ownerEmail: o.ownerEmail,
   cupo: o.cupo,
   plan: o.plan,
 });
@@ -88,7 +88,7 @@ const draftsIguales = (a: DraftOrg, b: DraftOrg): boolean =>
   a.telefono.trim() === b.telefono.trim() &&
   a.cuil.trim() === b.cuil.trim() &&
   a.direccion.trim() === b.direccion.trim() &&
-  a.duenoEmail.trim() === b.duenoEmail.trim() &&
+  a.ownerEmail.trim() === b.ownerEmail.trim() &&
   a.cupo === b.cupo &&
   a.plan === b.plan;
 
@@ -124,13 +124,13 @@ const textoProximoCobro = (org: OrganizationRow): string => {
     return "Esperando que el cliente acepte las condiciones.";
   }
   if (org.plan === "gratis") return "Sin próximo cobro (plan gratis).";
-  if (enGracia(org) && org.mesGratisHasta) {
+  if (enGracia(org) && org.freeMonthUntil) {
     const ciclo = org.plan === "anual" ? "anual" : "mensual";
-    return `Cortesía hasta el ${fechaCorta(org.mesGratisHasta)}. Después empieza el ciclo ${ciclo}.`;
+    return `Cortesía hasta el ${fechaCorta(org.freeMonthUntil)}. Después empieza el ciclo ${ciclo}.`;
   }
   if (!org.activo) return "Cuenta pausada: no se cobra.";
-  if (org.proximoCobroEn) {
-    const fecha = fechaCorta(org.proximoCobroEn);
+  if (org.nextChargeAt) {
+    const fecha = fechaCorta(org.nextChargeAt);
     if (!org.pagado) return `Pendiente de cobro · vencía el ${fecha}.`;
     return org.plan === "anual"
       ? `Próximo cobro anual: ${fecha}.`
@@ -278,7 +278,7 @@ export const OrgModal = ({
   const [phone, setTelefono] = useState(org?.telefono ?? "");
   const [cuil, setCuil] = useState(org?.cuil ?? "");
   const [address, setDireccion] = useState(org?.direccion ?? "");
-  const [ownerEmail, setOwnerEmail] = useState(org?.duenoEmail ?? "");
+  const [ownerEmail, setOwnerEmail] = useState(org?.ownerEmail ?? "");
   const [quota, setCupo] = useState(org?.cupo ?? 1);
   const [plan, setPlan] = useState<PlanTipo>(org?.plan ?? "mensual");
   const [baseline, setBaseline] = useState<DraftOrg>(() =>
@@ -299,7 +299,7 @@ export const OrgModal = ({
     telefono: phone,
     cuil,
     direccion: address,
-    duenoEmail: ownerEmail,
+    ownerEmail: ownerEmail,
     cupo: quota,
     plan,
   });
@@ -312,7 +312,7 @@ export const OrgModal = ({
     setTelefono(d.telefono);
     setCuil(d.cuil);
     setDireccion(d.direccion);
-    setOwnerEmail(d.duenoEmail);
+    setOwnerEmail(d.ownerEmail);
     setCupo(d.cupo);
     setPlan(d.plan);
   };
@@ -370,7 +370,7 @@ export const OrgModal = ({
     if (!required(manager)) e.responsable = t("super.errResponsable");
     if (!required(phone) || !isWhatsapp(phone))
       e.telefono = t("super.errTelefono");
-    if (!emailOk(ownerEmail)) e.duenoEmail = t("super.errEmail");
+    if (!emailOk(ownerEmail)) e.ownerEmail = t("super.errEmail");
     if (cuil && !cuilOk(cuil)) e.cuil = t("super.errCuil");
     if (quota < 1) e.cupo = t("super.errCupo");
     if (org && quota < org.sucursales.length) e.cupo = t("super.errCupoBajo");
@@ -386,7 +386,7 @@ export const OrgModal = ({
       telefono: phone,
       cuil,
       direccion: address,
-      duenoEmail: ownerEmail,
+      ownerEmail: ownerEmail,
       cupo: quota,
       plan,
     };
@@ -458,8 +458,8 @@ export const OrgModal = ({
             "success",
           );
         } else if (plan === "mensual") {
-          const prox = vista?.proximoCobroEn
-            ? fechaCorta(vista.proximoCobroEn)
+          const prox = vista?.nextChargeAt
+            ? fechaCorta(vista.nextChargeAt)
             : "el próximo ciclo";
           toast(
             `Sucursal agregada · ${nuevoCupo} en total. Se cobra desde ${prox}.`,
@@ -509,25 +509,25 @@ export const OrgModal = ({
   const togglePagado = async () => {
     if (!vista || busy) return;
     const next = !vista.pagado;
-    let proximoCobroEn: string | null;
+    let nextChargeAt: string | null;
     if (!next) {
-      proximoCobroEn = new Date().toISOString();
+      nextChargeAt = new Date().toISOString();
     } else if (
       vista.plan === "anual" &&
-      vista.proximoCobroEn &&
-      new Date(vista.proximoCobroEn).getTime() > Date.now()
+      vista.nextChargeAt &&
+      new Date(vista.nextChargeAt).getTime() > Date.now()
     ) {
-      proximoCobroEn = vista.proximoCobroEn;
+      nextChargeAt = vista.nextChargeAt;
     } else {
       const prox = addBillingCycle(vista.plan);
-      proximoCobroEn = prox ? prox.toISOString() : null;
+      nextChargeAt = prox ? prox.toISOString() : null;
     }
     await conBusy(next ? "Marcando pagado…" : "Marcando impago…", async () => {
       if (live) {
         toggleOrgPagado(vista.id);
         await updateOrgDb(vista.id, {
           pagado: next,
-          proximoCobroEn,
+          nextChargeAt,
         });
         await refreshOrganizations();
       } else {
@@ -627,13 +627,13 @@ export const OrgModal = ({
       if (live) {
         giveFreeMonth(vista.id, 1);
         const base = enGracia(vista)
-          ? new Date(vista.mesGratisHasta as string)
+          ? new Date(vista.freeMonthUntil as string)
           : new Date();
         base.setMonth(base.getMonth() + 1);
         const iso = base.toISOString();
         await updateOrgDb(vista.id, {
-          mesGratisHasta: iso,
-          proximoCobroEn: iso,
+          freeMonthUntil: iso,
+          nextChargeAt: iso,
         });
         await refreshOrganizations();
       } else {
@@ -646,10 +646,10 @@ export const OrgModal = ({
   const enterOwner = (branchId: string, branchNameLabel: string) => {
     if (!org) return;
     enterAsOwner({
-      organizacionId: org.id,
-      organizacionNombre: org.nombre,
+      organizationId: org.id,
+      organizationName: org.nombre,
       sucursalId: branchId,
-      sucursalNombre: branchNameLabel,
+      branchName: branchNameLabel,
     });
     onClose();
     router.push("/panel");
@@ -796,7 +796,7 @@ export const OrgModal = ({
               onChange={(e) => setTelefono(e.target.value)}
             />
           </Campo>
-          <Campo label={t("super.emailDueno")} error={errors.duenoEmail}>
+          <Campo label={t("super.emailDueno")} error={errors.ownerEmail}>
             <input
               className={INPUT}
               type="email"
@@ -912,7 +912,7 @@ export const OrgModal = ({
               label={t("super.telefono")}
               value={vista.telefono || "—"}
             />
-            <Dato label={t("super.emailDueno")} value={vista.duenoEmail} />
+            <Dato label={t("super.emailDueno")} value={vista.ownerEmail} />
             <Dato label={t("super.cuil")} value={vista.cuil || "—"} />
             <Dato
               label={t("super.direccion")}
@@ -960,7 +960,7 @@ export const OrgModal = ({
                 {isContractPending(vista) && !vista.activo
                   ? "Esperando condiciones"
                   : !vista.activo
-                    ? vista.contratoAceptadoEn
+                    ? vista.contractAcceptedAt
                       ? "Lista para activar"
                       : "Pausada"
                     : enGracia(vista)
@@ -983,17 +983,17 @@ export const OrgModal = ({
             {!isContractPending(vista) && !vista.activo && (
               <p className="mt-3 rounded-xl border border-emerald-300/80 bg-emerald-100 px-3 py-2 text-xs font-medium text-emerald-950">
                 Condiciones aceptadas
-                {vista.contratoAceptadoEn
-                  ? ` el ${fechaCorta(vista.contratoAceptadoEn)}`
+                {vista.contractAcceptedAt
+                  ? ` el ${fechaCorta(vista.contractAcceptedAt)}`
                   : ""}
                 . Podés activar la cuenta cuando quieras.
               </p>
             )}
 
-            {enGracia(vista) && vista.mesGratisHasta && (
+            {enGracia(vista) && vista.freeMonthUntil && (
               <p className="mt-3 rounded-xl border border-sky-300/80 bg-sky-100 px-3 py-2 text-xs font-medium text-sky-950">
                 Mes gratis / cortesía hasta el{" "}
-                <b>{fechaCorta(vista.mesGratisHasta)}</b>. El plan{" "}
+                <b>{fechaCorta(vista.freeMonthUntil)}</b>. El plan{" "}
                 {PLAN_LABEL[vista.plan].toLowerCase()} ya está cargado; el cobro
                 arranca cuando termine la prueba.
               </p>

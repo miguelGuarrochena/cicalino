@@ -27,8 +27,8 @@ interface ConfigState {
   whatsapp: string;
   direccion: string;
   modo: IdentificationMode;
-  cantidadMesas: number;
-  horaCorte: number;
+  tableCount: number;
+  cutoffHour: number;
   moduloPedidos: boolean;
   moduloEspera: boolean;
   empleados: EmployeeUI[];
@@ -49,8 +49,8 @@ interface ConfigState {
         | "whatsapp"
         | "direccion"
         | "modo"
-        | "cantidadMesas"
-        | "horaCorte"
+        | "tableCount"
+        | "cutoffHour"
         | "moduloPedidos"
         | "moduloEspera"
       >
@@ -77,8 +77,8 @@ const INICIAL = supabaseConfigured
       whatsapp: "",
       direccion: "",
       modo: "pedido" as IdentificationMode,
-      cantidadMesas: 10,
-      horaCorte: 6,
+      tableCount: 10,
+      cutoffHour: 6,
       moduloPedidos: true,
       moduloEspera: false,
       empleados: [] as EmployeeUI[],
@@ -90,8 +90,8 @@ const INICIAL = supabaseConfigured
       whatsapp: "+54 9 341 555 1234",
       direccion: "Calle Falsa 742, Rosario",
       modo: "pedido" as IdentificationMode,
-      cantidadMesas: 10,
-      horaCorte: 6,
+      tableCount: 10,
+      cutoffHour: 6,
       moduloPedidos: true,
       moduloEspera: true,
       empleados: [
@@ -108,9 +108,9 @@ export const useConfigStore = create<ConfigState>()(
 
       setCampo: (campo, valor) => set({ [campo]: valor } as Partial<ConfigState>),
       setModo: (mode) => set({ modo: mode }),
-      setCantidadMesas: (n) => set({ cantidadMesas: Math.max(1, n || 1) }),
+      setCantidadMesas: (n) => set({ tableCount: Math.max(1, n || 1) }),
       setHoraCorte: (n) =>
-        set({ horaCorte: Math.min(23, Math.max(0, Math.floor(n) || 0)) }),
+        set({ cutoffHour: Math.min(23, Math.max(0, Math.floor(n) || 0)) }),
       hydrate: (partial) => set({ ...partial, branchConfigReady: true }),
       setBranchConfigReady: (v) => set({ branchConfigReady: v }),
       setEmpleados: (list) => set({ empleados: list }),
@@ -149,8 +149,8 @@ export const useConfigStore = create<ConfigState>()(
       partialize: (s) => {
         const operacion = {
           modo: s.modo,
-          cantidadMesas: s.cantidadMesas,
-          horaCorte: s.horaCorte,
+          tableCount: s.tableCount,
+          cutoffHour: s.cutoffHour,
           moduloPedidos: s.moduloPedidos,
           moduloEspera: s.moduloEspera,
           empleados: s.empleados,

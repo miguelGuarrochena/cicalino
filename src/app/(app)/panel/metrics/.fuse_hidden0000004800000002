@@ -158,7 +158,7 @@ const MetricasPage = () => {
     Number(d.pedidos.replace(/\./g, "").replace(",", ".")) * factor,
   );
   const ordersDisplay = Number.isFinite(ordersNum)
-    ? ordersNum.toLocaleString("es-AR")
+    ? ordersNum.function toLocaleString() { [native code] }("es-AR")
     : d.pedidos;
   const max = Math.max(1, ...d.valores.map((v) => Math.round(v * factor)));
   const valores = d.valores.map((v) => Math.round(v * factor));

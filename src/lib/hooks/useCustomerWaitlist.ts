@@ -17,9 +17,9 @@ export interface CustomerWaitlist {
   nombre: string;
   personas: number;
   status: WaitlistStatus;
-  mesaNumero: number | null;
-  nombreLocal: string;
-  avisadoEn: string | null;
+  tableNumber: number | null;
+  branchName: string;
+  notifiedAt: string | null;
   cola: CustomerWaitlistQueue;
 }
 
@@ -52,7 +52,7 @@ const colaFromDemo = (
     qrToken: string;
     personas: number;
     estado: string;
-    creadoEn: string;
+    createdAt: string;
   }[],
 ): CustomerWaitlistQueue => {
   const yo = esperas.find((e) => e.qrToken === token);
@@ -60,7 +60,7 @@ const colaFromDemo = (
     (e) => e.estado === "esperando" || e.estado === "avisado",
   );
   if (!yo) return emptyCola();
-  const miCreado = new Date(yo.creadoEn).getTime();
+  const miCreado = new Date(yo.createdAt).getTime();
   let gruposDelante = 0;
   let personasDelante = 0;
   let gruposEnCola = 0;
@@ -69,7 +69,7 @@ const colaFromDemo = (
     gruposEnCola += 1;
     personasEnCola += row.personas;
     if (row.id === yo.id) continue;
-    const t = new Date(row.creadoEn).getTime();
+    const t = new Date(row.createdAt).getTime();
     if (t < miCreado || (t === miCreado && row.id < yo.id)) {
       gruposDelante += 1;
       personasDelante += row.personas;
@@ -99,11 +99,11 @@ export const useCustomerWaitlist = (token: string): Result => {
     const r = useWaitlistStore.persist.rehydrate();
     if (r && typeof (r as Promise<void>).then === "function") {
       void (r as Promise<void>).then(() => {
-        seed(cfg.cantidadMesas);
+        seed(cfg.tableCount);
         done();
       });
     } else {
-      seed(cfg.cantidadMesas);
+      seed(cfg.tableCount);
       done();
     }
     const onStorage = (e: StorageEvent) => {
@@ -112,7 +112,7 @@ export const useCustomerWaitlist = (token: string): Result => {
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [live, seed, cfg.cantidadMesas]);
+  }, [live, seed, cfg.tableCount]);
 
   useEffect(() => {
     if (!live) return;
@@ -132,9 +132,9 @@ export const useCustomerWaitlist = (token: string): Result => {
             nombre: data.nombre,
             personas: data.personas,
             status: data.estado,
-            mesaNumero: data.mesaNumero,
-            nombreLocal: data.nombreLocal,
-            avisadoEn: data.avisadoEn,
+            tableNumber: data.tableNumber,
+            branchName: data.branchName,
+            notifiedAt: data.notifiedAt,
             cola: normalizeCola(data.cola),
           });
           setRemoteFound(true);
@@ -174,9 +174,9 @@ export const useCustomerWaitlist = (token: string): Result => {
           nombre: demo.nombre,
           personas: demo.personas,
           status: demo.estado,
-          mesaNumero: demo.mesaNumero,
-          nombreLocal: cfg.nombre || "Local",
-          avisadoEn: demo.avisadoEn,
+          tableNumber: demo.tableNumber,
+          branchName: cfg.nombre || "Local",
+          notifiedAt: demo.notifiedAt,
           cola: colaFromDemo(token, demoEsperas),
         }
       : null,

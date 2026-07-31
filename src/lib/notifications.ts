@@ -79,7 +79,7 @@ export const subscribeWebPush = async (
     }
     return { ok: true };
   } catch (err) {
-    console.error("suscribirWebPush", err);
+    console.error("subscribeWebPush", err);
     try {
       const reg = await navigator.serviceWorker.ready;
       const old = await reg.pushManager.getSubscription();
@@ -105,7 +105,7 @@ export const subscribeWebPush = async (
       });
       return res.ok ? { ok: true } : { ok: false, reason: "server" };
     } catch (err2) {
-      console.error("suscribirWebPush/retry", err2);
+      console.error("subscribeWebPush/retry", err2);
       return { ok: false, reason: "error" };
     }
   }

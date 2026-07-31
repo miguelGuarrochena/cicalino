@@ -19,11 +19,11 @@ const conTimestamp = (p: OrderView, status: OrderStatus): OrderView => {
   return {
     ...p,
     estado: status,
-    enPreparacionEn:
-      status === "en_preparacion" ? ahora : p.enPreparacionEn,
-    listoEn: status === "listo" ? ahora : p.listoEn,
-    retiradoEn: status === "retirado" ? ahora : p.retiradoEn,
-    canceladoEn: status === "cancelado" ? ahora : p.canceladoEn,
+    preparingAt:
+      status === "en_preparacion" ? ahora : p.preparingAt,
+    readyAt: status === "listo" ? ahora : p.readyAt,
+    pickedUpAt: status === "retirado" ? ahora : p.pickedUpAt,
+    cancelledAt: status === "cancelado" ? ahora : p.cancelledAt,
   };
 };
 

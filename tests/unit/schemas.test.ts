@@ -96,7 +96,7 @@ describe("crearOrganizacionSchema", () => {
   const base = {
     nombre: "Café Central",
     responsable: "Miguel",
-    duenoEmail: "dueno@ejemplo.com",
+    ownerEmail: "dueno@ejemplo.com",
     cupo: 2,
     sucursales: [{ nombre: "Centro", tipo: "cafeteria" }],
   };
@@ -143,8 +143,8 @@ describe("branchConfigSchema", () => {
     whatsapp: "",
     direccion: "",
     modo: "pedido",
-    cantidadMesas: 10,
-    horaCorte: 6,
+    tableCount: 10,
+    cutoffHour: 6,
   };
 
   it("acepta config válida", () => {
@@ -152,8 +152,8 @@ describe("branchConfigSchema", () => {
   });
 
   it("rechaza hora de corte fuera de 0-23", () => {
-    expect(parseInput(branchConfigSchema, { ...base, horaCorte: 24 }).ok).toBe(false);
-    expect(parseInput(branchConfigSchema, { ...base, horaCorte: -1 }).ok).toBe(false);
+    expect(parseInput(branchConfigSchema, { ...base, cutoffHour: 24 }).ok).toBe(false);
+    expect(parseInput(branchConfigSchema, { ...base, cutoffHour: -1 }).ok).toBe(false);
   });
 
   it("rechaza whatsapp con menos de 8 dígitos", () => {

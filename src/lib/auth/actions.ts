@@ -13,7 +13,7 @@ type Resultado = { ok: true } | { ok: false; error: string };
 type LoginOk = {
   ok: true;
   rol: UserRole;
-  organizacionId: string | null;
+  organizationId: string | null;
   localId: string | null;
 };
 type LoginResultado = LoginOk | { ok: false; error: string };
@@ -52,7 +52,7 @@ export const signIn = async (
   return {
     ok: true,
     rol: perfil?.rol ?? "admin",
-    organizacionId: perfil?.organizacionId ?? null,
+    organizationId: perfil?.organizationId ?? null,
     localId: perfil?.localId ?? null,
   };
 };

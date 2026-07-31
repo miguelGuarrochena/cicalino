@@ -24,8 +24,8 @@ describe("orgCobroPendiente", () => {
     activo: true,
     pagado: true,
     plan: "mensual" as const,
-    mesGratisHasta: null,
-    proximoCobroEn: null,
+    freeMonthUntil: null,
+    nextChargeAt: null,
   };
 
   it("impago activo requiere atención", () => {
@@ -40,10 +40,10 @@ describe("orgCobroPendiente", () => {
     const hace = new Date();
     hace.setDate(hace.getDate() - 3);
     expect(
-      isOrgBillingDue({ ...base, proximoCobroEn: hace.toISOString() }),
+      isOrgBillingDue({ ...base, nextChargeAt: hace.toISOString() }),
     ).toBe(true);
     expect(
-      billingReason({ ...base, proximoCobroEn: hace.toISOString() }),
+      billingReason({ ...base, nextChargeAt: hace.toISOString() }),
     ).toMatch(/Venció/);
   });
 });

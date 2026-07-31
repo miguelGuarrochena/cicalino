@@ -50,27 +50,27 @@ export const organizations = pgTable("organizaciones", {
   telefono: text("telefono"),
   cuil: text("cuil"),
   direccion: text("direccion"),
-  duenoEmail: text("dueno_email").notNull(),
+  ownerEmail: text("dueno_email").notNull(),
   cupo: integer("cupo").notNull().default(1),
   pagado: boolean("pagado").notNull().default(true),
   activo: boolean("activo").notNull().default(true),
   plan: text("plan").notNull().default("mensual"),
-  mesGratisHasta: timestamp("mes_gratis_hasta", { withTimezone: true }),
-  proximoCobroEn: timestamp("proximo_cobro_en", { withTimezone: true }),
-  avisoCobroEn: timestamp("aviso_cobro_en", { withTimezone: true }),
+  freeMonthUntil: timestamp("mes_gratis_hasta", { withTimezone: true }),
+  nextChargeAt: timestamp("proximo_cobro_en", { withTimezone: true }),
+  billingReminderAt: timestamp("aviso_cobro_en", { withTimezone: true }),
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
-  contratoToken: text("contrato_token"),
-  contratoAceptadoEn: timestamp("contrato_aceptado_en", { withTimezone: true }),
-  terminosVersion: text("terminos_version"),
-  creadoEn: timestamp("creado_en", { withTimezone: true })
+  contractToken: text("contrato_token"),
+  contractAcceptedAt: timestamp("contrato_aceptado_en", { withTimezone: true }),
+  termsVersion: text("terminos_version"),
+  createdAt: timestamp("creado_en", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
 
 export const branches = pgTable("locales", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizacionId: uuid("organizacion_id")
+  organizationId: uuid("organizacion_id")
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
   nombre: text("nombre").notNull(),
@@ -81,8 +81,8 @@ export const branches = pgTable("locales", {
   identificationMode: identificationModeEnum("modo_identificacion")
     .notNull()
     .default("pedido"),
-  cantidadMesas: integer("cantidad_mesas"),
-  horaCorte: integer("hora_corte").notNull().default(6),
+  tableCount: integer("cantidad_mesas"),
+  cutoffHour: integer("hora_corte").notNull().default(6),
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -124,7 +124,7 @@ export const users = pgTable(
     email: text("email").notNull(),
     nombre: text("nombre"),
     rol: userRoleEnum("rol").notNull().default("admin"),
-    organizacionId: uuid("organizacion_id").references(() => organizations.id, {
+    organizationId: uuid("organizacion_id").references(() => organizations.id, {
       onDelete: "cascade",
     }),
     localId: uuid("local_id").references(() => branches.id, {
@@ -149,27 +149,27 @@ export const orders = pgTable(
 
     estado: orderStatusEnum("estado").notNull().default("creado"),
 
-    empleadoId: uuid("empleado_id").references(() => employees.id, {
+    employeeId: uuid("empleado_id").references(() => employees.id, {
       onDelete: "set null",
     }),
 
     qrToken: text("qr_token").notNull(),
-    qrExpiraEn: timestamp("qr_expira_en", { withTimezone: true }).notNull(),
+    qrExpiresAt: timestamp("qr_expira_en", { withTimezone: true }).notNull(),
 
-    creadoEn: timestamp("creado_en", { withTimezone: true })
+    createdAt: timestamp("creado_en", { withTimezone: true })
       .notNull()
       .defaultNow(),
-    enPreparacionEn: timestamp("en_preparacion_en", { withTimezone: true }),
-    listoEn: timestamp("listo_en", { withTimezone: true }),
-    retiradoEn: timestamp("retirado_en", { withTimezone: true }),
-    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
-    vistoEn: timestamp("visto_en", { withTimezone: true }),
-    avisadoEn: timestamp("avisado_en", { withTimezone: true }),
+    preparingAt: timestamp("en_preparacion_en", { withTimezone: true }),
+    readyAt: timestamp("listo_en", { withTimezone: true }),
+    pickedUpAt: timestamp("retirado_en", { withTimezone: true }),
+    cancelledAt: timestamp("cancelado_en", { withTimezone: true }),
+    seenAt: timestamp("visto_en", { withTimezone: true }),
+    notifiedAt: timestamp("avisado_en", { withTimezone: true }),
   },
   (t) => [
     index("idx_pedidos_local_estado").on(t.localId, t.estado),
     uniqueIndex("uq_pedidos_qr_token").on(t.qrToken),
-    index("idx_pedidos_local_creado").on(t.localId, t.creadoEn),
+    index("idx_pedidos_local_creado").on(t.localId, t.createdAt),
   ],
 );
 
@@ -180,7 +180,7 @@ export const pushSubscriptions = pgTable(
     pedidoId: uuid("pedido_id").references(() => orders.id, {
       onDelete: "cascade",
     }),
-    esperaId: uuid("espera_id"),
+    waitlistId: uuid("espera_id"),
     endpoint: text("endpoint").notNull(),
     p256dh: text("p256dh").notNull(),
     auth: text("auth").notNull(),
@@ -204,7 +204,7 @@ export const leads = pgTable("solicitudes", {
   tipo: text("tipo").notNull().default("prueba"),
   plan: text("plan"),
   pack: text("pack"),
-  creadoEn: timestamp("creado_en", { withTimezone: true })
+  createdAt: timestamp("creado_en", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
@@ -213,14 +213,14 @@ export type Lead = typeof leads.$inferSelect;
 
 export const branchRequests = pgTable("pedidos_sucursal", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizacionId: uuid("organizacion_id")
+  organizationId: uuid("organizacion_id")
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
   cupoActual: integer("cupo_actual").notNull(),
   cupoPedido: integer("cupo_pedido").notNull(),
   nombreSucursal: text("nombre_sucursal"),
   estado: text("estado").notNull().default("nueva"),
-  creadoEn: timestamp("creado_en", { withTimezone: true })
+  createdAt: timestamp("creado_en", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
@@ -244,24 +244,24 @@ export const waitlistEntries = pgTable(
     nombre: text("nombre").notNull(),
     personas: integer("personas").notNull().default(2),
     estado: waitlistStatusEnum("estado").notNull().default("esperando"),
-    mesaNumero: integer("mesa_numero"),
+    tableNumber: integer("mesa_numero"),
     qrToken: text("qr_token").notNull(),
-    qrExpiraEn: timestamp("qr_expira_en", { withTimezone: true }).notNull(),
-    empleadoId: uuid("empleado_id").references(() => employees.id, {
+    qrExpiresAt: timestamp("qr_expira_en", { withTimezone: true }).notNull(),
+    employeeId: uuid("empleado_id").references(() => employees.id, {
       onDelete: "set null",
     }),
-    creadoEn: timestamp("creado_en", { withTimezone: true })
+    createdAt: timestamp("creado_en", { withTimezone: true })
       .notNull()
       .defaultNow(),
-    avisadoEn: timestamp("avisado_en", { withTimezone: true }),
-    sentadoEn: timestamp("sentado_en", { withTimezone: true }),
-    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
-    vistoEn: timestamp("visto_en", { withTimezone: true }),
+    notifiedAt: timestamp("avisado_en", { withTimezone: true }),
+    seatedAt: timestamp("sentado_en", { withTimezone: true }),
+    cancelledAt: timestamp("cancelado_en", { withTimezone: true }),
+    seenAt: timestamp("visto_en", { withTimezone: true }),
   },
   (t) => [
     index("idx_esperas_local_estado").on(t.localId, t.estado),
     uniqueIndex("uq_esperas_qr_token").on(t.qrToken),
-    index("idx_esperas_local_creado").on(t.localId, t.creadoEn),
+    index("idx_esperas_local_creado").on(t.localId, t.createdAt),
   ],
 );
 
@@ -281,20 +281,20 @@ export const reservations = pgTable(
       .references(() => branches.id, { onDelete: "cascade" }),
     nombre: text("nombre").notNull(),
     personas: integer("personas").notNull().default(2),
-    mesaNumero: integer("mesa_numero").notNull(),
-    mesasNumeros: integer("mesas_numeros").array().notNull().default([]),
+    tableNumber: integer("mesa_numero").notNull(),
+    tableNumbers: integer("mesas_numeros").array().notNull().default([]),
     horario: timestamp("horario", { withTimezone: true }).notNull(),
-    graciaMinutos: integer("gracia_minutos").notNull().default(15),
+    graceMinutes: integer("gracia_minutos").notNull().default(15),
     estado: reservationStatusEnum("estado").notNull().default("activa"),
-    empleadoId: uuid("empleado_id").references(() => employees.id, {
+    employeeId: uuid("empleado_id").references(() => employees.id, {
       onDelete: "set null",
     }),
-    creadoEn: timestamp("creado_en", { withTimezone: true })
+    createdAt: timestamp("creado_en", { withTimezone: true })
       .notNull()
       .defaultNow(),
-    sentadoEn: timestamp("sentado_en", { withTimezone: true }),
-    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
-    expiradoEn: timestamp("expirado_en", { withTimezone: true }),
+    seatedAt: timestamp("sentado_en", { withTimezone: true }),
+    cancelledAt: timestamp("cancelado_en", { withTimezone: true }),
+    expiredAt: timestamp("expirado_en", { withTimezone: true }),
   },
   (t) => [
     index("idx_reservas_local_horario").on(t.localId, t.horario),
@@ -312,13 +312,13 @@ export const tables = pgTable(
     numero: integer("numero").notNull(),
     estado: text("estado").notNull().default("libre"),
     capacidad: integer("capacidad").notNull().default(4),
-    esperaId: uuid("espera_id").references(() => waitlistEntries.id, {
+    waitlistId: uuid("espera_id").references(() => waitlistEntries.id, {
       onDelete: "set null",
     }),
-    reservaId: uuid("reserva_id").references(() => reservations.id, {
+    reservationId: uuid("reserva_id").references(() => reservations.id, {
       onDelete: "set null",
     }),
-    actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+    updatedAt: timestamp("actualizado_en", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
@@ -335,7 +335,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
 
 export const branchesRelations = relations(branches, ({ one, many }) => ({
   organizacion: one(organizations, {
-    fields: [branches.organizacionId],
+    fields: [branches.organizationId],
     references: [organizations.id],
   }),
   pedidos: many(orders),
@@ -355,7 +355,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     references: [branches.id],
   }),
   empleado: one(employees, {
-    fields: [orders.empleadoId],
+    fields: [orders.employeeId],
     references: [employees.id],
   }),
   pushSubscriptions: many(pushSubscriptions),
@@ -363,7 +363,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
 
 export const usersRelations = relations(users, ({ one }) => ({
   organizacion: one(organizations, {
-    fields: [users.organizacionId],
+    fields: [users.organizationId],
     references: [organizations.id],
   }),
   local: one(branches, {

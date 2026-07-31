@@ -23,7 +23,7 @@ const post = async (body: string): Promise<NotifyResult | null> => {
 };
 
 export const notifyCustomer = async (
-  target: { orderId: string } | { esperaId: string },
+  target: { orderId: string } | { waitlistId: string },
 ): Promise<NotifyResult> => {
   const body = JSON.stringify(target);
   for (let attempt = 0; attempt < 3; attempt++) {

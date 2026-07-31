@@ -8,7 +8,7 @@ export const minutesUntil = (iso: string, now = Date.now()): number =>
   Math.round((new Date(iso).getTime() - now) / 60_000);
 
 export const reservationTables = (r: ReservationView): number[] => {
-  const nums = r.mesasNumeros?.length ? r.mesasNumeros : [r.mesaNumero];
+  const nums = r.tableNumbers?.length ? r.tableNumbers : [r.tableNumber];
   return [...new Set(nums)].filter((n) => n >= 1).sort((a, b) => a - b);
 };
 
@@ -21,7 +21,7 @@ export const nextReservationByTable = (
     .filter((r) => r.estado === "activa")
     .filter(
       (r) =>
-        new Date(r.horario).getTime() + r.graciaMinutos * 60_000 >= now,
+        new Date(r.horario).getTime() + r.graceMinutes * 60_000 >= now,
     )
     .sort((a, b) => a.horario.localeCompare(b.horario));
   for (const r of vigentes) {
@@ -36,12 +36,12 @@ export const isReservationSoon = (r: ReservationView, now = Date.now()): boolean
   minutesUntil(r.horario, now) <= SOON_THRESHOLD_MIN;
 
 export const conflictingReservation = (
-  mesaNumeros: number[],
+  tableNumbers: number[],
   horarioIso: string,
   reservas: ReservationView[],
   ignorarId?: string,
 ): ReservationView | null => {
-  const nums = new Set(mesaNumeros);
+  const nums = new Set(tableNumbers);
   const t = new Date(horarioIso).getTime();
   if (Number.isNaN(t)) return null;
   for (const r of reservas) {

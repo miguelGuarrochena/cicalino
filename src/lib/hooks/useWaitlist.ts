@@ -43,14 +43,14 @@ export interface UseWaitlist {
   crearReserva: (args: {
     nombre: string;
     personas: number;
-    mesaNumeros: number[];
+    tableNumbers: number[];
     horario: string;
-    graciaMinutos: 15 | 20;
+    graceMinutes: 15 | 20;
     employee?: EmployeeRef;
   }) => Promise<ReservationView | null>;
   avisar: (id: string) => Promise<NotifyResult | null>;
   reavisar: (id: string) => Promise<NotifyResult>;
-  sentar: (id: string, mesasNumeros: number[]) => Promise<void>;
+  sentar: (id: string, tableNumbers: number[]) => Promise<void>;
   cancelar: (id: string) => Promise<void>;
   borrarEspera: (id: string) => Promise<void>;
   sentarReserva: (id: string) => Promise<void>;
@@ -60,7 +60,7 @@ export interface UseWaitlist {
     opts?: { soloEsta?: boolean },
   ) => Promise<void>;
   ocuparMesas: (args: {
-    mesaNumeros: number[];
+    tableNumbers: number[];
     nombre?: string;
     personas?: number;
     employee?: EmployeeRef;
@@ -71,7 +71,7 @@ export interface UseWaitlist {
 
 export const useWaitlist = (branchId: string | null): UseWaitlist => {
   const live = supabaseConfigured && isRealBranchId(branchId);
-  const cantidadMesas = useConfigStore((s) => s.cantidadMesas);
+  const tableCount = useConfigStore((s) => s.tableCount);
 
   const demoEsperas = useWaitlistStore((s) => s.esperas);
   const demoMesas = useWaitlistStore((s) => s.mesas);
@@ -121,8 +121,8 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   useEffect(() => {
     if (!live || !branchId) {
       if (!supabaseConfigured) {
-        seed(cantidadMesas);
-        setMesasCount(cantidadMesas);
+        seed(tableCount);
+        setMesasCount(tableCount);
         demoExpirar();
       }
       setReady(true);
@@ -131,7 +131,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     }
     setReady(false);
     void (async () => {
-      await syncTables(branchId, cantidadMesas);
+      await syncTables(branchId, tableCount);
       await reload();
     })();
     const sub = subscribeWaitlist(branchId, reload);
@@ -167,10 +167,10 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
 
   const sincronizarCantidadMesas = async () => {
     if (!live || !branchId) {
-      setMesasCount(cantidadMesas);
+      setMesasCount(tableCount);
       return;
     }
-    await syncTables(branchId, cantidadMesas);
+    await syncTables(branchId, tableCount);
     await reload();
   };
 
@@ -195,9 +195,9 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   const crearReserva = async (args: {
     nombre: string;
     personas: number;
-    mesaNumeros: number[];
+    tableNumbers: number[];
     horario: string;
-    graciaMinutos: 15 | 20;
+    graceMinutes: 15 | 20;
     employee?: EmployeeRef;
   }) => {
     if (!live || !branchId) {
@@ -210,9 +210,9 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       branchId,
       nombre: args.nombre,
       personas: args.personas,
-      mesaNumeros: args.mesaNumeros,
+      tableNumbers: args.tableNumbers,
       horario: args.horario,
-      graciaMinutos: args.graciaMinutos,
+      graceMinutes: args.graceMinutes,
       employeeId: args.employee?.id,
     });
     await reload();
@@ -225,7 +225,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       return null;
     }
     await updateWaitlistStatus(id, "avisado");
-    const r = await notifyCustomer({ esperaId: id });
+    const r = await notifyCustomer({ waitlistId: id });
     await reload();
     return r;
   };
@@ -235,13 +235,13 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       demoReavisar(id);
       return { ok: true, delivered: 0 };
     }
-    const r = await notifyCustomer({ esperaId: id });
+    const r = await notifyCustomer({ waitlistId: id });
     await reload();
     return r;
   };
 
-  const sentar = async (id: string, mesasNumeros: number[]) => {
-    const nums = [...new Set(mesasNumeros)].filter((n) => n >= 1).sort((a, b) => a - b);
+  const sentar = async (id: string, tableNumbers: number[]) => {
+    const nums = [...new Set(tableNumbers)].filter((n) => n >= 1).sort((a, b) => a - b);
     if (!nums.length) return;
     const primaria = nums[0];
     const antes = (live ? liveEsperas : demoEsperas).find((e) => e.id === id);
@@ -253,11 +253,11 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     await updateWaitlistStatus(id, "sentado", primaria);
     for (const n of nums) {
       await setTableState(branchId, n, "ocupada", {
-        esperaId: id,
-        reservaId: null,
+        waitlistId: id,
+        reservationId: null,
       });
     }
-    if (veniaEsperando) void notifyCustomer({ esperaId: id });
+    if (veniaEsperando) void notifyCustomer({ waitlistId: id });
     await reload();
   };
 
@@ -291,8 +291,8 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     await updateReservationStatus(id, "sentada");
     for (const n of reservationTables(reserva)) {
       await setTableState(branchId, n, "ocupada", {
-        reservaId: id,
-        esperaId: null,
+        reservationId: id,
+        waitlistId: null,
       });
     }
     await reload();
@@ -321,9 +321,9 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       await reload();
       return;
     }
-    if (mesa?.esperaId && mesa.estado === "ocupada") {
+    if (mesa?.waitlistId && mesa.estado === "ocupada") {
       const mismas = liveMesas.filter(
-        (m) => m.esperaId === mesa.esperaId && m.estado === "ocupada",
+        (m) => m.waitlistId === mesa.waitlistId && m.estado === "ocupada",
       );
       for (const m of mismas) {
         await setTableState(branchId, m.numero, "libre");
@@ -331,9 +331,9 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       await reload();
       return;
     }
-    if (mesa?.reservaId && mesa.estado === "ocupada") {
+    if (mesa?.reservationId && mesa.estado === "ocupada") {
       const mismas = liveMesas.filter(
-        (m) => m.reservaId === mesa.reservaId && m.estado === "ocupada",
+        (m) => m.reservationId === mesa.reservationId && m.estado === "ocupada",
       );
       for (const m of mismas) {
         await setTableState(branchId, m.numero, "libre");
@@ -355,14 +355,14 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   };
 
   const ocuparMesas = async (args: {
-    mesaNumeros: number[];
+    tableNumbers: number[];
     nombre?: string;
     personas?: number;
     employee?: EmployeeRef;
   }) => {
     if (!live || !branchId) {
       return demoWalkIn({
-        mesaNumeros: args.mesaNumeros,
+        tableNumbers: args.tableNumbers,
         nombre: args.nombre,
         personas: args.personas,
         empleado: args.employee?.nombre ?? null,
@@ -370,7 +370,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     }
     const created = await seatWalkIn({
       branchId,
-      mesaNumeros: args.mesaNumeros,
+      tableNumbers: args.tableNumbers,
       nombre: args.nombre,
       personas: args.personas,
       employeeId: args.employee?.id,

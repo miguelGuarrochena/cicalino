@@ -22,10 +22,10 @@ const aplicarPerfil = (row: PerfilRow | null) => {
   const rol = (row.rol as CurrentRole) || "admin";
   useSessionStore.setState({
     rol,
-    organizacionId: row.organizacion_id,
+    organizationId: row.organizacion_id,
     sucursalId:
       rol === "admin" &&
-      s.organizacionId === row.organizacion_id &&
+      s.organizationId === row.organizacion_id &&
       s.sucursalId
         ? s.sucursalId
         : row.local_id,
@@ -73,7 +73,7 @@ export const useAuthSessionSync = () => {
         if (!alive) return;
         if (event === "SIGNED_OUT") {
           useSessionStore.setState({
-            organizacionId: null,
+            organizationId: null,
             sucursalId: null,
             empleadoActivo: null,
             impersonando: null,

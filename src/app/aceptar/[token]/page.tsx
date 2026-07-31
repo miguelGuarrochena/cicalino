@@ -141,7 +141,7 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
                     >
                       bases y condiciones
                     </Link>{" "}
-                    de Cicalino (versión {data.terminosVersion}).
+                    de Cicalino (versión {data.termsVersion}).
                   </span>
                 </label>
                 <button

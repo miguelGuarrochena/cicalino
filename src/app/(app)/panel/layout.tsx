@@ -41,7 +41,7 @@ const BannerImpersonacion = () => {
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6">
         <p className="text-xs font-medium sm:text-sm">
           {t("super.viendoComo", {
-            n: `${impersonating.organizacionNombre} · ${impersonating.sucursalNombre}`,
+            n: `${impersonating.organizationName} · ${impersonating.branchName}`,
           })}
         </p>
         <button

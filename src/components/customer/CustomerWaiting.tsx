@@ -107,7 +107,7 @@ export const CustomerWaiting = ({ token }: Props) => {
 
   useEffect(() => {
     if (!order || order.status !== "listo") return;
-    const clave = order.avisadoEn ?? "listo";
+    const clave = order.notifiedAt ?? "listo";
 
     if (ultimoAviso.current === null) {
       ultimoAviso.current = clave;
@@ -184,9 +184,9 @@ export const CustomerWaiting = ({ token }: Props) => {
 
       <div className="u-in flex flex-1 flex-col items-center justify-center">
         <div className="flex flex-col items-center gap-1">
-          {order.nombreLocal && (
+          {order.branchName && (
             <span className="mb-1 max-w-[16rem] truncate font-display text-lg uppercase tracking-tight text-carbon/70 sm:max-w-xs sm:text-xl">
-              {order.nombreLocal}
+              {order.branchName}
             </span>
           )}
           <span className="text-xs uppercase tracking-widest text-carbon/40">

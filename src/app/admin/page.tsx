@@ -84,7 +84,7 @@ const SuperadminPage = () => {
       if (filtro === "pausadas" && o.activo) return false;
       if (filtro === "impagos" && (o.pagado || !o.activo)) return false;
       if (!needle) return true;
-      const hay = [o.nombre, o.responsable, o.telefono, o.duenoEmail, o.cuil]
+      const hay = [o.nombre, o.responsable, o.telefono, o.ownerEmail, o.cuil]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -111,10 +111,10 @@ const SuperadminPage = () => {
     }
     await refreshOrganizations();
     enterAsOwner({
-      organizacionId: res.demo.organizacionId,
-      organizacionNombre: res.demo.organizacionNombre,
+      organizationId: res.demo.organizationId,
+      organizationName: res.demo.organizationName,
       sucursalId: res.demo.sucursalId,
-      sucursalNombre: res.demo.sucursalNombre,
+      branchName: res.demo.branchName,
     });
     setAbriendoDemo(false);
     router.push("/panel");
@@ -287,7 +287,7 @@ const SuperadminPage = () => {
                 <p className="truncate font-semibold text-carbon">{o.nombre}</p>
                 <p className="truncate text-xs text-carbon/50">
                   {o.responsable}
-                  {o.telefono ? ` · ${o.telefono}` : ""} · {o.duenoEmail}
+                  {o.telefono ? ` · ${o.telefono}` : ""} · {o.ownerEmail}
                 </p>
                 <p className="text-xs text-carbon/40">
                   {t("super.cupoResumen", {
@@ -307,7 +307,7 @@ const SuperadminPage = () => {
                   <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
                     Esperando condiciones
                   </span>
-                ) : !o.activo && o.contratoAceptadoEn ? (
+                ) : !o.activo && o.contractAcceptedAt ? (
                   <span className="rounded-full bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-800">
                     Lista para activar
                   </span>

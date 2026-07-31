@@ -33,7 +33,7 @@ export const POST = async (req: Request) => {
     .eq("qr_token", token)
     .maybeSingle();
 
-  let esperaId: string | null = null;
+  let waitlistId: string | null = null;
   if (!pedido) {
     const { data: espera } = await admin
       .from("esperas")
@@ -41,13 +41,13 @@ export const POST = async (req: Request) => {
       .eq("qr_token", token)
       .maybeSingle();
     if (!espera) return NextResponse.json({ ok: false, reason: "not-found" });
-    esperaId = espera.id;
+    waitlistId = espera.id;
   }
 
   await admin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
   const { error } = await admin.from("push_subscriptions").insert({
     pedido_id: pedido?.id ?? null,
-    espera_id: esperaId,
+    espera_id: waitlistId,
     endpoint: sub.endpoint,
     p256dh: sub.keys.p256dh,
     auth: sub.keys.auth,

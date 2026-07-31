@@ -82,10 +82,10 @@ export const GET = async (
     nombre: data.nombre,
     personas: data.personas,
     estado: data.estado,
-    mesaNumero: data.mesa_numero,
+    tableNumber: data.mesa_numero,
     avisado: data.estado === "avisado" || data.estado === "sentado",
-    avisadoEn: data.avisado_en ?? null,
-    nombreLocal: local?.nombre ?? "",
+    notifiedAt: data.avisado_en ?? null,
+    branchName: local?.nombre ?? "",
     cola: {
       gruposDelante,
       personasDelante,

@@ -15,7 +15,7 @@ export type { ModuleFlags };
 
 export interface BranchRow {
   id: string;
-  organizacionId: string;
+  organizationId: string;
   nombre: string;
   tipo: BusinessType;
   direccion: string;
@@ -34,14 +34,14 @@ export interface OrganizationRow {
   telefono: string;
   cuil: string;
   direccion: string;
-  duenoEmail: string;
+  ownerEmail: string;
   cupo: number;
   pagado: boolean;
   activo: boolean;
   plan: PlanTipo;
-  mesGratisHasta: string | null;
-  proximoCobroEn: string | null;
-  contratoAceptadoEn: string | null;
+  freeMonthUntil: string | null;
+  nextChargeAt: string | null;
+  contractAcceptedAt: string | null;
   moduloPedidos: boolean;
   moduloEspera: boolean;
   altaEn: string;
@@ -49,7 +49,7 @@ export interface OrganizationRow {
 }
 
 export const isContractPending = (org: OrganizationRow): boolean =>
-  !org.contratoAceptadoEn;
+  !org.contractAcceptedAt;
 
 export type OrgInput = {
   nombre: string;
@@ -57,7 +57,7 @@ export type OrgInput = {
   telefono: string;
   cuil: string;
   direccion: string;
-  duenoEmail: string;
+  ownerEmail: string;
   cupo: number;
   plan: PlanTipo;
   moduloPedidos?: boolean;
@@ -108,21 +108,21 @@ const seed = (): OrganizationRow[] => {
       telefono: "+54 9 341 555 0101",
       cuil: "30-71234567-8",
       direccion: "Calle Falsa 742, Rosario",
-      duenoEmail: "hola@laesquina.com",
+      ownerEmail: "hola@laesquina.com",
       cupo: 2,
       pagado: true,
       activo: true,
       plan: "mensual",
-      mesGratisHasta: null,
-      proximoCobroEn: dia(5),
-      contratoAceptadoEn: dia(40),
+      freeMonthUntil: null,
+      nextChargeAt: dia(5),
+      contractAcceptedAt: dia(40),
       moduloPedidos: true,
       moduloEspera: true,
       altaEn: dia(40),
       sucursales: [
         {
           id: "suc-centro",
-          organizacionId: org1,
+          organizationId: org1,
           nombre: "Centro",
           tipo: "panaderia",
           direccion: "Calle Falsa 742, Rosario",
@@ -133,7 +133,7 @@ const seed = (): OrganizationRow[] => {
         },
         {
           id: "suc-norte",
-          organizacionId: org1,
+          organizationId: org1,
           nombre: "Norte",
           tipo: "panaderia",
           direccion: "Av. Pellegrini 1200, Rosario",
@@ -151,21 +151,21 @@ const seed = (): OrganizationRow[] => {
       telefono: "+54 9 351 444 2200",
       cuil: "27-25999888-1",
       direccion: "San Martín 500, Córdoba",
-      duenoEmail: "pedidos@buensabor.com",
+      ownerEmail: "pedidos@buensabor.com",
       cupo: 1,
       pagado: false,
       activo: true,
       plan: "mensual",
-      mesGratisHasta: null,
-      proximoCobroEn: dia(-2),
-      contratoAceptadoEn: dia(7),
+      freeMonthUntil: null,
+      nextChargeAt: dia(-2),
+      contractAcceptedAt: dia(7),
       moduloPedidos: true,
       moduloEspera: false,
       altaEn: dia(7),
       sucursales: [
         {
           id: "suc-buen",
-          organizacionId: org2,
+          organizationId: org2,
           nombre: "Córdoba",
           tipo: "rotiseria",
           direccion: "San Martín 500, Córdoba",
@@ -180,7 +180,7 @@ const seed = (): OrganizationRow[] => {
 };
 
 export const enGracia = (org: OrganizationRow): boolean =>
-  !!org.mesGratisHasta && new Date(org.mesGratisHasta).getTime() > Date.now();
+  !!org.freeMonthUntil && new Date(org.freeMonthUntil).getTime() > Date.now();
 
 export const monthlyAmount = (org: OrganizationRow): number => {
   if (org.plan === "gratis") return 0;
@@ -229,14 +229,14 @@ export const useSuperadminStore = create<SuperadminState>()(
               telefono: data.telefono.trim(),
               cuil: data.cuil.trim(),
               direccion: data.direccion.trim(),
-              duenoEmail: data.duenoEmail.trim(),
+              ownerEmail: data.ownerEmail.trim(),
               cupo: Math.max(1, data.cupo || 1),
               pagado: true,
               activo: false,
               plan: data.plan ?? "mensual",
-              mesGratisHasta: null,
-              proximoCobroEn: null,
-              contratoAceptadoEn: null,
+              freeMonthUntil: null,
+              nextChargeAt: null,
+              contractAcceptedAt: null,
               moduloPedidos: data.moduloPedidos !== false,
               moduloEspera: Boolean(data.moduloEspera),
               altaEn: new Date().toISOString(),
@@ -259,8 +259,8 @@ export const useSuperadminStore = create<SuperadminState>()(
             if (data.telefono != null) next.telefono = data.telefono.trim();
             if (data.cuil != null) next.cuil = data.cuil.trim();
             if (data.direccion != null) next.direccion = data.direccion.trim();
-            if (data.duenoEmail != null)
-              next.duenoEmail = data.duenoEmail.trim();
+            if (data.ownerEmail != null)
+              next.ownerEmail = data.ownerEmail.trim();
             if (data.cupo != null) next.cupo = Math.max(1, data.cupo);
             if (data.plan != null) next.plan = data.plan;
             if (data.moduloPedidos != null) next.moduloPedidos = data.moduloPedidos;
@@ -285,13 +285,13 @@ export const useSuperadminStore = create<SuperadminState>()(
             if (o.id !== id) return o;
             const next = !o.pagado;
             if (!next) {
-              return { ...o, pagado: false, proximoCobroEn: new Date().toISOString() };
+              return { ...o, pagado: false, nextChargeAt: new Date().toISOString() };
             }
             const prox = addBillingCycle(o.plan);
             return {
               ...o,
               pagado: true,
-              proximoCobroEn: prox ? prox.toISOString() : null,
+              nextChargeAt: prox ? prox.toISOString() : null,
             };
           }),
         })),
@@ -301,11 +301,11 @@ export const useSuperadminStore = create<SuperadminState>()(
           organizaciones: s.organizaciones.map((o) => {
             if (o.id !== id) return o;
             const base = enGracia(o)
-              ? new Date(o.mesGratisHasta as string)
+              ? new Date(o.freeMonthUntil as string)
               : new Date();
             base.setMonth(base.getMonth() + meses);
             const iso = base.toISOString();
-            return { ...o, mesGratisHasta: iso, proximoCobroEn: iso };
+            return { ...o, freeMonthUntil: iso, nextChargeAt: iso };
           }),
         })),
 
@@ -330,7 +330,7 @@ export const useSuperadminStore = create<SuperadminState>()(
                     ...o.sucursales,
                     {
                       id,
-                      organizacionId: organizationId,
+                      organizationId: organizationId,
                       nombre: data.nombre.trim(),
                       tipo: data.tipo,
                       direccion: data.direccion.trim(),

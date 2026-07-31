@@ -58,8 +58,8 @@ export const GET = async (
     referencia: data.referencia,
     estado: data.estado,
     listo: data.estado === "listo" || data.estado === "retirado",
-    avisadoEn: data.avisado_en ?? null,
-    nombreLocal: local?.nombre ?? "",
+    notifiedAt: data.avisado_en ?? null,
+    branchName: local?.nombre ?? "",
     modo: local?.modo_identificacion ?? "pedido",
   });
 };

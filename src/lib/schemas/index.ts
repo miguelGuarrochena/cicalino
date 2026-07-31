@@ -81,7 +81,7 @@ export const createOrganizationSchema = z.object({
   telefono,
   cuil,
   direccion: optionalTextField(160, "la dirección"),
-  duenoEmail: email,
+  ownerEmail: email,
   cupo: z.coerce
     .number()
     .int("El cupo tiene que ser un número entero.")
@@ -115,40 +115,40 @@ export const branchConfigSchema = z
     whatsapp: telefono,
     direccion: optionalTextField(160, "la dirección"),
     modo: identificationMode,
-    cantidadMesas: z.coerce
+    tableCount: z.coerce
       .number()
       .int()
       .min(1, "Tiene que haber al menos 1 mesa.")
       .max(500, "Máximo 500 mesas."),
-    horaCorte: z.coerce
+    cutoffHour: z.coerce
       .number()
       .int()
       .min(0, "La hora de corte va de 0 a 23.")
       .max(23, "La hora de corte va de 0 a 23."),
   })
-  .refine((v) => v.modo !== "mesa" || v.cantidadMesas >= 1, {
+  .refine((v) => v.modo !== "mesa" || v.tableCount >= 1, {
     message: "Con modo 'mesa' necesitás definir la cantidad de mesas.",
-    path: ["cantidadMesas"],
+    path: ["tableCount"],
   });
 export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 
 export const branchOperacionSchema = z
   .object({
     modo: identificationMode,
-    cantidadMesas: z.coerce
+    tableCount: z.coerce
       .number()
       .int()
       .min(1, "Tiene que haber al menos 1 mesa.")
       .max(500, "Máximo 500 mesas."),
-    horaCorte: z.coerce
+    cutoffHour: z.coerce
       .number()
       .int()
       .min(0, "La hora de corte va de 0 a 23.")
       .max(23, "La hora de corte va de 0 a 23."),
   })
-  .refine((v) => v.modo !== "mesa" || v.cantidadMesas >= 1, {
+  .refine((v) => v.modo !== "mesa" || v.tableCount >= 1, {
     message: "Con modo 'mesa' necesitás definir la cantidad de mesas.",
-    path: ["cantidadMesas"],
+    path: ["tableCount"],
   });
 export type BranchOperacionInput = z.infer<typeof branchOperacionSchema>;
 
@@ -232,10 +232,10 @@ export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;
 export const pushNotifySchema = z
   .object({
     orderId: uuid.optional(),
-    esperaId: uuid.optional(),
+    waitlistId: uuid.optional(),
   })
-  .refine((v) => Boolean(v.orderId) !== Boolean(v.esperaId), {
-    message: "Mandá orderId o esperaId (uno solo).",
+  .refine((v) => Boolean(v.orderId) !== Boolean(v.waitlistId), {
+    message: "Mandá orderId o waitlistId (uno solo).",
   });
 
 export const qrTokenSchema = uuid;

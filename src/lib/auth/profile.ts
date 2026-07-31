@@ -5,7 +5,7 @@ export interface CurrentProfile {
   id: string;
   email: string;
   rol: UserRole;
-  organizacionId: string | null;
+  organizationId: string | null;
   localId: string | null;
 }
 
@@ -28,7 +28,7 @@ export const getCurrentProfile = async (): Promise<CurrentProfile | null> => {
     id: user.id,
     email: user.email ?? "",
     rol: (data?.rol ?? "admin") as UserRole,
-    organizacionId: (data?.organizacion_id as string | null) ?? null,
+    organizationId: (data?.organizacion_id as string | null) ?? null,
     localId: (data?.local_id as string | null) ?? null,
   };
 };

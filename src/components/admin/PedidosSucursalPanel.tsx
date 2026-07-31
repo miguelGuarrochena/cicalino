@@ -48,7 +48,7 @@ export const PedidosSucursalPanel = ({
       await load();
       await refreshOrganizations();
       toast("Cupo actualizado · podés agregar la sucursal", "success");
-      if (r.organizacionId && onAbrir) onAbrir(r.organizacionId);
+      if (r.organizationId && onAbrir) onAbrir(r.organizationId);
     } finally {
       setBusy(null);
     }
@@ -114,7 +114,7 @@ export const PedidosSucursalPanel = ({
                 {onAbrir && (
                   <button
                     type="button"
-                    onClick={() => onAbrir(p.organizacionId)}
+                    onClick={() => onAbrir(p.organizationId)}
                     disabled={busy !== null}
                     className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5 disabled:opacity-60"
                   >

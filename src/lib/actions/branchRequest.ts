@@ -32,12 +32,12 @@ const money = (n: number): string =>
 
 export type BranchRequestAdmin = {
   id: string;
-  organizacionId: string;
+  organizationId: string;
   cupoActual: number;
   cupoPedido: number;
   nombreSucursal: string | null;
   estado: string;
-  creadoEn: string;
+  createdAt: string;
   orgNombre: string;
   orgEmail: string;
   orgPlan: BillingPlanUI;
@@ -56,14 +56,14 @@ export type QuotaSummary = {
 
 export const getQuotaSummary = async (): Promise<QuotaSummary | null> => {
   const perfil = await getCurrentProfile();
-  if (!perfil || perfil.rol !== "admin" || !perfil.organizacionId) return null;
+  if (!perfil || perfil.rol !== "admin" || !perfil.organizationId) return null;
   const admin = createAdminSupabase();
   if (!admin) return null;
 
   const { data: org } = await admin
     .from("organizaciones")
     .select("id, cupo, plan, activo")
-    .eq("id", perfil.organizacionId)
+    .eq("id", perfil.organizationId)
     .maybeSingle();
   if (!org) return null;
 
@@ -101,7 +101,7 @@ export const requestExtraBranch = async (input: {
     return { ok: false, error: "Confirmá que querés contratar otra sucursal." };
   }
   const perfil = await getCurrentProfile();
-  if (!perfil || perfil.rol !== "admin" || !perfil.organizacionId) {
+  if (!perfil || perfil.rol !== "admin" || !perfil.organizationId) {
     return { ok: false, error: "No autorizado" };
   }
   const admin = createAdminSupabase();
@@ -112,7 +112,7 @@ export const requestExtraBranch = async (input: {
     .select(
       "id, nombre, dueno_email, responsable, cupo, plan, activo, contrato_aceptado_en",
     )
-    .eq("id", perfil.organizacionId)
+    .eq("id", perfil.organizationId)
     .maybeSingle();
   if (!org) return { ok: false, error: "Empresa no encontrada." };
   if (!org.activo) {
@@ -238,12 +238,12 @@ export const listBranchRequests = async (): Promise<BranchRequestAdmin[]> => {
       : r.organizaciones;
     return {
       id: r.id,
-      organizacionId: r.organizacion_id,
+      organizationId: r.organizacion_id,
       cupoActual: r.cupo_actual,
       cupoPedido: r.cupo_pedido,
       nombreSucursal: r.nombre_sucursal,
       estado: r.estado,
-      creadoEn: r.creado_en,
+      createdAt: r.creado_en,
       orgNombre: org?.nombre ?? "—",
       orgEmail: org?.dueno_email ?? "",
       orgPlan: ((org?.plan as BillingPlanUI) ?? "mensual") as BillingPlanUI,
@@ -253,7 +253,7 @@ export const listBranchRequests = async (): Promise<BranchRequestAdmin[]> => {
 
 export const approveBranchRequest = async (
   id: string,
-): Promise<Simple & { organizacionId?: string }> => {
+): Promise<Simple & { organizationId?: string }> => {
   const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") {
     return { ok: false, error: "No autorizado" };
@@ -315,7 +315,7 @@ export const approveBranchRequest = async (
     }),
   });
 
-  return { ok: true, organizacionId: org.id };
+  return { ok: true, organizationId: org.id };
 };
 
 export const dismissBranchRequest = async (id: string): Promise<Simple> => {

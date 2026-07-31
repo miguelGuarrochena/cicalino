@@ -22,28 +22,28 @@ export type OrgBilling = {
   activo: boolean;
   pagado: boolean;
   plan: BillingPlan;
-  mesGratisHasta: string | null;
-  proximoCobroEn: string | null;
+  freeMonthUntil: string | null;
+  nextChargeAt: string | null;
 };
 
 export const isOrgBillingDue = (org: OrgBilling): boolean => {
   if (!org.activo || org.plan === "gratis") return false;
   if (!org.pagado) return true;
-  if (org.mesGratisHasta && daysUntil(org.mesGratisHasta) <= 3) return true;
-  if (org.proximoCobroEn && daysUntil(org.proximoCobroEn) <= 3) return true;
+  if (org.freeMonthUntil && daysUntil(org.freeMonthUntil) <= 3) return true;
+  if (org.nextChargeAt && daysUntil(org.nextChargeAt) <= 3) return true;
   return false;
 };
 
 export const billingReason = (org: OrgBilling): string => {
   if (!org.pagado) return "Marcado como impago";
-  if (org.mesGratisHasta && daysUntil(org.mesGratisHasta) <= 3) {
-    const d = daysUntil(org.mesGratisHasta);
+  if (org.freeMonthUntil && daysUntil(org.freeMonthUntil) <= 3) {
+    const d = daysUntil(org.freeMonthUntil);
     if (d < 0) return "Terminó el mes gratis";
     if (d === 0) return "El mes gratis termina hoy";
     return `El mes gratis termina en ${d} día${d === 1 ? "" : "s"}`;
   }
-  if (org.proximoCobroEn) {
-    const d = daysUntil(org.proximoCobroEn);
+  if (org.nextChargeAt) {
+    const d = daysUntil(org.nextChargeAt);
     if (d < 0) return "Venció el cobro";
     if (d === 0) return "Cobro vence hoy";
     return `Cobro en ${d} día${d === 1 ? "" : "s"}`;

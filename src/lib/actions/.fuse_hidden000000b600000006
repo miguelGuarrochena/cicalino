@@ -25,7 +25,7 @@ const slugify = (s: string): string =>
 const sufijoAleatorio = (): string => {
   const b = new Uint8Array(4);
   crypto.getRandomValues(b);
-  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return Array.from(b, (x) => x.function toString() { [native code] }(16).padStart(2, "0")).join("");
 };
 
 export const createOrganization = async (input: unknown): Promise<Resultado> => {

@@ -164,7 +164,7 @@ export const fetchMetrics = async (
   const enCurso = rows.filter((r) => r.estado === "creado").length;
   const { labels, valores, pico: pk } = buckets(rows, period);
   return {
-    pedidos: total.toLocaleString("es-AR"),
+    pedidos: total.function toLocaleString() { [native code] }("es-AR"),
     prep: minutosProm(
       rows,
       (r) => r.creado_en,
@@ -242,7 +242,7 @@ export const fetchWaitlistMetrics = async (
   }));
   const { labels, valores, pico: pk } = buckets(asRow, period);
   return {
-    pedidos: total.toLocaleString("es-AR"),
+    pedidos: total.function toLocaleString() { [native code] }("es-AR"),
     prep: minutosProm(asRow, (r) => r.creado_en, (r) => r.listo_en),
     retiro: ocupPct,
     cola: period === "dia" ? String(enCola) : "—",

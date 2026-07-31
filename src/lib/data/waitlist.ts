@@ -63,13 +63,13 @@ const mapWaitlistEntry = (r: WaitlistRow): WaitlistView => ({
   nombre: r.nombre,
   personas: r.personas,
   estado: r.estado,
-  mesaNumero: r.mesa_numero,
+  tableNumber: r.mesa_numero,
   qrToken: r.qr_token,
-  creadoEn: r.creado_en,
-  avisadoEn: r.avisado_en,
-  sentadoEn: r.sentado_en,
-  canceladoEn: r.cancelado_en,
-  vistoEn: r.visto_en,
+  createdAt: r.creado_en,
+  notifiedAt: r.avisado_en,
+  seatedAt: r.sentado_en,
+  cancelledAt: r.cancelado_en,
+  seenAt: r.visto_en,
   empleado: r.empleados?.nombre ?? null,
 });
 
@@ -78,14 +78,14 @@ const mapTable = (r: TableRow): TableView => ({
   numero: r.numero,
   estado: r.estado === "ocupada" ? "ocupada" : "libre",
   capacidad: Math.max(1, Math.min(50, r.capacidad ?? 4)),
-  esperaId: r.espera_id ?? null,
-  reservaId: r.reserva_id ?? null,
+  waitlistId: r.espera_id ?? null,
+  reservationId: r.reserva_id ?? null,
 });
 
-const mapReservation = (r: ReservationRow, mesasNumeros?: number[]): ReservationView => {
+const mapReservation = (r: ReservationRow, tableNumbers?: number[]): ReservationView => {
   const raw =
-    mesasNumeros?.length
-      ? mesasNumeros
+    tableNumbers?.length
+      ? tableNumbers
       : r.mesas_numeros?.length
         ? r.mesas_numeros
         : [r.mesa_numero];
@@ -94,15 +94,15 @@ const mapReservation = (r: ReservationRow, mesasNumeros?: number[]): Reservation
     id: r.id,
     nombre: r.nombre,
     personas: r.personas,
-    mesaNumero: nums[0] ?? r.mesa_numero,
-    mesasNumeros: nums,
+    tableNumber: nums[0] ?? r.mesa_numero,
+    tableNumbers: nums,
     horario: r.horario,
-    graciaMinutos: r.gracia_minutos === 20 ? 20 : 15,
+    graceMinutes: r.gracia_minutos === 20 ? 20 : 15,
     estado: r.estado,
-    creadoEn: r.creado_en,
-    sentadoEn: r.sentado_en,
-    canceladoEn: r.cancelado_en,
-    expiradoEn: r.expirado_en,
+    createdAt: r.creado_en,
+    seatedAt: r.sentado_en,
+    cancelledAt: r.cancelado_en,
+    expiredAt: r.expirado_en,
     empleado: r.empleados?.nombre ?? null,
   };
 };
@@ -110,7 +110,7 @@ const mapReservation = (r: ReservationRow, mesasNumeros?: number[]): Reservation
 const SELECT_WAITLIST = "*, empleados(nombre)";
 const SELECT_RESERVATION = "*, empleados(nombre)";
 const SELECT_TABLE = "id, numero, estado, capacidad, espera_id, reserva_id";
-const cutoffHour = (): number => useConfigStore.getState().horaCorte;
+const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
 const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
 const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString();
 
@@ -167,7 +167,7 @@ export const fetchTodayWaitlist = async (
     .gte("creado_en", startOfBusinessDay())
     .order("creado_en", { ascending: false });
   if (error) {
-    console.error("fetchTodayEsperas", error.message);
+    console.error("fetchTodayWaitlist", error.message);
     return [];
   }
   return ((data as unknown as WaitlistRow[]) ?? []).map(mapWaitlistEntry);
@@ -182,7 +182,7 @@ export const fetchTables = async (branchId: string): Promise<TableView[]> => {
     .eq("local_id", branchId)
     .order("numero");
   if (error) {
-    console.error("fetchMesas", error.message);
+    console.error("fetchTables", error.message);
     return [];
   }
   return ((data as TableRow[] | null) ?? []).map(mapTable);
@@ -201,7 +201,7 @@ export const fetchTodayReservations = async (
     .lte("horario", endOfBusinessDay())
     .order("horario", { ascending: true });
   if (error) {
-    console.error("fetchTodayReservas", error.message);
+    console.error("fetchTodayReservations", error.message);
     return [];
   }
   return ((data as unknown as ReservationRow[]) ?? []).map((r) => mapReservation(r));
@@ -264,7 +264,7 @@ export const insertWaitlistEntry = async (args: {
     .select(SELECT_WAITLIST)
     .single();
   if (error) {
-    console.error("insertEspera", error.message);
+    console.error("insertWaitlistEntry", error.message);
     return null;
   }
   return mapWaitlistEntry(data as unknown as WaitlistRow);
@@ -274,20 +274,20 @@ export const insertReservation = async (args: {
   branchId: string;
   nombre: string;
   personas: number;
-  mesaNumeros: number[];
+  tableNumbers: number[];
   horario: string;
-  graciaMinutos: 15 | 20;
+  graceMinutes: 15 | 20;
   employeeId?: string | null;
 }): Promise<ReservationView | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
   const nombre = args.nombre.trim().slice(0, 80) || "Reserva";
   const personas = Math.max(1, Math.min(50, args.personas || 2));
-  const nums = [...new Set(args.mesaNumeros)]
+  const nums = [...new Set(args.tableNumbers)]
     .filter((n) => n >= 1)
     .sort((a, b) => a - b);
   if (!nums.length) {
-    console.error("insertReserva: sin mesas");
+    console.error("insertReservation: sin mesas");
     return null;
   }
 
@@ -298,12 +298,12 @@ export const insertReservation = async (args: {
     .in("numero", nums);
   const mesasPick = ((mesasRows as TableRow[] | null) ?? []).map(mapTable);
   if (mesasPick.length !== nums.length) {
-    console.error("insertReserva: mesa inexistente");
+    console.error("insertReservation: mesa inexistente");
     return null;
   }
   const cap = mesasPick.reduce((s, m) => s + m.capacidad, 0);
   if (cap < personas) {
-    console.error("insertReserva: capacidad insuficiente");
+    console.error("insertReservation: capacidad insuficiente");
     return null;
   }
 
@@ -317,7 +317,7 @@ export const insertReservation = async (args: {
   );
   const choque = conflictingReservation(nums, args.horario, activas);
   if (choque) {
-    console.error("insertReserva: choca con otra reserva", choque.id);
+    console.error("insertReservation: choca con otra reserva", choque.id);
     return null;
   }
 
@@ -331,14 +331,14 @@ export const insertReservation = async (args: {
       mesa_numero: primaria,
       mesas_numeros: nums,
       horario: args.horario,
-      gracia_minutos: args.graciaMinutos,
+      gracia_minutos: args.graceMinutes,
       estado: "activa",
       empleado_id: args.employeeId ?? null,
     })
     .select(SELECT_RESERVATION)
     .single();
   if (error) {
-    console.error("insertReserva", error.message);
+    console.error("insertReservation", error.message);
     return null;
   }
   return mapReservation(data as unknown as ReservationRow, nums);
@@ -346,14 +346,14 @@ export const insertReservation = async (args: {
 
 export const seatWalkIn = async (args: {
   branchId: string;
-  mesaNumeros: number[];
+  tableNumbers: number[];
   nombre?: string;
   personas?: number;
   employeeId?: string | null;
 }): Promise<WaitlistView | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
-  const nums = [...new Set(args.mesaNumeros)]
+  const nums = [...new Set(args.tableNumbers)]
     .filter((n) => n >= 1)
     .sort((a, b) => a - b);
   if (!nums.length) return null;
@@ -365,11 +365,11 @@ export const seatWalkIn = async (args: {
     .in("numero", nums);
   const mesasPick = ((mesasRows as TableRow[] | null) ?? []).map(mapTable);
   if (mesasPick.length !== nums.length) {
-    console.error("ocuparMesasWalkIn: mesa inexistente");
+    console.error("seatWalkIn: mesa inexistente");
     return null;
   }
   if (mesasPick.some((m) => m.estado !== "libre")) {
-    console.error("ocuparMesasWalkIn: mesa no libre");
+    console.error("seatWalkIn: mesa no libre");
     return null;
   }
   const cap = mesasPick.reduce((s, m) => s + m.capacidad, 0);
@@ -394,7 +394,7 @@ export const seatWalkIn = async (args: {
     .select(SELECT_WAITLIST)
     .single();
   if (error) {
-    console.error("ocuparMesasWalkIn", error.message);
+    console.error("seatWalkIn", error.message);
     return null;
   }
   const espera = mapWaitlistEntry(data as unknown as WaitlistRow);
@@ -414,7 +414,7 @@ export const seatWalkIn = async (args: {
       .select("id")
       .maybeSingle();
     if (mesaErr || !updated) {
-      console.error("ocuparMesasWalkIn mesa", mesaErr?.message ?? "no libre");
+      console.error("seatWalkIn mesa", mesaErr?.message ?? "no libre");
       if (marcadas.length) {
         await supabase
           .from("mesas")
@@ -438,7 +438,7 @@ export const seatWalkIn = async (args: {
 export const updateWaitlistStatus = async (
   id: string,
   estado: WaitlistStatus,
-  mesaNumero?: number | null,
+  tableNumber?: number | null,
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
@@ -447,12 +447,12 @@ export const updateWaitlistStatus = async (
   if (estado === "avisado") patch.avisado_en = now;
   if (estado === "sentado") {
     patch.sentado_en = now;
-    if (mesaNumero != null) patch.mesa_numero = mesaNumero;
+    if (tableNumber != null) patch.mesa_numero = tableNumber;
   }
   if (estado === "cancelado") patch.cancelado_en = now;
   const { error } = await supabase.from("esperas").update(patch).eq("id", id);
   if (error) {
-    console.error("updateEsperaStatus", error.message);
+    console.error("updateWaitlistStatus", error.message);
     return false;
   }
   return true;
@@ -472,7 +472,7 @@ export const deleteWaitlistEntry = async (id: string): Promise<boolean> => {
     .eq("espera_id", id);
   const { error } = await supabase.from("esperas").delete().eq("id", id);
   if (error) {
-    console.error("deleteEspera", error.message);
+    console.error("deleteWaitlistEntry", error.message);
     return false;
   }
   return true;
@@ -491,7 +491,7 @@ export const updateReservationStatus = async (
   if (estado === "expirada") patch.expirado_en = now;
   const { error } = await supabase.from("reservas").update(patch).eq("id", id);
   if (error) {
-    console.error("updateReservaStatus", error.message);
+    console.error("updateReservationStatus", error.message);
     return false;
   }
   return true;
@@ -514,7 +514,7 @@ export const setTableCapacity = async (
     .eq("local_id", branchId)
     .eq("numero", numero);
   if (error) {
-    console.error("setMesaCapacidad", error.message);
+    console.error("setTableCapacity", error.message);
     return false;
   }
   return true;
@@ -524,7 +524,7 @@ export const setTableState = async (
   branchId: string,
   numero: number,
   estado: TableState,
-  opts: { esperaId?: string | null; reservaId?: string | null } = {},
+  opts: { waitlistId?: string | null; reservationId?: string | null } = {},
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
@@ -532,8 +532,8 @@ export const setTableState = async (
     estado,
     actualizado_en: new Date().toISOString(),
   };
-  if ("esperaId" in opts) patch.espera_id = opts.esperaId ?? null;
-  if ("reservaId" in opts) patch.reserva_id = opts.reservaId ?? null;
+  if ("waitlistId" in opts) patch.espera_id = opts.waitlistId ?? null;
+  if ("reservationId" in opts) patch.reserva_id = opts.reservationId ?? null;
   if (estado === "libre") {
     patch.espera_id = null;
     patch.reserva_id = null;
@@ -544,7 +544,7 @@ export const setTableState = async (
     .eq("local_id", branchId)
     .eq("numero", numero);
   if (error) {
-    console.error("setMesaEstado", error.message);
+    console.error("setTableState", error.message);
     return false;
   }
   return true;

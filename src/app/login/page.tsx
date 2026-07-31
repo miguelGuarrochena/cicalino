@@ -48,7 +48,7 @@ const EntrarPage = () => {
       setContexto(null, null);
       router.push("/admin");
     } else {
-      setContexto(res.organizacionId, res.localId);
+      setContexto(res.organizationId, res.localId);
       router.push("/panel");
     }
     router.refresh();

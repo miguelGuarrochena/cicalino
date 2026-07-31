@@ -60,7 +60,7 @@ const PanelOrdersPage = () => {
   const { t, locale } = useApp();
   const toast = useToast();
   const mode = useConfigStore((s) => s.modo);
-  const tableCount = useConfigStore((s) => s.cantidadMesas);
+  const tableCount = useConfigStore((s) => s.tableCount);
   const activeEmployee = useSessionStore((s) => s.empleadoActivo);
   const branchId = useSessionStore((s) => s.sucursalId);
   const orgs = useSuperadminStore((s) => s.organizaciones);
@@ -91,7 +91,7 @@ const PanelOrdersPage = () => {
   useEffect(() => {
     if (!qrOrder) return;
     const fresh = orders.find((o) => o.id === qrOrder.id);
-    if (fresh?.vistoEn) setQrOrder(null);
+    if (fresh?.seenAt) setQrOrder(null);
   }, [orders, qrOrder]);
 
   const closeQrOrder = useCallback(() => setQrOrder(null), []);

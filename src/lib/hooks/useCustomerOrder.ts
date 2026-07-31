@@ -10,9 +10,9 @@ import type { OrderStatus } from "@/lib/types";
 export interface CustomerOrder {
   referencia: string;
   status: OrderStatus;
-  nombreLocal: string;
+  branchName: string;
   modo: IdentificationMode;
-  avisadoEn: string | null;
+  notifiedAt: string | null;
 }
 
 interface Result {
@@ -71,9 +71,9 @@ export const useCustomerOrder = (token: string): Result => {
           setRemote({
             referencia: data.referencia,
             status: data.estado as OrderStatus,
-            nombreLocal: data.nombreLocal,
+            branchName: data.branchName,
             modo: data.modo as IdentificationMode,
-            avisadoEn: data.avisadoEn ?? null,
+            notifiedAt: data.notifiedAt ?? null,
           });
           setRemoteFound(true);
           if (data.estado === "retirado" || data.estado === "cancelado") {
@@ -119,9 +119,9 @@ export const useCustomerOrder = (token: string): Result => {
       ? {
           referencia: o.referencia,
           status: o.estado,
-          nombreLocal: cfg.nombre,
+          branchName: cfg.nombre,
           modo: cfg.modo,
-          avisadoEn: o.listoEn,
+          notifiedAt: o.readyAt,
         }
       : null,
   };

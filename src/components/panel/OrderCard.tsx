@@ -52,7 +52,7 @@ export const OrderCard = ({
     return () => window.clearInterval(id);
   }, [order.estado]);
 
-  const wait = minutosDesde(order.creadoEn, now);
+  const wait = minutosDesde(order.createdAt, now);
   const enCurso =
     order.estado === "creado" || order.estado === "en_preparacion";
   const listo = order.estado === "listo";
@@ -97,7 +97,7 @@ export const OrderCard = ({
         <div>
           <dt className="text-carbon/40">{t("card.hora")}</dt>
           <dd className="mt-0.5 font-semibold text-carbon/75">
-            {horaLocal(order.creadoEn, locale)}
+            {horaLocal(order.createdAt, locale)}
           </dd>
         </div>
         {!cerrado && wait !== null && (
