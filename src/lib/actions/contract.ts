@@ -224,6 +224,8 @@ export const sendContractLinkInternal = async (
 
   await sendEmail({
     to: org.dueno_email,
+    tipo: "condiciones",
+    organizacionId: org.id as string,
     subject: "Condiciones y pago · Cicalino",
     html: emailLayout({
       titulo: "Condiciones y pago",

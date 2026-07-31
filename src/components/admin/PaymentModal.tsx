@@ -6,7 +6,13 @@ import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { useToast } from "@/components/ui/Toast";
 import type { OrganizationRow } from "@/lib/store/superadmin-store";
 import { monthlyAmount } from "@/lib/store/superadmin-store";
-import { fetchPayments, savePayment, type PaymentRow } from "@/lib/data/payments";
+import {
+  fetchPayments,
+  fetchSentEmails,
+  savePayment,
+  type PaymentRow,
+  type SentEmailRow,
+} from "@/lib/data/payments";
 import {
   registerPayment,
   toDateOnly,
@@ -25,6 +31,14 @@ const fecha = (iso: string | null): string => {
   return `${d}/${m}/${y}`;
 };
 
+const TIPO_MAIL: Record<string, string> = {
+  condiciones: "Condiciones + pago",
+  bienvenida: "Bienvenida",
+  trial_5d: "Faltan 5 días de prueba",
+  trial_end: "Terminó la prueba",
+  overdue: "Pago pendiente",
+};
+
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-3 py-2.5 text-sm text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20";
 
@@ -39,6 +53,7 @@ export const PaymentModal = ({
 }) => {
   const toast = useToast();
   const [historial, setHistorial] = useState<PaymentRow[]>([]);
+  const [mails, setMails] = useState<SentEmailRow[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
@@ -74,11 +89,14 @@ export const PaymentModal = ({
 
   useEffect(() => {
     let alive = true;
-    void fetchPayments(org.id).then((r) => {
-      if (!alive) return;
-      setHistorial(r);
-      setCargando(false);
-    });
+    void Promise.all([fetchPayments(org.id), fetchSentEmails(org.id)]).then(
+      ([pagos, enviados]) => {
+        if (!alive) return;
+        setHistorial(pagos);
+        setMails(enviados);
+        setCargando(false);
+      },
+    );
     return () => {
       alive = false;
     };
@@ -276,6 +294,55 @@ export const PaymentModal = ({
         ) : (
           <p className="text-sm text-carbon/45">
             Todavía no hay pagos registrados.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-5">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/45">
+          Mails enviados
+        </p>
+        {mails.length ? (
+          <ul className="flex flex-col gap-1.5">
+            {mails.map((m) => (
+              <li
+                key={m.id}
+                className={`flex items-start justify-between gap-3 rounded-xl border px-3 py-2 ${
+                  m.aceptado
+                    ? "border-linea bg-crema/30"
+                    : "border-red-300/60 bg-red-50/60 dark:bg-red-500/10"
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-carbon">
+                    {TIPO_MAIL[m.tipo] ?? m.tipo}
+                  </p>
+                  <p className="truncate text-xs text-carbon/50">
+                    {m.destinatario}
+                    {m.error ? ` · ${m.error}` : ""}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-xs text-carbon/60">
+                    {new Date(m.creadoEn).toLocaleString("es-AR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                  <p
+                    className={`text-[11px] font-semibold ${m.aceptado ? "text-emerald-700" : "text-red-600"}`}
+                  >
+                    {m.aceptado ? "enviado" : "falló"}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-carbon/45">
+            Todavía no se le mandó ningún mail.
           </p>
         )}
       </div>

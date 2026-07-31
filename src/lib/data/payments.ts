@@ -93,3 +93,49 @@ export const savePayment = async (args: {
 
   return { ok: true, nextBilling: next.nextBilling };
 };
+
+export interface SentEmailRow {
+  id: string;
+  tipo: string;
+  asunto: string;
+  destinatario: string;
+  aceptado: boolean;
+  error: string | null;
+  creadoEn: string;
+}
+
+export const fetchSentEmails = async (
+  orgId: string,
+): Promise<SentEmailRow[]> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("emails_enviados")
+    .select("id, tipo, asunto, destinatario, aceptado, error, creado_en")
+    .eq("organizacion_id", orgId)
+    .order("creado_en", { ascending: false })
+    .limit(20);
+  if (error) {
+    console.error("fetchSentEmails", error.message);
+    return [];
+  }
+  return (
+    (data as {
+      id: string;
+      tipo: string;
+      asunto: string;
+      destinatario: string;
+      aceptado: boolean;
+      error: string | null;
+      creado_en: string;
+    }[] | null) ?? []
+  ).map((r) => ({
+    id: r.id,
+    tipo: r.tipo,
+    asunto: r.asunto,
+    destinatario: r.destinatario,
+    aceptado: r.aceptado,
+    error: r.error,
+    creadoEn: r.creado_en,
+  }));
+};

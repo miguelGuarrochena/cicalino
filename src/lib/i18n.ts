@@ -64,7 +64,7 @@ const dict = {
           avisado: "Hay mesa: avisamos al celular",
           sentado: "Los sentás y liberás cuando se van",
         },
-        q1: "¿Es lo mismo que el modo «mesa» de pedidos?",
+        q1: "¿Es lo mismo que el modo mesa de pedidos?",
         a1: "No. El modo mesa en pedidos solo etiqueta el retiro en mostrador. Espera de mesa es un módulo aparte: cola de grupos + mapa de mesas libres/ocupadas.",
         q2: "¿Puedo tener Pedidos y Espera juntos?",
         a2: "Sí. Cada sucursal contrata su pack. Si tiene ambos, en Configuración podés dejar un dispositivo solo en Pedidos, solo en Espera, o ambos.",

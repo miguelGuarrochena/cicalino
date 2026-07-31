@@ -113,6 +113,8 @@ export const sweepSubscriptions = async (): Promise<{
       const { subject, titulo, cuerpo } = CONTENIDO[tipo](row);
       const enviado = await sendEmail({
         to: row.dueno_email,
+        tipo: tipo,
+        organizacionId: row.id,
         subject,
         html: emailLayout({
           titulo,
@@ -154,6 +156,8 @@ export const sendWelcomeEmail = async (args: {
 
   const ok = await sendEmail({
     to: args.email,
+    tipo: "bienvenida",
+    organizacionId: args.orgId,
     subject: "Tu prueba de Cicalino ya empezó",
     html: emailLayout({
       titulo: "Bienvenido a Cicalino",
