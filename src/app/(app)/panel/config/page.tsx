@@ -1,5 +1,6 @@
 "use client";
 
+import { SubscriptionCard } from "@/components/panel/SubscriptionCard";
 import { useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -130,6 +131,7 @@ const ConfigPage = () => {
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
+      <SubscriptionCard />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
