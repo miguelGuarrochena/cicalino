@@ -163,14 +163,14 @@ export const QrModal = ({
                 <button
                   type="button"
                   onClick={onCancelar}
-                  className="flex-1 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
+                  className="flex-1 rounded-full bg-red-500 text-white transition hover:bg-red-600 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
                 >
                   {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmCancel(false)}
-                  className="flex-1 rounded-full border border-linea px-4 py-2 text-xs font-semibold text-carbon/60 transition hover:bg-carbon/5"
+                  className="flex-1 rounded-full border border-linea text-carbon/60 transition hover:bg-carbon/5 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
                 >
                   {locale === "en" ? "Keep it" : "No, dejarlo"}
                 </button>

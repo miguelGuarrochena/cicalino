@@ -100,12 +100,12 @@ export const SolicitudesPanel = () => {
                   {s.cuil ? ` · CUIL ${s.cuil}` : ""}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-1.5">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:gap-1.5">
                 <button
                   type="button"
                   onClick={() => void activar(s.id)}
                   disabled={busy !== null}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
+                  className="gap-1.5 rounded-full bg-marca text-crema transition hover:bg-marca-fuerte disabled:opacity-60 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
                 >
                   {trabajando ? (
                     <>
@@ -122,7 +122,7 @@ export const SolicitudesPanel = () => {
                   type="button"
                   onClick={() => void descartar(s.id)}
                   disabled={busy !== null}
-                  className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/55 transition hover:bg-carbon/5 disabled:opacity-60"
+                  className="rounded-full border border-linea text-carbon/55 transition hover:bg-carbon/5 disabled:opacity-60 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
                 >
                   Descartar
                 </button>

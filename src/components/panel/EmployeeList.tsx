@@ -616,7 +616,7 @@ export const EmployeeList = () => {
                   </p>
                 </div>
                 {confirmId === e.id ? (
-                  <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row sm:items-center">
+                  <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                     <button
                       type="button"
                       disabled={borrando}
@@ -638,14 +638,14 @@ export const EmployeeList = () => {
                           setBorrando(false);
                         }
                       }}
-                      className="rounded-full bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
+                      className="w-full rounded-full bg-red-500 text-white transition hover:bg-red-600 disabled:opacity-60 sm:w-auto flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
                     >
                       {borrando ? "…" : t("config.borrar")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmId(null)}
-                      className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60"
+                      className="w-full rounded-full border border-linea text-carbon/60 sm:w-auto flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
                     >
                       {t("super.cancelar")}
                     </button>

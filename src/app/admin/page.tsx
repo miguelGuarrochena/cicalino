@@ -168,13 +168,16 @@ const SuperadminPage = () => {
         />
       </div>
 
-      <SolicitudesPanel />
+      <div id="solicitudes" className="scroll-mt-20">
+        <SolicitudesPanel />
+      </div>
       <PedidosSucursalPanel
         onAbrir={(id) => {
           const org = organizations.find((o) => o.id === id);
           if (org) setModal({ mode: "ver", org });
         }}
       />
+      <div id="cobros" className="scroll-mt-20" />
       <CobrosPanel
         onAbrir={(id) => {
           const org = organizations.find((o) => o.id === id);
@@ -195,6 +198,7 @@ const SuperadminPage = () => {
         </div>
       )}
 
+      <div id="clientes" className="scroll-mt-20" />
       <SubscriptionsPanel
         orgs={organizations}
         onVerCliente={(id) => router.push(`/admin/cliente/${id}`)}

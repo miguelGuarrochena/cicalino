@@ -3,6 +3,7 @@ import { Logo } from "@/components/ui/Logo";
 import { Controls } from "@/components/ui/Controls";
 import { LogoutButton } from "@/components/ui/LogoutButton";
 import { SiteFooter } from "@/components/ui/SiteFooter";
+import { AdminBottomNav } from "@/components/admin/AdminBottomNav";
 import { getCurrentProfile } from "@/lib/auth/profile";
 
 const AdminLayout = async ({
@@ -24,7 +25,8 @@ const AdminLayout = async ({
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 sm:px-6 sm:py-8">
         {children}
       </main>
-      <SiteFooter />
+      <SiteFooter className="pb-24 sm:pb-8" />
+      <AdminBottomNav />
     </div>
   );
 };

@@ -172,14 +172,14 @@ export const OrderCard = ({
                   onCambiarEstado(order.id, "cancelado");
                   setConfirmCancel(false);
                 }}
-                className="flex-1 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-600 active:scale-[0.97]"
+                className="flex-1 rounded-full bg-red-500 text-white transition hover:bg-red-600 active:scale-[0.97] flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
               >
                 {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmCancel(false)}
-                className="flex-1 rounded-full border border-linea bg-surface px-4 py-2 text-xs font-semibold text-carbon/60 transition hover:bg-carbon/5"
+                className="flex-1 rounded-full border border-linea bg-surface text-carbon/60 transition hover:bg-carbon/5 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
               >
                 {locale === "en" ? "Keep it" : "No, dejarlo"}
               </button>
@@ -189,7 +189,7 @@ export const OrderCard = ({
           <button
             type="button"
             onClick={() => setConfirmCancel(true)}
-            className="w-full rounded-full px-4 py-2 text-xs font-semibold text-red-600/80 transition hover:bg-red-50 hover:text-red-700"
+            className="w-full rounded-full text-red-600/80 transition hover:bg-red-50 hover:text-red-700 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
           >
             {t("card.marcarCancelado")}
           </button>
@@ -199,7 +199,7 @@ export const OrderCard = ({
         <button
           type="button"
           onClick={() => onMostrarQr(order)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-carbon/55 transition hover:bg-carbon/5"
+          className="w-full gap-1.5 rounded-full text-carbon/55 transition hover:bg-carbon/5 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
         >
           <svg
             width="14"

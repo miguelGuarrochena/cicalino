@@ -25,6 +25,7 @@ import {
   type OrgUser,
 } from "@/lib/data/superadmin";
 import { addCycle, toDateOnly } from "@/lib/subscription";
+import { TOUCH_BTN, TOUCH_ROW } from "@/lib/ui/touch";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -222,7 +223,7 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
                 />
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <p className="text-xs text-carbon/55">
                   {enGratis ? (
                     <span className="text-amber-700">
@@ -233,12 +234,12 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
                     <>Entró al cobro el {fecha(s.cobroDesde)}</>
                   )}
                 </p>
-                <div className="flex flex-wrap gap-1.5">
+                <div className={TOUCH_ROW}>
                   {!deBaja && !gratis && (
                     <button
                       type="button"
                       onClick={() => void darMesGratis(s.id, s.cobroDesde)}
-                      className="rounded-full border border-marca/40 bg-marca/10 px-3 py-1.5 text-xs font-semibold text-marca transition hover:bg-marca/20"
+                      className={`${TOUCH_BTN} rounded-full border border-marca/40 bg-marca/10 text-marca hover:bg-marca/20`}
                     >
                       + Mes gratis
                     </button>
@@ -246,7 +247,7 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
                   <button
                     type="button"
                     onClick={() => void alternarActiva(s.id, deBaja)}
-                    className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5"
+                    className={`${TOUCH_BTN} rounded-full border border-linea text-carbon/70 hover:bg-carbon/5`}
                   >
                     {deBaja ? "Reactivar" : "Dar de baja"}
                   </button>
@@ -261,7 +262,7 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
                       });
                       router.push("/panel");
                     }}
-                    className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema transition hover:bg-marca-fuerte"
+                    className={`${TOUCH_BTN} rounded-full bg-marca text-crema hover:bg-marca-fuerte`}
                   >
                     Entrar como dueño
                   </button>
@@ -270,14 +271,14 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
                       <button
                         type="button"
                         onClick={() => void eliminar(s.id)}
-                        className="rounded-full bg-red-500 px-3 py-1.5 text-xs font-semibold text-white"
+                        className={`${TOUCH_BTN} rounded-full bg-red-500 text-white`}
                       >
                         Confirmar
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDel(null)}
-                        className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60"
+                        className={`${TOUCH_BTN} rounded-full border border-linea text-carbon/60`}
                       >
                         No
                       </button>
@@ -286,7 +287,7 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
                     <button
                       type="button"
                       onClick={() => setConfirmDel(s.id)}
-                      className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600/80 transition hover:bg-red-500/10"
+                      className={`${TOUCH_BTN} rounded-full text-red-600/80 hover:bg-red-500/10`}
                     >
                       Eliminar
                     </button>
@@ -328,7 +329,7 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
             type="button"
             onClick={() => void agregar()}
             disabled={creando || !nuevoNombre.trim()}
-            className="rounded-full bg-marca px-5 py-2.5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-40"
+            className="min-h-11 w-full rounded-full bg-marca px-5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-40 sm:w-auto"
           >
             {creando ? "…" : "Agregar"}
           </button>

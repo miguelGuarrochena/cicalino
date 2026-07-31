@@ -100,7 +100,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
             <Link
               key={l.href}
               href={l.href}
-              className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${
+              className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] font-semibold transition ${
                 active ? "text-marca" : "text-carbon/50"
               }`}
             >

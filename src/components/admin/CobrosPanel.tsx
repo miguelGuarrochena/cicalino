@@ -69,7 +69,7 @@ export const CobrosPanel = ({
               <button
                 type="button"
                 onClick={() => onAbrir(o.id)}
-                className="shrink-0 rounded-full bg-carbon px-3 py-1.5 text-xs font-semibold text-crema"
+                className="w-full rounded-full bg-carbon text-crema sm:w-auto sm:shrink-0 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
               >
                 Ver
               </button>

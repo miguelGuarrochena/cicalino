@@ -164,7 +164,7 @@ const ClientePage = () => {
               {org.telefono ? ` · ${org.telefono}` : ""}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="hidden flex-wrap gap-2 sm:flex">
             {org.plan !== "gratis" && (
               <button
                 type="button"
@@ -316,6 +316,32 @@ const ClientePage = () => {
       {editar && (
         <OrgModal mode="ver" org={org} onClose={() => setEditar(false)} />
       )}
+
+      <div className="h-24 sm:hidden" />
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch gap-2 border-t border-linea bg-surface/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur-md sm:hidden">
+        <Link
+          href="/admin"
+          className="flex min-h-12 flex-1 items-center justify-center rounded-full border border-linea text-sm font-semibold text-carbon/70"
+        >
+          Empresas
+        </Link>
+        <button
+          type="button"
+          onClick={() => setEditar(true)}
+          className="flex min-h-12 flex-1 items-center justify-center rounded-full border border-linea text-sm font-semibold text-carbon/70"
+        >
+          Editar
+        </button>
+        {org.plan !== "gratis" && (
+          <button
+            type="button"
+            onClick={() => setPagoAbierto(true)}
+            className="flex min-h-12 flex-1 items-center justify-center rounded-full bg-marca text-sm font-semibold text-crema"
+          >
+            Cobrar
+          </button>
+        )}
+      </nav>
     </div>
   );
 };

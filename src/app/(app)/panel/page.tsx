@@ -321,7 +321,7 @@ const PanelOrdersPage = () => {
                 key={f}
                 type="button"
                 onClick={() => setFiltro(f)}
-                className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold transition sm:text-sm ${
+                className={`flex min-h-11 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold transition sm:min-h-0 sm:px-3.5 sm:py-2 ${
                   active
                     ? "bg-marca text-crema"
                     : "border border-linea bg-surface text-carbon/60 hover:bg-carbon/5"

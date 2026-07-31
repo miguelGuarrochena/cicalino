@@ -141,7 +141,7 @@ export const SubscriptionsPanel = ({
             key={f.key}
             type="button"
             onClick={() => setFiltro(f.key)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+            className={`flex min-h-11 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold transition sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs ${
               filtro === f.key
                 ? "bg-marca text-crema"
                 : "border border-linea bg-surface text-carbon/60 hover:bg-carbon/5"
@@ -243,12 +243,12 @@ export const SubscriptionsPanel = ({
                 </p>
               </div>
 
-              <div className="flex gap-1.5 sm:flex-col">
+              <div className="flex flex-col gap-2 sm:gap-1.5">
                 {!sinCargo && (
                   <button
                     type="button"
                     onClick={() => onRegistrarPago(org.id)}
-                    className="flex-1 rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema transition hover:bg-marca-fuerte sm:flex-none"
+                    className="rounded-full bg-marca text-crema transition hover:bg-marca-fuerte flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
                   >
                     Registrar pago
                   </button>
@@ -256,7 +256,7 @@ export const SubscriptionsPanel = ({
                 <button
                   type="button"
                   onClick={() => onVerCliente(org.id)}
-                  className="flex-1 rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5 sm:flex-none"
+                  className="rounded-full border border-linea text-carbon/70 transition hover:bg-carbon/5 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
                 >
                   Ver cliente
                 </button>
