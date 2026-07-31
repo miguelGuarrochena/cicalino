@@ -2,6 +2,7 @@
 -- Cicalino — Acceso del encargado a varias sucursales
 -- Correr en: Supabase Dashboard → SQL Editor
 -- Requiere haber corrido antes: usuarios-sucursales.sql
+-- (empleados-acceso.sql puede correrse antes o después: no importa el orden)
 -- Idempotente.
 -- ===========================================================================
 
@@ -38,9 +39,16 @@ returns boolean language sql stable security definer set search_path = public as
 $$;
 
 -- ---------------------------------------------------------------------------
--- 3) Si ya corriste una versión anterior de empleados-acceso.sql, ese índice
---    era único y bloqueaba que la misma cuenta tuviera ficha en dos locales.
+-- 3) Vínculo empleado → cuenta. Va acá también para que no importe el orden
+--    en que corras los scripts.
+--
+--    Si corriste una versión anterior de empleados-acceso.sql, ese índice era
+--    único y bloqueaba que la misma cuenta tuviera ficha en dos locales.
 -- ---------------------------------------------------------------------------
+alter table public.empleados
+  add column if not exists usuario_id uuid
+    references public.usuarios (id) on delete set null;
+
 drop index if exists public.uq_empleados_usuario;
 create index if not exists idx_empleados_usuario
   on public.empleados (usuario_id)
