@@ -27,7 +27,7 @@ const inicial = (name: string) => {
 };
 
 type FieldErrors = {
-  nombre?: string;
+  name?: string;
   pin?: string;
 };
 
@@ -45,7 +45,7 @@ const mapPinError = (msg: string, t: (k: string) => string): string => {
 export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
   const { t } = useApp();
   const toast = useToast();
-  const employees = useConfigStore((s) => s.empleados);
+  const employees = useConfigStore((s) => s.employees);
   const addEmployee = useConfigStore((s) => s.agregarEmpleado);
   const pushEmpleado = useConfigStore((s) => s.pushEmpleado);
   const branchId = useSessionStore((s) => s.sucursalId);
@@ -71,9 +71,9 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
 
   const validar = (): FieldErrors => {
     const next: FieldErrors = {};
-    if (!name.trim()) next.nombre = t("config.empNombreReq");
+    if (!name.trim()) next.name = t("config.empNombreReq");
     else if (isEmployeeNameTaken(name, employees)) {
-      next.nombre = t("config.empNombreDup");
+      next.name = t("config.empNombreDup");
     }
     if (!isPin4(pin)) next.pin = t("config.empPinReq");
     return next;
@@ -88,13 +88,13 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
     try {
       if (live && branchId) {
         const created = await insertEmployee(branchId, {
-          nombre: name,
+          name: name,
           rol: role,
           pin,
         });
         if (!created.ok) {
           if (created.reason === "nombre_dup") {
-            setErrors({ nombre: t("config.empNombreDup") });
+            setErrors({ name: t("config.empNombreDup") });
           } else if (created.reason === "pin_dup") {
             setErrors({ pin: t("config.empPinDup") });
           } else {
@@ -104,7 +104,7 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
         }
         pushEmpleado(created.emp);
       } else {
-        addEmployee({ nombre: name, rol: role, pin });
+        addEmployee({ name: name, rol: role, pin });
       }
       toast(t("toast.empAgregado"), "success");
       onClose();
@@ -197,17 +197,17 @@ export const EmployeeModal = ({ onClose }: { onClose: () => void }) => {
           <input
             autoFocus
             disabled={saving}
-            className={`${INPUT} ${errors.nombre ? "border-red-400" : ""}`}
+            className={`${INPUT} ${errors.name ? "border-red-400" : ""}`}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
-              setErrors((er) => ({ ...er, nombre: undefined }));
+              setErrors((er) => ({ ...er, name: undefined }));
             }}
             onKeyDown={(e) => e.key === "Enter" && void guardar()}
             placeholder="Lucía"
           />
-          {errors.nombre && (
-            <span className="text-xs text-red-500">{errors.nombre}</span>
+          {errors.name && (
+            <span className="text-xs text-red-500">{errors.name}</span>
           )}
         </label>
 
@@ -329,7 +329,7 @@ const ChangePinModal = ({
             {t("config.cambiarPin")}
           </h3>
           <p className="mt-1 text-sm text-carbon/55">
-            {t("config.cambiarPinSub", { n: emp.nombre })}
+            {t("config.cambiarPinSub", { n: emp.name })}
           </p>
         </div>
         <ModalCloseBtn
@@ -367,7 +367,7 @@ const ChangePinModal = ({
 export const EmployeeList = () => {
   const { t } = useApp();
   const toast = useToast();
-  const employees = useConfigStore((s) => s.empleados);
+  const employees = useConfigStore((s) => s.employees);
   const removeEmployee = useConfigStore((s) => s.quitarEmpleado);
   const branchId = useSessionStore((s) => s.sucursalId);
   const live = supabaseConfigured && isRealBranchId(branchId);
@@ -408,10 +408,10 @@ export const EmployeeList = () => {
                 className="flex items-center gap-3 rounded-2xl border border-linea bg-crema/30 px-3 py-3"
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-marca/15 text-sm font-bold text-marca">
-                  {inicial(e.nombre)}
+                  {inicial(e.name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-carbon">{e.nombre}</p>
+                  <p className="truncate font-semibold text-carbon">{e.name}</p>
                   <p className="truncate text-xs text-carbon/50">
                     {e.rol || t("config.sinRol")}
                     {" · "}

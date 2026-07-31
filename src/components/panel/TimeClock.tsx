@@ -18,7 +18,7 @@ const PAGE_SIZE = 8;
 
 export const Fichaje = () => {
   const { t } = useApp();
-  const employees = useConfigStore((s) => s.empleados);
+  const employees = useConfigStore((s) => s.employees);
   const { empleadoActivo: activeEmployee, fichar, salir: leave } =
     useSessionStore();
 
@@ -29,7 +29,7 @@ export const Fichaje = () => {
   const [verificando, setVerificando] = useState(false);
   const [page, setPage] = useState(1);
 
-  const withName = employees.filter((e) => e.nombre.trim());
+  const withName = employees.filter((e) => e.name.trim());
   const pageItems = slicePage(withName, page, PAGE_SIZE);
 
   const elegir = (id: string) => {
@@ -49,13 +49,13 @@ export const Fichaje = () => {
     if (!emp) return;
 
     if (!emp.tienePin) {
-      fichar({ id: emp.id, nombre: emp.nombre });
+      fichar({ id: emp.id, name: emp.name });
       cerrar();
       return;
     }
 
     if (!supabaseConfigured) {
-      fichar({ id: emp.id, nombre: emp.nombre });
+      fichar({ id: emp.id, name: emp.name });
       cerrar();
       return;
     }
@@ -68,7 +68,7 @@ export const Fichaje = () => {
       setPin("");
       return;
     }
-    fichar({ id: ok.id, nombre: ok.nombre });
+    fichar({ id: ok.id, name: ok.name });
     cerrar();
   };
 
@@ -81,7 +81,7 @@ export const Fichaje = () => {
   };
 
   const pendingName =
-    employees.find((e) => e.id === pendiente)?.nombre || "";
+    employees.find((e) => e.id === pendiente)?.name || "";
 
   return (
     <>
@@ -93,10 +93,10 @@ export const Fichaje = () => {
         {activeEmployee ? (
           <>
             <span className="flex size-6 items-center justify-center rounded-full bg-marca text-xs text-crema">
-              {inicial(activeEmployee.nombre)}
+              {inicial(activeEmployee.name)}
             </span>
             <span className="max-w-[6rem] truncate">
-              {activeEmployee.nombre}
+              {activeEmployee.name}
             </span>
           </>
         ) : (
@@ -218,11 +218,11 @@ export const Fichaje = () => {
                 className="flex w-full items-center gap-3 rounded-2xl border border-linea bg-crema/40 px-3 py-3 text-left transition hover:border-red-200 hover:bg-red-50/60"
               >
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marca text-xs font-semibold text-crema">
-                  {inicial(activeEmployee.nombre)}
+                  {inicial(activeEmployee.name)}
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate font-semibold text-carbon">
-                    {activeEmployee.nombre}
+                    {activeEmployee.name}
                   </span>
                   <span className="block text-xs font-medium text-red-600">
                     {t("fichaje.cerrarSesion")}
@@ -255,11 +255,11 @@ export const Fichaje = () => {
                       className="flex w-full items-center gap-3 rounded-2xl border border-linea bg-crema/30 px-3 py-3 text-left transition hover:border-marca/40 hover:bg-marca/5"
                     >
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marca/15 text-xs font-semibold text-marca">
-                        {inicial(e.nombre)}
+                        {inicial(e.name)}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium text-carbon">
-                          {e.nombre}
+                          {e.name}
                         </span>
                         {e.rol && (
                           <span className="block truncate text-xs text-carbon/45">

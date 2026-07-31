@@ -27,7 +27,7 @@ const PrivacidadPage = () => {
           {es ? (
             <>
               <p>
-                Cicalino trata los datos del negocio (local, empleados, pedidos) y
+                Cicalino trata los datos del negocio (local, employees, pedidos) y
                 las suscripciones Web Push del cliente solo para operar el aviso
                 de pedidos.
               </p>

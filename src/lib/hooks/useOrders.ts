@@ -14,7 +14,7 @@ import {
 import type { OrderStatus, OrderView } from "@/lib/types";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 
-type EmployeeRef = { id: string; nombre: string } | null;
+type EmployeeRef = { id: string; name: string } | null;
 
 export interface UseOrders {
   orders: OrderView[];
@@ -87,15 +87,15 @@ export const useOrders = (branchId: string | null): UseOrders => {
       if (!live || !branchId) {
         const o: OrderView = {
           id: crypto.randomUUID(),
-          referencia: reference,
-          estado: "creado",
+          reference: reference,
+          status: "creado",
           createdAt: new Date().toISOString(),
           preparingAt: null,
           readyAt: null,
           pickedUpAt: null,
           cancelledAt: null,
           qrToken: crypto.randomUUID(),
-          empleado: employee?.nombre ?? null,
+          employee: employee?.name ?? null,
         };
         demoAdd(o);
         return o;
@@ -122,8 +122,8 @@ export const useOrders = (branchId: string | null): UseOrders => {
       }
       let desde: OrderStatus | undefined;
       setLiveOrders((cur) => {
-        desde = cur.find((o) => o.id === id)?.estado;
-        return cur.map((o) => (o.id === id ? { ...o, estado: status } : o));
+        desde = cur.find((o) => o.id === id)?.status;
+        return cur.map((o) => (o.id === id ? { ...o, status: status } : o));
       });
       await updateOrderStatus(id, status, desde);
       if (status !== "listo") return null;

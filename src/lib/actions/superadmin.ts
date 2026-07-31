@@ -63,7 +63,7 @@ const createOrganizationValidated = async (
   const { data: org, error } = await admin
     .from("organizaciones")
     .insert({
-      nombre: data.nombre,
+      nombre: data.name,
       responsable: data.responsable,
       telefono: data.telefono || null,
       cuil: data.cuil || null,
@@ -91,10 +91,10 @@ const createOrganizationValidated = async (
       if (!pedidos && !espera) pedidos = true;
       return {
         organizacion_id: org.id,
-        nombre: b.nombre,
+        nombre: b.name,
         tipo_negocio: b.tipo,
         direccion: b.direccion ?? null,
-        slug: `${slugify(b.nombre)}-${sufijoAleatorio()}`,
+        slug: `${slugify(b.name)}-${sufijoAleatorio()}`,
         modulo_pedidos: pedidos,
         modulo_espera: espera,
       };

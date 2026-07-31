@@ -16,26 +16,26 @@ const UUID = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
 describe("solicitudSchema (formulario público)", () => {
   it("acepta una solicitud válida y normaliza", () => {
     const r = parseInput(leadSchema, {
-      nombre: "  Miguel  ",
+      name: "  Miguel  ",
       email: "  MIGUEL@Ejemplo.COM ",
       local: "",
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.data.nombre).toBe("Miguel");
+      expect(r.data.name).toBe("Miguel");
       expect(r.data.email).toBe("miguel@ejemplo.com");
       expect(r.data.local).toBeUndefined();
     }
   });
 
   it("rechaza email inválido", () => {
-    expect(parseInput(leadSchema, { nombre: "Ana", email: "no-es-mail" }).ok)
+    expect(parseInput(leadSchema, { name: "Ana", email: "no-es-mail" }).ok)
       .toBe(false);
   });
 
   it("rechaza payloads gigantes", () => {
     const r = parseInput(leadSchema, {
-      nombre: "x".repeat(5000),
+      name: "x".repeat(5000),
       email: "a@b.com",
     });
     expect(r.ok).toBe(false);
@@ -43,9 +43,9 @@ describe("solicitudSchema (formulario público)", () => {
 
   it("ignora campos de más (no hay mass-assignment)", () => {
     const r = parseInput(leadSchema, {
-      nombre: "Ana",
+      name: "Ana",
       email: "a@b.com",
-      estado: "atendida",
+      status: "atendida",
       id: "inyectado",
     });
     expect(r.ok).toBe(true);
@@ -54,7 +54,7 @@ describe("solicitudSchema (formulario público)", () => {
 
   it("acepta contrato completo y rechaza contrato incompleto", () => {
     const ok = parseInput(leadSchema, {
-      nombre: "Ana",
+      name: "Ana",
       email: "a@b.com",
       telefono: "+54 9 11 5555 5555",
       local: "Café Ana",
@@ -74,14 +74,14 @@ describe("solicitudSchema (formulario público)", () => {
     }
     expect(
       parseInput(leadSchema, {
-        nombre: "Ana",
+        name: "Ana",
         email: "a@b.com",
         tipo: "contrato",
       }).ok,
     ).toBe(false);
     expect(
       parseInput(leadSchema, {
-        nombre: "Ana",
+        name: "Ana",
         email: "a@b.com",
         local: "Café",
         telefono: "1155555555",
@@ -94,11 +94,11 @@ describe("solicitudSchema (formulario público)", () => {
 
 describe("crearOrganizacionSchema", () => {
   const base = {
-    nombre: "Café Central",
+    name: "Café Central",
     responsable: "Miguel",
     ownerEmail: "dueno@ejemplo.com",
     cupo: 2,
-    sucursales: [{ nombre: "Centro", tipo: "cafeteria" }],
+    sucursales: [{ name: "Centro", tipo: "cafeteria" }],
   };
 
   it("acepta un alta válida y aplica defaults", () => {
@@ -118,7 +118,7 @@ describe("crearOrganizacionSchema", () => {
   it("rechaza un tipo de negocio inventado", () => {
     const r = parseInput(createOrganizationSchema, {
       ...base,
-      sucursales: [{ nombre: "Centro", tipo: "ferreteria" }],
+      sucursales: [{ name: "Centro", tipo: "ferreteria" }],
     });
     expect(r.ok).toBe(false);
   });
@@ -138,7 +138,7 @@ describe("crearOrganizacionSchema", () => {
 
 describe("branchConfigSchema", () => {
   const base = {
-    nombre: "Mostrador",
+    name: "Mostrador",
     tipo: "cafeteria",
     whatsapp: "",
     direccion: "",
@@ -163,18 +163,18 @@ describe("branchConfigSchema", () => {
 
 describe("empleadoSchema", () => {
   it("acepta PIN de 4 dígitos y lo normaliza", () => {
-    const r = parseInput(employeeSchema, { nombre: "Sofía", pin: "12-34" });
+    const r = parseInput(employeeSchema, { name: "Sofía", pin: "12-34" });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.data.pin).toBe("1234");
   });
 
   it("rechaza PIN de largo distinto de 4", () => {
-    expect(parseInput(employeeSchema, { nombre: "Sofía", pin: "123" }).ok).toBe(false);
-    expect(parseInput(employeeSchema, { nombre: "Sofía", pin: "123456" }).ok).toBe(false);
+    expect(parseInput(employeeSchema, { name: "Sofía", pin: "123" }).ok).toBe(false);
+    expect(parseInput(employeeSchema, { name: "Sofía", pin: "123456" }).ok).toBe(false);
   });
 
   it("acepta empleado sin PIN", () => {
-    expect(parseInput(employeeSchema, { nombre: "Sofía" }).ok).toBe(true);
+    expect(parseInput(employeeSchema, { name: "Sofía" }).ok).toBe(true);
   });
 });
 

@@ -220,7 +220,7 @@ const MetricasPage = () => {
           <p className="mt-1 text-sm text-carbon/50">
             {alcance === "global"
               ? t("metricas.alcanceGlobal")
-              : `${t("metricas.alcanceSucursal")}${suc ? ` · ${suc.nombre}` : ""}`}
+              : `${t("metricas.alcanceSucursal")}${suc ? ` · ${suc.name}` : ""}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

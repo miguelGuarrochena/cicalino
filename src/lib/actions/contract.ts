@@ -35,7 +35,7 @@ const money = (n: number): string =>
   }).format(n);
 
 export type PublicContract = {
-  nombre: string;
+  name: string;
   plan: BillingPlanUI;
   cupo: number;
   monto: number;
@@ -89,7 +89,7 @@ export const getContractByToken = async (
   const enPrueba =
     !!pruebaHasta && new Date(pruebaHasta).getTime() > Date.now();
   return {
-    nombre: data.nombre,
+    name: data.nombre,
     plan,
     cupo,
     monto: contractAmountForBranches(plan, packs),

@@ -55,8 +55,8 @@ export const GET = async (
 
   return NextResponse.json({
     ok: true,
-    referencia: data.referencia,
-    estado: data.estado,
+    reference: data.referencia,
+    status: data.estado,
     listo: data.estado === "listo" || data.estado === "retirado",
     notifiedAt: data.avisado_en ?? null,
     branchName: local?.nombre ?? "",

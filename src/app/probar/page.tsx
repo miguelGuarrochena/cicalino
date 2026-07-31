@@ -16,7 +16,7 @@ const INPUT =
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 const ProbarPage = () => {
-  const [nombre, setNombre] = useState("");
+  const [name, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [local, setLocal] = useState("");
   const [ciudad, setCiudad] = useState("");
@@ -41,7 +41,7 @@ const ProbarPage = () => {
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!nombre.trim() || !isEmail(email)) {
+    if (!name.trim() || !isEmail(email)) {
       setError("Completá tu nombre y un email válido.");
       return;
     }
@@ -56,7 +56,7 @@ const ProbarPage = () => {
     setLoading(true);
     try {
       const res = await createLead({
-        nombre,
+        name,
         email,
         local,
         ciudad,
@@ -122,7 +122,7 @@ const ProbarPage = () => {
             >
               <input
                 className={INPUT}
-                value={nombre}
+                value={name}
                 onChange={(e) => setNombre(e.target.value)}
                 placeholder="Tu nombre *"
                 autoComplete="name"

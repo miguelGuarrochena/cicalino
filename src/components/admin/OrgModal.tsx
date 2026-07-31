@@ -50,7 +50,7 @@ const emailOk = isEmail;
 const cuilOk = (v: string) => !v.trim() || isCuil(v);
 
 type DraftOrg = {
-  nombre: string;
+  name: string;
   responsable: string;
   telefono: string;
   cuil: string;
@@ -61,7 +61,7 @@ type DraftOrg = {
 };
 
 const draftVacio = (): DraftOrg => ({
-  nombre: "",
+  name: "",
   responsable: "",
   telefono: "",
   cuil: "",
@@ -72,7 +72,7 @@ const draftVacio = (): DraftOrg => ({
 });
 
 const draftDesdeOrg = (o: OrganizationRow): DraftOrg => ({
-  nombre: o.nombre,
+  name: o.name,
   responsable: o.responsable,
   telefono: o.telefono,
   cuil: o.cuil,
@@ -83,7 +83,7 @@ const draftDesdeOrg = (o: OrganizationRow): DraftOrg => ({
 });
 
 const draftsIguales = (a: DraftOrg, b: DraftOrg): boolean =>
-  a.nombre.trim() === b.nombre.trim() &&
+  a.name.trim() === b.name.trim() &&
   a.responsable.trim() === b.responsable.trim() &&
   a.telefono.trim() === b.telefono.trim() &&
   a.cuil.trim() === b.cuil.trim() &&
@@ -273,7 +273,7 @@ export const OrgModal = ({
     }
   };
 
-  const [name, setName] = useState(org?.nombre ?? "");
+  const [name, setName] = useState(org?.name ?? "");
   const [manager, setResponsable] = useState(org?.responsable ?? "");
   const [phone, setTelefono] = useState(org?.telefono ?? "");
   const [cuil, setCuil] = useState(org?.cuil ?? "");
@@ -294,7 +294,7 @@ export const OrgModal = ({
   const [nuevaEspera, setNuevaEspera] = useState(false);
 
   const draftActual = (): DraftOrg => ({
-    nombre: name,
+    name: name,
     responsable: manager,
     telefono: phone,
     cuil,
@@ -307,7 +307,7 @@ export const OrgModal = ({
   const dirty = editing && !draftsIguales(draftActual(), baseline);
 
   const aplicarDraft = (d: DraftOrg) => {
-    setName(d.nombre);
+    setName(d.name);
     setResponsable(d.responsable);
     setTelefono(d.telefono);
     setCuil(d.cuil);
@@ -366,7 +366,7 @@ export const OrgModal = ({
   };
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-    if (!required(name)) e.nombre = t("super.errNombre");
+    if (!required(name)) e.name = t("super.errNombre");
     if (!required(manager)) e.responsable = t("super.errResponsable");
     if (!required(phone) || !isWhatsapp(phone))
       e.telefono = t("super.errTelefono");
@@ -381,7 +381,7 @@ export const OrgModal = ({
   const guardar = async () => {
     if (!validate()) return;
     const data: OrgInput = {
-      nombre: name,
+      name: name,
       responsable: manager,
       telefono: phone,
       cuil,
@@ -396,7 +396,7 @@ export const OrgModal = ({
         const res = await createOrganization({ ...data, sucursales: [] });
         setSaving(false);
         if (!res.ok) {
-          setErrors((e) => ({ ...e, nombre: res.error }));
+          setErrors((e) => ({ ...e, name: res.error }));
           toast(t("toast.orgError"), "error");
           return;
         }
@@ -425,7 +425,7 @@ export const OrgModal = ({
   const agregarSuc = async () => {
     if (!org || !newBranch.trim() || busy) return;
     const data: BranchInput = {
-      nombre: newBranch.trim(),
+      name: newBranch.trim(),
       tipo: nuevaTipo,
       direccion: org.direccion,
       moduloPedidos: nuevaPedidos,
@@ -647,7 +647,7 @@ export const OrgModal = ({
     if (!org) return;
     enterAsOwner({
       organizationId: org.id,
-      organizationName: org.nombre,
+      organizationName: org.name,
       sucursalId: branchId,
       branchName: branchNameLabel,
     });
@@ -760,7 +760,7 @@ export const OrgModal = ({
             id="org-modal-title"
             className="mt-1 font-display text-2xl uppercase tracking-tight text-carbon"
           >
-            {mode === "crear" ? t("super.nuevaOrg") : vista?.nombre}
+            {mode === "crear" ? t("super.nuevaOrg") : vista?.name}
           </h2>
         </div>
         <ModalCloseBtn
@@ -772,7 +772,7 @@ export const OrgModal = ({
 
       {editing ? (
         <div className="mt-5 flex flex-col gap-3">
-          <Campo label={t("super.nombreOrg")} error={errors.nombre}>
+          <Campo label={t("super.nombreOrg")} error={errors.name}>
             <input
               className={INPUT}
               value={name}
@@ -1097,7 +1097,7 @@ export const OrgModal = ({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-carbon">
-                          {suc.nombre}
+                          {suc.name}
                         </p>
                         <p className="truncate text-xs text-carbon/50">
                           {TIPO_LABEL[suc.tipo] ?? suc.tipo} ·{" "}
@@ -1107,7 +1107,7 @@ export const OrgModal = ({
                       <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => enterOwner(suc.id, suc.nombre)}
+                          onClick={() => enterOwner(suc.id, suc.name)}
                           className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema"
                         >
                           {t("super.entrarComo")}

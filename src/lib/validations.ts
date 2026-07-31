@@ -24,19 +24,19 @@ export const isPin4 = (v: string): boolean => {
   return /^\d{4}$/.test(v.trim());
 };
 
-export const normalizeEmployeeName = (nombre: string): string =>
-  nombre.trim().replace(/\s+/g, " ").toLocaleLowerCase("es");
+export const normalizeEmployeeName = (name: string): string =>
+  name.trim().replace(/\s+/g, " ").toLocaleLowerCase("es");
 
 export const isEmployeeNameTaken = (
-  nombre: string,
-  empleados: ReadonlyArray<{ id: string; nombre: string }>,
+  name: string,
+  employees: ReadonlyArray<{ id: string; name: string }>,
   exceptoId?: string,
 ): boolean => {
-  const n = normalizeEmployeeName(nombre);
+  const n = normalizeEmployeeName(name);
   if (!n) return false;
-  return empleados.some(
+  return employees.some(
     (e) =>
-      e.id !== exceptoId && normalizeEmployeeName(e.nombre) === n,
+      e.id !== exceptoId && normalizeEmployeeName(e.name) === n,
   );
 };
 

@@ -42,7 +42,7 @@ const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 type FieldErrors = {
   local?: string;
-  nombre?: string;
+  name?: string;
   telefono?: string;
   email?: string;
   cuil?: string;
@@ -54,7 +54,7 @@ const PreciosPage = () => {
   const [anual, setAnual] = useState(false);
   const [pack, setPack] = useState<PackId>("pack");
   const [formOpen, setFormOpen] = useState(false);
-  const [nombre, setNombre] = useState("");
+  const [name, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [telefono, setTelefono] = useState("");
   const [local, setLocal] = useState("");
@@ -128,7 +128,7 @@ const PreciosPage = () => {
     local: es
       ? "Completá el nombre del local o empresa."
       : "Enter the business name.",
-    nombre: es ? "Completá el nombre del responsable." : "Enter the contact name.",
+    name: es ? "Completá el nombre del responsable." : "Enter the contact name.",
     email: es ? "Completá un email válido." : "Enter a valid email.",
     telefono: es
       ? "Completá un teléfono válido (mín. 8 dígitos)."
@@ -156,7 +156,7 @@ const PreciosPage = () => {
   const validar = (): FieldErrors => {
     const e: FieldErrors = {};
     if (!local.trim()) e.local = msg.local;
-    if (!nombre.trim()) e.nombre = msg.nombre;
+    if (!name.trim()) e.name = msg.name;
     if (!isEmail(email)) e.email = msg.email;
     if (!telefono.trim() || !isWhatsapp(telefono) || telefono.replace(/\D/g, "").length < 8) {
       e.telefono = msg.telefono;
@@ -190,7 +190,7 @@ const PreciosPage = () => {
     setLoading(true);
     try {
       const res = await createLead({
-        nombre: nombre.trim(),
+        name: name.trim(),
         email: email.trim(),
         telefono: telefono.trim(),
         local: local.trim(),
@@ -490,19 +490,19 @@ const PreciosPage = () => {
                   </div>
                   <div>
                     <input
-                      className={inputCls(fieldErrors.nombre)}
-                      value={nombre}
+                      className={inputCls(fieldErrors.name)}
+                      value={name}
                       onChange={(e) => {
                         setNombre(e.target.value);
-                        if (fieldErrors.nombre)
-                          setFieldErrors((f) => ({ ...f, nombre: undefined }));
+                        if (fieldErrors.name)
+                          setFieldErrors((f) => ({ ...f, name: undefined }));
                       }}
                       placeholder={es ? "Responsable *" : "Contact person *"}
                       autoComplete="name"
-                      aria-invalid={Boolean(fieldErrors.nombre)}
+                      aria-invalid={Boolean(fieldErrors.name)}
                     />
-                    {fieldErrors.nombre && (
-                      <p className="mt-1 text-xs text-red-600">{fieldErrors.nombre}</p>
+                    {fieldErrors.name && (
+                      <p className="mt-1 text-xs text-red-600">{fieldErrors.name}</p>
                     )}
                   </div>
                   <div>

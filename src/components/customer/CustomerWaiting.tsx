@@ -19,7 +19,7 @@ interface Props {
 }
 
 const senalListo = (opts?: {
-  referencia?: string;
+  reference?: string;
   token?: string;
   body?: string;
   notifLocal?: boolean;
@@ -30,14 +30,14 @@ const senalListo = (opts?: {
   void fireReadyConfetti();
   if (
     opts?.notifLocal &&
-    opts.referencia &&
+    opts.reference &&
     opts.token &&
     opts.body &&
     typeof document !== "undefined" &&
     document.visibilityState === "hidden"
   ) {
     void showReadyNotice({
-      referencia: opts.referencia,
+      reference: opts.reference,
       url: `/p/${opts.token}`,
       body: opts.body,
     });
@@ -122,9 +122,9 @@ export const CustomerWaiting = ({ token }: Props) => {
     window.setTimeout(() => setFlash(false), 900);
     senalListo({
       notifLocal: !pushActivo,
-      referencia: order.referencia,
+      reference: order.reference,
       token,
-      body: t("cliente.notifListo", { n: order.referencia }),
+      body: t("cliente.notifListo", { n: order.reference }),
     });
   }, [order, pushActivo, t, token]);
 
@@ -193,7 +193,7 @@ export const CustomerWaiting = ({ token }: Props) => {
             {t(`modo.${order.modo}`)}
           </span>
           <span className="font-display text-6xl leading-none text-marca">
-            {order.referencia}
+            {order.reference}
           </span>
         </div>
 

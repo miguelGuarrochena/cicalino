@@ -27,7 +27,7 @@ import type { WaitlistView, TableView, ReservationView } from "@/lib/types";
 import { reservationTables } from "@/lib/reservations";
 import { staffWaitlistCancelIds } from "@/lib/store/waitlist-alerts-store";
 
-type EmployeeRef = { id: string; nombre: string } | null;
+type EmployeeRef = { id: string; name: string } | null;
 
 export interface UseWaitlist {
   esperas: WaitlistView[];
@@ -36,15 +36,15 @@ export interface UseWaitlist {
   ready: boolean;
   live: boolean;
   crearEspera: (
-    nombre: string,
-    personas: number,
+    name: string,
+    partySize: number,
     employee?: EmployeeRef,
   ) => Promise<WaitlistView | null>;
   crearReserva: (args: {
-    nombre: string;
-    personas: number;
+    name: string;
+    partySize: number;
     tableNumbers: number[];
-    horario: string;
+    scheduledAt: string;
     graceMinutes: 15 | 20;
     employee?: EmployeeRef;
   }) => Promise<ReservationView | null>;
@@ -56,16 +56,16 @@ export interface UseWaitlist {
   sentarReserva: (id: string) => Promise<void>;
   cancelarReserva: (id: string) => Promise<void>;
   liberarMesa: (
-    numero: number,
+    number: number,
     opts?: { soloEsta?: boolean },
   ) => Promise<void>;
   ocuparMesas: (args: {
     tableNumbers: number[];
-    nombre?: string;
-    personas?: number;
+    name?: string;
+    partySize?: number;
     employee?: EmployeeRef;
   }) => Promise<WaitlistView | null>;
-  setCapacidad: (numero: number, capacidad: number) => Promise<void>;
+  setCapacidad: (number: number, capacity: number) => Promise<void>;
   sincronizarCantidadMesas: () => Promise<void>;
 }
 
@@ -175,17 +175,17 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   };
 
   const crearEspera = async (
-    nombre: string,
-    personas: number,
+    name: string,
+    partySize: number,
     employee?: EmployeeRef,
   ) => {
     if (!live || !branchId) {
-      return demoAdd(nombre, personas, employee?.nombre ?? null);
+      return demoAdd(name, partySize, employee?.name ?? null);
     }
     const created = await insertWaitlistEntry({
       branchId,
-      nombre,
-      personas,
+      name,
+      partySize,
       employeeId: employee?.id,
     });
     if (created) setLiveEsperas((prev) => [created, ...prev]);
@@ -193,25 +193,25 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   };
 
   const crearReserva = async (args: {
-    nombre: string;
-    personas: number;
+    name: string;
+    partySize: number;
     tableNumbers: number[];
-    horario: string;
+    scheduledAt: string;
     graceMinutes: 15 | 20;
     employee?: EmployeeRef;
   }) => {
     if (!live || !branchId) {
       return demoAddReserva({
         ...args,
-        empleado: args.employee?.nombre ?? null,
+        employee: args.employee?.name ?? null,
       });
     }
     const created = await insertReservation({
       branchId,
-      nombre: args.nombre,
-      personas: args.personas,
+      name: args.name,
+      partySize: args.partySize,
       tableNumbers: args.tableNumbers,
-      horario: args.horario,
+      scheduledAt: args.scheduledAt,
       graceMinutes: args.graceMinutes,
       employeeId: args.employee?.id,
     });
@@ -245,7 +245,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     if (!nums.length) return;
     const primaria = nums[0];
     const antes = (live ? liveEsperas : demoEsperas).find((e) => e.id === id);
-    const veniaEsperando = antes?.estado === "esperando";
+    const veniaEsperando = antes?.status === "esperando";
     if (!live || !branchId) {
       demoChange(id, "sentado", primaria, nums);
       return;
@@ -308,71 +308,71 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   };
 
   const liberarMesa = async (
-    numero: number,
+    number: number,
     opts?: { soloEsta?: boolean },
   ) => {
     if (!live || !branchId) {
-      demoLiberar(numero, opts);
+      demoLiberar(number, opts);
       return;
     }
-    const mesa = liveMesas.find((m) => m.numero === numero);
+    const mesa = liveMesas.find((m) => m.number === number);
     if (opts?.soloEsta) {
-      await setTableState(branchId, numero, "libre");
+      await setTableState(branchId, number, "libre");
       await reload();
       return;
     }
-    if (mesa?.waitlistId && mesa.estado === "ocupada") {
+    if (mesa?.waitlistId && mesa.status === "ocupada") {
       const mismas = liveMesas.filter(
-        (m) => m.waitlistId === mesa.waitlistId && m.estado === "ocupada",
+        (m) => m.waitlistId === mesa.waitlistId && m.status === "ocupada",
       );
       for (const m of mismas) {
-        await setTableState(branchId, m.numero, "libre");
+        await setTableState(branchId, m.number, "libre");
       }
       await reload();
       return;
     }
-    if (mesa?.reservationId && mesa.estado === "ocupada") {
+    if (mesa?.reservationId && mesa.status === "ocupada") {
       const mismas = liveMesas.filter(
-        (m) => m.reservationId === mesa.reservationId && m.estado === "ocupada",
+        (m) => m.reservationId === mesa.reservationId && m.status === "ocupada",
       );
       for (const m of mismas) {
-        await setTableState(branchId, m.numero, "libre");
+        await setTableState(branchId, m.number, "libre");
       }
       await reload();
       return;
     }
-    await setTableState(branchId, numero, "libre");
+    await setTableState(branchId, number, "libre");
     await reload();
   };
 
-  const setCapacidad = async (numero: number, capacidad: number) => {
+  const setCapacidad = async (number: number, capacity: number) => {
     if (!live || !branchId) {
-      demoSetCapacidad(numero, capacidad);
+      demoSetCapacidad(number, capacity);
       return;
     }
-    await setTableCapacity(branchId, numero, capacidad);
+    await setTableCapacity(branchId, number, capacity);
     await reload();
   };
 
   const ocuparMesas = async (args: {
     tableNumbers: number[];
-    nombre?: string;
-    personas?: number;
+    name?: string;
+    partySize?: number;
     employee?: EmployeeRef;
   }) => {
     if (!live || !branchId) {
       return demoWalkIn({
         tableNumbers: args.tableNumbers,
-        nombre: args.nombre,
-        personas: args.personas,
-        empleado: args.employee?.nombre ?? null,
+        name: args.name,
+        partySize: args.partySize,
+        employee: args.employee?.name ?? null,
       });
     }
     const created = await seatWalkIn({
       branchId,
       tableNumbers: args.tableNumbers,
-      nombre: args.nombre,
-      personas: args.personas,
+      name: args.name,
+      partySize: args.partySize,
       employeeId: args.employee?.id,
     });
     await reload();

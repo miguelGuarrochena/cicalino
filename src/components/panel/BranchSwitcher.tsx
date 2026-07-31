@@ -18,7 +18,7 @@ export const BranchSwitcher = () => {
 
   if (role !== "admin") return null;
 
-  let options: { id: string; nombre: string }[];
+  let options: { id: string; name: string }[];
   if (supabaseConfigured) {
     options = liveBranches;
   } else {
@@ -26,7 +26,7 @@ export const BranchSwitcher = () => {
     options = org
       ? org.sucursales.filter((s) => s.activo).map((s) => ({
           id: s.id,
-          nombre: s.nombre,
+          name: s.name,
         }))
       : [];
   }
@@ -43,7 +43,7 @@ export const BranchSwitcher = () => {
         ariaLabel={t("sucursal.label")}
         value={branchId ?? ""}
         onChange={(v) => setBranchId(v || null)}
-        options={options.map((s) => ({ value: s.id, label: s.nombre }))}
+        options={options.map((s) => ({ value: s.id, label: s.name }))}
       />
     </div>
   );

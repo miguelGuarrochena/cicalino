@@ -12,7 +12,7 @@ import { PRICE_BUNDLE } from "@/lib/pricing";
 
 const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
   id: "o1",
-  nombre: "Org",
+  name: "Org",
   responsable: "R",
   telefono: "+54 9 11 5555 5555",
   cuil: "30-71234567-8",
@@ -32,7 +32,7 @@ const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
     {
       id: "s1",
       organizationId: "o1",
-      nombre: "Centro",
+      name: "Centro",
       tipo: "panaderia",
       direccion: "",
       activo: true,
@@ -55,7 +55,7 @@ describe("monthlyCharge", () => {
             {
               id: "s1",
               organizationId: "o1",
-              nombre: "A",
+              name: "A",
               tipo: "panaderia",
               direccion: "",
               activo: true,
@@ -66,7 +66,7 @@ describe("monthlyCharge", () => {
             {
               id: "s2",
               organizationId: "o1",
-              nombre: "B",
+              name: "B",
               tipo: "panaderia",
               direccion: "",
               activo: true,
@@ -116,7 +116,7 @@ describe("orgById / branchById", () => {
     expect(orgById(orgs, null)).toBeUndefined();
   });
   it("encuentra la sucursal por id", () => {
-    expect(branchById(orgs, "s1")?.nombre).toBe("Centro");
+    expect(branchById(orgs, "s1")?.name).toBe("Centro");
     expect(branchById(orgs, null)).toBeUndefined();
     expect(branchById(orgs, "nope")).toBeUndefined();
   });

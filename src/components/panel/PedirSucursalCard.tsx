@@ -25,7 +25,7 @@ export const PedirSucursalCard = () => {
     undefined,
   );
   const [abierto, setAbierto] = useState(false);
-  const [nombre, setNombre] = useState("");
+  const [name, setNombre] = useState("");
   const [confirmar, setConfirmar] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -55,7 +55,7 @@ export const PedirSucursalCard = () => {
     setBusy(true);
     try {
       const r = await requestExtraBranch({
-        nombreSucursal: nombre,
+        nombreSucursal: name,
         confirmar,
       });
       if (!r.ok) {
@@ -132,7 +132,7 @@ export const PedirSucursalCard = () => {
             </span>
             <input
               className={INPUT}
-              value={nombre}
+              value={name}
               onChange={(e) => setNombre(e.target.value)}
               placeholder="ej. Norte, Centro 2"
               maxLength={80}

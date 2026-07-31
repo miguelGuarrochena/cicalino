@@ -23,7 +23,7 @@ interface Props {
 
 const senalMesa = (opts?: {
   notifLocal?: boolean;
-  nombre?: string;
+  name?: string;
   token?: string;
   body?: string;
 }) => {
@@ -33,14 +33,14 @@ const senalMesa = (opts?: {
   void fireReadyConfetti();
   if (
     opts?.notifLocal &&
-    opts.nombre &&
+    opts.name &&
     opts.token &&
     opts.body &&
     typeof document !== "undefined" &&
     document.visibilityState === "hidden"
   ) {
     void showReadyNotice({
-      referencia: opts.nombre,
+      reference: opts.name,
       url: `/e/${opts.token}`,
       body: opts.body,
     });
@@ -119,9 +119,9 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     window.setTimeout(() => setFlash(false), 900);
     senalMesa({
       notifLocal: !pushActivo,
-      nombre: espera.nombre,
+      name: espera.name,
       token,
-      body: t("clienteMesa.notifListo", { n: espera.nombre }),
+      body: t("clienteMesa.notifListo", { n: espera.name }),
     });
   }, [espera, pushActivo, token, t]);
 
@@ -212,11 +212,11 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
             {t("clienteMesa.titulo")}
           </span>
           <span className="font-display text-5xl leading-none text-espera sm:text-6xl">
-            {espera.nombre}
+            {espera.name}
           </span>
           <span className="mt-1 text-sm text-carbon/50">
-            {espera.personas}{" "}
-            {espera.personas === 1
+            {espera.partySize}{" "}
+            {espera.partySize === 1
               ? locale === "en"
                 ? "guest"
                 : "persona"

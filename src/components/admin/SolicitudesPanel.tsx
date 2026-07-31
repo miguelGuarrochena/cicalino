@@ -26,7 +26,7 @@ export const SolicitudesPanel = () => {
     void load();
   }, [load]);
 
-  const nuevas = items.filter((s) => s.estado === "nueva");
+  const nuevas = items.filter((s) => s.status === "nueva");
   if (nuevas.length === 0) return null;
 
   const activar = async (id: string) => {
@@ -85,7 +85,7 @@ export const SolicitudesPanel = () => {
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-carbon">
-                  {s.local || s.nombre}
+                  {s.local || s.name}
                   <span className="ml-2 rounded-full bg-carbon/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/55">
                     {esContrato
                       ? `Contrato${planLbl ? ` · ${planLbl}` : ""}${packLbl ? ` · ${packLbl}` : ""}`
@@ -93,7 +93,7 @@ export const SolicitudesPanel = () => {
                   </span>
                 </p>
                 <p className="truncate text-xs text-carbon/55">
-                  {s.nombre} · {s.email}
+                  {s.name} · {s.email}
                   {s.telefono ? ` · ${s.telefono}` : ""}
                   {s.ciudad ? ` · ${s.ciudad}` : ""}
                   {s.direccion ? ` · ${s.direccion}` : ""}

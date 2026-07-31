@@ -10,19 +10,19 @@ export type IdentificationMode = "pedido" | "nombre" | "mesa";
 
 export interface EmployeeUI {
   id: string;
-  nombre: string;
+  name: string;
   rol: string;
   tienePin: boolean;
 }
 
 export type NewEmployeeInput = {
-  nombre: string;
+  name: string;
   rol?: string;
   pin?: string;
 };
 
 interface ConfigState {
-  nombre: string;
+  name: string;
   tipo: BusinessType;
   whatsapp: string;
   direccion: string;
@@ -31,10 +31,10 @@ interface ConfigState {
   cutoffHour: number;
   moduloPedidos: boolean;
   moduloEspera: boolean;
-  empleados: EmployeeUI[];
+  employees: EmployeeUI[];
 
   setCampo: (
-    campo: "nombre" | "tipo" | "whatsapp" | "direccion",
+    campo: "name" | "tipo" | "whatsapp" | "direccion",
     valor: string,
   ) => void;
   setModo: (mode: IdentificationMode) => void;
@@ -44,7 +44,7 @@ interface ConfigState {
     partial: Partial<
       Pick<
         ConfigState,
-        | "nombre"
+        | "name"
         | "tipo"
         | "whatsapp"
         | "direccion"
@@ -61,7 +61,7 @@ interface ConfigState {
   agregarEmpleado: (data: NewEmployeeInput) => void;
   actualizarEmpleado: (
     id: string,
-    campo: "nombre" | "rol",
+    campo: "name" | "rol",
     valor: string,
   ) => void;
   marcarPinEmpleado: (id: string, tienePin: boolean) => void;
@@ -72,7 +72,7 @@ interface ConfigState {
 
 const INICIAL = supabaseConfigured
   ? {
-      nombre: "",
+      name: "",
       tipo: "otro" as BusinessType,
       whatsapp: "",
       direccion: "",
@@ -81,11 +81,11 @@ const INICIAL = supabaseConfigured
       cutoffHour: 6,
       moduloPedidos: true,
       moduloEspera: false,
-      empleados: [] as EmployeeUI[],
+      employees: [] as EmployeeUI[],
       branchConfigReady: false,
     }
   : {
-      nombre: "La Esquina Centro",
+      name: "La Esquina Centro",
       tipo: "panaderia" as BusinessType,
       whatsapp: "+54 9 341 555 1234",
       direccion: "Calle Falsa 742, Rosario",
@@ -94,9 +94,9 @@ const INICIAL = supabaseConfigured
       cutoffHour: 6,
       moduloPedidos: true,
       moduloEspera: true,
-      empleados: [
-        { id: "emp-demo-1", nombre: "Lucía", rol: "Mozo", tienePin: false },
-        { id: "emp-demo-2", nombre: "Marcos", rol: "Cocina", tienePin: false },
+      employees: [
+        { id: "emp-demo-1", name: "Lucía", rol: "Mozo", tienePin: false },
+        { id: "emp-demo-2", name: "Marcos", rol: "Cocina", tienePin: false },
       ] as EmployeeUI[],
       branchConfigReady: true,
     };
@@ -113,16 +113,16 @@ export const useConfigStore = create<ConfigState>()(
         set({ cutoffHour: Math.min(23, Math.max(0, Math.floor(n) || 0)) }),
       hydrate: (partial) => set({ ...partial, branchConfigReady: true }),
       setBranchConfigReady: (v) => set({ branchConfigReady: v }),
-      setEmpleados: (list) => set({ empleados: list }),
-      pushEmpleado: (emp) => set((s) => ({ empleados: [...s.empleados, emp] })),
+      setEmpleados: (list) => set({ employees: list }),
+      pushEmpleado: (emp) => set((s) => ({ employees: [...s.employees, emp] })),
 
       agregarEmpleado: (data) =>
         set((s) => ({
-          empleados: [
-            ...s.empleados,
+          employees: [
+            ...s.employees,
             {
               id: crypto.randomUUID(),
-              nombre: data.nombre.trim(),
+              name: data.name.trim(),
               rol: (data.rol ?? "").trim(),
               tienePin: Boolean((data.pin ?? "").trim()),
             },
@@ -130,18 +130,18 @@ export const useConfigStore = create<ConfigState>()(
         })),
       actualizarEmpleado: (id, campo, valor) =>
         set((s) => ({
-          empleados: s.empleados.map((e) =>
+          employees: s.employees.map((e) =>
             e.id === id ? { ...e, [campo]: valor } : e,
           ),
         })),
       marcarPinEmpleado: (id, tienePin) =>
         set((s) => ({
-          empleados: s.empleados.map((e) =>
+          employees: s.employees.map((e) =>
             e.id === id ? { ...e, tienePin } : e,
           ),
         })),
       quitarEmpleado: (id) =>
-        set((s) => ({ empleados: s.empleados.filter((e) => e.id !== id) })),
+        set((s) => ({ employees: s.employees.filter((e) => e.id !== id) })),
     }),
     {
       name: "cicalino-config",
@@ -153,12 +153,12 @@ export const useConfigStore = create<ConfigState>()(
           cutoffHour: s.cutoffHour,
           moduloPedidos: s.moduloPedidos,
           moduloEspera: s.moduloEspera,
-          empleados: s.empleados,
+          employees: s.employees,
         };
         if (supabaseConfigured) return operacion;
         return {
           ...operacion,
-          nombre: s.nombre,
+          name: s.name,
           tipo: s.tipo,
           whatsapp: s.whatsapp,
           direccion: s.direccion,

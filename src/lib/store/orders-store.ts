@@ -18,7 +18,7 @@ const conTimestamp = (p: OrderView, status: OrderStatus): OrderView => {
   const ahora = new Date().toISOString();
   return {
     ...p,
-    estado: status,
+    status: status,
     preparingAt:
       status === "en_preparacion" ? ahora : p.preparingAt,
     readyAt: status === "listo" ? ahora : p.readyAt,

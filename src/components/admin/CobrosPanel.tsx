@@ -26,7 +26,7 @@ export const CobrosPanel = ({
         )
         .map((o) => ({
           id: o.id,
-          nombre: o.nombre,
+          name: o.name,
           motivo: billingReason({
             activo: o.activo,
             pagado: o.pagado,
@@ -60,7 +60,7 @@ export const CobrosPanel = ({
             className="flex flex-col gap-2 rounded-2xl border border-amber-200/80 bg-surface px-3 py-3 sm:flex-row sm:items-center"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-carbon">{o.nombre}</p>
+              <p className="truncate font-semibold text-carbon">{o.name}</p>
               <p className="truncate text-xs text-carbon/55">
                 {o.motivo} · {o.email}
               </p>

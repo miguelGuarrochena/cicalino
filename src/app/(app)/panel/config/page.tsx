@@ -166,7 +166,7 @@ const ConfigPage = () => {
                 {t("config.nombre")}
               </span>
               <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
-                {c.nombre.trim() || "—"}
+                {c.name.trim() || "—"}
               </p>
             </div>
             <div className="flex flex-col gap-1.5">

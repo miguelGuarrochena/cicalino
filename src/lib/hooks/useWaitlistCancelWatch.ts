@@ -21,7 +21,7 @@ const POLL_MS = 15_000;
 
 const announce = (args: {
   id: string;
-  nombre: string;
+  name: string;
   fromGuest: boolean;
   toast: (msg: string, kind?: "info" | "success" | "error") => void;
   locale: string;
@@ -33,15 +33,15 @@ const announce = (args: {
     dingCancelled();
     args.toast(
       args.locale === "en"
-        ? `${args.nombre} cancelled their wait`
-        : `${args.nombre} canceló la espera`,
+        ? `${args.name} cancelled their wait`
+        : `${args.name} canceló la espera`,
       "error",
     );
   } else {
     args.toast(
       args.locale === "en"
-        ? `Cancelled: ${args.nombre}`
-        : `Cancelado: ${args.nombre}`,
+        ? `Cancelled: ${args.name}`
+        : `Cancelado: ${args.name}`,
       "info",
     );
   }
@@ -66,7 +66,7 @@ export const useWaitlistCancelWatch = () => {
       ready.current = false;
       const apply = () => {
         const rows = useWaitlistStore.getState().esperas;
-        const next = new Map(rows.map((e) => [e.id, e.estado]));
+        const next = new Map(rows.map((e) => [e.id, e.status]));
         if (!ready.current) {
           prev.current = next;
           ready.current = true;
@@ -74,13 +74,13 @@ export const useWaitlistCancelWatch = () => {
         }
         for (const e of rows) {
           const before = prev.current.get(e.id);
-          if (!before || before === "cancelado" || e.estado !== "cancelado")
+          if (!before || before === "cancelado" || e.status !== "cancelado")
             continue;
           const fromStaff = staffWaitlistCancelIds.has(e.id);
           staffWaitlistCancelIds.delete(e.id);
           announce({
             id: e.id,
-            nombre: e.nombre,
+            name: e.name,
             fromGuest: !fromStaff,
             toast,
             locale,
@@ -115,10 +115,10 @@ export const useWaitlistCancelWatch = () => {
     const tick = async () => {
       const rows = await fetchTodayWaitlist(branchId);
       if (!active) return;
-      const next = new Map(rows.map((e) => [e.id, e.estado]));
+      const next = new Map(rows.map((e) => [e.id, e.status]));
       if (!ready.current) {
         for (const e of rows) {
-          if (e.estado === "cancelado") seen.current.add(e.id);
+          if (e.status === "cancelado") seen.current.add(e.id);
         }
         prev.current = next;
         ready.current = true;
@@ -126,13 +126,13 @@ export const useWaitlistCancelWatch = () => {
       }
       for (const e of rows) {
         const before = prev.current.get(e.id);
-        if (!before || before === "cancelado" || e.estado !== "cancelado")
+        if (!before || before === "cancelado" || e.status !== "cancelado")
           continue;
         const fromStaff = staffWaitlistCancelIds.has(e.id);
         staffWaitlistCancelIds.delete(e.id);
         announce({
           id: e.id,
-          nombre: e.nombre,
+          name: e.name,
           fromGuest: !fromStaff,
           toast,
           locale,
@@ -157,13 +157,13 @@ export const useWaitlistCancelWatch = () => {
       .on(
         "broadcast",
         { event: "guest-cancel" },
-        (msg: { payload?: { id?: string; nombre?: string } }) => {
+        (msg: { payload?: { id?: string; name?: string } }) => {
           const id = msg.payload?.id;
-          const nombre = msg.payload?.nombre;
-          if (!id || !nombre) return;
+          const name = msg.payload?.name;
+          if (!id || !name) return;
           announce({
             id,
-            nombre,
+            name,
             fromGuest: true,
             toast,
             locale,

@@ -7,7 +7,7 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 
 interface Props {
-  referencia: string;
+  reference: string;
   token: string;
   etiqueta: string;
   onClose: () => void;
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export const QrModal = ({
-  referencia: reference,
+  reference: reference,
   token,
   etiqueta,
   onClose,

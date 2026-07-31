@@ -47,7 +47,7 @@ const mapOrg = (o: OrgDb): OrganizationRow => {
     return {
       id: l.id,
       organizationId: o.id,
-      nombre: l.nombre,
+      name: l.nombre,
       tipo: l.tipo_negocio ?? "otro",
       direccion: l.direccion ?? "",
       activo: true,
@@ -67,7 +67,7 @@ const mapOrg = (o: OrgDb): OrganizationRow => {
       };
   return {
     id: o.id,
-    nombre: o.nombre,
+    name: o.nombre,
     responsable: o.responsable ?? "",
     telefono: o.telefono ?? "",
     cuil: o.cuil ?? "",
@@ -180,7 +180,7 @@ export const syncOrgModulesFromBranches = async (
 export const insertBranchDb = async (
   orgId: string,
   data: {
-    nombre: string;
+    name: string;
     tipo: BusinessType;
     direccion: string;
     whatsapp?: string;
@@ -194,14 +194,14 @@ export const insertBranchDb = async (
     pedidos: data.moduloPedidos,
     espera: data.moduloEspera,
   });
-  const slug = `${data.nombre
+  const slug = `${data.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
     .slice(0, 40) || "sucursal"}-${Math.random().toString(36).slice(2, 7)}`;
   const { error } = await supabase.from("locales").insert({
     organizacion_id: orgId,
-    nombre: data.nombre.trim(),
+    nombre: data.name.trim(),
     tipo_negocio: data.tipo,
     direccion: data.direccion.trim() || null,
     whatsapp: data.whatsapp?.trim() || null,

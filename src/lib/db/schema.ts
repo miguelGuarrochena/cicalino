@@ -193,14 +193,14 @@ export const pushSubscriptions = pgTable(
 
 export const leads = pgTable("solicitudes", {
   id: uuid("id").primaryKey().defaultRandom(),
-  nombre: text("nombre").notNull(),
+  name: text("nombre").notNull(),
   email: text("email").notNull(),
   telefono: text("telefono"),
   local: text("local"),
   ciudad: text("ciudad"),
   direccion: text("direccion"),
   cuil: text("cuil"),
-  estado: text("estado").notNull().default("nueva"),
+  status: text("estado").notNull().default("nueva"),
   tipo: text("tipo").notNull().default("prueba"),
   plan: text("plan"),
   pack: text("pack"),

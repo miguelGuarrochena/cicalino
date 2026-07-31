@@ -104,7 +104,7 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
                 Condiciones y pago
               </h1>
               <p className="mt-2 text-sm text-carbon/60">
-                <b className="text-carbon">{data.nombre}</b>
+                <b className="text-carbon">{data.name}</b>
                 {" · "}
                 Plan {data.ciclo}
                 {data.modulos ? ` · ${data.modulos}` : ""}
@@ -186,7 +186,7 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
                 </span>
               </button>
               <p className="mt-3 text-xs leading-relaxed text-carbon/50">
-                En el concepto poné el nombre del local. El precio puede
+                En el concepto poné el name del local. El precio puede
                 actualizarse por inflación; te avisamos con anticipación
                 razonable antes del próximo ciclo.
               </p>

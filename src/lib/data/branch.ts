@@ -84,7 +84,7 @@ type EmpRow = {
 
 const mapEmp = (r: EmpRow): EmployeeUI => ({
   id: r.id,
-  nombre: r.nombre,
+  name: r.nombre,
   rol: r.rol ?? "",
   tienePin: Boolean(r.tiene_pin),
 });
@@ -121,7 +121,7 @@ export const setEmployeePin = async (
 export const verifyEmployeePin = async (
   employeeId: string,
   pin: string,
-): Promise<{ id: string; nombre: string } | null> => {
+): Promise<{ id: string; name: string } | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
   const { data, error } = await supabase.rpc("verificar_pin_empleado", {
@@ -133,7 +133,7 @@ export const verifyEmployeePin = async (
     return null;
   }
   const fila = Array.isArray(data) ? data[0] : data;
-  return fila ? { id: fila.id, nombre: fila.nombre } : null;
+  return fila ? { id: fila.id, name: fila.nombre } : null;
 };
 
 export type InsertEmployeeResult =
@@ -142,7 +142,7 @@ export type InsertEmployeeResult =
 
 export const insertEmployee = async (
   branchId: string,
-  data: { nombre: string; rol?: string; pin?: string },
+  data: { name: string; rol?: string; pin?: string },
 ): Promise<InsertEmployeeResult> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return { ok: false, reason: "error" };
@@ -159,7 +159,13 @@ export const insertEmployee = async (
     .eq("activo", true);
   if (
     existentes &&
-    isEmployeeNameTaken(v.data.nombre, existentes as { id: string; nombre: string }[])
+    isEmployeeNameTaken(
+      v.data.name,
+      (existentes as { id: string; nombre: string }[]).map((e) => ({
+        id: e.id,
+        name: e.nombre,
+      })),
+    )
   ) {
     return { ok: false, reason: "nombre_dup" };
   }
@@ -168,7 +174,7 @@ export const insertEmployee = async (
     .from("empleados")
     .insert({
       local_id: branchId,
-      nombre: v.data.nombre,
+      nombre: v.data.name,
       rol: v.data.rol ?? null,
     })
     .select("id, nombre, rol, tiene_pin")
@@ -198,7 +204,7 @@ export const insertEmployee = async (
 
 export interface BranchLite {
   id: string;
-  nombre: string;
+  name: string;
 }
 
 export const fetchMyBranches = async (
@@ -212,7 +218,10 @@ export const fetchMyBranches = async (
     .eq("organizacion_id", orgId)
     .order("created_at", { ascending: true });
   if (error || !data) return [];
-  return data as BranchLite[];
+  return (data as { id: string; nombre: string }[]).map((b) => ({
+    id: b.id,
+    name: b.nombre,
+  }));
 };
 
 export const removeEmployeeDb = async (id: string): Promise<void> => {

@@ -84,7 +84,7 @@ const SuperadminPage = () => {
       if (filtro === "pausadas" && o.activo) return false;
       if (filtro === "impagos" && (o.pagado || !o.activo)) return false;
       if (!needle) return true;
-      const hay = [o.nombre, o.responsable, o.telefono, o.ownerEmail, o.cuil]
+      const hay = [o.name, o.responsable, o.telefono, o.ownerEmail, o.cuil]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -284,7 +284,7 @@ const SuperadminPage = () => {
               className="flex w-full flex-col gap-3 rounded-2xl border border-linea bg-surface p-4 text-left shadow-sm transition hover:border-marca/40 hover:bg-marca/5 sm:flex-row sm:items-center"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-carbon">{o.nombre}</p>
+                <p className="truncate font-semibold text-carbon">{o.name}</p>
                 <p className="truncate text-xs text-carbon/50">
                   {o.responsable}
                   {o.telefono ? ` · ${o.telefono}` : ""} · {o.ownerEmail}

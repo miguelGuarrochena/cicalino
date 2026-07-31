@@ -73,7 +73,7 @@ const PanelOrdersPage = () => {
   } = useOrders(branchId);
   const branchNameLabel = live
     ? liveBranchName
-    : branchById(orgs, branchId)?.nombre;
+    : branchById(orgs, branchId)?.name;
 
   const [qrOrder, setQrOrder] = useState<OrderView | null>(null);
   const [page, setPage] = useState(1);
@@ -100,28 +100,28 @@ const PanelOrdersPage = () => {
   const filtrados = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return orders
-      .filter((p) => matchFiltro(p.estado, filtro))
+      .filter((p) => matchFiltro(p.status, filtro))
       .filter((p) =>
-        needle ? p.referencia.toLowerCase().includes(needle) : true,
+        needle ? p.reference.toLowerCase().includes(needle) : true,
       )
       .sort((a, b) => {
-        if (a.estado === b.estado) return 0;
-        return ORDEN[a.estado] - ORDEN[b.estado];
+        if (a.status === b.status) return 0;
+        return ORDEN[a.status] - ORDEN[b.status];
       });
   }, [orders, filtro, q]);
 
   const nextNumero = useMemo(() => {
     const nums = orders
-      .map((p) => parseInt(p.referencia, 10))
+      .map((p) => parseInt(p.reference, 10))
       .filter((n) => Number.isFinite(n));
     return (nums.length ? Math.max(...nums) : 0) + 1;
   }, [orders]);
 
-  const activeItems = orders.filter((p) => !orderClosed(p.estado));
+  const activeItems = orders.filter((p) => !orderClosed(p.status));
   const enCurso = activeItems.filter(
-    (p) => p.estado === "creado" || p.estado === "en_preparacion",
+    (p) => p.status === "creado" || p.status === "en_preparacion",
   ).length;
-  const listos = activeItems.filter((p) => p.estado === "listo").length;
+  const listos = activeItems.filter((p) => p.status === "listo").length;
   const pageItems = slicePage(filtrados, page, PAGE_SIZE);
 
   const buscarPh =
@@ -231,7 +231,7 @@ const PanelOrdersPage = () => {
       };
 
   const countFiltro = (f: FiltroEstado) => {
-        return orders.filter((p) => matchFiltro(p.estado, f)).length;
+        return orders.filter((p) => matchFiltro(p.status, f)).length;
       };
 
   return (
@@ -519,7 +519,7 @@ const PanelOrdersPage = () => {
 
       {qrOrder && (
         <QrModal
-          referencia={qrOrder.referencia}
+          reference={qrOrder.reference}
           token={qrOrder.qrToken}
           etiqueta={t(`modo.${mode}`)}
           onClose={() => setQrOrder(null)}

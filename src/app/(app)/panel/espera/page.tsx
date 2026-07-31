@@ -141,7 +141,7 @@ const PersonasChips = ({
 };
 
 const mesaTileClass = (
-  estado: TableState,
+  status: TableState,
   opts?: {
     pickable?: boolean;
     selected?: boolean;
@@ -155,10 +155,10 @@ const mesaTileClass = (
   if (opts?.selected) {
     return `${base} border-espera bg-espera text-crema ring-2 ring-espera/40`;
   }
-  if (opts?.tooSmall && estado === "libre") {
+  if (opts?.tooSmall && status === "libre") {
     return `${base} border-espera/30 bg-espera/15 text-espera/50 cursor-not-allowed`;
   }
-  if (estado === "libre") {
+  if (status === "libre") {
     return `${base} ${
       opts?.reservaPronto
         ? "border-amber-500 ring-2 ring-amber-400/50"
@@ -177,7 +177,7 @@ const AvisoReserva = ({
   locale,
   ahora,
 }: {
-  avisos: { numero: number; reserva: ReservationView }[];
+  avisos: { number: number; reserva: ReservationView }[];
   locale: string;
   ahora: number;
 }) => {
@@ -194,15 +194,15 @@ const AvisoReserva = ({
             : "Estas mesas tienen reserva"}
       </p>
       <ul className="mt-2 flex flex-col gap-1.5">
-        {avisos.map(({ numero, reserva }) => (
-          <li key={`${numero}-${reserva.id}`} className="text-sm text-carbon/75">
+        {avisos.map(({ number, reserva }) => (
+          <li key={`${number}-${reserva.id}`} className="text-sm text-carbon/75">
             <span className="font-semibold text-carbon">
-              {locale === "en" ? `Table ${numero}` : `Mesa ${numero}`} ·{" "}
-              {reservationTime(reserva.horario)}
+              {locale === "en" ? `Table ${number}` : `Mesa ${number}`} ·{" "}
+              {reservationTime(reserva.scheduledAt)}
             </span>{" "}
-            — {reserva.nombre}, {reserva.personas}{" "}
+            — {reserva.name}, {reserva.partySize}{" "}
             {locale === "en" ? "guests" : "personas"} (
-            {timeUntilLabel(reserva.horario, locale === "en" ? "en" : "es", ahora)})
+            {timeUntilLabel(reserva.scheduledAt, locale === "en" ? "en" : "es", ahora)})
           </li>
         ))}
       </ul>
@@ -439,8 +439,8 @@ const EsperaPanelPage = () => {
   const [qr, setQr] = useState<WaitlistView | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [reservaOpen, setReservaOpen] = useState(false);
-  const [nombre, setNombre] = useState("");
-  const [personas, setPersonas] = useState(2);
+  const [name, setNombre] = useState("");
+  const [partySize, setPersonas] = useState(2);
   const [creating, setCreating] = useState(false);
   const [reservaNombre, setReservaNombre] = useState("");
   const [reservaPersonas, setReservaPersonas] = useState(2);
@@ -522,7 +522,7 @@ const EsperaPanelPage = () => {
   const cola = useMemo(
     () =>
       esperas
-        .filter((e) => e.estado === "esperando" || e.estado === "avisado")
+        .filter((e) => e.status === "esperando" || e.status === "avisado")
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [esperas],
   );
@@ -531,7 +531,7 @@ const EsperaPanelPage = () => {
     return esperas
       .filter(
         (e) =>
-          e.estado === "cancelado" &&
+          e.status === "cancelado" &&
           (e.cancelledAt ?? e.createdAt) >= desde,
       )
       .sort((a, b) =>
@@ -541,7 +541,7 @@ const EsperaPanelPage = () => {
       );
   }, [esperas, cutoffHour]);
   const reservasActivas = useMemo(
-    () => reservas.filter((r) => r.estado === "activa"),
+    () => reservas.filter((r) => r.status === "activa"),
     [reservas],
   );
   const reservaById = useMemo(() => {
@@ -560,38 +560,38 @@ const EsperaPanelPage = () => {
     [reservas, ahora],
   );
 
-  const libres = mesas.filter((m) => m.estado === "libre").length;
-  const ocupadas = mesas.filter((m) => m.estado === "ocupada").length;
-  const conReserva = mesas.filter((m) => reservaPorMesa.has(m.numero)).length;
-  const personasEnCola = cola.reduce((sum, e) => sum + e.personas, 0);
+  const libres = mesas.filter((m) => m.status === "libre").length;
+  const ocupadas = mesas.filter((m) => m.status === "ocupada").length;
+  const conReserva = mesas.filter((m) => reservaPorMesa.has(m.number)).length;
+  const personasEnCola = cola.reduce((sum, e) => sum + e.partySize, 0);
   const mesasFiltradas = useMemo(() => {
     const needle = qMesa.trim().toLowerCase();
     return mesas.filter((m) => {
-      if (filtroMesa === "conReserva" && !reservaPorMesa.has(m.numero)) {
+      if (filtroMesa === "conReserva" && !reservaPorMesa.has(m.number)) {
         return false;
       }
       if (
         (filtroMesa === "libre" || filtroMesa === "ocupada") &&
-        m.estado !== filtroMesa
+        m.status !== filtroMesa
       ) {
         return false;
       }
       if (!needle) return true;
-      if (String(m.numero).includes(needle)) return true;
-      const reserva = reservaPorMesa.get(m.numero);
-      if (reserva?.nombre.toLowerCase().includes(needle)) return true;
+      if (String(m.number).includes(needle)) return true;
+      const reserva = reservaPorMesa.get(m.number);
+      if (reserva?.name.toLowerCase().includes(needle)) return true;
       const espera =
         m.waitlistId != null ? esperaById.get(m.waitlistId) : undefined;
-      if (espera?.nombre.toLowerCase().includes(needle)) return true;
+      if (espera?.name.toLowerCase().includes(needle)) return true;
       const sentada =
         m.reservationId != null ? reservaById.get(m.reservationId) : undefined;
-      if (sentada?.nombre.toLowerCase().includes(needle)) return true;
+      if (sentada?.name.toLowerCase().includes(needle)) return true;
       return false;
     });
   }, [mesas, filtroMesa, qMesa, reservaPorMesa, reservaById, esperaById]);
   const paginated = slicePage(cola, page, PAGE_SIZE);
   const sentarEspera = esperas.find((e) => e.id === sentarId);
-  const mesasLibres = mesas.filter((m) => m.estado === "libre");
+  const mesasLibres = mesas.filter((m) => m.status === "libre");
   const reservaHorarioIso = useMemo(() => {
     const d = new Date(reservaHorario);
     return Number.isNaN(d.getTime()) ? null : d.toISOString();
@@ -601,22 +601,22 @@ const EsperaPanelPage = () => {
     if (!reservaHorarioIso) return map;
     for (const m of mesas) {
       const choque = conflictingReservation(
-        [m.numero],
+        [m.number],
         reservaHorarioIso,
         reservas,
       );
-      if (choque) map.set(m.numero, choque);
+      if (choque) map.set(m.number, choque);
     }
     return map;
   }, [mesas, reservas, reservaHorarioIso]);
   const mesasParaReserva = mesas.filter(
-    (m) => !reservaChoquePorMesa.has(m.numero),
+    (m) => !reservaChoquePorMesa.has(m.number),
   );
   const reservaCapSeleccionada = mesas
-    .filter((m) => reservaMesas.includes(m.numero))
-    .reduce((s, m) => s + (m.capacidad ?? 4), 0);
+    .filter((m) => reservaMesas.includes(m.number))
+    .reduce((s, m) => s + (m.capacity ?? 4), 0);
   const reservaCapLibre = mesasParaReserva.reduce(
-    (s, m) => s + (m.capacidad ?? 4),
+    (s, m) => s + (m.capacity ?? 4),
     0,
   );
   const reservaPuedeCubrir = reservaCapLibre >= reservaPersonas;
@@ -624,41 +624,41 @@ const EsperaPanelPage = () => {
     reservaMesas.length > 0 && reservaCapSeleccionada >= reservaPersonas;
   const reservaFaltan = Math.max(0, reservaPersonas - reservaCapSeleccionada);
   const reservaMaxMesaLibre = mesasParaReserva.reduce(
-    (max, m) => Math.max(max, m.capacidad ?? 4),
+    (max, m) => Math.max(max, m.capacity ?? 4),
     0,
   );
   const reservaCabeEnUna = reservaMaxMesaLibre >= reservaPersonas;
   const ocuparCap = mesas
-    .filter((m) => ocuparMesasSel.includes(m.numero))
-    .reduce((s, m) => s + (m.capacidad ?? 4), 0);
+    .filter((m) => ocuparMesasSel.includes(m.number))
+    .reduce((s, m) => s + (m.capacity ?? 4), 0);
   const ocuparFaltan = Math.max(0, ocuparPersonas - ocuparCap);
   const ocuparOk =
     ocuparMesasSel.length > 0 && ocuparCap >= ocuparPersonas;
   const ocuparPrimariaMesa =
     ocuparPrimaria != null
-      ? mesas.find((m) => m.numero === ocuparPrimaria)
+      ? mesas.find((m) => m.number === ocuparPrimaria)
       : undefined;
   const ocuparNecesitaMapa = ocuparMesasSel.length > 0 && !ocuparOk;
   const ocuparAvisos = ocuparMesasSel
-    .map((n) => ({ numero: n, reserva: reservaPorMesa.get(n) }))
+    .map((n) => ({ number: n, reserva: reservaPorMesa.get(n) }))
     .filter(
-      (x): x is { numero: number; reserva: ReservationView } => x.reserva != null,
+      (x): x is { number: number; reserva: ReservationView } => x.reserva != null,
     )
-    .sort((a, b) => a.reserva.horario.localeCompare(b.reserva.horario));
+    .sort((a, b) => a.reserva.scheduledAt.localeCompare(b.reserva.scheduledAt));
   const sentarAvisos = sentarMesas
-    .map((n) => ({ numero: n, reserva: reservaPorMesa.get(n) }))
+    .map((n) => ({ number: n, reserva: reservaPorMesa.get(n) }))
     .filter(
-      (x): x is { numero: number; reserva: ReservationView } => x.reserva != null,
+      (x): x is { number: number; reserva: ReservationView } => x.reserva != null,
     )
-    .sort((a, b) => a.reserva.horario.localeCompare(b.reserva.horario));
+    .sort((a, b) => a.reserva.scheduledAt.localeCompare(b.reserva.scheduledAt));
   const confirmCancelEspera = esperas.find(
     (e) => e.id === confirmCancelEsperaId,
   );
   const confirmCancelReserva = reservas.find(
     (r) => r.id === confirmCancelReservaId,
   );
-  const editCapacidadMesa = mesas.find((m) => m.numero === editCapacidadNumero);
-  const liberarMesaView = mesas.find((m) => m.numero === liberarNumero);
+  const editCapacidadMesa = mesas.find((m) => m.number === editCapacidadNumero);
+  const liberarMesaView = mesas.find((m) => m.number === liberarNumero);
   const liberarReserva =
     liberarMesaView?.reservationId != null
       ? reservaById.get(liberarMesaView.reservationId)
@@ -668,10 +668,10 @@ const EsperaPanelPage = () => {
       ? esperaById.get(liberarMesaView.waitlistId)
       : undefined;
   const liberarGrupoMesas =
-    liberarMesaView?.estado === "ocupada"
+    liberarMesaView?.status === "ocupada"
       ? mesas
           .filter((m) => {
-            if (m.estado !== "ocupada") return false;
+            if (m.status !== "ocupada") return false;
             if (
               liberarMesaView.waitlistId &&
               m.waitlistId === liberarMesaView.waitlistId
@@ -684,9 +684,9 @@ const EsperaPanelPage = () => {
             ) {
               return true;
             }
-            return m.numero === liberarMesaView.numero;
+            return m.number === liberarMesaView.number;
           })
-          .map((m) => m.numero)
+          .map((m) => m.number)
           .sort((a, b) => a - b)
       : liberarNumero != null
         ? [liberarNumero]
@@ -701,8 +701,8 @@ const EsperaPanelPage = () => {
 
   const hayMesaPara = (personasGrupo: number) => {
     const libresCap = mesas
-      .filter((m) => m.estado === "libre")
-      .map((m) => m.capacidad ?? 4)
+      .filter((m) => m.status === "libre")
+      .map((m) => m.capacity ?? 4)
       .sort((a, b) => b - a);
     if (!libresCap.length) return false;
     if (libresCap.some((c) => c >= personasGrupo)) return true;
@@ -715,18 +715,18 @@ const EsperaPanelPage = () => {
   };
 
   const employeeRef = activeEmployee
-    ? { id: activeEmployee.id, nombre: activeEmployee.nombre }
+    ? { id: activeEmployee.id, name: activeEmployee.name }
     : null;
 
   const onCrear = async () => {
     if (creating) return;
-    if (!nombre.trim()) {
+    if (!name.trim()) {
       toast(locale === "en" ? "Enter a name" : "Ingresá un nombre", "error");
       return;
     }
     setCreating(true);
     try {
-      const created = await crearEspera(nombre, personas, employeeRef);
+      const created = await crearEspera(name, partySize, employeeRef);
       if (created) {
         setQr(created);
         setCreateOpen(false);
@@ -771,18 +771,18 @@ const EsperaPanelPage = () => {
       toast(msg, "error");
       return;
     }
-    const horario = new Date(reservaHorario);
-    if (Number.isNaN(horario.getTime())) {
+    const scheduledAt = new Date(reservaHorario);
+    if (Number.isNaN(scheduledAt.getTime())) {
       toast(locale === "en" ? "Invalid time" : "Horario inválido", "error");
       return;
     }
     setCreatingReserva(true);
     try {
       const created = await crearReserva({
-        nombre: reservaNombre,
-        personas: reservaPersonas,
+        name: reservaNombre,
+        partySize: reservaPersonas,
         tableNumbers: reservaMesas,
-        horario: horario.toISOString(),
+        scheduledAt: scheduledAt.toISOString(),
         graceMinutes: reservaGracia,
         employee: employeeRef,
       });
@@ -973,35 +973,35 @@ const EsperaPanelPage = () => {
               m.waitlistId != null ? esperaById.get(m.waitlistId) : undefined;
             const reservaSentada =
               m.reservationId != null ? reservaById.get(m.reservationId) : undefined;
-            const libre = m.estado === "libre";
-            const reservaProx = reservaPorMesa.get(m.numero);
+            const libre = m.status === "libre";
+            const reservaProx = reservaPorMesa.get(m.number);
             const pronto = reservaProx
               ? isReservationSoon(reservaProx, ahora)
               : false;
             const etiquetaGrupo = libre
-              ? reservaProx?.nombre
-              : (espera?.nombre ?? reservaSentada?.nombre);
+              ? reservaProx?.name
+              : (espera?.name ?? reservaSentada?.name);
             return (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => {
                   if (libre) {
-                    setOcuparPrimaria(m.numero);
-                    setOcuparMesasSel([m.numero]);
+                    setOcuparPrimaria(m.number);
+                    setOcuparMesasSel([m.number]);
                     setOcuparNombre("");
-                    setOcuparPersonas(Math.min(m.capacidad ?? 4, 4));
+                    setOcuparPersonas(Math.min(m.capacity ?? 4, 4));
                     setOcuparOpen(true);
                     return;
                   }
-                  setLiberarNumero(m.numero);
+                  setLiberarNumero(m.number);
                 }}
                 title={
                   libre
                     ? reservaProx
                       ? locale === "en"
-                        ? `Free now · booking ${reservationTime(reservaProx.horario)} (${reservaProx.nombre})`
-                        : `Libre ahora · reserva ${reservationTime(reservaProx.horario)} (${reservaProx.nombre})`
+                        ? `Free now · booking ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
+                        : `Libre ahora · reserva ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
                       : locale === "en"
                         ? "Tap to seat now"
                         : "Tocar para sentar"
@@ -1009,7 +1009,7 @@ const EsperaPanelPage = () => {
                       ? "Tap to free"
                       : "Tocar para liberar"
                 }
-                className={mesaTileClass(m.estado, {
+                className={mesaTileClass(m.status, {
                   pickable: libre,
                   reservaPronto: pronto,
                 })}
@@ -1022,11 +1022,11 @@ const EsperaPanelPage = () => {
                         : "bg-carbon/70 text-crema"
                     }`}
                   >
-                    {reservationTime(reservaProx.horario)}
+                    {reservationTime(reservaProx.scheduledAt)}
                   </span>
                 )}
                 <span className="font-display text-lg leading-none">
-                  {m.numero}
+                  {m.number}
                 </span>
                 <span className="mt-1 text-[10px] font-bold uppercase tracking-wide opacity-90">
                   {libre
@@ -1038,7 +1038,7 @@ const EsperaPanelPage = () => {
                       : "Ocup."}
                 </span>
                 <span className="mt-0.5 text-[9px] font-semibold opacity-80">
-                  {m.capacidad ?? 4}p
+                  {m.capacity ?? 4}p
                 </span>
                 {etiquetaGrupo && (
                   <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-80">
@@ -1092,10 +1092,10 @@ const EsperaPanelPage = () => {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
-                      {r.nombre}
+                      {r.name}
                     </h3>
                     <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 dark:bg-amber-400/30 dark:text-amber-100">
-                      {RESERVATION_STATUS_LABEL[r.estado]}
+                      {RESERVATION_STATUS_LABEL[r.status]}
                     </span>
                     <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
                       {tablesTitle(
@@ -1105,10 +1105,10 @@ const EsperaPanelPage = () => {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-carbon/55">
-                    {formatHora(r.horario, locale)} · {r.personas}{" "}
+                    {formatHora(r.scheduledAt, locale)} · {r.partySize}{" "}
                     {locale === "en" ? "guests" : "personas"} · +
                     {r.graceMinutes} min
-                    {r.empleado ? ` · ${r.empleado}` : ""}
+                    {r.employee ? ` · ${r.employee}` : ""}
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
@@ -1160,12 +1160,12 @@ const EsperaPanelPage = () => {
             const urgencia =
               mins >= 20 ? "text-rose-600" : mins >= 10 ? "text-amber-700" : "";
             const pos = (page - 1) * PAGE_SIZE + idx + 1;
-            const puedeSentar = hayMesaPara(e.personas);
+            const puedeSentar = hayMesaPara(e.partySize);
             return (
             <article
               key={e.id}
               className={`rounded-[20px] border bg-surface p-4 shadow-sm ${
-                e.estado === "avisado"
+                e.status === "avisado"
                   ? "border-espera/50 bg-espera/5 ring-1 ring-espera/25"
                   : "border-linea"
               }`}
@@ -1177,26 +1177,26 @@ const EsperaPanelPage = () => {
                       {pos}
                     </span>
                     <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
-                      {e.nombre}
+                      {e.name}
                     </h3>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                        e.estado === "avisado"
+                        e.status === "avisado"
                           ? "bg-espera text-crema"
                           : "bg-amber-100 text-amber-800"
                       }`}
                     >
-                      {WAITLIST_STATUS_LABEL[e.estado]}
+                      {WAITLIST_STATUS_LABEL[e.status]}
                     </span>
                   </div>
                   <p className={`mt-1 text-sm text-carbon/55 ${urgencia}`}>
-                    {e.personas} {locale === "en" ? "guests" : "personas"} ·{" "}
+                    {e.partySize} {locale === "en" ? "guests" : "personas"} ·{" "}
                     <span className="font-semibold">{mins} min</span>
-                    {e.empleado ? ` · ${e.empleado}` : ""}
+                    {e.employee ? ` · ${e.employee}` : ""}
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[9.5rem] sm:flex-row sm:flex-wrap">
-                  {e.estado === "esperando" && (
+                  {e.status === "esperando" && (
                     <button
                       type="button"
                       onClick={() => void avisar(e.id).then(toastAviso)}
@@ -1205,7 +1205,7 @@ const EsperaPanelPage = () => {
                       {locale === "en" ? "Notify" : "Avisar"}
                     </button>
                   )}
-                  {e.estado === "avisado" && (
+                  {e.status === "avisado" && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1216,7 +1216,7 @@ const EsperaPanelPage = () => {
                       {locale === "en" ? "Notify again 🔔" : "Volver a avisar 🔔"}
                     </button>
                   )}
-                  {(e.estado === "esperando" || e.estado === "avisado") && (
+                  {(e.status === "esperando" || e.status === "avisado") && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1237,7 +1237,7 @@ const EsperaPanelPage = () => {
                     >
                       QR
                     </button>
-                    {!waitlistClosed(e.estado) && (
+                    {!waitlistClosed(e.status) && (
                       <button
                         type="button"
                         onClick={() => setConfirmCancelEsperaId(e.id)}
@@ -1287,10 +1287,10 @@ const EsperaPanelPage = () => {
               >
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-carbon/70">
-                    {e.nombre}
+                    {e.name}
                   </p>
                   <p className="text-xs text-carbon/45">
-                    {e.personas}{" "}
+                    {e.partySize}{" "}
                     {locale === "en" ? "guests" : "personas"}
                     {e.cancelledAt
                       ? ` · ${formatHora(e.cancelledAt, locale)}`
@@ -1351,7 +1351,7 @@ const EsperaPanelPage = () => {
 
       {qr && (
         <QrModal
-          referencia={qr.nombre}
+          reference={qr.name}
           token={qr.qrToken}
           etiqueta={locale === "en" ? "Party" : "Grupo"}
           onClose={() => setQr(null)}
@@ -1417,7 +1417,7 @@ const EsperaPanelPage = () => {
               </span>
               <input
                 className={INPUT}
-                value={nombre}
+                value={name}
                 onChange={(e) => setNombre(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void onCrear();
@@ -1430,7 +1430,7 @@ const EsperaPanelPage = () => {
               <span className="font-medium text-carbon/70">
                 {locale === "en" ? "Party size" : "Personas"}
               </span>
-              <PersonasChips value={personas} onChange={setPersonas} />
+              <PersonasChips value={partySize} onChange={setPersonas} />
             </div>
           </div>
         </ModalShell>
@@ -1565,10 +1565,10 @@ const EsperaPanelPage = () => {
               {mesas.length ? (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                   {mesas.map((m) => {
-                    const choque = reservaChoquePorMesa.get(m.numero);
+                    const choque = reservaChoquePorMesa.get(m.number);
                     const elegible = !choque;
-                    const selected = reservaMesas.includes(m.numero);
-                    const cap = m.capacidad ?? 4;
+                    const selected = reservaMesas.includes(m.number);
+                    const cap = m.capacity ?? 4;
                     const oversized = elegible && cap > reservaPersonas;
                     return (
                       <button
@@ -1578,16 +1578,16 @@ const EsperaPanelPage = () => {
                         title={
                           choque
                             ? locale === "en"
-                              ? `Booked ${reservationTime(choque.horario)} — ${choque.nombre}`
-                              : `Reservada ${reservationTime(choque.horario)} — ${choque.nombre}`
+                              ? `Booked ${reservationTime(choque.scheduledAt)} — ${choque.name}`
+                              : `Reservada ${reservationTime(choque.scheduledAt)} — ${choque.name}`
                             : undefined
                         }
                         onClick={() => {
                           if (!elegible) return;
                           setReservaMesas((prev) =>
-                            prev.includes(m.numero)
-                              ? prev.filter((n) => n !== m.numero)
-                              : [...prev, m.numero].sort((a, b) => a - b),
+                            prev.includes(m.number)
+                              ? prev.filter((n) => n !== m.number)
+                              : [...prev, m.number].sort((a, b) => a - b),
                           );
                         }}
                         className={
@@ -1601,12 +1601,12 @@ const EsperaPanelPage = () => {
                         }
                       >
                         <span className="font-display text-xl leading-none">
-                          {m.numero}
+                          {m.number}
                         </span>
                         <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
                           {choque
-                            ? reservationTime(choque.horario)
-                            : m.estado === "ocupada"
+                            ? reservationTime(choque.scheduledAt)
+                            : m.status === "ocupada"
                               ? locale === "en"
                                 ? "Busy now"
                                 : "Ocup. ahora"
@@ -1669,8 +1669,8 @@ const EsperaPanelPage = () => {
           </h2>
           <p className="mt-2 text-sm text-carbon/60">
             {locale === "en"
-              ? `${confirmCancelEspera.nombre} will leave the waitlist.`
-              : `${confirmCancelEspera.nombre} sale de la lista.`}
+              ? `${confirmCancelEspera.name} will leave the waitlist.`
+              : `${confirmCancelEspera.name} sale de la lista.`}
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <button
@@ -1709,8 +1709,8 @@ const EsperaPanelPage = () => {
           </h2>
           <p className="mt-2 text-sm text-carbon/60">
             {locale === "en"
-              ? `${tablesTitle(confirmCancelReserva.tableNumbers ?? [confirmCancelReserva.tableNumber], "en")} · ${confirmCancelReserva.nombre} will be freed.`
-              : `${tablesTitle(confirmCancelReserva.tableNumbers ?? [confirmCancelReserva.tableNumber], "es")} · ${confirmCancelReserva.nombre} se libera.`}
+              ? `${tablesTitle(confirmCancelReserva.tableNumbers ?? [confirmCancelReserva.tableNumber], "en")} · ${confirmCancelReserva.name} will be freed.`
+              : `${tablesTitle(confirmCancelReserva.tableNumbers ?? [confirmCancelReserva.tableNumber], "es")} · ${confirmCancelReserva.name} se libera.`}
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <button
@@ -1748,9 +1748,9 @@ const EsperaPanelPage = () => {
                 disabled={
                   !sentarMesas.length ||
                   mesas
-                    .filter((m) => sentarMesas.includes(m.numero))
-                    .reduce((s, m) => s + (m.capacidad ?? 4), 0) <
-                    (sentarEspera?.personas ?? 1)
+                    .filter((m) => sentarMesas.includes(m.number))
+                    .reduce((s, m) => s + (m.capacity ?? 4), 0) <
+                    (sentarEspera?.partySize ?? 1)
                 }
                 onClick={() => {
                   if (!sentarId || !sentarMesas.length) return;
@@ -1802,8 +1802,8 @@ const EsperaPanelPage = () => {
               className="font-display text-xl uppercase tracking-tight text-carbon"
             >
               {locale === "en"
-                ? `Seat ${sentarEspera?.nombre ?? ""}`
-                : `Sentar a ${sentarEspera?.nombre ?? ""}`}
+                ? `Seat ${sentarEspera?.name ?? ""}`
+                : `Sentar a ${sentarEspera?.name ?? ""}`}
             </h2>
             <ModalCloseBtn
               onClick={() => {
@@ -1815,14 +1815,14 @@ const EsperaPanelPage = () => {
           </div>
           <p className="mt-2 mb-1 text-sm text-carbon/55">
             {locale === "en"
-              ? `Party of ${sentarEspera?.personas ?? "?"}. Best-fit tables first — larger ones stay available.`
-              : `Grupo de ${sentarEspera?.personas ?? "?"}. Primero las que mejor entran; las más grandes las decidís vos.`}
+              ? `Party of ${sentarEspera?.partySize ?? "?"}. Best-fit tables first — larger ones stay available.`
+              : `Grupo de ${sentarEspera?.partySize ?? "?"}. Primero las que mejor entran; las más grandes las decidís vos.`}
           </p>
           {(() => {
-            const need = sentarEspera?.personas ?? 1;
+            const need = sentarEspera?.partySize ?? 1;
             const selectedCap = mesas
-              .filter((m) => sentarMesas.includes(m.numero))
-              .reduce((s, m) => s + (m.capacidad ?? 4), 0);
+              .filter((m) => sentarMesas.includes(m.number))
+              .reduce((s, m) => s + (m.capacity ?? 4), 0);
             const ok = selectedCap >= need;
             return (
               <p
@@ -1857,28 +1857,28 @@ const EsperaPanelPage = () => {
           </div>
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
             {(() => {
-              const need = sentarEspera?.personas ?? 1;
+              const need = sentarEspera?.partySize ?? 1;
               const libres = mesas
-                .filter((m) => m.estado === "libre")
+                .filter((m) => m.status === "libre")
                 .sort((a, b) => {
-                  const ca = a.capacidad ?? 4;
-                  const cb = b.capacidad ?? 4;
+                  const ca = a.capacity ?? 4;
+                  const cb = b.capacity ?? 4;
                   const wa = ca >= need ? ca - need : 1000 + (need - ca);
                   const wb = cb >= need ? cb - need : 1000 + (need - cb);
-                  return wa - wb || a.numero - b.numero;
+                  return wa - wb || a.number - b.number;
                 });
               const resto = mesas
-                .filter((m) => m.estado !== "libre")
-                .sort((a, b) => a.numero - b.numero);
+                .filter((m) => m.status !== "libre")
+                .sort((a, b) => a.number - b.number);
               return [...libres, ...resto];
             })().map((m) => {
-              const libre = m.estado === "libre";
-              const selected = sentarMesas.includes(m.numero);
-              const cap = m.capacidad ?? 4;
-              const need = sentarEspera?.personas ?? 1;
+              const libre = m.status === "libre";
+              const selected = sentarMesas.includes(m.number);
+              const cap = m.capacity ?? 4;
+              const need = sentarEspera?.partySize ?? 1;
               const oversized = libre && cap > need;
               const reservaProx = libre
-                ? reservaPorMesa.get(m.numero)
+                ? reservaPorMesa.get(m.number)
                 : undefined;
               return (
                 <button
@@ -1888,12 +1888,12 @@ const EsperaPanelPage = () => {
                   onClick={() => {
                     if (!libre) return;
                     setSentarMesas((prev) =>
-                      prev.includes(m.numero)
-                        ? prev.filter((n) => n !== m.numero)
-                        : [...prev, m.numero].sort((a, b) => a - b),
+                      prev.includes(m.number)
+                        ? prev.filter((n) => n !== m.number)
+                        : [...prev, m.number].sort((a, b) => a - b),
                     );
                   }}
-                  className={mesaTileClass(m.estado, {
+                  className={mesaTileClass(m.status, {
                     pickable: libre,
                     selected: libre && selected,
                     oversized,
@@ -1902,11 +1902,11 @@ const EsperaPanelPage = () => {
                 >
                   {reservaProx && !selected && (
                     <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold leading-none text-amber-950 shadow-sm">
-                      {reservationTime(reservaProx.horario)}
+                      {reservationTime(reservaProx.scheduledAt)}
                     </span>
                   )}
                   <span className="font-display text-xl leading-none">
-                    {m.numero}
+                    {m.number}
                   </span>
                   <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
                     {libre
@@ -1946,8 +1946,8 @@ const EsperaPanelPage = () => {
                   setOcupando(true);
                   void ocuparMesas({
                     tableNumbers: ocuparMesasSel,
-                    nombre: ocuparNombre,
-                    personas: ocuparPersonas,
+                    name: ocuparNombre,
+                    partySize: ocuparPersonas,
                     employee: employeeRef,
                   })
                     .then((created) => {
@@ -2005,7 +2005,7 @@ const EsperaPanelPage = () => {
                   onClick={() => {
                     setEditCapacidadNumero(ocuparPrimaria);
                     setEditCapacidadValue(
-                      ocuparPrimariaMesa?.capacidad ?? 4,
+                      ocuparPrimariaMesa?.capacity ?? 4,
                     );
                   }}
                   className="w-full rounded-full border border-linea px-5 py-3 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-50"
@@ -2119,10 +2119,10 @@ const EsperaPanelPage = () => {
               </p>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                 {mesasLibres.map((m) => {
-                  const selected = ocuparMesasSel.includes(m.numero);
-                  const cap = m.capacidad ?? 4;
-                  const esPrimaria = m.numero === ocuparPrimaria;
-                  const reservaProx = reservaPorMesa.get(m.numero);
+                  const selected = ocuparMesasSel.includes(m.number);
+                  const cap = m.capacity ?? 4;
+                  const esPrimaria = m.number === ocuparPrimaria;
+                  const reservaProx = reservaPorMesa.get(m.number);
                   return (
                     <button
                       key={m.id}
@@ -2131,9 +2131,9 @@ const EsperaPanelPage = () => {
                       onClick={() => {
                         if (esPrimaria) return;
                         setOcuparMesasSel((prev) =>
-                          prev.includes(m.numero)
-                            ? prev.filter((n) => n !== m.numero)
-                            : [...prev, m.numero].sort((a, b) => a - b),
+                          prev.includes(m.number)
+                            ? prev.filter((n) => n !== m.number)
+                            : [...prev, m.number].sort((a, b) => a - b),
                         );
                       }}
                       className={mesaTileClass("libre", {
@@ -2144,11 +2144,11 @@ const EsperaPanelPage = () => {
                     >
                       {reservaProx && !selected && (
                         <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold leading-none text-amber-950 shadow-sm">
-                          {reservationTime(reservaProx.horario)}
+                          {reservationTime(reservaProx.scheduledAt)}
                         </span>
                       )}
                       <span className="font-display text-xl leading-none">
-                        {m.numero}
+                        {m.number}
                       </span>
                       <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
                         {selected
@@ -2166,7 +2166,7 @@ const EsperaPanelPage = () => {
                   );
                 })}
               </div>
-              {!mesasLibres.filter((m) => m.numero !== ocuparPrimaria)
+              {!mesasLibres.filter((m) => m.number !== ocuparPrimaria)
                 .length && (
                 <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
                   {locale === "en"
@@ -2185,7 +2185,7 @@ const EsperaPanelPage = () => {
           labelledBy="liberar-title"
           footer={
             <div className="flex flex-col gap-2">
-              {liberarTieneGrupo && liberarMesaView.estado === "ocupada" ? (
+              {liberarTieneGrupo && liberarMesaView.status === "ocupada" ? (
                 <>
                   <button
                     type="button"
@@ -2271,18 +2271,18 @@ const EsperaPanelPage = () => {
               label={locale === "en" ? "Close" : "Cerrar"}
             />
           </div>
-          {liberarMesaView.estado === "ocupada" ? (
+          {liberarMesaView.status === "ocupada" ? (
             <div className="mt-3 rounded-2xl border border-rose-300/40 bg-rose-50/70 px-3.5 py-3 dark:bg-rose-400/10">
               {(liberarEspera || liberarReserva) && (
                 <>
                   <p className="font-display text-lg uppercase tracking-tight text-carbon">
-                    {liberarEspera?.nombre ?? liberarReserva?.nombre}
+                    {liberarEspera?.name ?? liberarReserva?.name}
                   </p>
                   <p className="mt-1 text-sm text-carbon/60">
                     {liberarEspera
-                      ? `${liberarEspera.personas} ${locale === "en" ? "guests" : "personas"}`
+                      ? `${liberarEspera.partySize} ${locale === "en" ? "guests" : "personas"}`
                       : liberarReserva
-                        ? `${formatHora(liberarReserva.horario, locale)} · ${liberarReserva.personas} ${locale === "en" ? "guests" : "personas"}`
+                        ? `${formatHora(liberarReserva.scheduledAt, locale)} · ${liberarReserva.partySize} ${locale === "en" ? "guests" : "personas"}`
                         : null}
                   </p>
                 </>

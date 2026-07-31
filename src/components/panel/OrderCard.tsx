@@ -47,16 +47,16 @@ export const OrderCard = ({
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   useEffect(() => {
-    if (orderClosed(order.estado)) return;
+    if (orderClosed(order.status)) return;
     const id = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(id);
-  }, [order.estado]);
+  }, [order.status]);
 
   const wait = minutosDesde(order.createdAt, now);
   const enCurso =
-    order.estado === "creado" || order.estado === "en_preparacion";
-  const listo = order.estado === "listo";
-  const cerrado = orderClosed(order.estado);
+    order.status === "creado" || order.status === "en_preparacion";
+  const listo = order.status === "listo";
+  const cerrado = orderClosed(order.status);
   const urgente = wait !== null && wait >= 15 && !cerrado;
 
   return (
@@ -64,7 +64,7 @@ export const OrderCard = ({
       className={`flex flex-col gap-4 rounded-[28px] border bg-surface p-5 shadow-sm transition duration-200 ${
         listo
           ? "border-emerald-300 ring-2 ring-emerald-300/60"
-          : order.estado === "cancelado"
+          : order.status === "cancelado"
             ? "border-linea opacity-70"
             : urgente
               ? "border-amber-300/80"
@@ -78,18 +78,18 @@ export const OrderCard = ({
             {t(`modo.${mode}`)}
           </p>
           <p className="font-display text-3xl leading-none text-carbon">
-            {order.referencia}
+            {order.reference}
           </p>
         </div>
         <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${PILL[order.estado]}`}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${PILL[order.status]}`}
         >
           {listo && (
             <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
           )}
           {enCurso
             ? t("estado.creado")
-            : t(`estado.${order.estado}`)}
+            : t(`estado.${order.status}`)}
         </span>
       </div>
 
@@ -115,12 +115,12 @@ export const OrderCard = ({
         <div className="col-span-2 sm:col-span-1">
           <dt className="text-carbon/40">{t("card.empleado")}</dt>
           <dd className="mt-0.5 flex items-center gap-1.5 font-semibold text-carbon/75">
-            {order.empleado ? (
+            {order.employee ? (
               <>
                 <span className="flex size-5 items-center justify-center rounded-full bg-marca/15 text-[10px] font-bold text-marca">
-                  {order.empleado.trim()[0]?.toUpperCase()}
+                  {order.employee.trim()[0]?.toUpperCase()}
                 </span>
-                <span className="truncate">{order.empleado}</span>
+                <span className="truncate">{order.employee}</span>
               </>
             ) : (
               <span className="font-normal text-carbon/40">

@@ -80,7 +80,7 @@ const TerminosPage = () => {
               </p>
               <p>
                 <b className="text-carbon">Responsabilidades del local.</b> El
-                local es responsable de los datos que carga (empleados, pedidos,
+                local es responsable de los datos que carga (employees, pedidos,
                 datos fiscales), del uso del panel y de cumplir la normativa
                 aplicable en Argentina. Cicalino no sustituye sistemas de
                 facturación ni de gestión gastronómica completa.

@@ -8,7 +8,7 @@ import type { IdentificationMode } from "@/lib/store/config-store";
 import type { OrderStatus } from "@/lib/types";
 
 export interface CustomerOrder {
-  referencia: string;
+  reference: string;
   status: OrderStatus;
   branchName: string;
   modo: IdentificationMode;
@@ -69,14 +69,14 @@ export const useCustomerOrder = (token: string): Result => {
         if (!active) return;
         if (data.ok) {
           setRemote({
-            referencia: data.referencia,
-            status: data.estado as OrderStatus,
+            reference: data.reference,
+            status: data.status as OrderStatus,
             branchName: data.branchName,
             modo: data.modo as IdentificationMode,
             notifiedAt: data.notifiedAt ?? null,
           });
           setRemoteFound(true);
-          if (data.estado === "retirado" || data.estado === "cancelado") {
+          if (data.status === "retirado" || data.status === "cancelado") {
             if (id) window.clearInterval(id);
           }
         } else if (data.reason === "not-found" || data.reason === "expired") {
@@ -117,9 +117,9 @@ export const useCustomerOrder = (token: string): Result => {
     found: !!o,
     order: o
       ? {
-          referencia: o.referencia,
-          status: o.estado,
-          branchName: cfg.nombre,
+          reference: o.reference,
+          status: o.status,
+          branchName: cfg.name,
           modo: cfg.modo,
           notifiedAt: o.readyAt,
         }

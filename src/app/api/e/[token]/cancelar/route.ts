@@ -76,7 +76,7 @@ export const POST = async (
     await channel.send({
       type: "broadcast",
       event: "guest-cancel",
-      payload: { id: data.id, nombre: data.nombre },
+      payload: { id: data.id, name: data.nombre },
     });
     await admin.removeChannel(channel);
   } catch (e) {

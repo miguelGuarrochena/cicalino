@@ -4,7 +4,7 @@ import { supabaseConfigured } from "@/lib/supabase/config";
 
 export interface ActiveEmployee {
   id: string;
-  nombre: string;
+  name: string;
 }
 
 export interface Impersonation {

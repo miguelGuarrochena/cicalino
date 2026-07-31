@@ -56,8 +56,8 @@ describe("isPin4", () => {
 
 describe("nombreEmpleadoEnUso", () => {
   const lista = [
-    { id: "1", nombre: "Lucía" },
-    { id: "2", nombre: "Marcos" },
+    { id: "1", name: "Lucía" },
+    { id: "2", name: "Marcos" },
   ];
 
   it("detecta el mismo nombre sin importar mayúsculas ni espacios", () => {

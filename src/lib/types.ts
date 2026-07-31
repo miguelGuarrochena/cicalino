@@ -33,21 +33,21 @@ export const BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_LABEL) as BusinessType[]
 
 export interface OrderView {
   id: string;
-  referencia: string;
-  estado: OrderStatus;
+  reference: string;
+  status: OrderStatus;
   createdAt: string;
   preparingAt: string | null;
   readyAt: string | null;
   pickedUpAt: string | null;
   cancelledAt: string | null;
   qrToken: string;
-  empleado?: string | null;
+  employee?: string | null;
   seenAt?: string | null;
 }
 
 export interface CustomerStatusView {
-  referencia: string;
-  estado: OrderStatus;
+  reference: string;
+  status: OrderStatus;
   branchName: string;
   listo: boolean;
 }
@@ -80,9 +80,9 @@ export type ReservationStatus = "activa" | "sentada" | "cancelada" | "expirada";
 
 export interface WaitlistView {
   id: string;
-  nombre: string;
-  personas: number;
-  estado: WaitlistStatus;
+  name: string;
+  partySize: number;
+  status: WaitlistStatus;
   tableNumber: number | null;
   qrToken: string;
   createdAt: string;
@@ -90,32 +90,32 @@ export interface WaitlistView {
   seatedAt: string | null;
   cancelledAt: string | null;
   seenAt: string | null;
-  empleado?: string | null;
+  employee?: string | null;
 }
 
 export interface TableView {
   id: string;
-  numero: number;
-  estado: TableState;
-  capacidad: number;
+  number: number;
+  status: TableState;
+  capacity: number;
   waitlistId: string | null;
   reservationId: string | null;
 }
 
 export interface ReservationView {
   id: string;
-  nombre: string;
-  personas: number;
+  name: string;
+  partySize: number;
   tableNumber: number;
   tableNumbers: number[];
-  horario: string;
+  scheduledAt: string;
   graceMinutes: 15 | 20;
-  estado: ReservationStatus;
+  status: ReservationStatus;
   createdAt: string;
   seatedAt: string | null;
   cancelledAt: string | null;
   expiredAt: string | null;
-  empleado?: string | null;
+  employee?: string | null;
 }
 
 export const WAITLIST_STATUS_LABEL: Record<WaitlistStatus, string> = {

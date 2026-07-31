@@ -16,7 +16,7 @@ import {
 export * from "./common";
 
 export const leadSchema = z.object({
-  nombre: textField(2, 120, "tu nombre"),
+  name: textField(2, 120, "tu nombre"),
   email,
   telefono,
   cuil,
@@ -68,7 +68,7 @@ export const leadSchema = z.object({
 export type LeadInput = z.infer<typeof leadSchema>;
 
 export const branchInputSchema = z.object({
-  nombre: textField(2, 80, "el nombre de la sucursal"),
+  name: textField(2, 80, "el nombre de la sucursal"),
   tipo: tipoNegocio,
   direccion: optionalTextField(160, "la dirección"),
   moduloPedidos: z.boolean().optional().default(true),
@@ -76,7 +76,7 @@ export const branchInputSchema = z.object({
 });
 
 export const createOrganizationSchema = z.object({
-  nombre: textField(2, 120, "el nombre de la empresa"),
+  name: textField(2, 120, "el nombre de la empresa"),
   responsable: textField(2, 120, "el responsable"),
   telefono,
   cuil,
@@ -110,7 +110,7 @@ export const idSchema = z.object({ id: uuid });
 
 export const branchConfigSchema = z
   .object({
-    nombre: textField(2, 80, "el nombre de la sucursal"),
+    name: textField(2, 80, "el nombre de la sucursal"),
     tipo: tipoNegocio,
     whatsapp: telefono,
     direccion: optionalTextField(160, "la dirección"),
@@ -153,7 +153,7 @@ export const branchOperacionSchema = z
 export type BranchOperacionInput = z.infer<typeof branchOperacionSchema>;
 
 export const employeeSchema = z.object({
-  nombre: textField(2, 80, "el nombre del empleado"),
+  name: textField(2, 80, "el nombre del empleado"),
   rol: optionalTextField(60, "el rol"),
   pin: pin4,
 });

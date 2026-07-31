@@ -22,7 +22,7 @@ const esc = (s: string): string =>
 export const createLead = async (input: unknown): Promise<Resultado> => {
   const v = parseInput(leadSchema, input);
   if (!v.ok) return { ok: false, error: v.error };
-  const { nombre, email, turnstileToken } = v.data;
+  const { name: nombre, email, turnstileToken } = v.data;
   const tipo = v.data.tipo ?? "prueba";
   const plan = v.data.plan ?? null;
   const pack = v.data.pack ?? null;

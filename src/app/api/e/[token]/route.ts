@@ -79,9 +79,9 @@ export const GET = async (
 
   return NextResponse.json({
     ok: true,
-    nombre: data.nombre,
-    personas: data.personas,
-    estado: data.estado,
+    name: data.nombre,
+    partySize: data.personas,
+    status: data.estado,
     tableNumber: data.mesa_numero,
     avisado: data.estado === "avisado" || data.estado === "sentado",
     notifiedAt: data.avisado_en ?? null,

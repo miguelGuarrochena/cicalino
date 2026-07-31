@@ -16,7 +16,7 @@ export type { ModuleFlags };
 export interface BranchRow {
   id: string;
   organizationId: string;
-  nombre: string;
+  name: string;
   tipo: BusinessType;
   direccion: string;
   activo: boolean;
@@ -29,7 +29,7 @@ export type PlanTipo = "mensual" | "anual" | "gratis";
 
 export interface OrganizationRow {
   id: string;
-  nombre: string;
+  name: string;
   responsable: string;
   telefono: string;
   cuil: string;
@@ -52,7 +52,7 @@ export const isContractPending = (org: OrganizationRow): boolean =>
   !org.contractAcceptedAt;
 
 export type OrgInput = {
-  nombre: string;
+  name: string;
   responsable: string;
   telefono: string;
   cuil: string;
@@ -65,7 +65,7 @@ export type OrgInput = {
 };
 
 export type BranchInput = {
-  nombre: string;
+  name: string;
   tipo: BusinessType;
   direccion: string;
   moduloPedidos?: boolean;
@@ -103,7 +103,7 @@ const seed = (): OrganizationRow[] => {
   return [
     {
       id: org1,
-      nombre: "La Esquina SA",
+      name: "La Esquina SA",
       responsable: "Carlos Ruiz",
       telefono: "+54 9 341 555 0101",
       cuil: "30-71234567-8",
@@ -123,7 +123,7 @@ const seed = (): OrganizationRow[] => {
         {
           id: "suc-centro",
           organizationId: org1,
-          nombre: "Centro",
+          name: "Centro",
           tipo: "panaderia",
           direccion: "Calle Falsa 742, Rosario",
           activo: true,
@@ -134,7 +134,7 @@ const seed = (): OrganizationRow[] => {
         {
           id: "suc-norte",
           organizationId: org1,
-          nombre: "Norte",
+          name: "Norte",
           tipo: "panaderia",
           direccion: "Av. Pellegrini 1200, Rosario",
           activo: true,
@@ -146,7 +146,7 @@ const seed = (): OrganizationRow[] => {
     },
     {
       id: org2,
-      nombre: "El Buen Sabor",
+      name: "El Buen Sabor",
       responsable: "María Gómez",
       telefono: "+54 9 351 444 2200",
       cuil: "27-25999888-1",
@@ -166,7 +166,7 @@ const seed = (): OrganizationRow[] => {
         {
           id: "suc-buen",
           organizationId: org2,
-          nombre: "Córdoba",
+          name: "Córdoba",
           tipo: "rotiseria",
           direccion: "San Martín 500, Córdoba",
           activo: true,
@@ -224,7 +224,7 @@ export const useSuperadminStore = create<SuperadminState>()(
           organizaciones: [
             {
               id,
-              nombre: data.nombre.trim(),
+              name: data.name.trim(),
               responsable: data.responsable.trim(),
               telefono: data.telefono.trim(),
               cuil: data.cuil.trim(),
@@ -253,7 +253,7 @@ export const useSuperadminStore = create<SuperadminState>()(
           organizaciones: s.organizaciones.map((o) => {
             if (o.id !== id) return o;
             const next = { ...o };
-            if (data.nombre != null) next.nombre = data.nombre.trim();
+            if (data.name != null) next.name = data.name.trim();
             if (data.responsable != null)
               next.responsable = data.responsable.trim();
             if (data.telefono != null) next.telefono = data.telefono.trim();
@@ -331,7 +331,7 @@ export const useSuperadminStore = create<SuperadminState>()(
                     {
                       id,
                       organizationId: organizationId,
-                      nombre: data.nombre.trim(),
+                      name: data.name.trim(),
                       tipo: data.tipo,
                       direccion: data.direccion.trim(),
                       activo: true,
@@ -357,8 +357,8 @@ export const useSuperadminStore = create<SuperadminState>()(
                 if (suc.id !== branchId) return suc;
                 return {
                   ...suc,
-                  ...(data.nombre != null
-                    ? { nombre: data.nombre.trim() }
+                  ...(data.name != null
+                    ? { name: data.name.trim() }
                     : {}),
                   ...(data.tipo != null ? { tipo: data.tipo } : {}),
                   ...(data.direccion != null

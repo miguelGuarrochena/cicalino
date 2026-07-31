@@ -29,8 +29,8 @@ type Row = {
 
 const mapRow = (r: Row): OrderView => ({
   id: r.id,
-  referencia: r.referencia,
-  estado: r.estado,
+  reference: r.referencia,
+  status: r.estado,
   createdAt: r.creado_en,
   preparingAt: r.en_preparacion_en,
   readyAt: r.listo_en,
@@ -38,7 +38,7 @@ const mapRow = (r: Row): OrderView => ({
   cancelledAt: r.cancelado_en,
   seenAt: r.visto_en,
   qrToken: r.qr_token,
-  empleado: r.empleados?.nombre ?? null,
+  employee: r.empleados?.nombre ?? null,
 });
 
 const SELECT = "*, empleados(nombre)";
@@ -111,23 +111,23 @@ export const insertOrder = async (args: {
 
 export const updateOrderStatus = async (
   id: string,
-  status: OrderStatus,
+  estado: OrderStatus,
   desde?: OrderStatus,
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;
-  if (desde && !isValidTransition(desde, status)) {
-    console.error("updateOrderStatus: transición inválida", desde, "→", status);
+  if (desde && !isValidTransition(desde, estado)) {
+    console.error("updateOrderStatus: transición inválida", desde, "→", estado);
     return;
   }
   const now = new Date().toISOString();
-  const patch: Record<string, unknown> = { estado: status };
-  if (status === "en_preparacion") patch.en_preparacion_en = now;
-  else if (status === "listo") {
+  const patch: Record<string, unknown> = { estado: estado };
+  if (estado === "en_preparacion") patch.en_preparacion_en = now;
+  else if (estado === "listo") {
     patch.listo_en = now;
     patch.avisado_en = now;
-  } else if (status === "retirado") patch.retirado_en = now;
-  else if (status === "cancelado") patch.cancelado_en = now;
+  } else if (estado === "retirado") patch.retirado_en = now;
+  else if (estado === "cancelado") patch.cancelado_en = now;
 
   let q = supabase.from("pedidos").update(patch).eq("id", id);
   if (desde) q = q.eq("estado", desde);

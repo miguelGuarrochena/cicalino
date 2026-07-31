@@ -14,8 +14,8 @@ export interface CustomerWaitlistQueue {
 }
 
 export interface CustomerWaitlist {
-  nombre: string;
-  personas: number;
+  name: string;
+  partySize: number;
   status: WaitlistStatus;
   tableNumber: number | null;
   branchName: string;
@@ -50,14 +50,14 @@ const colaFromDemo = (
   esperas: {
     id: string;
     qrToken: string;
-    personas: number;
-    estado: string;
+    partySize: number;
+    status: string;
     createdAt: string;
   }[],
 ): CustomerWaitlistQueue => {
   const yo = esperas.find((e) => e.qrToken === token);
   const activos = esperas.filter(
-    (e) => e.estado === "esperando" || e.estado === "avisado",
+    (e) => e.status === "esperando" || e.status === "avisado",
   );
   if (!yo) return emptyCola();
   const miCreado = new Date(yo.createdAt).getTime();
@@ -67,12 +67,12 @@ const colaFromDemo = (
   let personasEnCola = 0;
   for (const row of activos) {
     gruposEnCola += 1;
-    personasEnCola += row.personas;
+    personasEnCola += row.partySize;
     if (row.id === yo.id) continue;
     const t = new Date(row.createdAt).getTime();
     if (t < miCreado || (t === miCreado && row.id < yo.id)) {
       gruposDelante += 1;
-      personasDelante += row.personas;
+      personasDelante += row.partySize;
     }
   }
   return {
@@ -129,9 +129,9 @@ export const useCustomerWaitlist = (token: string): Result => {
         if (!active) return;
         if (data.ok) {
           setRemote({
-            nombre: data.nombre,
-            personas: data.personas,
-            status: data.estado,
+            name: data.name,
+            partySize: data.partySize,
+            status: data.status,
             tableNumber: data.tableNumber,
             branchName: data.branchName,
             notifiedAt: data.notifiedAt,
@@ -171,11 +171,11 @@ export const useCustomerWaitlist = (token: string): Result => {
     found: Boolean(demo),
     espera: demo
       ? {
-          nombre: demo.nombre,
-          personas: demo.personas,
-          status: demo.estado,
+          name: demo.name,
+          partySize: demo.partySize,
+          status: demo.status,
           tableNumber: demo.tableNumber,
-          branchName: cfg.nombre || "Local",
+          branchName: cfg.name || "Local",
           notifiedAt: demo.notifiedAt,
           cola: colaFromDemo(token, demoEsperas),
         }

@@ -120,7 +120,7 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
 };
 
 export const showReadyNotice = async (opts: {
-  referencia: string;
+  reference: string;
   url: string;
   body: string;
 }): Promise<void> => {
@@ -133,7 +133,7 @@ export const showReadyNotice = async (opts: {
     body: opts.body,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    tag: `cicalino-${opts.referencia}`,
+    tag: `cicalino-${opts.reference}`,
     renotify: true,
     data: { url: opts.url },
     vibrate: [200, 100, 200],

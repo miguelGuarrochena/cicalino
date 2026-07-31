@@ -18,12 +18,12 @@ export const nextReservationByTable = (
 ): Map<number, ReservationView> => {
   const out = new Map<number, ReservationView>();
   const vigentes = reservas
-    .filter((r) => r.estado === "activa")
+    .filter((r) => r.status === "activa")
     .filter(
       (r) =>
-        new Date(r.horario).getTime() + r.graceMinutes * 60_000 >= now,
+        new Date(r.scheduledAt).getTime() + r.graceMinutes * 60_000 >= now,
     )
-    .sort((a, b) => a.horario.localeCompare(b.horario));
+    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
   for (const r of vigentes) {
     for (const n of reservationTables(r)) {
       if (!out.has(n)) out.set(n, r);
@@ -33,7 +33,7 @@ export const nextReservationByTable = (
 };
 
 export const isReservationSoon = (r: ReservationView, now = Date.now()): boolean =>
-  minutesUntil(r.horario, now) <= SOON_THRESHOLD_MIN;
+  minutesUntil(r.scheduledAt, now) <= SOON_THRESHOLD_MIN;
 
 export const conflictingReservation = (
   tableNumbers: number[],
@@ -46,9 +46,9 @@ export const conflictingReservation = (
   if (Number.isNaN(t)) return null;
   for (const r of reservas) {
     if (r.id === ignorarId) continue;
-    if (r.estado !== "activa") continue;
+    if (r.status !== "activa") continue;
     if (!reservationTables(r).some((n) => nums.has(n))) continue;
-    const diff = Math.abs(new Date(r.horario).getTime() - t) / 60_000;
+    const diff = Math.abs(new Date(r.scheduledAt).getTime() - t) / 60_000;
     if (diff < MIN_GAP_BETWEEN_RESERVATIONS) return r;
   }
   return null;
