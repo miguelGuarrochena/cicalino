@@ -43,7 +43,7 @@ import {
   updateBranchModulesDb,
   deleteBranchDb,
 } from "@/lib/data/superadmin";
-import { sendContractLink } from "@/lib/actions/contract";
+import { sendContractLink, getContractLink } from "@/lib/actions/contract";
 
 const required = (v: string) => v.trim().length > 0;
 const emailOk = isEmail;
@@ -348,6 +348,31 @@ export const OrgModal = ({
   const descartarYSalir = () => {
     aplicarDraft(baseline);
     salirFormLimpio();
+  };
+
+  const copiarLinkContrato = async (destino: "copiar" | "whatsapp") => {
+    if (!vista || busy) return;
+    const r = await getContractLink(vista.id);
+    if (!r.ok || !r.url) {
+      toast(r.ok ? "No se pudo generar el link" : r.error, "error");
+      return;
+    }
+    if (destino === "whatsapp") {
+      const texto = `Hola${vista.responsable ? ` ${vista.responsable}` : ""}, te paso las condiciones de Cicalino para ${vista.name}: ${r.url}`;
+      const tel = vista.telefono.replace(/\D/g, "");
+      window.open(
+        `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`,
+        "_blank",
+        "noopener",
+      );
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(r.url);
+      toast("Link copiado", "success");
+    } catch {
+      window.prompt("Copiá el link de condiciones:", r.url);
+    }
   };
 
   const mandarContrato = async () => {
@@ -1075,6 +1100,24 @@ export const OrgModal = ({
               >
                 Enviar condiciones + pago
               </button>
+              <button
+                type="button"
+                onClick={() => void copiarLinkContrato("copiar")}
+                disabled={busy}
+                className="rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70 disabled:opacity-50"
+              >
+                Copiar link
+              </button>
+              {vista.telefono.replace(/\D/g, "").length >= 8 && (
+                <button
+                  type="button"
+                  onClick={() => void copiarLinkContrato("whatsapp")}
+                  disabled={busy}
+                  className="rounded-full bg-emerald-600/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 disabled:opacity-50"
+                >
+                  Mandar por WhatsApp
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => void darMes()}

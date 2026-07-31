@@ -241,3 +241,36 @@ export const sendContractLinkInternal = async (
 
   return { ok: true, url };
 };
+
+export const getContractLink = async (
+  organizationId: string,
+): Promise<Simple & { url?: string }> => {
+  const perfil = await getCurrentProfile();
+  if (!perfil || perfil.rol !== "superadmin") {
+    return { ok: false, error: "No autorizado" };
+  }
+  const v = parseInput(idSchema, { id: organizationId });
+  if (!v.ok) return { ok: false, error: v.error };
+
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const { data: org } = await admin
+    .from("organizaciones")
+    .select("id, contrato_token")
+    .eq("id", v.data.id)
+    .maybeSingle();
+  if (!org) return { ok: false, error: "Empresa no encontrada." };
+
+  let token = org.contrato_token as string | null;
+  if (!token) {
+    token = nuevoToken();
+    const { error } = await admin
+      .from("organizaciones")
+      .update({ contrato_token: token })
+      .eq("id", org.id);
+    if (error) return { ok: false, error: "No se pudo generar el link." };
+  }
+
+  return { ok: true, url: `${appBaseUrl()}/aceptar/${token}` };
+};
