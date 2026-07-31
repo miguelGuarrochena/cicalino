@@ -6,6 +6,7 @@ import { ThemedImg } from "@/components/ui/ThemedImg";
 import { Logo } from "@/components/ui/Logo";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { LandingHeader } from "@/components/landing/LandingHeader";
+import { PricingTeaser } from "@/components/landing/PricingTeaser";
 import { CustomerWalkthrough } from "@/components/landing/CustomerWalkthrough";
 import { FaqContent } from "@/components/faq/FaqContent";
 import { useApp } from "@/components/providers/Providers";
@@ -192,6 +193,8 @@ const Home = () => {
             </div>
           </div>
         </section>
+
+        <PricingTeaser />
 
         <section
           id="faq"
