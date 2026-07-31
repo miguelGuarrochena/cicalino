@@ -14,14 +14,12 @@ import {
   monthlyPriceForBranch,
   type OrganizationRow,
   type OrgInput,
-  type BranchInput,
   type PlanTipo,
 } from "@/lib/store/superadmin-store";
 import {
   PRICE_ORDERS,
   PRICE_WAITLIST,
   PRICE_BUNDLE,
-  moduleLabel,
 } from "@/lib/pricing";
 import { addBillingCycle } from "@/lib/billing";
 import type { BusinessType } from "@/lib/store/config-store";
@@ -39,12 +37,8 @@ import {
 import {
   refreshOrganizations,
   updateOrgDb,
-  insertBranchDb,
-  updateBranchModulesDb,
-  deleteBranchDb,
 } from "@/lib/data/superadmin";
 import { sendContractLink, getContractLink } from "@/lib/actions/contract";
-import { PackPicker } from "@/components/admin/PackPicker";
 
 const required = (v: string) => v.trim().length > 0;
 const emailOk = isEmail;
@@ -199,9 +193,6 @@ export const OrgModal = ({
     toggleOrgActivo,
     toggleOrgPagado,
     quitarOrg,
-    altaSucursal: createBranch,
-    actualizarSucursal,
-    quitarSucursal: removeBranch,
     darMesGratis: giveFreeMonth,
   } = useSuperadminStore();
   const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
@@ -237,15 +228,10 @@ export const OrgModal = ({
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmDel, setConfirmDel] = useState(false);
-  const [quotaError, setCupoError] = useState(false);
 
-  const [newBranch, setNuevaSuc] = useState("");
-  const [nuevaTipo, setNuevaTipo] = useState<BusinessType>("cafeteria");
   const [crearPrimera, setCrearPrimera] = useState(true);
   const [primeraNombre, setPrimeraNombre] = useState("");
   const [primeraTipo, setPrimeraTipo] = useState<BusinessType>("cafeteria");
-  const [nuevaPedidos, setNuevaPedidos] = useState(true);
-  const [nuevaEspera, setNuevaEspera] = useState(false);
 
   const draftActual = (): DraftOrg => ({
     name: name,
@@ -414,90 +400,6 @@ export const OrgModal = ({
     }
   };
 
-  const agregarSuc = async () => {
-    if (!org || !newBranch.trim() || busy) return;
-    const data: BranchInput = {
-      name: newBranch.trim(),
-      tipo: nuevaTipo,
-      direccion: org.direccion,
-      moduloPedidos: nuevaPedidos,
-      moduloEspera: nuevaEspera,
-    };
-    const usadas = vista?.sucursales.length ?? 0;
-    const nuevoCupo = usadas + 1;
-    const plan = vista?.plan ?? "mensual";
-    const anualUna = montoPlanPreview("anual", 1, {
-      pedidos: nuevaPedidos,
-      espera: nuevaEspera,
-    });
-
-    if (live) {
-      await conBusy("Agregando sucursal…", async () => {
-        if (plan === "anual") {
-          await updateOrgDb(org.id, { cupo: nuevoCupo, pagado: false });
-        } else if (plan === "mensual") {
-          await updateOrgDb(org.id, { cupo: nuevoCupo });
-        } else {
-          await updateOrgDb(org.id, { cupo: nuevoCupo });
-        }
-        await insertBranchDb(org.id, data);
-        await refreshOrganizations();
-        setCupoError(false);
-        setNuevaSuc("");
-        if (plan === "anual") {
-          toast(
-            `Sucursal agregada. Cobrá el anual de esta (${money.format(anualUna)}) ahora, ciclo aparte.`,
-            "success",
-          );
-        } else if (plan === "mensual") {
-          const prox = vista?.nextChargeAt
-            ? fechaCorta(vista.nextChargeAt)
-            : "el próximo ciclo";
-          toast(
-            `Sucursal agregada · ${nuevoCupo} en total. Se cobra desde ${prox}.`,
-            "success",
-          );
-        } else {
-          toast(`Sucursal agregada · ahora ${nuevoCupo}`, "success");
-        }
-      });
-      return;
-    }
-    actualizarOrg(org.id, { cupo: nuevoCupo });
-    const res = createBranch(org.id, data);
-    if (!res.ok) {
-      setCupoError(true);
-      return;
-    }
-    setCupoError(false);
-    setNuevaSuc("");
-    toast(`Sucursal agregada · ahora ${nuevoCupo}`, "success");
-  };
-
-  const cambiarModulosSuc = async (
-    branchId: string,
-    pedidos: boolean,
-    espera: boolean,
-  ) => {
-    if (!org || busy) return;
-    if (live) {
-      await conBusy("Actualizando módulos…", async () => {
-        await updateBranchModulesDb(org.id, branchId, {
-          moduloPedidos: pedidos,
-          moduloEspera: espera,
-        });
-        await refreshOrganizations();
-        toast("Módulos de la sucursal actualizados", "success");
-      });
-      return;
-    }
-    actualizarSucursal(org.id, branchId, {
-      moduloPedidos: pedidos,
-      moduloEspera: espera,
-    });
-    toast("Módulos de la sucursal actualizados", "success");
-  };
-
   const togglePagado = async () => {
     if (!vista || busy) return;
     const next = !vista.pagado;
@@ -567,28 +469,6 @@ export const OrgModal = ({
         }
       },
     );
-  };
-
-  const borrarSuc = async (sucId: string) => {
-    if (!vista || busy) return;
-    await conBusy("Eliminando sucursal…", async () => {
-      if (live) {
-        removeBranch(vista.id, sucId);
-        actualizarOrg(vista.id, {
-          cupo: Math.max(1, vista.sucursales.length - 1),
-        });
-        await deleteBranchDb(sucId);
-        const quedan = Math.max(1, vista.sucursales.length - 1);
-        await updateOrgDb(vista.id, { cupo: quedan });
-        await refreshOrganizations();
-      } else {
-        removeBranch(vista.id, sucId);
-        actualizarOrg(vista.id, {
-          cupo: Math.max(1, vista.sucursales.length - 1),
-        });
-      }
-      toast(t("toast.sucBorrada"), "info");
-    });
   };
 
   const borrarOrg = async () => {
@@ -1097,145 +977,6 @@ export const OrgModal = ({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-linea bg-crema/40 p-3.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
-              {t("super.sucursales")}
-            </p>
-            <p className="mt-1 text-sm text-carbon/70">
-              <b>{vista.sucursales.length}</b>{" "}
-              {vista.sucursales.length === 1 ? "sucursal" : "sucursales"}
-              {vista.plan !== "gratis" && (
-                <span className="text-carbon/50">
-                  {" "}
-                  · cobro{" "}
-                  {money.format(
-                    vista.plan === "anual"
-                      ? monthlyAmount(vista) * 10
-                      : monthlyAmount(vista),
-                  )}
-                  {vista.plan === "anual" ? "/año" : "/mes"}
-                </span>
-              )}
-            </p>
-            <p className="mt-1 text-xs text-carbon/50">
-              {vista.plan === "anual"
-                ? "Anual: cada sucursal nueva se cobra aparte (año desde hoy). Marcá Pagado cuando entre la transferencia."
-                : vista.plan === "mensual"
-                  ? "Mensual: la nueva se suma al próximo ciclo según su pack."
-                  : "Plan cortesía: sin cobro."}
-            </p>
-
-            <ul className="mt-3 flex flex-col gap-2">
-              {vista.sucursales.map((suc) => {
-                const mods = {
-                  pedidos: suc.moduloPedidos !== false,
-                  espera: Boolean(suc.moduloEspera),
-                };
-                return (
-                  <li
-                    key={suc.id}
-                    className="flex flex-col gap-2.5 rounded-2xl border border-linea bg-surface px-3 py-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-carbon">
-                          {suc.name}
-                        </p>
-                        <p className="truncate text-xs text-carbon/50">
-                          {TIPO_LABEL[suc.tipo] ?? suc.tipo} ·{" "}
-                          {suc.direccion || "—"}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => enterOwner(suc.id, suc.name)}
-                          className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema"
-                        >
-                          {t("super.entrarComo")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => borrarSuc(suc.id)}
-                          className="rounded-full px-2.5 py-1.5 text-xs font-semibold text-red-600/80 hover:bg-red-500/10"
-                        >
-                          {t("super.eliminar")}
-                        </button>
-                      </div>
-                    </div>
-                    <PackPicker
-                      pedidos={mods.pedidos}
-                      espera={mods.espera}
-                      compact
-                      onChange={(p, e) => void cambiarModulosSuc(suc.id, p, e)}
-                    />
-                    <p className="text-xs font-medium text-carbon/60">
-                      {moduleLabel(mods)} ·{" "}
-                      {money.format(monthlyPriceForBranch(mods))}/mes
-                    </p>
-                  </li>
-                );
-              })}
-              {vista.sucursales.length === 0 && (
-                <p className="text-sm text-carbon/45">{t("super.sinSucursales")}</p>
-              )}
-            </ul>
-
-            <div className="mt-3 flex flex-col gap-2">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <div className="min-w-0 flex-1">
-                  <input
-                    className={INPUT}
-                    placeholder={t("super.nombreSucursal")}
-                    value={newBranch}
-                    onChange={(e) => {
-                      setNuevaSuc(e.target.value);
-                      setCupoError(false);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void agregarSuc();
-                      }
-                    }}
-                  />
-                </div>
-                <Select
-                  value={nuevaTipo}
-                  onChange={(v) => setNuevaTipo(v as BusinessType)}
-                  options={BUSINESS_TYPES.map((k) => ({
-                    value: k,
-                    label: TIPO_LABEL[k],
-                  }))}
-                  className="sm:min-w-[10rem]"
-                />
-                <button
-                  type="button"
-                  onClick={() => void agregarSuc()}
-                  disabled={busy || !newBranch.trim()}
-                  className="rounded-full bg-marca px-4 py-2.5 text-sm font-semibold text-crema disabled:opacity-50"
-                >
-                  {busy ? "…" : "Agregar"}
-                </button>
-              </div>
-              <div>
-                <p className="text-[11px] font-medium text-carbon/50">
-                  Pack de la nueva sucursal
-                </p>
-                <PackPicker
-                  pedidos={nuevaPedidos}
-                  espera={nuevaEspera}
-                  onChange={(p, e) => {
-                    setNuevaPedidos(p);
-                    setNuevaEspera(e);
-                  }}
-                />
-              </div>
-            </div>
-            {quotaError && (
-              <p className="mt-2 text-xs text-red-500">{t("super.cupoLleno")}</p>
-            )}
-          </div>
 
           <button
             type="button"
