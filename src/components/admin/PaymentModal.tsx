@@ -6,6 +6,7 @@ import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { useToast } from "@/components/ui/Toast";
 import type { OrganizationRow } from "@/lib/store/superadmin-store";
 import { monthlyAmount } from "@/lib/store/superadmin-store";
+import { monthlyPriceForBranch, moduleLabel } from "@/lib/pricing";
 import {
   fetchPayments,
   fetchSentEmails,
@@ -74,6 +75,24 @@ export const PaymentModal = ({
     [org],
   );
 
+  const desglose = useMemo(
+    () =>
+      org.sucursales.map((b) => ({
+        sucursalId: b.id,
+        nombre: b.name,
+        pack: moduleLabel({
+          pedidos: b.moduloPedidos,
+          espera: b.moduloEspera,
+        }),
+        monto:
+          monthlyPriceForBranch({
+            pedidos: b.moduloPedidos,
+            espera: b.moduloEspera,
+          }) * Math.max(1, ciclos),
+      })),
+    [org.sucursales, ciclos],
+  );
+
   const cycleDay =
     org.diaCiclo ??
     (org.proximaFactura ? Number(org.proximaFactura.slice(8, 10)) : 1);
@@ -114,6 +133,7 @@ export const PaymentModal = ({
       monto,
       medio,
       nota,
+      detalle: desglose,
     });
     setGuardando(false);
     if (!r.ok) {
@@ -255,6 +275,30 @@ export const PaymentModal = ({
         </div>
       </div>
 
+      {desglose.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-linea bg-crema/30 px-3.5 py-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-carbon/45">
+            Desglose por sucursal
+          </p>
+          <ul className="flex flex-col gap-1">
+            {desglose.map((d) => (
+              <li
+                key={d.sucursalId}
+                className="flex items-center justify-between gap-3 text-sm"
+              >
+                <span className="min-w-0 truncate text-carbon/75">
+                  {d.nombre}{" "}
+                  <span className="text-xs text-carbon/45">({d.pack})</span>
+                </span>
+                <span className="shrink-0 tabular-nums text-carbon">
+                  {money.format(d.monto)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="mt-4 rounded-2xl border border-marca/35 bg-marca/10 px-3.5 py-3">
         <p className="text-sm text-carbon/75">
           Cubre del <b>{fecha(preview.periodFrom)}</b> al{" "}
@@ -284,6 +328,13 @@ export const PaymentModal = ({
                     {fecha(p.periodoDesde)} → {fecha(p.periodoHasta)}
                     {p.medio ? ` · ${p.medio}` : ""}
                   </p>
+                  {p.detalle.length > 0 && (
+                    <p className="truncate text-[11px] text-carbon/40">
+                      {p.detalle
+                        .map((d) => `${d.nombre} ${money.format(d.monto)}`)
+                        .join(" · ")}
+                    </p>
+                  )}
                 </div>
                 <p className="shrink-0 text-sm font-semibold text-carbon">
                   {money.format(p.monto)}

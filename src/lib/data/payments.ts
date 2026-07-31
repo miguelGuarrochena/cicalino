@@ -3,6 +3,13 @@
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { registerPayment, type SubscriptionState } from "@/lib/subscription";
 
+export interface PaymentDetail {
+  sucursalId: string;
+  nombre: string;
+  pack: string;
+  monto: number;
+}
+
 export interface PaymentRow {
   id: string;
   fecha: string;
@@ -11,6 +18,7 @@ export interface PaymentRow {
   periodoHasta: string;
   medio: string | null;
   nota: string | null;
+  detalle: PaymentDetail[];
 }
 
 type Db = {
@@ -21,6 +29,7 @@ type Db = {
   periodo_hasta: string;
   medio: string | null;
   nota: string | null;
+  detalle: PaymentDetail[] | null;
 };
 
 export const fetchPayments = async (orgId: string): Promise<PaymentRow[]> => {
@@ -28,7 +37,7 @@ export const fetchPayments = async (orgId: string): Promise<PaymentRow[]> => {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("pagos")
-    .select("id, fecha, monto, periodo_desde, periodo_hasta, medio, nota")
+    .select("id, fecha, monto, periodo_desde, periodo_hasta, medio, nota, detalle")
     .eq("organizacion_id", orgId)
     .order("fecha", { ascending: false });
   if (error) {
@@ -43,6 +52,17 @@ export const fetchPayments = async (orgId: string): Promise<PaymentRow[]> => {
     periodoHasta: r.periodo_hasta,
     medio: r.medio,
     nota: r.nota,
+    detalle: ((r.detalle ?? []) as unknown as {
+      sucursal_id: string;
+      nombre: string;
+      pack: string;
+      monto: number;
+    }[]).map((d) => ({
+      sucursalId: d.sucursal_id,
+      nombre: d.nombre,
+      pack: d.pack,
+      monto: d.monto,
+    })),
   }));
 };
 
@@ -55,6 +75,7 @@ export const savePayment = async (args: {
   monto: number;
   medio?: string;
   nota?: string;
+  detalle?: PaymentDetail[];
 }): Promise<{ ok: boolean; nextBilling?: string; error?: string }> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return { ok: false, error: "Sin conexión." };
@@ -69,6 +90,12 @@ export const savePayment = async (args: {
     periodo_hasta: next.periodTo,
     medio: args.medio?.trim() || null,
     nota: args.nota?.trim() || null,
+    detalle: (args.detalle ?? []).map((d) => ({
+      sucursal_id: d.sucursalId,
+      nombre: d.nombre,
+      pack: d.pack,
+      monto: d.monto,
+    })),
   });
   if (errPago) {
     console.error("savePayment", errPago.message);
