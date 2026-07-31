@@ -13,6 +13,8 @@ export interface EmployeeUI {
   name: string;
   rol: string;
   tienePin: boolean;
+  usuarioId: string | null;
+  email: string | null;
 }
 
 export type NewEmployeeInput = {
@@ -125,6 +127,8 @@ export const useConfigStore = create<ConfigState>()(
               name: data.name.trim(),
               rol: (data.rol ?? "").trim(),
               tienePin: Boolean((data.pin ?? "").trim()),
+              usuarioId: null,
+              email: null,
             },
           ],
         })),

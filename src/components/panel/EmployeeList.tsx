@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -12,10 +12,15 @@ import { isPin4, isEmployeeNameTaken } from "@/lib/validations";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import {
+  fetchEmployees,
+  fetchOwners,
   insertEmployee,
   removeEmployeeDb,
   setEmployeePin,
+  type OwnerUI,
 } from "@/lib/data/branch";
+import { grantAppAccess, revokeAppAccess } from "@/lib/actions/team";
+import { isEmail } from "@/lib/validations";
 import type { EmployeeUI } from "@/lib/store/config-store";
 
 const INPUT =
@@ -364,18 +369,176 @@ const ChangePinModal = ({
   );
 };
 
+
+const AccessModal = ({
+  emp,
+  onClose,
+  onDone,
+}: {
+  emp: EmployeeUI;
+  onClose: () => void;
+  onDone: () => void;
+}) => {
+  const { t } = useApp();
+  const toast = useToast();
+  const [email, setEmail] = useState(emp.email ?? "");
+  const [error, setError] = useState<string | undefined>();
+  const [saving, setSaving] = useState(false);
+  const tieneAcceso = Boolean(emp.usuarioId);
+
+  const dar = async () => {
+    if (saving) return;
+    if (!isEmail(email)) {
+      setError("Poné un email válido.");
+      return;
+    }
+    setSaving(true);
+    const res = await grantAppAccess({ employeeId: emp.id, email });
+    setSaving(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    toast("Le mandamos la invitación por mail", "success");
+    onDone();
+    onClose();
+  };
+
+  const quitar = async () => {
+    if (saving) return;
+    setSaving(true);
+    const res = await revokeAppAccess({ employeeId: emp.id });
+    setSaving(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    toast("Ya no entra a la app", "info");
+    onDone();
+    onClose();
+  };
+
+  return (
+    <ModalShell onClose={onClose} labelledBy="emp-acceso-title" busy={saving}>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3
+            id="emp-acceso-title"
+            className="font-display text-2xl uppercase tracking-tight text-carbon"
+          >
+            Acceso a la app
+          </h3>
+          <p className="mt-1 text-sm text-carbon/55">
+            {tieneAcceso
+              ? `${emp.name} entra a esta sucursal con su email.`
+              : `${emp.name} solo ficha con PIN. Si le das acceso, va a poder abrir el panel de esta sucursal desde su celular.`}
+          </p>
+        </div>
+        <ModalCloseBtn
+          onClick={onClose}
+          disabled={saving}
+          label={t("qr.cerrar")}
+        />
+      </div>
+
+      {tieneAcceso ? (
+        <div className="flex flex-col gap-3">
+          <div className="rounded-xl border border-linea bg-crema/40 px-4 py-3">
+            <p className="text-[11px] uppercase tracking-wide text-carbon/45">
+              Entra con
+            </p>
+            <p className="mt-0.5 truncate text-sm font-semibold text-carbon">
+              {emp.email ?? "—"}
+            </p>
+          </div>
+          <p className="text-xs text-carbon/50">
+            Ve los pedidos y la espera de esta sucursal. No ve precios, pagos ni
+            datos de facturación.
+          </p>
+          {error && <span className="text-xs text-red-500">{error}</span>}
+          <button
+            type="button"
+            onClick={() => void quitar()}
+            disabled={saving}
+            className="w-full rounded-full border border-red-300 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-500/10 disabled:opacity-60"
+          >
+            {saving ? "…" : "Quitar el acceso"}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-carbon/70">
+              Email de la persona *
+            </span>
+            <input
+              autoFocus
+              disabled={saving}
+              type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              className={`${INPUT} ${error ? "border-red-400" : ""}`}
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError(undefined);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && void dar()}
+              placeholder="lucia@ejemplo.com"
+            />
+            <span className="text-xs text-carbon/45">
+              Le llega un mail para poner su contraseña.
+            </span>
+            {error && <span className="text-xs text-red-500">{error}</span>}
+          </label>
+          <button
+            type="button"
+            onClick={() => void dar()}
+            disabled={saving}
+            className="w-full rounded-full bg-marca py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
+          >
+            {saving ? "…" : "Dar acceso"}
+          </button>
+        </div>
+      )}
+    </ModalShell>
+  );
+};
+
 export const EmployeeList = () => {
   const { t } = useApp();
   const toast = useToast();
   const employees = useConfigStore((s) => s.employees);
   const removeEmployee = useConfigStore((s) => s.quitarEmpleado);
+  const setEmpleados = useConfigStore((s) => s.setEmpleados);
   const branchId = useSessionStore((s) => s.sucursalId);
+  const orgId = useSessionStore((s) => s.organizationId);
+  const rol = useSessionStore((s) => s.rol);
   const live = supabaseConfigured && isRealBranchId(branchId);
+  const esDueno = rol === "admin" || rol === "superadmin";
   const [modal, setModal] = useState(false);
   const [pinEmp, setPinEmp] = useState<EmployeeUI | null>(null);
+  const [accesoEmp, setAccesoEmp] = useState<EmployeeUI | null>(null);
+  const [owners, setOwners] = useState<OwnerUI[]>([]);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [borrando, setBorrando] = useState(false);
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (!esDueno || !live || !orgId) return;
+    let alive = true;
+    void fetchOwners(orgId).then((o) => {
+      if (alive) setOwners(o);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [esDueno, live, orgId]);
+
+  const recargar = () => {
+    if (!live || !branchId) return;
+    void fetchEmployees(branchId).then(setEmpleados);
+  };
 
   const pageItems = slicePage(employees, page, PAGE_SIZE);
 
@@ -397,6 +560,32 @@ export const EmployeeList = () => {
         </button>
       </div>
 
+      {esDueno && owners.length > 0 && (
+        <ul className="mb-2 flex flex-col gap-2">
+          {owners.map((o) => (
+            <li
+              key={o.id}
+              className="flex items-center gap-3 rounded-2xl border border-marca/25 bg-marca/5 px-3 py-3"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-marca text-sm font-bold text-crema">
+                {inicial(o.name)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 truncate font-semibold text-carbon">
+                  {o.name}
+                  <span className="shrink-0 rounded-full bg-marca/15 px-2 py-0.5 text-[11px] font-semibold text-marca">
+                    Dueño
+                  </span>
+                </p>
+                <p className="truncate text-xs text-carbon/50">
+                  {o.email} · ve todas las sucursales
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {employees.length === 0 ? (
         <p className="py-6 text-center text-sm text-carbon/40">{t("config.sinEmp")}</p>
       ) : (
@@ -411,11 +600,19 @@ export const EmployeeList = () => {
                   {inicial(e.name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-carbon">{e.name}</p>
+                  <p className="flex items-center gap-2 truncate font-semibold text-carbon">
+                    {e.name}
+                    {e.usuarioId && (
+                      <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                        Entra a la app
+                      </span>
+                    )}
+                  </p>
                   <p className="truncate text-xs text-carbon/50">
                     {e.rol || t("config.sinRol")}
                     {" · "}
                     {e.tienePin ? t("config.pinOk") : t("config.sinPin")}
+                    {e.usuarioId && e.email ? ` · ${e.email}` : ""}
                   </p>
                 </div>
                 {confirmId === e.id ? (
@@ -455,6 +652,34 @@ export const EmployeeList = () => {
                   </div>
                 ) : (
                   <div className="flex shrink-0 items-center gap-1.5">
+                    {esDueno && live && (
+                      <button
+                        type="button"
+                        onClick={() => setAccesoEmp(e)}
+                        aria-label="Acceso a la app"
+                        title="Acceso a la app"
+                        className={`flex size-10 shrink-0 items-center justify-center rounded-xl border transition ${
+                          e.usuarioId
+                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
+                            : "border-linea text-carbon/45 hover:border-marca hover:text-marca"
+                        }`}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                          <path d="M10 17l5-5-5-5" />
+                          <path d="M15 12H3" />
+                        </svg>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setPinEmp(e)}
@@ -515,6 +740,13 @@ export const EmployeeList = () => {
       {modal && <EmployeeModal onClose={() => setModal(false)} />}
       {pinEmp && (
         <ChangePinModal emp={pinEmp} onClose={() => setPinEmp(null)} />
+      )}
+      {accesoEmp && (
+        <AccessModal
+          emp={accesoEmp}
+          onClose={() => setAccesoEmp(null)}
+          onDone={recargar}
+        />
       )}
     </>
   );

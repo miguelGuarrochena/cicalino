@@ -80,6 +80,14 @@ type EmpRow = {
   nombre: string;
   rol: string | null;
   tiene_pin: boolean | null;
+  usuario_id?: string | null;
+  usuarios?: { email: string | null } | { email: string | null }[] | null;
+};
+
+const emailDe = (r: EmpRow): string | null => {
+  const u = r.usuarios;
+  if (!u) return null;
+  return (Array.isArray(u) ? u[0]?.email : u.email) ?? null;
 };
 
 const mapEmp = (r: EmpRow): EmployeeUI => ({
@@ -87,6 +95,8 @@ const mapEmp = (r: EmpRow): EmployeeUI => ({
   name: r.nombre,
   rol: r.rol ?? "",
   tienePin: Boolean(r.tiene_pin),
+  usuarioId: r.usuario_id ?? null,
+  email: emailDe(r),
 });
 
 export const fetchEmployees = async (
@@ -96,12 +106,33 @@ export const fetchEmployees = async (
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("empleados")
-    .select("id, nombre, rol, tiene_pin")
+    .select("id, nombre, rol, tiene_pin, usuario_id, usuarios ( email )")
     .eq("local_id", branchId)
     .eq("activo", true)
     .order("created_at", { ascending: true });
   if (error || !data) return [];
-  return (data as EmpRow[]).map(mapEmp);
+  return (data as unknown as EmpRow[]).map(mapEmp);
+};
+
+export interface OwnerUI {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export const fetchOwners = async (orgId: string): Promise<OwnerUI[]> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("id, nombre, email")
+    .eq("organizacion_id", orgId)
+    .eq("rol", "admin")
+    .order("created_at", { ascending: true });
+  if (error || !data) return [];
+  return (data as { id: string; nombre: string | null; email: string }[]).map(
+    (u) => ({ id: u.id, name: u.nombre?.trim() || u.email, email: u.email }),
+  );
 };
 
 export const setEmployeePin = async (
