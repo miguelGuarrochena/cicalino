@@ -16,13 +16,13 @@ export const BranchSwitcher = () => {
   const orgs = useSuperadminStore((s) => s.organizaciones);
   const { branches: liveBranches } = useMyBranches();
 
-  if (role !== "admin") return null;
+  if (role !== "admin" && role !== "supervisor") return null;
 
   let options: { id: string; name: string }[];
   if (supabaseConfigured) {
     options = liveBranches;
   } else {
-    const org = orgById(orgs, organizationId);
+    const org = role === "admin" ? orgById(orgs, organizationId) : null;
     options = org
       ? org.sucursales.filter((s) => s.activo).map((s) => ({
           id: s.id,

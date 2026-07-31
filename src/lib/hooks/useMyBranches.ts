@@ -17,7 +17,8 @@ export const useMyBranches = (): { branches: BranchLite[]; ready: boolean } => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!live || role !== "admin" || !isRealBranchId(orgId)) {
+    const puedeElegir = role === "admin" || role === "supervisor";
+    if (!live || !puedeElegir || !isRealBranchId(orgId)) {
       setReady(true);
       return;
     }

@@ -205,12 +205,11 @@ export const revokeAppAccess = async (
     .select("local_id")
     .eq("usuario_id", emp.usuarioId);
 
-  if (!restantes?.length) {
-    await admin
-      .from("usuarios")
-      .update({ local_id: null })
-      .eq("id", emp.usuarioId);
-  }
+  const otra = (restantes as { local_id: string }[] | null)?.[0]?.local_id ?? null;
+  await admin
+    .from("usuarios")
+    .update({ local_id: otra })
+    .eq("id", emp.usuarioId);
 
   const { error } = await admin
     .from("empleados")

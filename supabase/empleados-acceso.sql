@@ -18,8 +18,9 @@ alter table public.empleados
 comment on column public.empleados.usuario_id is
   'Cuenta con la que este empleado entra a la app. null = solo PIN.';
 
--- Una cuenta no puede estar enganchada a dos empleados.
-create unique index if not exists uq_empleados_usuario
+-- Una misma persona puede tener ficha en dos sucursales (dos PIN, dos filas)
+-- y entrar con la misma cuenta, así que el índice no es único.
+create index if not exists idx_empleados_usuario
   on public.empleados (usuario_id)
   where usuario_id is not null;
 
