@@ -27,6 +27,7 @@ import { BUSINESS_TYPE_LABEL, BUSINESS_TYPES } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { isEmail, isCuil, isWhatsapp, formatCuil } from "@/lib/validations";
 import { Select } from "@/components/ui/Select";
+import { PackPicker } from "@/components/admin/PackPicker";
 import { useToast } from "@/components/ui/Toast";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
@@ -232,6 +233,8 @@ export const OrgModal = ({
   const [crearPrimera, setCrearPrimera] = useState(true);
   const [primeraNombre, setPrimeraNombre] = useState("");
   const [primeraTipo, setPrimeraTipo] = useState<BusinessType>("cafeteria");
+  const [primeraPedidos, setPrimeraPedidos] = useState(true);
+  const [primeraEspera, setPrimeraEspera] = useState(false);
 
   const draftActual = (): DraftOrg => ({
     name: name,
@@ -366,8 +369,8 @@ export const OrgModal = ({
                   name: (primeraNombre.trim() || name).slice(0, 80),
                   tipo: primeraTipo,
                   direccion: address,
-                  moduloPedidos: true,
-                  moduloEspera: false,
+                  moduloPedidos: primeraPedidos,
+                  moduloEspera: primeraEspera,
                 },
               ]
             : [],
@@ -761,6 +764,21 @@ export const OrgModal = ({
                       }))}
                       className="sm:min-w-[11rem]"
                     />
+                  </div>
+                )}
+                {crearPrimera && (
+                  <div className="mt-2">
+                    <PackPicker
+                      pedidos={primeraPedidos}
+                      espera={primeraEspera}
+                      onChange={(p, e) => {
+                        setPrimeraPedidos(p);
+                        setPrimeraEspera(e);
+                      }}
+                    />
+                    <p className="mt-1.5 text-xs text-carbon/50">
+                      Podés cambiarlo después en el detalle del cliente.
+                    </p>
                   </div>
                 )}
               </div>
