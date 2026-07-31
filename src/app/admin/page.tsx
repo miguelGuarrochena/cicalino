@@ -15,6 +15,7 @@ import { SolicitudesPanel } from "@/components/admin/SolicitudesPanel";
 import { PedidosSucursalPanel } from "@/components/admin/PedidosSucursalPanel";
 import { CobrosPanel } from "@/components/admin/CobrosPanel";
 import { SubscriptionsPanel } from "@/components/admin/SubscriptionsPanel";
+import { PaymentModal } from "@/components/admin/PaymentModal";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useSuperadminSync } from "@/lib/hooks/useSuperadminSync";
 import { ensureDemoOrg } from "@/lib/actions/superadmin";
@@ -77,6 +78,7 @@ const SuperadminPage = () => {
   const [modal, setModal] = useState<
     { mode: "crear" } | { mode: "ver"; org: OrganizationRow } | null
   >(null);
+  const [pagoOrgId, setPagoOrgId] = useState<string | null>(null);
 
   const filtradas = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -235,6 +237,7 @@ const SuperadminPage = () => {
           const org = organizations.find((o) => o.id === id);
           if (org) setModal({ mode: "ver", org });
         }}
+        onRegistrarPago={setPagoOrgId}
       />
 
       <div className="flex flex-col gap-3">
@@ -343,6 +346,19 @@ const SuperadminPage = () => {
           onChange={setPage}
         />
       </div>
+
+      {pagoOrgId &&
+        (() => {
+          const org = organizations.find((o) => o.id === pagoOrgId);
+          if (!org) return null;
+          return (
+            <PaymentModal
+              org={org}
+              onClose={() => setPagoOrgId(null)}
+              onSaved={() => void refreshOrganizations()}
+            />
+          );
+        })()}
 
       {modal?.mode === "crear" && (
         <OrgModal mode="crear" onClose={() => setModal(null)} />

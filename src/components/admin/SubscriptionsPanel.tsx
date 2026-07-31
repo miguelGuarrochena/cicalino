@@ -67,9 +67,11 @@ const asState = (org: OrganizationRow): SubscriptionState => ({
 export const SubscriptionsPanel = ({
   orgs,
   onVerCliente,
+  onRegistrarPago,
 }: {
   orgs: OrganizationRow[];
   onVerCliente: (orgId: string) => void;
+  onRegistrarPago: (orgId: string) => void;
 }) => {
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [q, setQ] = useState("");
@@ -209,13 +211,24 @@ export const SubscriptionsPanel = ({
                     </p>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onVerCliente(org.id)}
-                  className="shrink-0 rounded-full bg-marca px-3.5 py-2 text-xs font-semibold text-crema transition hover:bg-marca-fuerte"
-                >
-                  Ver cliente
-                </button>
+                <div className="flex shrink-0 flex-col gap-1.5">
+                  {org.plan !== "gratis" && (
+                    <button
+                      type="button"
+                      onClick={() => onRegistrarPago(org.id)}
+                      className="rounded-full bg-marca px-3.5 py-2 text-xs font-semibold text-crema transition hover:bg-marca-fuerte"
+                    >
+                      Registrar pago
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onVerCliente(org.id)}
+                    className="rounded-full border border-linea px-3.5 py-2 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5"
+                  >
+                    Ver cliente
+                  </button>
+                </div>
               </div>
             </div>
 

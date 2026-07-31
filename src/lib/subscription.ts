@@ -99,11 +99,24 @@ export const isInGrace = (
 export const registerPayment = (
   s: SubscriptionState,
   cycleDay: number,
-): { nextBilling: string; status: SubscriptionStatus } => {
-  const from = s.nextBilling ?? toDateOnly(new Date());
+  cycles = 1,
+): {
+  nextBilling: string;
+  status: SubscriptionStatus;
+  periodFrom: string;
+  periodTo: string;
+} => {
+  const periodFrom = s.nextBilling ?? toDateOnly(new Date());
+  const n = Math.max(1, Math.floor(cycles));
+  let nextBilling = periodFrom;
+  for (let i = 0; i < n; i++) {
+    nextBilling = addCycle(nextBilling, cycleDay, s.plan);
+  }
   return {
-    nextBilling: addCycle(from, cycleDay, s.plan),
+    nextBilling,
     status: "active",
+    periodFrom,
+    periodTo: addDays(nextBilling, -1),
   };
 };
 

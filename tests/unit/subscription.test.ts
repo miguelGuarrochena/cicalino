@@ -86,4 +86,17 @@ describe("vencimientos", () => {
     expect(registerPayment(base, 15).nextBilling).toBe("2026-10-15");
     expect(registerPayment(base, 15).status).toBe("active");
   });
+
+  it("un pago adelantado de 3 meses corre la fecha 3 ciclos", () => {
+    const r = registerPayment(base, 15, 3);
+    expect(r.nextBilling).toBe("2026-12-15");
+    expect(r.periodFrom).toBe("2026-09-15");
+    expect(r.periodTo).toBe("2026-12-14");
+  });
+
+  it("el adelantado respeta los meses cortos y no corre el dia de ciclo", () => {
+    const dia31: SubscriptionState = { ...base, nextBilling: "2026-01-31" };
+    const r = registerPayment(dia31, 31, 3);
+    expect(r.nextBilling).toBe("2026-04-30");
+  });
 });
