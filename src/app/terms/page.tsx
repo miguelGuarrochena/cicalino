@@ -37,7 +37,8 @@ const TerminosPage = () => {
               </p>
               <p>
                 <b className="text-carbon">Contratación.</b> El servicio se
-                contrata por organización y sucursales (cupo). El alta puede
+                contrata por organización y por cada sucursal activa, según los
+                módulos que tenga habilitados. El alta puede
                 incluir un período de prueba. Al contratar o continuar el
                 servicio, el responsable aceptá estas bases (por ejemplo mediante
                 el link de aceptación que enviamos por mail) y abona según el

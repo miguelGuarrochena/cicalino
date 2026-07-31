@@ -198,9 +198,11 @@ export const SubscriptionsPanel = ({
                   {org.telefono ? ` · ${org.telefono}` : ""}
                 </p>
                 <p className="text-xs text-carbon/40">
-                  {activas} de {org.cupo}{" "}
-                  {org.cupo === 1 ? "sucursal" : "sucursales"} · alta{" "}
-                  {fecha(org.altaEn)}
+                  {activas} {activas === 1 ? "sucursal activa" : "sucursales activas"}
+                  {org.sucursales.length !== activas
+                    ? ` de ${org.sucursales.length}`
+                    : ""}{" "}
+                  · alta {fecha(org.altaEn)}
                 </p>
               </div>
 

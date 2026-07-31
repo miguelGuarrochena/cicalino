@@ -91,7 +91,7 @@ export const getContractByToken = async (
   return {
     name: data.nombre,
     plan,
-    cupo,
+    cupo: packs.length,
     monto: contractAmountForBranches(plan, packs),
     ciclo: billingCycleLabel(plan),
     alias: mpAlias(),

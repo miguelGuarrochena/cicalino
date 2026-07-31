@@ -46,13 +46,12 @@ export const PedirSucursalCard = () => {
   if (resumen === undefined) {
     return (
       <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6">
-        <p className="text-sm text-carbon/45">Cargando cupo…</p>
+        <p className="text-sm text-carbon/45">Cargando sucursales…</p>
       </section>
     );
   }
   if (!resumen) return null;
 
-  const lleno = resumen.usadas >= resumen.cupo;
   const puedePedir =
     resumen.activo && resumen.plan !== "gratis" && !resumen.pendiente;
 
@@ -84,14 +83,14 @@ export const PedirSucursalCard = () => {
         Sucursales contratadas
       </h2>
       <p className="mt-2 text-sm text-carbon/70">
-        Usás <b>{resumen.usadas}</b> de <b>{resumen.cupo}</b> contratadas
-        {lleno ? " · cupo completo" : ""}.
+        Tenés <b>{resumen.usadas}</b>{" "}
+        {resumen.usadas === 1 ? "sucursal" : "sucursales"}.
       </p>
 
       {resumen.pendiente && (
         <p className="mt-3 rounded-xl border border-amber-300/80 bg-amber-100 px-3 py-2 text-xs font-medium text-amber-950">
           Pedido en curso: te mandamos el mail con el alias. Cuando veamos la
-          transferencia, sumamos el cupo.
+          transferencia, la damos de alta.
         </p>
       )}
 
@@ -130,7 +129,7 @@ export const PedirSucursalCard = () => {
             Sumás <b>1 sucursal</b>. Transferís{" "}
             <b>{money.format(resumen.montoExtra)}</b> ({resumen.ciclo}) al alias{" "}
             <b className="text-marca">{resumen.alias}</b>. Cuando veamos el pago,
-            habilitamos el cupo.
+            la habilitamos.
           </p>
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-carbon/70">

@@ -47,7 +47,7 @@ export const PedidosSucursalPanel = ({
       }
       await load();
       await refreshOrganizations();
-      toast("Cupo actualizado · podés agregar la sucursal", "success");
+      toast("Pedido aprobado · creá la sucursal en el detalle", "success");
       if (r.organizationId && onAbrir) onAbrir(r.organizationId);
     } finally {
       setBusy(null);
@@ -85,7 +85,7 @@ export const PedidosSucursalPanel = ({
                 <p className="truncate font-semibold text-carbon">
                   {p.orgNombre}
                   <span className="ml-2 rounded-full bg-carbon/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/55">
-                    Cupo {p.cupoActual} → {p.cupoPedido}
+                    {p.cupoActual} → {p.cupoPedido} sucursales
                   </span>
                 </p>
                 <p className="truncate text-xs text-carbon/55">

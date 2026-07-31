@@ -356,9 +356,6 @@ export const useSuperadminStore = create<SuperadminState>()(
       altaSucursal: (organizationId, data) => {
         const org = get().organizaciones.find((o) => o.id === organizationId);
         if (!org) return { ok: false as const, error: "cupo" as const };
-        if (org.sucursales.length >= org.cupo) {
-          return { ok: false as const, error: "cupo" as const };
-        }
         const id = crypto.randomUUID();
         set((s) => ({
           organizaciones: s.organizaciones.map((o) =>

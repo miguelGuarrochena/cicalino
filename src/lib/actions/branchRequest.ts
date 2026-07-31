@@ -44,7 +44,6 @@ export type BranchRequestAdmin = {
 };
 
 export type QuotaSummary = {
-  cupo: number;
   usadas: number;
   plan: BillingPlanUI;
   activo: boolean;
@@ -62,7 +61,7 @@ export const getQuotaSummary = async (): Promise<QuotaSummary | null> => {
 
   const { data: org } = await admin
     .from("organizaciones")
-    .select("id, cupo, plan, activo")
+    .select("id, plan, activo")
     .eq("id", perfil.organizationId)
     .maybeSingle();
   if (!org) return null;
@@ -82,7 +81,6 @@ export const getQuotaSummary = async (): Promise<QuotaSummary | null> => {
 
   const plan = (org.plan as BillingPlanUI) ?? "mensual";
   return {
-    cupo: org.cupo ?? 1,
     usadas: count ?? 0,
     plan,
     activo: Boolean(org.activo),
@@ -139,7 +137,11 @@ export const requestExtraBranch = async (input: {
     };
   }
 
-  const cupoActual = org.cupo ?? 1;
+  const { count: activas } = await admin
+    .from("locales")
+    .select("id", { count: "exact", head: true })
+    .eq("organizacion_id", org.id);
+  const cupoActual = Math.max(1, activas ?? 1);
   const cupoPedido = cupoActual + 1;
   const nombre =
     (input.nombreSucursal ?? "").trim().slice(0, 80) || null;
@@ -179,7 +181,7 @@ export const requestExtraBranch = async (input: {
         <b>${money(monto)}</b> (${ciclo}) al alias de Mercado Pago:</p>
         <p style="margin:0 0 12px;font-size:22px;font-weight:800;letter-spacing:.02em;color:#2536d4;">${esc(alias)}</p>
         <p style="margin:0;font-size:13px;opacity:.75;">En el concepto poné el nombre del local.
-        Cuando veamos el pago, sumamos el cupo y te avisamos.</p>`,
+        Cuando veamos el pago, la damos de alta y te avisamos.</p>`,
       cta: { label: "Ver bases y condiciones", url: `${appBaseUrl()}/terms` },
       pie: "Cicalino · Si no pediste esto, escribinos a info@cicalino.net.",
     }),
@@ -192,11 +194,11 @@ export const requestExtraBranch = async (input: {
     html: emailLayout({
       titulo: "Pedido de sucursal",
       cuerpoHtml: `<p style="margin:0;"><b>${esc(org.nombre)}</b> pide pasar de
-        cupo ${cupoActual} → ${cupoPedido} (${money(monto)} / ${ciclo}).</p>
+        ${cupoActual} → ${cupoPedido} sucursales (${money(monto)} / ${ciclo}).</p>
         <p style="margin:8px 0 0;font-size:14px;">Mail: ${esc(org.dueno_email)}
         ${nombre ? ` · Nueva: ${esc(nombre)}` : ""}</p>
         <p style="margin:8px 0 0;font-size:13px;opacity:.75;">Cuando veas el pago,
-        aprobá desde Superadmin (suma el cupo).</p>`,
+        aprobá desde Superadmin y creá la sucursal en el detalle.</p>`,
       cta: { label: "Abrir Superadmin", url: `${appBaseUrl()}/admin` },
     }),
   });
@@ -274,20 +276,10 @@ export const approveBranchRequest = async (
 
   const { data: org } = await admin
     .from("organizaciones")
-    .select("id, nombre, dueno_email, cupo, plan")
+    .select("id, nombre, dueno_email, plan")
     .eq("id", ped.organizacion_id)
     .maybeSingle();
   if (!org) return { ok: false, error: "Empresa no encontrada." };
-
-  const nuevoCupo = Math.max(org.cupo ?? 1, ped.cupo_pedido);
-  const { error: errOrg } = await admin
-    .from("organizaciones")
-    .update({ cupo: nuevoCupo })
-    .eq("id", org.id);
-  if (errOrg) {
-    console.error("aprobarPedidoSucursal/cupo", errOrg.message);
-    return { ok: false, error: "No se pudo actualizar el cupo." };
-  }
 
   await admin
     .from("pedidos_sucursal")
@@ -297,16 +289,15 @@ export const approveBranchRequest = async (
   const plan = (org.plan as BillingPlanUI) ?? "mensual";
   void sendEmail({
     to: org.dueno_email,
-    subject: "Cupo actualizado · Cicalino",
+    subject: "Sucursal habilitada · Cicalino",
     html: emailLayout({
       titulo: "Sucursal habilitada",
       cuerpoHtml: `<p style="margin:0 0 8px;">¡Listo!</p>
-        <p style="margin:0;">Ya sumamos el cupo de <b>${esc(org.nombre)}</b>
-        (${nuevoCupo} sucursales contratadas${
+        <p style="margin:0;">Habilitamos la sucursal nueva de <b>${esc(org.nombre)}</b>${
           ped.nombre_sucursal
-            ? `; pediste «${esc(ped.nombre_sucursal)}»`
+            ? `: «${esc(ped.nombre_sucursal)}»`
             : ""
-        }).</p>
+        }.</p>
         <p style="margin:8px 0 0;">Desde el panel podés operar; si falta crear el local,
         Cicalino lo carga o lo hacemos juntos.</p>
         <p style="margin:8px 0 0;font-size:13px;opacity:.75;">Plan ${esc(billingCycleLabel(plan))}

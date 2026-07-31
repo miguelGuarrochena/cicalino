@@ -86,7 +86,9 @@ export const createOrganizationSchema = z.object({
     .number()
     .int("El cupo tiene que ser un número entero.")
     .min(1, "El cupo mínimo es 1.")
-    .max(500, "El cupo máximo es 500."),
+    .max(500, "El cupo máximo es 500.")
+    .optional()
+    .default(1),
   plan: plan.optional().default("mensual"),
   mesGratis: z.boolean().optional().default(false),
   moduloPedidos: z.boolean().optional().default(true),

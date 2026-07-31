@@ -55,12 +55,6 @@ const createOrganizationValidated = async (
     nextChargeAt = freeMonthUntil;
   }
 
-  if (data.sucursales.length > data.cupo) {
-    return {
-      ok: false,
-      error: `El cupo (${data.cupo}) no alcanza para ${data.sucursales.length} sucursales.`,
-    };
-  }
 
   const trial = startTrial(toDateOnly(new Date()));
 

@@ -52,7 +52,6 @@ type DraftOrg = {
   cuil: string;
   direccion: string;
   ownerEmail: string;
-  cupo: number;
   plan: PlanTipo;
 };
 
@@ -63,7 +62,6 @@ const draftVacio = (): DraftOrg => ({
   cuil: "",
   direccion: "",
   ownerEmail: "",
-  cupo: 1,
   plan: "mensual",
 });
 
@@ -74,7 +72,6 @@ const draftDesdeOrg = (o: OrganizationRow): DraftOrg => ({
   cuil: o.cuil,
   direccion: o.direccion,
   ownerEmail: o.ownerEmail,
-  cupo: o.cupo,
   plan: o.plan,
 });
 
@@ -85,7 +82,6 @@ const draftsIguales = (a: DraftOrg, b: DraftOrg): boolean =>
   a.cuil.trim() === b.cuil.trim() &&
   a.direccion.trim() === b.direccion.trim() &&
   a.ownerEmail.trim() === b.ownerEmail.trim() &&
-  a.cupo === b.cupo &&
   a.plan === b.plan;
 
 const money = new Intl.NumberFormat("es-AR", {
@@ -144,14 +140,14 @@ const textoProximoCobro = (org: OrganizationRow): string => {
 
 const montoPlanPreview = (
   plan: PlanTipo,
-  cupo: number,
+  sucursales: number,
   modulos: { pedidos: boolean; espera: boolean } = {
     pedidos: true,
     espera: false,
   },
 ): number => {
   if (plan === "gratis") return 0;
-  const mes = cupo * monthlyPriceForBranch(modulos);
+  const mes = sucursales * monthlyPriceForBranch(modulos);
   return plan === "anual" ? mes * 10 : mes;
 };
 
@@ -222,7 +218,6 @@ export const OrgModal = ({
   const [cuil, setCuil] = useState(org?.cuil ?? "");
   const [address, setDireccion] = useState(org?.direccion ?? "");
   const [ownerEmail, setOwnerEmail] = useState(org?.ownerEmail ?? "");
-  const [quota, setCupo] = useState(org?.cupo ?? 1);
   const [plan, setPlan] = useState<PlanTipo>(org?.plan ?? "mensual");
   const [baseline, setBaseline] = useState<DraftOrg>(() =>
     initialMode === "crear" || !org ? draftVacio() : draftDesdeOrg(org),
@@ -243,7 +238,6 @@ export const OrgModal = ({
     cuil,
     direccion: address,
     ownerEmail: ownerEmail,
-    cupo: quota,
     plan,
   });
 
@@ -274,7 +268,6 @@ export const OrgModal = ({
     setCuil(d.cuil);
     setDireccion(d.direccion);
     setOwnerEmail(d.ownerEmail);
-    setCupo(d.cupo);
     setPlan(d.plan);
   };
 
@@ -358,8 +351,6 @@ export const OrgModal = ({
       e.telefono = t("super.errTelefono");
     if (!emailOk(ownerEmail)) e.ownerEmail = t("super.errEmail");
     if (cuil && !cuilOk(cuil)) e.cuil = t("super.errCuil");
-    if (quota < 1) e.cupo = t("super.errCupo");
-    if (org && quota < org.sucursales.length) e.cupo = t("super.errCupoBajo");
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -373,7 +364,7 @@ export const OrgModal = ({
       cuil,
       direccion: address,
       ownerEmail: ownerEmail,
-      cupo: quota,
+      cupo: org?.cupo ?? 1,
       plan,
     };
     if (mode === "crear") {
@@ -716,24 +707,13 @@ export const OrgModal = ({
                 onChange={(e) => setCuil(formatCuil(e.target.value))}
               />
             </Campo>
-            {mode === "crear" ? (
-              <Campo label={t("super.cupo")} error={errors.cupo}>
-                <input
-                  className={INPUT}
-                  type="number"
-                  min={1}
-                  value={quota}
-                  onChange={(e) => setCupo(parseInt(e.target.value, 10) || 1)}
-                />
-              </Campo>
-            ) : (
+            {mode !== "crear" && (
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-carbon/70">
-                  {t("super.cupo")}
+                  Sucursales
                 </span>
                 <p className="rounded-xl border border-linea bg-crema/40 px-4 py-3 text-sm text-carbon/55">
-                  {org?.sucursales.length ?? 0} sucursales · se gestionan en el
-                  detalle
+                  {org?.sucursales.length ?? 0} · se administran en el detalle
                 </p>
               </div>
             )}
