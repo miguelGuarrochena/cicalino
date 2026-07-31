@@ -72,22 +72,26 @@ export const PricingTeaser = () => {
           </p>
         </div>
 
-        <ul className="mt-10 grid gap-3 sm:grid-cols-3 sm:items-end">
+        {/* Las tres cajas son identicas: mismo padding y mismas filas internas.
+            La fila del badge y la del ahorro existen siempre (vacias en los no
+            destacados) asi ninguna card queda mas alta. El enfasis del pack sale
+            del color del borde, no del tamano. */}
+        <ul className="mt-10 grid gap-3 sm:grid-cols-3">
           {packs.map((p, idx) => (
             <li
               key={p.id}
-              className={`u-in relative rounded-2xl border bg-surface p-5 ${p.border} ${
-                p.destacado ? "sm:pb-7 sm:pt-8" : ""
-              }`}
+              className={`u-in flex h-full flex-col rounded-2xl border bg-surface p-5 ${p.border}`}
               style={{ animationDelay: `${0.05 + idx * 0.07}s` }}
             >
-              {p.destacado && (
-                <span className="absolute -top-2.5 left-5 rounded-full bg-marca px-3 py-0.5 text-[10px] font-bold uppercase tracking-wide text-crema">
-                  {t("home.precioPopular")}
-                </span>
-              )}
+              <div className="flex min-h-5 items-start">
+                {p.destacado && (
+                  <span className="rounded-full bg-marca px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-crema">
+                    {t("home.precioPopular")}
+                  </span>
+                )}
+              </div>
 
-              <p className="text-xs font-semibold uppercase tracking-wide text-carbon/50">
+              <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-carbon/50">
                 {p.label}
               </p>
               <p
@@ -99,11 +103,13 @@ export const PricingTeaser = () => {
                 {t("home.precioPorMes")}
               </p>
 
-              {p.destacado && ahorro > 0 && (
-                <p className="mt-2 text-[11px] font-semibold text-emerald-700">
-                  {t("home.precioAhorro", { monto: money.format(ahorro) })}
-                </p>
-              )}
+              <div className="mt-2 flex min-h-4 items-end">
+                {p.destacado && ahorro > 0 && (
+                  <p className="text-[11px] font-semibold text-emerald-700">
+                    {t("home.precioAhorro", { monto: money.format(ahorro) })}
+                  </p>
+                )}
+              </div>
             </li>
           ))}
         </ul>
