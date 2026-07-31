@@ -2,6 +2,7 @@
 
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { startTrial, toDateOnly } from "@/lib/subscription";
 import {
   createOrganizationSchema,
   idSchema,
@@ -60,6 +61,8 @@ const createOrganizationValidated = async (
     };
   }
 
+  const trial = startTrial(toDateOnly(new Date()));
+
   const { data: org, error } = await admin
     .from("organizaciones")
     .insert({
@@ -74,6 +77,11 @@ const createOrganizationValidated = async (
       activo: false,
       mes_gratis_hasta: freeMonthUntil,
       proximo_cobro_en: nextChargeAt,
+      estado_suscripcion: "trial",
+      prueba_inicio: trial.trialStart,
+      prueba_fin: trial.trialEnd,
+      proxima_factura: trial.nextBilling,
+      dia_ciclo: trial.cycleDay,
       modulo_pedidos: data.moduloPedidos !== false,
       modulo_espera: Boolean(data.moduloEspera),
     })
@@ -91,6 +99,7 @@ const createOrganizationValidated = async (
       if (!pedidos && !espera) pedidos = true;
       return {
         organizacion_id: org.id,
+        cobro_desde: trial.nextBilling,
         nombre: b.name,
         tipo_negocio: b.tipo,
         direccion: b.direccion ?? null,
@@ -347,6 +356,8 @@ export const ensureDemoOrg = async (): Promise<
       },
     };
   }
+
+  const trial = startTrial(toDateOnly(new Date()));
 
   const { data: org, error } = await admin
     .from("organizaciones")

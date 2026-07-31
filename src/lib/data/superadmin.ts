@@ -8,7 +8,7 @@ import {
 } from "@/lib/store/superadmin-store";
 import type { BusinessType } from "@/lib/store/config-store";
 import { normalizeModules } from "@/lib/pricing";
-import type { SubscriptionStatus } from "@/lib/subscription";
+import { toDateOnly, type SubscriptionStatus } from "@/lib/subscription";
 
 type BranchDb = {
   id: string;
@@ -216,8 +216,17 @@ export const insertBranchDb = async (
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
     .slice(0, 40) || "sucursal"}-${Math.random().toString(36).slice(2, 7)}`;
+  const { data: org } = await supabase
+    .from("organizaciones")
+    .select("proxima_factura")
+    .eq("id", orgId)
+    .maybeSingle();
+
   const { error } = await supabase.from("locales").insert({
     organizacion_id: orgId,
+    cobro_desde:
+      (org as { proxima_factura: string | null } | null)?.proxima_factura ??
+      toDateOnly(new Date()),
     nombre: data.name.trim(),
     tipo_negocio: data.tipo,
     direccion: data.direccion.trim() || null,
