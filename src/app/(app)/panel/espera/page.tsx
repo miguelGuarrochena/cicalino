@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSeenWatch } from "@/lib/hooks/useSeenWatch";
+import type { NotifyResult } from "@/lib/notify";
 import Link from "next/link";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { QrModal } from "@/components/panel/QrModal";
@@ -491,6 +492,32 @@ const EsperaPanelPage = () => {
 
   const closeQr = useCallback(() => setQr(null), []);
   useSeenWatch("waitlist", qr?.id ?? null, closeQr);
+
+  const toastAviso = useCallback(
+    (r: NotifyResult | null) => {
+      if (!r) return;
+      if (!r.ok) {
+        toast(
+          locale === "en"
+            ? "Couldn’t notify. Check the connection and try again."
+            : "No se pudo avisar. Revisá la conexión y probá de nuevo.",
+          "error",
+        );
+        return;
+      }
+      if (r.delivered > 0) {
+        toast(locale === "en" ? "Notified 🔔" : "Avisado 🔔", "success");
+        return;
+      }
+      toast(
+        locale === "en"
+          ? "Marked as notified, but their phone has no alerts on — call them out."
+          : "Marcado como avisado, pero el celular no tiene avisos activos: llamalo vos.",
+        "info",
+      );
+    },
+    [locale, toast],
+  );
 
   const cola = useMemo(
     () =>
@@ -1172,7 +1199,7 @@ const EsperaPanelPage = () => {
                   {e.estado === "esperando" && (
                     <button
                       type="button"
-                      onClick={() => void avisar(e.id)}
+                      onClick={() => void avisar(e.id).then(toastAviso)}
                       className={`${BTN_MOBILE} bg-espera text-crema hover:bg-espera-fuerte sm:flex-1`}
                     >
                       {locale === "en" ? "Notify" : "Avisar"}
@@ -1182,32 +1209,7 @@ const EsperaPanelPage = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        void reavisar(e.id).then((r) => {
-                          if (r == null) {
-                            toast(
-                              locale === "en"
-                                ? "Couldn’t send notify again"
-                                : "No se pudo volver a avisar",
-                              "error",
-                            );
-                            return;
-                          }
-                          if (r.enviados > 0) {
-                            toast(
-                              locale === "en"
-                                ? "Notified again 🔔"
-                                : "Aviso reenviado 🔔",
-                              "success",
-                            );
-                          } else {
-                            toast(
-                              locale === "en"
-                                ? "Ping sent to the open tab (no push)."
-                                : "Señal enviada a la pestaña abierta (sin push).",
-                              "success",
-                            );
-                          }
-                        });
+                        void reavisar(e.id).then((r) => toastAviso(r));
                       }}
                       className={`${BTN_MOBILE} border border-espera/40 bg-espera/10 text-espera hover:bg-espera hover:text-crema sm:flex-1`}
                     >

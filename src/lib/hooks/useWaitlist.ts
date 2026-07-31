@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { throttled } from "@/lib/realtime";
+import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { useConfigStore } from "@/lib/store/config-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
@@ -47,8 +48,8 @@ export interface UseWaitlist {
     graciaMinutos: 15 | 20;
     employee?: EmployeeRef;
   }) => Promise<ReservationView | null>;
-  avisar: (id: string) => Promise<void>;
-  reavisar: (id: string) => Promise<{ enviados: number } | null>;
+  avisar: (id: string) => Promise<NotifyResult | null>;
+  reavisar: (id: string) => Promise<NotifyResult>;
   sentar: (id: string, mesasNumeros: number[]) => Promise<void>;
   cancelar: (id: string) => Promise<void>;
   borrarEspera: (id: string) => Promise<void>;
@@ -221,43 +222,20 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   const avisar = async (id: string) => {
     if (!live) {
       demoChange(id, "avisado");
-      return;
-    }
-    await updateWaitlistStatus(id, "avisado");
-    void fetch("/api/push/notify", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ esperaId: id }),
-    }).catch(() => {});
-    await reload();
-  };
-
-  const pingEspera = async (
-    id: string,
-  ): Promise<{ enviados: number } | null> => {
-    try {
-      const res = await fetch("/api/push/notify", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ esperaId: id }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        enviados?: number;
-      };
-      if (!data?.ok) return null;
-      return { enviados: data.enviados ?? 0 };
-    } catch {
       return null;
     }
+    await updateWaitlistStatus(id, "avisado");
+    const r = await notifyCustomer({ esperaId: id });
+    await reload();
+    return r;
   };
 
   const reavisar = async (id: string) => {
     if (!live) {
       demoReavisar(id);
-      return { enviados: 0 };
+      return { ok: true, delivered: 0 };
     }
-    const r = await pingEspera(id);
+    const r = await notifyCustomer({ esperaId: id });
     await reload();
     return r;
   };
@@ -279,7 +257,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
         reservaId: null,
       });
     }
-    if (veniaEsperando) void pingEspera(id);
+    if (veniaEsperando) void notifyCustomer({ esperaId: id });
     await reload();
   };
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useSeenWatch } from "@/lib/hooks/useSeenWatch";
+import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
@@ -130,27 +131,34 @@ const PanelOrdersPage = () => {
         ? t("panel.buscarNombre")
         : t("panel.buscarPedido");
 
+  const toastAviso = useCallback(
+    (r: NotifyResult | null) => {
+      if (!r) return;
+      if (!r.ok) {
+        toast(
+          locale === "en"
+            ? "Couldn’t notify. Check the connection and try again."
+            : "No se pudo avisar. Revisá la conexión y probá de nuevo.",
+          "error",
+        );
+        return;
+      }
+      if (r.delivered > 0) {
+        toast(locale === "en" ? "Notified 🔔" : "Avisado 🔔", "success");
+        return;
+      }
+      toast(
+        locale === "en"
+          ? "Marked as ready, but their phone has no alerts on — call them out."
+          : "Marcado como listo, pero el celular no tiene avisos activos: llamalo vos.",
+        "info",
+      );
+    },
+    [locale, toast],
+  );
+
   const reavisar = async (id: string) => {
-    try {
-      const res = await fetch("/api/push/notify", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ orderId: id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (data?.ok) {
-        if (data.enviados > 0) toast("Aviso reenviado al cliente 🔔", "success");
-        else
-          toast(
-            locale === "en"
-              ? "Ping sent to the open tab (no push subscription)."
-              : "Señal enviada a la pestaña abierta (sin push).",
-            "success",
-          );
-      } else toast("No se pudo reenviar el aviso", "info");
-    } catch {
-      toast("No se pudo reenviar el aviso", "error");
-    }
+    toastAviso(await notifyCustomer({ orderId: id }));
   };
 
   const handleCreate = async (reference: string): Promise<boolean> => {
@@ -183,10 +191,11 @@ const PanelOrdersPage = () => {
   };
 
   const changeStatusUX = async (id: string, status: OrderStatus) => {
-    await changeStatus(id, status);
+    const notified = await changeStatus(id, status);
     if (status === "listo") {
       notifyReady();
-      toast(t("toast.listo"), "success");
+      if (live) toastAviso(notified);
+      else toast(t("toast.listo"), "success");
     } else if (status === "retirado") {
       toast(t("toast.retirado"), "info");
     } else if (status === "cancelado") {

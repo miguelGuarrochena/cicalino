@@ -12,6 +12,7 @@ import {
   subscribeOrders,
 } from "@/lib/data/orders";
 import type { OrderStatus, OrderView } from "@/lib/types";
+import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 
 type EmployeeRef = { id: string; nombre: string } | null;
 
@@ -24,7 +25,10 @@ export interface UseOrders {
     reference: string,
     employee?: EmployeeRef,
   ) => Promise<OrderView | null>;
-  changeStatus: (id: string, status: OrderStatus) => Promise<void>;
+  changeStatus: (
+    id: string,
+    status: OrderStatus,
+  ) => Promise<NotifyResult | null>;
 }
 
 export const useOrders = (branchId: string | null): UseOrders => {
@@ -114,7 +118,7 @@ export const useOrders = (branchId: string | null): UseOrders => {
     async (id, status) => {
       if (!live) {
         demoChange(id, status);
-        return;
+        return null;
       }
       let desde: OrderStatus | undefined;
       setLiveOrders((cur) => {
@@ -122,13 +126,8 @@ export const useOrders = (branchId: string | null): UseOrders => {
         return cur.map((o) => (o.id === id ? { ...o, estado: status } : o));
       });
       await updateOrderStatus(id, status, desde);
-      if (status === "listo") {
-        void fetch("/api/push/notify", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ orderId: id }),
-        }).catch(() => {});
-      }
+      if (status !== "listo") return null;
+      return notifyCustomer({ orderId: id });
     },
     [live, demoChange],
   );

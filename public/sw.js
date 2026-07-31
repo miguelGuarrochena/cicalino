@@ -3,7 +3,7 @@
  * - Web Push: muestra el aviso cuando el pedido pasa a "listo".
  */
 
-const CACHE = "cicalino-v5";
+const CACHE = "cicalino-v6";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [
   OFFLINE_URL,
@@ -40,12 +40,16 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return; // datos siempre a la red
 
   // Navegaciones (páginas): red primero, fallback a caché u offline.
+  // Solo se cachean respuestas 200 propias: una 404 o un 500 en caché
+  // sería peor que la pantalla de offline.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
+          if (res.ok && res.type === "basic") {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(request, copy));
+          }
           return res;
         })
         .catch(() =>
@@ -100,5 +104,19 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(self.clients.openWindow(event.notification.data?.url || "/"));
+  const target = event.notification.data?.url || "/";
+  // Si la pestaña del pedido ya está abierta, enfocarla en vez de abrir otra:
+  // la que estaba abierta es la que viene siguiendo el estado.
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (new URL(client.url).pathname === target && "focus" in client) {
+            return client.focus();
+          }
+        }
+        return self.clients.openWindow(target);
+      }),
+  );
 });
