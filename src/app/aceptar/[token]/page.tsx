@@ -148,7 +148,7 @@ const AceptarPage = ({ params }: { params: Promise<{ token: string }> }) => {
                   type="button"
                   disabled={!acepto || saving}
                   onClick={() => void enviar()}
-                  className="mt-4 w-full rounded-full bg-marca py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50"
+                  className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-marca text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-50"
                 >
                   {saving ? "Guardando…" : "Aceptar condiciones"}
                 </button>

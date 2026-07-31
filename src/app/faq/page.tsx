@@ -18,17 +18,17 @@ const FaqPage = () => {
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/pricing"
-              className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca transition hover:bg-marca hover:text-crema sm:text-sm"
+              className="hidden min-h-11 items-center justify-center rounded-full border border-marca/25 bg-crema/70 px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema sm:flex sm:min-h-0 sm:px-4 sm:py-2"
             >
               {t("nav.precios")}
             </Link>
             <Link
               href="/login"
-              className="rounded-full bg-marca px-4 py-2 text-xs font-semibold text-crema transition hover:bg-marca-fuerte sm:text-sm"
+              className="flex min-h-11 items-center justify-center rounded-full bg-marca px-5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte sm:min-h-0 sm:px-4 sm:py-2"
             >
               {t("nav.entrar")}
             </Link>
-            <Controls />
+            <Controls className="hidden sm:flex" />
           </div>
         </div>
       </header>

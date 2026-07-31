@@ -131,7 +131,7 @@ export const CustomerWalkthrough = ({
         <button
           type="button"
           onClick={onClose}
-          className="shrink-0 rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/60 hover:bg-carbon/5"
+          className="flex min-h-11 shrink-0 items-center justify-center rounded-full border border-linea px-4 text-sm font-semibold text-carbon/60 hover:bg-carbon/5 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
         >
           {t("home.walk.cerrar")}
         </button>
@@ -291,14 +291,14 @@ export const CustomerWalkthrough = ({
         <button
           type="button"
           onClick={() => go(-1)}
-          className="flex-1 rounded-full border border-linea py-2.5 text-sm font-semibold text-carbon/70 hover:bg-carbon/5"
+          className="flex min-h-12 flex-1 items-center justify-center rounded-full border border-linea text-sm font-semibold text-carbon/70 hover:bg-carbon/5"
         >
           {t("home.walk.prev")}
         </button>
         <button
           type="button"
           onClick={() => go(1)}
-          className={`flex-1 rounded-full py-2.5 text-sm font-semibold text-crema ${
+          className={`flex min-h-12 flex-1 items-center justify-center rounded-full text-sm font-semibold text-crema ${
             flow === "espera"
               ? "bg-espera hover:bg-espera-fuerte"
               : "bg-marca hover:bg-marca-fuerte"

@@ -49,7 +49,7 @@ const Home = () => {
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
       <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
-        <nav className="flex items-center gap-2">
+        <nav className="hidden items-center gap-2 sm:flex">
           <Link
             href="/pricing"
             className="rounded-full border border-marca/25 bg-crema/70 px-4 py-2 text-xs font-semibold text-marca backdrop-blur transition hover:bg-marca hover:text-crema sm:text-sm"
@@ -70,14 +70,14 @@ const Home = () => {
             {t("nav.faq")}
           </a>
         </nav>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <Link
             href="/login"
-            className="rounded-full bg-marca px-4 py-2 text-xs font-semibold text-crema transition hover:bg-marca-fuerte sm:px-5 sm:text-sm"
+            className="flex min-h-11 items-center justify-center rounded-full bg-marca px-6 text-sm font-semibold text-crema transition hover:bg-marca-fuerte sm:min-h-0 sm:px-5 sm:py-2"
           >
             {t("nav.entrar")}
           </Link>
-          <Controls />
+          <Controls className="hidden sm:flex" />
         </div>
       </header>
 
@@ -114,26 +114,26 @@ const Home = () => {
           </p>
 
           <div
-            className="u-in mt-9 flex flex-col items-center gap-3"
+            className="u-in mt-9 flex w-full max-w-sm flex-col items-center gap-3"
             style={{ animationDelay: "0.38s" }}
           >
             <Link
               href="/probar"
-              className="rounded-full bg-marca px-8 py-3.5 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
+              className="flex min-h-13 w-full items-center justify-center rounded-full bg-marca px-8 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 sm:w-auto"
             >
               {t("home.ctaProbar")}
             </Link>
             <p className="text-xs text-carbon/50">{t("home.ctaProbarNota")}</p>
             <Link
               href="/login"
-              className="text-sm font-semibold text-carbon/55 underline-offset-4 transition hover:text-marca hover:underline"
+              className="flex min-h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-carbon/55 underline-offset-4 transition hover:text-marca hover:underline sm:w-auto"
             >
               {t("home.ctaEntrar")}
             </Link>
             <button
               type="button"
               onClick={() => setWalkOpen(true)}
-              className="text-sm font-semibold text-marca/70 underline-offset-4 transition hover:text-marca hover:underline"
+              className="flex min-h-11 w-full items-center justify-center rounded-full border border-marca/25 text-sm font-semibold text-marca/80 transition hover:bg-marca/10 sm:w-auto sm:border-0 sm:underline-offset-4 sm:hover:bg-transparent sm:hover:underline"
             >
               {t("home.ctaWalk")}
             </button>
@@ -246,10 +246,10 @@ const Home = () => {
             {t("home.cierreTitulo")}
           </h2>
           <p className="mt-3 text-carbon/60">{t("home.cierreSub")}</p>
-          <div className="mt-8 flex flex-col items-center gap-2">
+          <div className="mx-auto mt-8 flex w-full max-w-sm flex-col items-center gap-2">
             <Link
               href="/probar"
-              className="inline-flex rounded-full bg-marca px-8 py-3.5 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
+              className="flex min-h-13 w-full items-center justify-center rounded-full bg-marca px-8 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 sm:w-auto"
             >
               {t("home.ctaProbar")}
             </Link>

@@ -159,7 +159,7 @@ const EntrarPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="mt-1 rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-1 flex min-h-12 w-full items-center justify-center rounded-full bg-marca px-5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Entrando…" : t("entrar.cta")}
             </button>

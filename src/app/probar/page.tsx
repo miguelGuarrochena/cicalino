@@ -98,7 +98,7 @@ const ProbarPage = () => {
             </p>
             <Link
               href="/"
-              className="rounded-full bg-marca px-6 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
+              className="flex min-h-12 w-full items-center justify-center rounded-full bg-marca px-6 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 sm:w-auto"
             >
               Volver al inicio
             </Link>
@@ -170,7 +170,7 @@ const ProbarPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-1 rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60"
+                className="mt-1 flex min-h-12 w-full items-center justify-center rounded-full bg-marca px-5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60"
               >
                 {loading
                   ? "Enviando…"

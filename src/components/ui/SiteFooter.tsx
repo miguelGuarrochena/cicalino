@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
+import { Controls } from "@/components/ui/Controls";
 
 export const SiteFooter = ({ className = "" }: { className?: string }) => {
   const { t } = useApp();
@@ -26,7 +27,15 @@ export const SiteFooter = ({ className = "" }: { className?: string }) => {
           </a>
         </p>
 
-        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-medium text-carbon/55 sm:justify-self-end">
+        <Controls className="justify-center sm:hidden" />
+
+        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-3 font-medium text-carbon/55 sm:justify-self-end">
+          <Link
+            href="/pricing"
+            className="underline-offset-2 transition hover:text-carbon hover:underline"
+          >
+            {t("nav.precios")}
+          </Link>
           <Link
             href="/faq"
             className="underline-offset-2 transition hover:text-carbon hover:underline"

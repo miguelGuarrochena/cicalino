@@ -238,7 +238,15 @@ const PreciosPage = () => {
     <div className="flex min-h-dvh flex-col bg-crema">
       <header className="flex items-center justify-between px-5 py-4 sm:px-8">
         <Logo className="h-10 sm:h-12" />
-        <Controls />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href="/login"
+            className="flex min-h-11 items-center justify-center rounded-full bg-marca px-6 text-sm font-semibold text-crema transition hover:bg-marca-fuerte sm:min-h-0 sm:px-5 sm:py-2"
+          >
+            {es ? "Entrar" : "Log in"}
+          </Link>
+          <Controls className="hidden sm:flex" />
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10 sm:py-14">
@@ -255,7 +263,7 @@ const PreciosPage = () => {
             </p>
             <Link
               href="/"
-              className="mt-8 inline-block rounded-full bg-marca px-6 py-3 text-sm font-semibold text-crema"
+              className="mx-auto mt-8 flex min-h-12 w-full max-w-sm items-center justify-center rounded-full bg-marca px-6 text-sm font-semibold text-crema"
             >
               {es ? "Volver al inicio" : "Back home"}
             </Link>
@@ -344,11 +352,11 @@ const PreciosPage = () => {
                 >
                   Cicalino
                 </p>
-                <div className="flex rounded-full border border-linea bg-crema/50 p-0.5 text-xs font-semibold">
+                <div className="flex w-full max-w-xs rounded-full border border-linea bg-crema/50 p-0.5 text-xs font-semibold sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setAnual(false)}
-                    className={`rounded-full px-3 py-1.5 transition ${
+                    className={`flex min-h-10 flex-1 items-center justify-center rounded-full px-4 transition sm:min-h-0 sm:flex-none sm:px-3 sm:py-1.5 ${
                       !anual
                         ? pack === "espera"
                           ? "bg-espera text-crema"
@@ -361,7 +369,7 @@ const PreciosPage = () => {
                   <button
                     type="button"
                     onClick={() => setAnual(true)}
-                    className={`rounded-full px-3 py-1.5 transition ${
+                    className={`flex min-h-10 flex-1 items-center justify-center rounded-full px-4 transition sm:min-h-0 sm:flex-none sm:px-3 sm:py-1.5 ${
                       anual
                         ? pack === "espera"
                           ? "bg-espera text-crema"
@@ -430,7 +438,7 @@ const PreciosPage = () => {
                   <button
                     type="button"
                     onClick={abrirForm}
-                    className="rounded-full bg-marca px-5 py-3 text-center text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
+                    className="flex min-h-12 items-center justify-center rounded-full bg-marca px-5 text-center text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
                   >
                     {es
                       ? `Contratar plan ${anual ? "anual" : "mensual"}`
@@ -438,7 +446,7 @@ const PreciosPage = () => {
                   </button>
                   <Link
                     href="/probar"
-                    className="rounded-full border border-linea px-5 py-2.5 text-center text-sm font-semibold text-carbon/70 transition hover:bg-carbon/5"
+                    className="flex min-h-12 items-center justify-center rounded-full border border-linea px-5 text-center text-sm font-semibold text-carbon/70 transition hover:bg-carbon/5"
                   >
                     {es ? "O probá 1 mes gratis" : "Or start a free month"}
                   </Link>
@@ -594,7 +602,7 @@ const PreciosPage = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60"
+                    className="flex min-h-12 items-center justify-center rounded-full bg-marca px-5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60"
                   >
                     {labelSubmit()}
                   </button>
