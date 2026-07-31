@@ -4,6 +4,7 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 import { inicioJornada, finJornada } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import { isRealBranchId } from "@/lib/data/orders";
+import { reservaEnConflicto } from "@/lib/reservas";
 import type {
   EsperaStatus,
   EsperaView,
@@ -33,7 +34,8 @@ type EsperaRow = {
 type MesaRow = {
   id: string;
   numero: number;
-  estado: MesaEstado;
+  /** "reservada" ya no se usa; puede venir de filas viejas. */
+  estado: MesaEstado | "reservada";
   capacidad: number | null;
   espera_id: string | null;
   reserva_id: string | null;
@@ -44,6 +46,7 @@ type ReservaRow = {
   nombre: string;
   personas: number;
   mesa_numero: number;
+  mesas_numeros: number[] | null;
   horario: string;
   gracia_minutos: number;
   estado: ReservaStatus;
@@ -72,20 +75,21 @@ const mapEspera = (r: EsperaRow): EsperaView => ({
 const mapMesa = (r: MesaRow): MesaView => ({
   id: r.id,
   numero: r.numero,
-  estado: r.estado === "reservada" || r.estado === "ocupada" ? r.estado : "libre",
+  // La mesa solo puede estar libre u ocupada: una reserva futura no la bloquea.
+  estado: r.estado === "ocupada" ? "ocupada" : "libre",
   capacidad: Math.max(1, Math.min(50, r.capacidad ?? 4)),
   esperaId: r.espera_id ?? null,
   reservaId: r.reserva_id ?? null,
 });
 
-const mapReserva = (
-  r: ReservaRow,
-  mesasNumeros?: number[],
-): ReservaView => {
-  const nums =
-    mesasNumeros && mesasNumeros.length
-      ? [...new Set(mesasNumeros)].sort((a, b) => a - b)
-      : [r.mesa_numero];
+const mapReserva = (r: ReservaRow, mesasNumeros?: number[]): ReservaView => {
+  const raw =
+    mesasNumeros?.length
+      ? mesasNumeros
+      : r.mesas_numeros?.length
+        ? r.mesas_numeros
+        : [r.mesa_numero];
+  const nums = [...new Set(raw)].filter((n) => n >= 1).sort((a, b) => a - b);
   return {
     id: r.id,
     nombre: r.nombre,
@@ -101,34 +105,6 @@ const mapReserva = (
     expiradoEn: r.expirado_en,
     empleado: r.empleados?.nombre ?? null,
   };
-};
-
-/** Completa mesasNumeros mirando qué mesas apuntan a cada reserva. */
-export const attachMesasAReservas = (
-  reservas: ReservaView[],
-  mesas: MesaView[],
-): ReservaView[] => {
-  const byReserva = new Map<string, number[]>();
-  for (const m of mesas) {
-    if (!m.reservaId) continue;
-    const list = byReserva.get(m.reservaId) ?? [];
-    list.push(m.numero);
-    byReserva.set(m.reservaId, list);
-  }
-  return reservas.map((r) => {
-    const nums = byReserva.get(r.id);
-    if (!nums?.length) {
-      return r.mesasNumeros?.length
-        ? r
-        : { ...r, mesasNumeros: [r.mesaNumero] };
-    }
-    const sorted = [...new Set(nums)].sort((a, b) => a - b);
-    return {
-      ...r,
-      mesaNumero: sorted[0] ?? r.mesaNumero,
-      mesasNumeros: sorted,
-    };
-  });
 };
 
 const SELECT_ESPERA = "*, empleados(nombre)";
@@ -232,7 +208,10 @@ export const fetchTodayReservas = async (
   return ((data as unknown as ReservaRow[]) ?? []).map((r) => mapReserva(r));
 };
 
-/** Libera mesas de reservas activas cuyo horario + gracia ya pasó. */
+/**
+ * Marca como "no llegó" las reservas activas cuyo horario + gracia ya pasó.
+ * No toca las mesas: la reserva nunca las bloqueó.
+ */
 export const expirarReservasVencidas = async (
   branchId: string,
 ): Promise<void> => {
@@ -240,19 +219,14 @@ export const expirarReservasVencidas = async (
   if (!supabase) return;
   const { data, error } = await supabase
     .from("reservas")
-    .select("id, mesa_numero, horario, gracia_minutos")
+    .select("id, horario, gracia_minutos")
     .eq("local_id", branchId)
     .eq("estado", "activa");
   if (error || !data?.length) return;
 
   const now = Date.now();
   const vencidas = (
-    data as {
-      id: string;
-      mesa_numero: number;
-      horario: string;
-      gracia_minutos: number;
-    }[]
+    data as { id: string; horario: string; gracia_minutos: number }[]
   ).filter((r) => {
     const limite =
       new Date(r.horario).getTime() + (r.gracia_minutos || 15) * 60_000;
@@ -261,23 +235,14 @@ export const expirarReservasVencidas = async (
   if (!vencidas.length) return;
 
   const nowIso = new Date().toISOString();
-  for (const r of vencidas) {
-    await supabase
-      .from("reservas")
-      .update({ estado: "expirada", expirado_en: nowIso })
-      .eq("id", r.id)
-      .eq("estado", "activa");
-    await supabase
-      .from("mesas")
-      .update({
-        estado: "libre",
-        reserva_id: null,
-        actualizado_en: nowIso,
-      })
-      .eq("local_id", branchId)
-      .eq("estado", "reservada")
-      .eq("reserva_id", r.id);
-  }
+  await supabase
+    .from("reservas")
+    .update({ estado: "expirada", expirado_en: nowIso })
+    .in(
+      "id",
+      vencidas.map((r) => r.id),
+    )
+    .eq("estado", "activa");
 };
 
 export const insertEspera = async (args: {
@@ -341,13 +306,26 @@ export const insertReserva = async (args: {
     console.error("insertReserva: mesa inexistente");
     return null;
   }
-  if (mesasPick.some((m) => m.estado !== "libre")) {
-    console.error("insertReserva: mesa no libre");
-    return null;
-  }
+  // Ojo: NO se exige que la mesa esté libre ahora. La reserva es para más
+  // tarde; que ahora esté ocupada no impide reservarla para las 21:00.
   const cap = mesasPick.reduce((s, m) => s + m.capacidad, 0);
   if (cap < personas) {
     console.error("insertReserva: capacidad insuficiente");
+    return null;
+  }
+
+  // Lo único que sí se valida: que no haya otra reserva pisando el horario.
+  const { data: activasRows } = await supabase
+    .from("reservas")
+    .select(SELECT_RESERVA)
+    .eq("local_id", args.branchId)
+    .eq("estado", "activa");
+  const activas = ((activasRows as unknown as ReservaRow[]) ?? []).map((r) =>
+    mapReserva(r),
+  );
+  const choque = reservaEnConflicto(nums, args.horario, activas);
+  if (choque) {
+    console.error("insertReserva: choca con otra reserva", choque.id);
     return null;
   }
 
@@ -359,6 +337,7 @@ export const insertReserva = async (args: {
       nombre,
       personas,
       mesa_numero: primaria,
+      mesas_numeros: nums,
       horario: args.horario,
       gracia_minutos: args.graciaMinutos,
       estado: "activa",
@@ -370,44 +349,8 @@ export const insertReserva = async (args: {
     console.error("insertReserva", error.message);
     return null;
   }
-  const reserva = mapReserva(data as unknown as ReservaRow, nums);
-  const nowIso = new Date().toISOString();
-  const marcadas: number[] = [];
-  for (const n of nums) {
-    const { error: mesaErr, data: updated } = await supabase
-      .from("mesas")
-      .update({
-        estado: "reservada",
-        reserva_id: reserva.id,
-        espera_id: null,
-        actualizado_en: nowIso,
-      })
-      .eq("local_id", args.branchId)
-      .eq("numero", n)
-      .eq("estado", "libre")
-      .select("id")
-      .maybeSingle();
-    if (mesaErr || !updated) {
-      console.error("insertReserva mesa", mesaErr?.message ?? "no libre");
-      // Rollback: liberar las ya marcadas y borrar la reserva.
-      if (marcadas.length) {
-        await supabase
-          .from("mesas")
-          .update({
-            estado: "libre",
-            reserva_id: null,
-            actualizado_en: nowIso,
-          })
-          .eq("local_id", args.branchId)
-          .in("numero", marcadas)
-          .eq("reserva_id", reserva.id);
-      }
-      await supabase.from("reservas").delete().eq("id", reserva.id);
-      return null;
-    }
-    marcadas.push(n);
-  }
-  return reserva;
+  // La mesa NO se marca: sigue libre hasta que alguien se siente.
+  return mapReserva(data as unknown as ReservaRow, nums);
 };
 
 /** Walk-in: ocupa mesas ya, sin cola ni QR (queda sentado vinculado a las mesas). */

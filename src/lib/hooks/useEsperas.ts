@@ -10,7 +10,6 @@ import {
   fetchTodayReservas,
   fetchMesas,
   syncMesas,
-  attachMesasAReservas,
   insertEspera,
   insertReserva,
   ocuparMesasWalkIn,
@@ -23,6 +22,7 @@ import {
   subscribeEsperas,
 } from "@/lib/data/espera";
 import type { EsperaView, MesaView, ReservaView } from "@/lib/types";
+import { mesasDeReserva } from "@/lib/reservas";
 import { staffEsperaCancelIds } from "@/lib/store/espera-alerts-store";
 
 type EmployeeRef = { id: string; nombre: string } | null;
@@ -105,7 +105,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     ]);
     setLiveEsperas(e);
     setLiveMesas(m);
-    setLiveReservas(attachMesasAReservas(r, m));
+    setLiveReservas(r);
     setReady(true);
   }, [live, branchId]);
 
@@ -300,11 +300,7 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
     const reserva = liveReservas.find((r) => r.id === id);
     if (!reserva) return;
     await updateReservaStatus(id, "sentada");
-    const nums =
-      reserva.mesasNumeros?.length > 0
-        ? reserva.mesasNumeros
-        : [reserva.mesaNumero];
-    for (const n of nums) {
+    for (const n of mesasDeReserva(reserva)) {
       await setMesaEstado(branchId, n, "ocupada", {
         reservaId: id,
         esperaId: null,
@@ -318,20 +314,8 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       demoCancelarReserva(id);
       return;
     }
-    const reserva = liveReservas.find((r) => r.id === id);
+    // Cancelar una reserva no toca las mesas: nunca las bloqueó.
     await updateReservaStatus(id, "cancelada");
-    if (reserva) {
-      const nums =
-        reserva.mesasNumeros?.length > 0
-          ? reserva.mesasNumeros
-          : [reserva.mesaNumero];
-      for (const n of nums) {
-        await setMesaEstado(branchId, n, "libre", {
-          reservaId: null,
-          esperaId: null,
-        });
-      }
-    }
     await reload();
   };
 
@@ -344,21 +328,6 @@ export const useEsperas = (branchId: string | null): UseEsperas => {
       return;
     }
     const mesa = liveMesas.find((m) => m.numero === numero);
-    if (mesa?.reservaId && mesa.estado === "reservada") {
-      const reservaId = mesa.reservaId;
-      await updateReservaStatus(reservaId, "cancelada");
-      const mismas = liveMesas.filter(
-        (m) => m.reservaId === reservaId && m.estado === "reservada",
-      );
-      for (const m of mismas) {
-        await setMesaEstado(branchId, m.numero, "libre", {
-          reservaId: null,
-          esperaId: null,
-        });
-      }
-      await reload();
-      return;
-    }
     if (opts?.soloEsta) {
       await setMesaEstado(branchId, numero, "libre");
       await reload();

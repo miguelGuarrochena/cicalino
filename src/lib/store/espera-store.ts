@@ -8,6 +8,7 @@ import type {
   ReservaStatus,
   ReservaView,
 } from "@/lib/types";
+import { reservaEnConflicto } from "@/lib/reservas";
 
 interface EsperaState {
   esperas: EsperaView[];
@@ -107,6 +108,22 @@ export const useEsperaStore = create<EsperaState>()(
           expiradoEn: null,
           empleado: "Lucía",
         };
+        // Una que falta poco, para ver el aviso en ámbar.
+        const reservaDemoPronto: ReservaView = {
+          id: "res-demo-2",
+          nombre: "Sosa",
+          personas: 2,
+          mesaNumero: 7,
+          mesasNumeros: [7],
+          horario: new Date(Date.now() + 35 * 60_000).toISOString(),
+          graciaMinutos: 15,
+          estado: "activa",
+          creadoEn: iso(45),
+          sentadoEn: null,
+          canceladoEn: null,
+          expiradoEn: null,
+          empleado: "Marcos",
+        };
         mesas[0] = {
           ...mesas[0],
           estado: "ocupada",
@@ -119,15 +136,10 @@ export const useEsperaStore = create<EsperaState>()(
           esperaId: "esp-demo-old2",
           reservaId: null,
         };
-        mesas[4] = {
-          ...mesas[4],
-          estado: "reservada",
-          esperaId: null,
-          reservaId: reservaDemo.id,
-        };
+        // La mesa 5 NO se marca: la reserva de las 21 solo avisa.
         set({
           mesas,
-          reservas: [reservaDemo],
+          reservas: [reservaDemoPronto, reservaDemo],
           esperas: [
             {
               id: "esp-demo-1",
@@ -219,30 +231,7 @@ export const useEsperaStore = create<EsperaState>()(
       liberarMesa: (numero, opts) =>
         set((s) => {
           const mesa = s.mesas.find((m) => m.numero === numero);
-          let reservas = s.reservas;
-          if (mesa?.reservaId && mesa.estado === "reservada") {
-            // Reserva activa: cancelar siempre libera todo el bloque.
-            const now = new Date().toISOString();
-            const reservaId = mesa.reservaId;
-            reservas = s.reservas.map((r) =>
-              r.id === reservaId && r.estado === "activa"
-                ? { ...r, estado: "cancelada" as const, canceladoEn: now }
-                : r,
-            );
-            return {
-              reservas,
-              mesas: s.mesas.map((m) =>
-                m.reservaId === reservaId
-                  ? {
-                      ...m,
-                      estado: "libre" as const,
-                      esperaId: null,
-                      reservaId: null,
-                    }
-                  : m,
-              ),
-            };
-          }
+          const reservas = s.reservas;
           if (opts?.soloEsta) {
             return {
               reservas,
@@ -366,9 +355,10 @@ export const useEsperaStore = create<EsperaState>()(
         if (!nums.length) return null;
         const pick = get().mesas.filter((m) => nums.includes(m.numero));
         if (pick.length !== nums.length) return null;
-        if (pick.some((m) => m.estado !== "libre")) return null;
+        // Que la mesa esté ocupada AHORA no impide reservarla para más tarde.
         const cap = pick.reduce((s, m) => s + (m.capacidad ?? 4), 0);
         if (cap < Math.max(1, personas)) return null;
+        if (reservaEnConflicto(nums, horario, get().reservas)) return null;
         const primaria = nums[0];
         const r: ReservaView = {
           id: crypto.randomUUID(),
@@ -385,20 +375,10 @@ export const useEsperaStore = create<EsperaState>()(
           expiradoEn: null,
           empleado,
         };
-        const setNums = new Set(nums);
+        // Las mesas NO se marcan: la reserva solo avisa.
         set((s) => ({
           reservas: [...s.reservas, r].sort((a, b) =>
             a.horario.localeCompare(b.horario),
-          ),
-          mesas: s.mesas.map((m) =>
-            setNums.has(m.numero)
-              ? {
-                  ...m,
-                  estado: "reservada" as const,
-                  reservaId: r.id,
-                  esperaId: null,
-                }
-              : m,
           ),
         }));
         return r;
@@ -432,6 +412,7 @@ export const useEsperaStore = create<EsperaState>()(
           };
         }),
 
+      // Cancelar no toca mesas: la reserva nunca las bloqueó.
       cancelarReserva: (id) =>
         set((s) => {
           const r = s.reservas.find((x) => x.id === id);
@@ -442,16 +423,6 @@ export const useEsperaStore = create<EsperaState>()(
               x.id === id
                 ? { ...x, estado: "cancelada" as const, canceladoEn: now }
                 : x,
-            ),
-            mesas: s.mesas.map((m) =>
-              m.reservaId === id && m.estado === "reservada"
-                ? {
-                    ...m,
-                    estado: "libre" as const,
-                    reservaId: null,
-                    esperaId: null,
-                  }
-                : m,
             ),
           };
         }),
@@ -504,30 +475,13 @@ export const useEsperaStore = create<EsperaState>()(
             };
           });
           if (!changed) return s;
-          const expiredIds = new Set(
-            reservas
-              .filter((r) => r.estado === "expirada")
-              .map((r) => r.id),
-          );
-          return {
-            reservas,
-            mesas: s.mesas.map((m) =>
-              m.estado === "reservada" &&
-              m.reservaId &&
-              expiredIds.has(m.reservaId)
-                ? {
-                    ...m,
-                    estado: "libre" as const,
-                    reservaId: null,
-                    esperaId: null,
-                  }
-                : m,
-            ),
-          };
+          // No hay mesas que liberar: la reserva nunca las bloqueó.
+          return { reservas };
         }),
     }),
     {
-      name: "cicalino-espera-demo-v3",
+      // v4: las reservas ya no bloquean mesas (limpia el demo viejo).
+      name: "cicalino-espera-demo-v4",
       skipHydration: true,
       partialize: (s) =>
         supabaseConfigurado

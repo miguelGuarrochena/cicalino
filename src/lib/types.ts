@@ -84,7 +84,11 @@ export const orderClosed = (status: OrderStatus): boolean => {
 
 export type EsperaStatus = "esperando" | "avisado" | "sentado" | "cancelado";
 
-export type MesaEstado = "libre" | "ocupada" | "reservada";
+/**
+ * Estado FÍSICO de la mesa, ahora mismo.
+ * Una reserva futura NO bloquea la mesa: solo avisa (ver `src/lib/reservas.ts`).
+ */
+export type MesaEstado = "libre" | "ocupada";
 
 export type ReservaStatus = "activa" | "sentada" | "cancelada" | "expirada";
 

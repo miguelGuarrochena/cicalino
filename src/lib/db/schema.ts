@@ -372,8 +372,12 @@ export const reservas = pgTable(
       .references(() => locales.id, { onDelete: "cascade" }),
     nombre: text("nombre").notNull(),
     personas: integer("personas").notNull().default(2),
+    /** Mesa principal (compat). La lista real está en `mesasNumeros`. */
     mesaNumero: integer("mesa_numero").notNull(),
+    /** Mesas de la reserva. NO se bloquean: la reserva solo avisa. */
+    mesasNumeros: integer("mesas_numeros").array().notNull().default([]),
     horario: timestamp("horario", { withTimezone: true }).notNull(),
+    /** Tolerancia de no-show: pasado esto, la reserva se marca "no llegó". */
     graciaMinutos: integer("gracia_minutos").notNull().default(15),
     estado: reservaStatusEnum("estado").notNull().default("activa"),
     empleadoId: uuid("empleado_id").references(() => employees.id, {
@@ -400,6 +404,7 @@ export const mesas = pgTable(
       .notNull()
       .references(() => locales.id, { onDelete: "cascade" }),
     numero: integer("numero").notNull(),
+    /** Estado físico ahora: "libre" | "ocupada". Una reserva NO la bloquea. */
     estado: text("estado").notNull().default("libre"),
     capacidad: integer("capacidad").notNull().default(4),
     esperaId: uuid("espera_id").references(() => esperas.id, {

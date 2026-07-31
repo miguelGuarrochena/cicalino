@@ -172,7 +172,12 @@ const PackPicker = ({
   onChange: (p: boolean, e: boolean) => void;
   compact?: boolean;
 }) => (
-  <div className={`flex flex-wrap gap-1.5 ${compact ? "" : "mt-2"}`}>
+  <div
+    role="group"
+    className={`grid grid-cols-3 gap-1 rounded-xl border border-linea bg-crema/50 p-1 ${
+      compact ? "" : "mt-1.5"
+    }`}
+  >
     {(
       [
         [true, false, "Pedidos", PRECIO_PEDIDOS],
@@ -181,22 +186,25 @@ const PackPicker = ({
       ] as const
     ).map(([p, e, label, precio]) => {
       const activo = pedidos === p && espera === e;
+      const acento = e
+        ? "text-espera ring-espera/40"
+        : "text-marca ring-marca/40";
       return (
         <button
           key={label}
           type="button"
+          aria-pressed={activo}
           onClick={() => onChange(p, e)}
-          className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+          className={`flex flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1.5 leading-tight transition ${
             activo
-              ? e && p
-                ? "border-espera bg-espera/15 text-espera"
-                : e
-                  ? "border-espera bg-espera/15 text-espera"
-                  : "border-marca bg-marca/15 text-marca"
-              : "border-linea bg-surface text-carbon/60 hover:bg-carbon/5"
+              ? `bg-surface shadow-sm ring-1 ring-inset ${acento}`
+              : "text-carbon/55 hover:bg-surface/70"
           }`}
         >
-          {label} · {money.format(precio)}
+          <span className="text-[11px] font-semibold">{label}</span>
+          <span className="text-[10px] font-medium tabular-nums opacity-70">
+            {money.format(precio)}
+          </span>
         </button>
       );
     })}
@@ -1094,29 +1102,19 @@ export const OrgModal = ({
                 return (
                   <li
                     key={suc.id}
-                    className="flex flex-col gap-2 rounded-2xl border border-linea bg-surface px-3 py-3"
+                    className="flex flex-col gap-2.5 rounded-2xl border border-linea bg-surface px-3 py-3"
                   >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-carbon">{suc.nombre}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-carbon">
+                          {suc.nombre}
+                        </p>
                         <p className="truncate text-xs text-carbon/50">
                           {TIPO_LABEL[suc.tipo] ?? suc.tipo} ·{" "}
                           {suc.direccion || "—"}
                         </p>
-                        <p className="mt-1 text-xs font-medium text-carbon/65">
-                          {etiquetaModulos(mods)} ·{" "}
-                          {money.format(precioMensualPorSucursal(mods))}/mes
-                        </p>
-                        <PackPicker
-                          pedidos={mods.pedidos}
-                          espera={mods.espera}
-                          compact
-                          onChange={(p, e) =>
-                            void cambiarModulosSuc(suc.id, p, e)
-                          }
-                        />
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
                           onClick={() => enterOwner(suc.id, suc.nombre)}
@@ -1127,12 +1125,22 @@ export const OrgModal = ({
                         <button
                           type="button"
                           onClick={() => borrarSuc(suc.id)}
-                          className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600/80"
+                          className="rounded-full px-2.5 py-1.5 text-xs font-semibold text-red-600/80 hover:bg-red-500/10"
                         >
                           {t("super.eliminar")}
                         </button>
                       </div>
                     </div>
+                    <PackPicker
+                      pedidos={mods.pedidos}
+                      espera={mods.espera}
+                      compact
+                      onChange={(p, e) => void cambiarModulosSuc(suc.id, p, e)}
+                    />
+                    <p className="text-xs font-medium text-carbon/60">
+                      {etiquetaModulos(mods)} ·{" "}
+                      {money.format(precioMensualPorSucursal(mods))}/mes
+                    </p>
                   </li>
                 );
               })}
