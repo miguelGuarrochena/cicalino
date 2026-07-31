@@ -233,10 +233,7 @@ const SuperadminPage = () => {
 
       <SubscriptionsPanel
         orgs={organizations}
-        onVerCliente={(id) => {
-          const org = organizations.find((o) => o.id === id);
-          if (org) setModal({ mode: "ver", org });
-        }}
+        onVerCliente={(id) => router.push(`/admin/cliente/${id}`)}
         onRegistrarPago={setPagoOrgId}
       />
 
