@@ -3,6 +3,7 @@
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { startTrial, toDateOnly } from "@/lib/subscription";
+import { sendWelcomeEmail } from "@/lib/actions/subscriptionSweep";
 import {
   createOrganizationSchema,
   idSchema,
@@ -91,6 +92,14 @@ const createOrganizationValidated = async (
     console.error("crearOrganizacion", error?.message);
     return { ok: false, error: "No se pudo crear la empresa." };
   }
+
+  void sendWelcomeEmail({
+    orgId: org.id,
+    nombre: data.name,
+    email: data.ownerEmail,
+    pruebaFin: trial.trialEnd,
+    primeraFactura: trial.nextBilling,
+  }).catch(() => {});
 
   if (data.sucursales.length) {
     const rows = data.sucursales.map((b) => {

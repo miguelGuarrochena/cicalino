@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendBillingReminders } from "@/lib/actions/billing";
+import { sweepSubscriptions } from "@/lib/actions/subscriptionSweep";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,6 +16,7 @@ export const GET = async (req: Request) => {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const r = await sendBillingReminders();
-  return NextResponse.json(r);
+  const suscripciones = await sweepSubscriptions();
+  const cobros = await sendBillingReminders();
+  return NextResponse.json({ ...cobros, suscripciones });
 };
