@@ -93,7 +93,11 @@ export const verifyPasswordDueño = async (
 
   const perfil = await getCurrentProfile();
   if (!perfil) return { ok: false, error: "Sesión vencida. Volvé a entrar." };
-  if (perfil.rol !== "admin" && perfil.rol !== "supervisor") {
+  if (
+    perfil.rol !== "admin" &&
+    perfil.rol !== "supervisor" &&
+    perfil.rol !== "superadmin"
+  ) {
     return { ok: false, error: "No autorizado." };
   }
   if (!perfil.email) {

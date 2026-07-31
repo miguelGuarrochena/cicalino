@@ -12,6 +12,7 @@ export const AdminGate = ({ children }: { children: React.ReactNode }) => {
   const role = useSessionStore((s) => s.rol);
   const unlocked = useSessionStore((s) => s.adminDesbloqueado);
   const unlock = useSessionStore((s) => s.desbloquearAdmin);
+  const impersonando = useSessionStore((s) => s.impersonando);
 
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -80,9 +81,13 @@ export const AdminGate = ({ children }: { children: React.ReactNode }) => {
           {es ? "Solo el dueño" : "Owner only"}
         </h1>
         <p className="mt-2 text-sm text-carbon/55">
-          {es
-            ? "Ingresá la contraseña de tu cuenta (no el PIN)."
-            : "Enter your account password (not the PIN)."}
+          {impersonando
+            ? es
+              ? "Ingresá la contraseña de tu cuenta de Cicalino, no la del dueño."
+              : "Enter your own Cicalino password, not the owner's."
+            : es
+              ? "Ingresá la contraseña de tu cuenta (no el PIN)."
+              : "Enter your account password (not the PIN)."}
         </p>
       </div>
       <div className="w-full text-left">
