@@ -152,17 +152,23 @@ export const SubscriptionsPanel = ({
         ))}
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="hidden gap-3 border-b border-linea px-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-carbon/40 sm:grid sm:grid-cols-[minmax(0,1fr)_120px_150px_130px]">
+        <span>Cliente</span>
+        <span className="text-right">Cobro</span>
+        <span className="text-right">Próximo pago</span>
+        <span />
+      </div>
+
+      <div className="flex flex-col divide-y divide-linea/70">
         {filas.map(({ org, faltan, vencido, enGracia, monto }) => {
           const activas = org.sucursales.filter((s) => s.activo).length;
           const esperandoContrato = isContractPending(org) && !org.activo;
+          const sinCargo = org.plan === "gratis";
           return (
             <div
               key={org.id}
-              className={`grid gap-3 rounded-2xl border px-4 py-3.5 transition sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center ${
-                vencido
-                  ? "border-red-400/50 bg-red-50/60 dark:bg-red-500/10"
-                  : "border-linea bg-crema/30 hover:border-marca/30"
+              className={`grid gap-3 px-4 py-3.5 transition sm:grid-cols-[minmax(0,1fr)_120px_150px_130px] sm:items-center ${
+                vencido ? "bg-red-50/60 dark:bg-red-500/10" : "hover:bg-crema/40"
               }`}
             >
               <div className="min-w-0">
@@ -187,68 +193,60 @@ export const SubscriptionsPanel = ({
                     </span>
                   )}
                 </div>
-                <p className="mt-1 truncate text-xs text-carbon/55">
-                  {org.responsable ? `${org.responsable} · ` : ""}
+                <p className="mt-0.5 truncate text-xs text-carbon/50">
                   {org.ownerEmail}
                   {org.telefono ? ` · ${org.telefono}` : ""}
                 </p>
-                <p className="mt-0.5 text-xs text-carbon/40">
+                <p className="text-xs text-carbon/40">
                   {activas} de {org.cupo}{" "}
                   {org.cupo === 1 ? "sucursal" : "sucursales"} · alta{" "}
                   {fecha(org.altaEn)}
                 </p>
               </div>
 
-              <div className="flex items-center gap-5 sm:justify-end">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-carbon/40">
-                    Cobro
-                  </p>
-                  <p className="font-display text-lg leading-tight text-marca">
-                    {org.plan === "gratis" ? "—" : money.format(monto)}
-                  </p>
-                  <p className="text-[11px] text-carbon/45">
-                    {org.plan === "gratis"
-                      ? "sin cargo"
-                      : org.plan === "anual"
-                        ? "por año"
-                        : "por mes"}
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-[11px] uppercase tracking-wide text-carbon/40">
-                    {org.estadoSuscripcion === "trial"
-                      ? "1ª factura"
-                      : "Próximo pago"}
-                  </p>
-                  <p
-                    className={`text-sm font-semibold leading-tight ${vencido ? "text-red-700" : "text-carbon"}`}
-                  >
-                    {fecha(org.proximaFactura)}
-                  </p>
-                  <p
-                    className={`text-[11px] ${vencido ? "text-red-600" : "text-carbon/45"}`}
-                  >
-                    {org.plan === "gratis"
-                      ? "sin vencimiento"
-                      : faltan == null
-                        ? "sin fecha"
-                        : faltan < 0
-                          ? `${-faltan} ${-faltan === 1 ? "día" : "días"} de atraso`
-                          : faltan === 0
-                            ? "vence hoy"
-                            : `en ${faltan} ${faltan === 1 ? "día" : "días"}`}
-                  </p>
-                </div>
+              <div className="sm:text-right">
+                <span className="text-[11px] uppercase tracking-wide text-carbon/40 sm:hidden">
+                  Cobro{" "}
+                </span>
+                <span className="font-display text-lg tabular-nums text-marca">
+                  {sinCargo ? "—" : money.format(monto)}
+                </span>
+                <p className="text-[11px] text-carbon/45 sm:block">
+                  {sinCargo
+                    ? "sin cargo"
+                    : org.plan === "anual"
+                      ? "por año"
+                      : "por mes"}
+                </p>
               </div>
 
-              <div className="flex shrink-0 gap-1.5 sm:flex-col">
-                {org.plan !== "gratis" && (
+              <div className="sm:text-right">
+                <p
+                  className={`text-sm font-semibold tabular-nums ${vencido ? "text-red-700" : "text-carbon"}`}
+                >
+                  {sinCargo ? "—" : fecha(org.proximaFactura)}
+                </p>
+                <p
+                  className={`text-[11px] ${vencido ? "text-red-600" : "text-carbon/45"}`}
+                >
+                  {sinCargo
+                    ? "sin vencimiento"
+                    : faltan == null
+                      ? "sin fecha"
+                      : faltan < 0
+                        ? `${-faltan} ${-faltan === 1 ? "día" : "días"} de atraso`
+                        : faltan === 0
+                          ? "vence hoy"
+                          : `en ${faltan} ${faltan === 1 ? "día" : "días"}`}
+                </p>
+              </div>
+
+              <div className="flex gap-1.5 sm:flex-col">
+                {!sinCargo && (
                   <button
                     type="button"
                     onClick={() => onRegistrarPago(org.id)}
-                    className="flex-1 rounded-full bg-marca px-3.5 py-2 text-xs font-semibold text-crema transition hover:bg-marca-fuerte sm:flex-none"
+                    className="flex-1 rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-crema transition hover:bg-marca-fuerte sm:flex-none"
                   >
                     Registrar pago
                   </button>
@@ -256,7 +254,7 @@ export const SubscriptionsPanel = ({
                 <button
                   type="button"
                   onClick={() => onVerCliente(org.id)}
-                  className="flex-1 rounded-full border border-linea px-3.5 py-2 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5 sm:flex-none"
+                  className="flex-1 rounded-full border border-linea px-3 py-1.5 text-xs font-semibold text-carbon/70 transition hover:bg-carbon/5 sm:flex-none"
                 >
                   Ver cliente
                 </button>

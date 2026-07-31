@@ -25,7 +25,7 @@ import { addBillingCycle } from "@/lib/billing";
 import type { BusinessType } from "@/lib/store/config-store";
 import { BUSINESS_TYPE_LABEL, BUSINESS_TYPES } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
-import { isEmail, isCuil, isWhatsapp } from "@/lib/validations";
+import { isEmail, isCuil, isWhatsapp, formatCuil } from "@/lib/validations";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { supabaseConfigured } from "@/lib/supabase/config";
@@ -677,11 +677,22 @@ export const OrgModal = ({
             />
           </Campo>
           <div className="grid grid-cols-2 gap-3">
-            <Campo label={t("super.cuil")} error={errors.cuil}>
+            <Campo
+              label={t("super.cuil")}
+              error={
+                errors.cuil ??
+                (cuil.replace(/\D/g, "").length > 0 && !cuilOk(cuil)
+                  ? `Faltan ${11 - cuil.replace(/\D/g, "").length} dígitos`
+                  : null)
+              }
+            >
               <input
                 className={INPUT}
                 value={cuil}
-                onChange={(e) => setCuil(e.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="20-12345678-3"
+                onChange={(e) => setCuil(formatCuil(e.target.value))}
               />
             </Campo>
             {mode === "crear" ? (
@@ -783,7 +794,11 @@ export const OrgModal = ({
                       </span>
                       {p !== "gratis" && (
                         <span className="text-xs font-semibold text-marca">
-                          desde {money.format(PRICE_WAITLIST)}/suc.
+                          desde{" "}
+                          {money.format(
+                            p === "anual" ? PRICE_WAITLIST * 10 : PRICE_WAITLIST,
+                          )}
+                          /suc. {p === "anual" ? "por año" : "por mes"}
                         </span>
                       )}
                     </span>
