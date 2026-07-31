@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import {
   useSuperadminStore,
   monthlyCharge,
-  isContractPending,
   type OrganizationRow,
 } from "@/lib/store/superadmin-store";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -16,7 +15,6 @@ import { PedidosSucursalPanel } from "@/components/admin/PedidosSucursalPanel";
 import { CobrosPanel } from "@/components/admin/CobrosPanel";
 import { SubscriptionsPanel } from "@/components/admin/SubscriptionsPanel";
 import { PaymentModal } from "@/components/admin/PaymentModal";
-import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { useSuperadminSync } from "@/lib/hooks/useSuperadminSync";
 import { ensureDemoOrg } from "@/lib/actions/superadmin";
 import { refreshOrganizations } from "@/lib/data/superadmin";
@@ -24,12 +22,7 @@ import { useToast } from "@/components/ui/Toast";
 import { Spinner } from "@/components/ui/Spinner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 
-const PAGE_SIZE = 8;
 
-type FiltroOrg = "todas" | "activas" | "impagos" | "pausadas";
-
-const INPUT =
-  "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -71,38 +64,11 @@ const SuperadminPage = () => {
   const organizations = useSuperadminStore((s) => s.organizaciones);
   const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
 
-  const [q, setQ] = useState("");
-  const [filtro, setFiltro] = useState<FiltroOrg>("todas");
-  const [page, setPage] = useState(1);
   const [abriendoDemo, setAbriendoDemo] = useState(false);
   const [modal, setModal] = useState<
     { mode: "crear" } | { mode: "ver"; org: OrganizationRow } | null
   >(null);
   const [pagoOrgId, setPagoOrgId] = useState<string | null>(null);
-
-  const filtradas = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return organizations.filter((o) => {
-      if (filtro === "activas" && !o.activo) return false;
-      if (filtro === "pausadas" && o.activo) return false;
-      if (filtro === "impagos" && (o.pagado || !o.activo)) return false;
-      if (!needle) return true;
-      const hay = [o.name, o.responsable, o.telefono, o.ownerEmail, o.cuil]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(needle);
-    });
-  }, [organizations, q, filtro]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [q, filtro]);
-
-  useEffect(() => {
-    const max = Math.max(1, Math.ceil(filtradas.length / PAGE_SIZE) || 1);
-    if (page > max) setPage(max);
-  }, [filtradas.length, page]);
 
   const abrirDemo = async () => {
     setAbriendoDemo(true);
@@ -137,22 +103,6 @@ const SuperadminPage = () => {
     (a, o) => a + o.sucursales.filter((s) => s.activo).length,
     0,
   );
-  const pageItems = slicePage(filtradas, page, PAGE_SIZE);
-
-  const countFiltro = (f: FiltroOrg) => {
-    if (f === "todas") return organizations.length;
-    if (f === "activas") return organizations.filter((o) => o.activo).length;
-    if (f === "pausadas") return organizations.filter((o) => !o.activo).length;
-    return organizations.filter((o) => o.activo && !o.pagado).length;
-  };
-
-  const filtros: { key: FiltroOrg; label: string }[] = [
-    { key: "todas", label: t("super.filtroTodas") },
-    { key: "activas", label: t("super.filtroActivas") },
-    { key: "impagos", label: t("super.filtroImpagos") },
-    { key: "pausadas", label: t("super.filtroPausadas") },
-  ];
-
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
@@ -237,112 +187,6 @@ const SuperadminPage = () => {
         onRegistrarPago={setPagoOrgId}
       />
 
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            {filtros.map(({ key, label }) => {
-              const active = filtro === key;
-              const n = countFiltro(key);
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setFiltro(key)}
-                  className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold transition sm:text-sm ${
-                    active
-                      ? "bg-marca text-crema"
-                      : "border border-linea bg-surface text-carbon/60 hover:bg-carbon/5"
-                  }`}
-                >
-                  {label}
-                  <span
-                    className={`ml-1.5 ${active ? "opacity-80" : "opacity-50"}`}
-                  >
-                    {n}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <input
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={t("super.buscarPh")}
-            className={INPUT}
-          />
-        </div>
-
-        {organizations.length === 0 && (
-          <p className="rounded-[24px] border border-linea bg-surface px-6 py-12 text-center text-sm text-carbon/45">
-            {t("super.sinOrgs")}
-          </p>
-        )}
-        {organizations.length > 0 && filtradas.length === 0 && (
-          <p className="rounded-[24px] border border-linea bg-surface px-6 py-12 text-center text-sm text-carbon/45">
-            {t("super.sinResultados")}
-          </p>
-        )}
-        {pageItems.map((o) => {
-          const nSuc = o.sucursales.filter((s) => s.activo).length;
-          return (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => setModal({ mode: "ver", org: o })}
-              className="flex w-full flex-col gap-3 rounded-2xl border border-linea bg-surface p-4 text-left shadow-sm transition hover:border-marca/40 hover:bg-marca/5 sm:flex-row sm:items-center"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-carbon">{o.name}</p>
-                <p className="truncate text-xs text-carbon/50">
-                  {o.responsable}
-                  {o.telefono ? ` · ${o.telefono}` : ""} · {o.ownerEmail}
-                </p>
-                <p className="text-xs text-carbon/40">
-                  {t("super.cupoResumen", {
-                    usadas: nSuc,
-                    cupo: o.cupo,
-                  })}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="text-left sm:text-right">
-                  <p className="font-display text-lg text-marca">
-                    {money.format(monthlyCharge(o))}
-                  </p>
-                  <p className="text-[10px] text-carbon/45">{t("super.cobro")}</p>
-                </div>
-                {isContractPending(o) && !o.activo ? (
-                  <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
-                    Esperando condiciones
-                  </span>
-                ) : !o.activo && o.contractAcceptedAt ? (
-                  <span className="rounded-full bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-800">
-                    Lista para activar
-                  </span>
-                ) : (
-                  <span
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                      o.pagado
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {o.pagado ? t("super.pagado") : t("super.impago")}
-                  </span>
-                )}
-                <span className="text-carbon/30">→</span>
-              </div>
-            </button>
-          );
-        })}
-        <Pagination
-          page={page}
-          pageSize={PAGE_SIZE}
-          total={filtradas.length}
-          onChange={setPage}
-        />
-      </div>
 
       {pagoOrgId &&
         (() => {
