@@ -5,7 +5,10 @@ import { ThemedImg } from "@/components/ui/ThemedImg";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
 import { useApp } from "@/components/providers/Providers";
-import { useCustomerOrder } from "@/lib/hooks/useCustomerOrder";
+import {
+  useCustomerOrder,
+  type InitialCustomerOrder,
+} from "@/lib/hooks/useCustomerOrder";
 import {
   showReadyNotice,
   requestNotificationPermission,
@@ -16,6 +19,9 @@ import { fireReadyConfetti } from "@/lib/confetti";
 
 interface Props {
   token: string;
+  /* Pedido ya resuelto en el servidor: evita el parpadeo del loader y el
+   * primer fetch desde el navegador. */
+  initial?: InitialCustomerOrder;
 }
 
 const senalListo = (opts?: {
@@ -44,9 +50,9 @@ const senalListo = (opts?: {
   }
 };
 
-export const CustomerWaiting = ({ token }: Props) => {
+export const CustomerWaiting = ({ token, initial }: Props) => {
   const { t } = useApp();
-  const { ready: hydrated, order } = useCustomerOrder(token);
+  const { ready: hydrated, order } = useCustomerOrder(token, initial);
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
