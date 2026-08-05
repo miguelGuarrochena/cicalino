@@ -45,23 +45,14 @@ const senalListo = (opts?: {
 };
 
 export const CustomerWaiting = ({ token }: Props) => {
-  const { t, locale } = useApp();
+  const { t } = useApp();
   const { ready: hydrated, order } = useCustomerOrder(token);
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
-  const [confirmado, setConfirmado] = useState(false);
   const [flash, setFlash] = useState(false);
   const ultimoAviso = useRef<string | null>(null);
   const vioEsperando = useRef(false);
-
-  const marcarRetirado = async () => {
-    setConfirmado(true);
-    try {
-      await fetch(`/api/p/${token}/retirado`, { method: "POST" });
-    } catch {
-    }
-  };
 
   useEffect(() => {
     let alive = true;
@@ -82,7 +73,7 @@ export const CustomerWaiting = ({ token }: Props) => {
 
   const status = order?.status ?? "creado";
   const esListo = status === "listo";
-  const esRetirado = status === "retirado" || confirmado;
+  const esRetirado = status === "retirado";
   const esCancelado = status === "cancelado";
   const esOk = esListo || esRetirado;
   const cerrado = esOk || esCancelado;
@@ -259,18 +250,6 @@ export const CustomerWaiting = ({ token }: Props) => {
             </>
           )}
         </div>
-
-        {esListo && !esRetirado && (
-          <div className="u-in mt-6 w-full sm:max-w-sm">
-            <button
-              type="button"
-              onClick={marcarRetirado}
-              className="w-full rounded-full border border-emerald-400 bg-emerald-100 px-6 py-3.5 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-200 active:scale-95"
-            >
-              {locale === "en" ? "I picked it up 👍" : "Ya lo retiré 👍"}
-            </button>
-          </div>
-        )}
 
         {!cerrado && (
           <div className="u-in mt-8 w-full sm:max-w-sm">
