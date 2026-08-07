@@ -107,9 +107,15 @@ const mapReservation = (r: ReservationRow, tableNumbers?: number[]): Reservation
   };
 };
 
-const SELECT_WAITLIST = "*, empleados(nombre)";
-const SELECT_RESERVATION = "*, empleados(nombre)";
+const SELECT_WAITLIST =
+  "id, nombre, personas, estado, mesa_numero, qr_token, creado_en, avisado_en, sentado_en, cancelado_en, visto_en, empleados(nombre)";
+const SELECT_RESERVATION =
+  "id, nombre, personas, mesa_numero, mesas_numeros, horario, gracia_minutos, estado, creado_en, sentado_en, cancelado_en, expirado_en, empleados(nombre)";
 const SELECT_TABLE = "id, numero, estado, capacidad, espera_id, reserva_id";
+
+/* Mismo criterio que en pedidos: el techo lo ponemos nosotros para que el
+ * corte sea visible y no lo decida el max-rows de PostgREST en silencio. */
+const MAX_FILAS_JORNADA = 1000;
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
 const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
 const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString();
@@ -165,12 +171,19 @@ export const fetchTodayWaitlist = async (
     .select(SELECT_WAITLIST)
     .eq("local_id", branchId)
     .gte("creado_en", startOfBusinessDay())
-    .order("creado_en", { ascending: false });
+    .order("creado_en", { ascending: false })
+    .limit(MAX_FILAS_JORNADA);
   if (error) {
     console.error("fetchTodayWaitlist", error.message);
     return [];
   }
-  return ((data as unknown as WaitlistRow[]) ?? []).map(mapWaitlistEntry);
+  const filas = (data as unknown as WaitlistRow[]) ?? [];
+  if (filas.length === MAX_FILAS_JORNADA) {
+    console.error(
+      `fetchTodayWaitlist: la sucursal ${branchId} llegó al techo de ${MAX_FILAS_JORNADA} esperas en la jornada. La lista está incompleta.`,
+    );
+  }
+  return filas.map(mapWaitlistEntry);
 };
 
 export const fetchTables = async (branchId: string): Promise<TableView[]> => {
@@ -207,37 +220,23 @@ export const fetchTodayReservations = async (
   return ((data as unknown as ReservationRow[]) ?? []).map((r) => mapReservation(r));
 };
 
+/* Vencer las reservas que pasaron su horario más la gracia.
+ *
+ * Lo hace la base en un solo UPDATE (supabase/reservas-expirar.sql). Antes se
+ * bajaban todas las reservas activas para filtrarlas en JS.
+ *
+ * Ojo: esto es solo para que el panel abierto vea el cambio en el momento. El
+ * vencimiento de verdad lo garantiza el cron, porque si nadie abre el panel
+ * esta función no corre nunca. */
 export const expireOverdueReservations = async (
   branchId: string,
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;
-  const { data, error } = await supabase
-    .from("reservas")
-    .select("id, horario, gracia_minutos")
-    .eq("local_id", branchId)
-    .eq("estado", "activa");
-  if (error || !data?.length) return;
-
-  const now = Date.now();
-  const vencidas = (
-    data as { id: string; horario: string; gracia_minutos: number }[]
-  ).filter((r) => {
-    const limite =
-      new Date(r.horario).getTime() + (r.gracia_minutos || 15) * 60_000;
-    return now > limite;
+  const { error } = await supabase.rpc("expirar_reservas_local", {
+    p_local: branchId,
   });
-  if (!vencidas.length) return;
-
-  const nowIso = new Date().toISOString();
-  await supabase
-    .from("reservas")
-    .update({ estado: "expirada", expirado_en: nowIso })
-    .in(
-      "id",
-      vencidas.map((r) => r.id),
-    )
-    .eq("estado", "activa");
+  if (error) console.error("expireOverdueReservations", error.message);
 };
 
 export const insertWaitlistEntry = async (args: {
