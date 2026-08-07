@@ -63,10 +63,14 @@ export const organizations = pgTable("organizaciones", {
   direccion: text("direccion"),
   ownerEmail: text("dueno_email").notNull(),
   cupo: integer("cupo").notNull().default(1),
+  /* Informational. The subscription state lives in subscriptionStatus;
+   * nothing branches on this one. */
   pagado: boolean("pagado").notNull().default(true),
   activo: boolean("activo").notNull().default(true),
   plan: text("plan").notNull().default("mensual"),
   freeMonthUntil: timestamp("mes_gratis_hasta", { withTimezone: true }),
+  /* DEPRECATED — superseded by nextInvoice (proxima_factura). Nothing reads or
+   * writes it any more; see supabase/un-solo-modelo-cobro.sql for the drop. */
   nextChargeAt: timestamp("proximo_cobro_en", { withTimezone: true }),
   /* Last time the CUSTOMER was emailed about an overdue payment.
    * Only subscriptionCron writes this. */

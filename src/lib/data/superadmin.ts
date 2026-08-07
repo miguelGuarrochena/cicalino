@@ -35,7 +35,6 @@ type OrgDb = {
   activo: boolean;
   plan: string | null;
   mes_gratis_hasta: string | null;
-  proximo_cobro_en: string | null;
   contrato_aceptado_en: string | null;
   modulo_pedidos: boolean | null;
   modulo_espera: boolean | null;
@@ -93,7 +92,6 @@ const mapOrg = (o: OrgDb): OrganizationRow => {
     activo: o.activo,
     plan: (o.plan as PlanTipo) ?? "mensual",
     freeMonthUntil: o.mes_gratis_hasta ?? null,
-    nextChargeAt: o.proximo_cobro_en ?? null,
     contractAcceptedAt: o.contrato_aceptado_en ?? null,
     moduloPedidos: agg.moduloPedidos,
     moduloEspera: agg.moduloEspera,
@@ -114,7 +112,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, proximo_cobro_en, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, estado_suscripcion, prueba_inicio, prueba_fin, proxima_factura, dia_ciclo, ultimo_pago_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera, created_at, cobro_desde, activa, responsable_id)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, estado_suscripcion, prueba_inicio, prueba_fin, proxima_factura, dia_ciclo, ultimo_pago_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera, created_at, cobro_desde, activa, responsable_id)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
@@ -151,7 +149,8 @@ export const updateOrgDb = async (
     activo: boolean;
     plan: PlanTipo;
     freeMonthUntil: string | null;
-    nextChargeAt: string | null;
+    nextInvoice: string | null;
+    status: SubscriptionStatus;
     moduloPedidos?: boolean;
     moduloEspera?: boolean;
   }>,
@@ -170,7 +169,14 @@ export const updateOrgDb = async (
   if (patch.activo != null) db.activo = patch.activo;
   if (patch.plan != null) db.plan = patch.plan;
   if (patch.freeMonthUntil !== undefined) db.mes_gratis_hasta = patch.freeMonthUntil;
-  if (patch.nextChargeAt !== undefined) db.proximo_cobro_en = patch.nextChargeAt;
+  /* proxima_factura es date, no timestamptz: mandarle un ISO completo lo
+   * rechaza. */
+  if (patch.nextInvoice !== undefined) {
+    db.proxima_factura = patch.nextInvoice
+      ? patch.nextInvoice.slice(0, 10)
+      : null;
+  }
+  if (patch.status != null) db.estado_suscripcion = patch.status;
   if (patch.moduloPedidos != null) db.modulo_pedidos = patch.moduloPedidos;
   if (patch.moduloEspera != null) db.modulo_espera = patch.moduloEspera;
   const { error } = await supabase

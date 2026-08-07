@@ -106,7 +106,6 @@ export const savePayment = async (args: {
     .from("organizaciones")
     .update({
       proxima_factura: next.nextBilling,
-      proximo_cobro_en: next.nextBilling,
       ultimo_pago_en: args.fecha,
       estado_suscripcion: "active",
       pagado: true,

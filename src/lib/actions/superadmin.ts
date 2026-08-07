@@ -47,13 +47,14 @@ const createOrganizationValidated = async (
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
 
+  /* El mes de cortesía corre la primera factura. Antes escribía además
+   * `proximo_cobro_en`, que quedaba distinto de `proxima_factura` desde el
+   * alta misma: una decía fin de la cortesía y la otra fin de la prueba. */
   let freeMonthUntil: string | null = null;
-  let nextChargeAt: string | null = null;
   if (data.mesGratis) {
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
     freeMonthUntil = d.toISOString();
-    nextChargeAt = freeMonthUntil;
   }
 
 
@@ -72,11 +73,12 @@ const createOrganizationValidated = async (
       plan: data.plan,
       activo: false,
       mes_gratis_hasta: freeMonthUntil,
-      proximo_cobro_en: nextChargeAt,
       estado_suscripcion: "trial",
       prueba_inicio: trial.trialStart,
       prueba_fin: trial.trialEnd,
-      proxima_factura: trial.nextBilling,
+      proxima_factura: freeMonthUntil
+        ? freeMonthUntil.slice(0, 10)
+        : trial.nextBilling,
       dia_ciclo: trial.cycleDay,
       modulo_pedidos: data.moduloPedidos !== false,
       modulo_espera: Boolean(data.moduloEspera),
