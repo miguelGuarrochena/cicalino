@@ -16,7 +16,7 @@ type OrgRow = OrgBilling & {
   nombre: string;
   dueno_email: string;
   plan: string;
-  aviso_cobro_en: string | null;
+  aviso_interno_en: string | null;
   mes_gratis_hasta: string | null;
   proximo_cobro_en: string | null;
 };
@@ -30,7 +30,7 @@ const mapRow = (r: {
   plan: string;
   mes_gratis_hasta: string | null;
   proximo_cobro_en: string | null;
-  aviso_cobro_en: string | null;
+  aviso_interno_en: string | null;
 }): OrgRow => ({
   id: r.id,
   nombre: r.nombre,
@@ -40,11 +40,17 @@ const mapRow = (r: {
   plan: r.plan as OrgBilling["plan"],
   freeMonthUntil: r.mes_gratis_hasta,
   nextChargeAt: r.proximo_cobro_en,
-  aviso_cobro_en: r.aviso_cobro_en,
+  aviso_interno_en: r.aviso_interno_en,
   mes_gratis_hasta: r.mes_gratis_hasta,
   proximo_cobro_en: r.proximo_cobro_en,
 });
 
+/* Has the operator already been emailed about this account today?
+ *
+ * Reads `aviso_interno_en`, which belongs to this reminder alone. It used to
+ * share `aviso_cobro_en` with the customer-facing overdue notice in
+ * subscriptionCron, so stamping it here could make that one think the customer
+ * had already been told. See supabase/aviso-interno.sql. */
 const avisadoHoy = (iso: string | null): boolean => {
   if (!iso) return false;
   const a = new Date(iso);
@@ -74,7 +80,7 @@ export const listPendingCharges = async (): Promise<
   const { data } = await admin
     .from("organizaciones")
     .select(
-      "id, nombre, dueno_email, activo, pagado, plan, mes_gratis_hasta, proximo_cobro_en, aviso_cobro_en",
+      "id, nombre, dueno_email, activo, pagado, plan, mes_gratis_hasta, proximo_cobro_en, aviso_interno_en",
     )
     .eq("activo", true);
 
@@ -99,14 +105,14 @@ export const sendBillingReminders = async (): Promise<{
   const { data } = await admin
     .from("organizaciones")
     .select(
-      "id, nombre, dueno_email, activo, pagado, plan, mes_gratis_hasta, proximo_cobro_en, aviso_cobro_en",
+      "id, nombre, dueno_email, activo, pagado, plan, mes_gratis_hasta, proximo_cobro_en, aviso_interno_en",
     )
     .eq("activo", true);
 
   const pendientes = (data ?? [])
     .map(mapRow)
     .filter(isOrgBillingDue)
-    .filter((o) => !avisadoHoy(o.aviso_cobro_en));
+    .filter((o) => !avisadoHoy(o.aviso_interno_en));
 
   if (pendientes.length === 0) return { ok: true, avisados: 0 };
 
@@ -138,7 +144,7 @@ export const sendBillingReminders = async (): Promise<{
       pendientes.map((o) =>
         admin
           .from("organizaciones")
-          .update({ aviso_cobro_en: ahora })
+          .update({ aviso_interno_en: ahora })
           .eq("id", o.id),
       ),
     );

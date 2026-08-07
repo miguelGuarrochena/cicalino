@@ -101,3 +101,46 @@ describe("atrasos de pago", () => {
     });
   });
 });
+
+/* Why aviso_cobro_en can't be shared with anything else.
+ *
+ * The customer's overdue notice goes out once per billing cycle, and the only
+ * thing deciding that is the stamp on aviso_cobro_en. Anything that writes
+ * that column for another reason silently cancels the notice — no error, no
+ * log, the account just stops hearing from us.
+ *
+ * That's exactly what the internal reminder in actions/billing.ts was doing
+ * until it got its own column (supabase/aviso-interno.sql). These tests are
+ * here so nobody points a second writer at it again. */
+describe("aviso_cobro_en tiene un solo dueño", () => {
+  const morosa: CronOrg = {
+    id: "o1",
+    plan: "mensual",
+    status: "pending_payment",
+    trialEnd: null,
+    nextBilling: "2026-09-15",
+    aviso5dEn: null,
+    avisoFinEn: null,
+    avisoCobroEn: null,
+  };
+
+  it("sin marca previa, avisa aunque hayan pasado varios días", () => {
+    expect(planDailyActions(morosa, "2026-09-18").emails).toEqual(["overdue"]);
+  });
+
+  it("una marca anterior al vencimiento no bloquea: es de un ciclo viejo", () => {
+    expect(
+      planDailyActions({ ...morosa, avisoCobroEn: "2026-09-10" }, "2026-09-18")
+        .emails,
+    ).toEqual(["overdue"]);
+  });
+
+  it("una marca posterior al vencimiento bloquea el aviso del ciclo entero", () => {
+    // Este es el caso que rompía: si algo ajeno estampa la columna acá, el
+    // cliente no se entera nunca de que debe.
+    expect(
+      planDailyActions({ ...morosa, avisoCobroEn: "2026-09-16" }, "2026-09-18")
+        .emails,
+    ).toEqual([]);
+  });
+});
