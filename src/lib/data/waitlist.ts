@@ -4,7 +4,6 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 import { businessDayStart, businessDayEnd } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import { isRealBranchId } from "@/lib/data/orders";
-import { conflictingReservation } from "@/lib/reservations";
 import {
   waitlistTransitionSources,
   reservationTransitionSources,
@@ -124,6 +123,16 @@ const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
 const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
 const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString();
 
+/* Sync the table list to `cantidad` tables.
+ *
+ * The old version read the existing numbers, worked out the missing ones and
+ * inserted them. Two tabs opening the panel at once computed the same list and
+ * both tried to insert it; the unique index caught the second, but the error
+ * was thrown away and the function carried on.
+ *
+ * It also deleted extras checking only `estado = 'libre'`, so a table sitting
+ * free but still linked to a waitlist entry could be deleted under it. The
+ * function checks the links too. */
 export const syncTables = async (
   branchId: string,
   cantidad: number,
@@ -131,37 +140,23 @@ export const syncTables = async (
   const supabase = createBrowserSupabase();
   if (!supabase) return [];
   const n = Math.max(1, Math.min(500, cantidad));
-  const { data: existing } = await supabase
-    .from("mesas")
-    .select(SELECT_TABLE)
-    .eq("local_id", branchId)
-    .order("numero");
-  const rows = (existing as TableRow[] | null) ?? [];
-  const have = new Set(rows.map((r) => r.numero));
-  const missing = [];
-  for (let i = 1; i <= n; i++) {
-    if (!have.has(i))
-      missing.push({ local_id: branchId, numero: i, estado: "libre", capacidad: 4 });
-  }
-  if (missing.length) {
-    await supabase.from("mesas").insert(missing);
-  }
-  const extras = rows.filter((r) => r.numero > n && r.estado === "libre");
-  if (extras.length) {
-    await supabase
-      .from("mesas")
-      .delete()
-      .in(
-        "id",
-        extras.map((e) => e.id),
-      );
-  }
-  const { data } = await supabase
+
+  const { error } = await supabase.rpc("sincronizar_mesas", {
+    p_local: branchId,
+    p_cantidad: n,
+  });
+  if (error) console.error("syncTables", error.message);
+
+  const { data, error: errLeer } = await supabase
     .from("mesas")
     .select(SELECT_TABLE)
     .eq("local_id", branchId)
     .lte("numero", n)
     .order("numero");
+  if (errLeer) {
+    console.error("syncTables/leer", errLeer.message);
+    return [];
+  }
   return ((data as TableRow[] | null) ?? []).map(mapTable);
 };
 
@@ -273,6 +268,29 @@ export const insertWaitlistEntry = async (args: {
   return mapWaitlistEntry(data as unknown as WaitlistRow);
 };
 
+export type NewReservationReason =
+  | "sin-mesas"
+  | "sin-horario"
+  | "mesa-inexistente"
+  | "capacidad-insuficiente"
+  | "choque"
+  | "error";
+
+export type NewReservationResult =
+  | { ok: true; reserva: ReservationView }
+  | { ok: false; reason: NewReservationReason };
+
+/* Create a booking.
+ *
+ * One call to a Postgres function that takes a per-branch advisory lock, so
+ * the conflict check and the insert happen with nobody else in between.
+ *
+ * The old version read the active bookings, checked for conflicts in JS and
+ * then inserted: two hosts booking table 5 for 21:00 from two devices both
+ * read a clean slate, both passed, and both inserts went through.
+ *
+ * It also used to return null for all five failure modes, so the panel could
+ * only say "couldn't book". Now it says which one. */
 export const insertReservation = async (args: {
   branchId: string;
   name: string;
@@ -281,70 +299,36 @@ export const insertReservation = async (args: {
   scheduledAt: string;
   graceMinutes: 15 | 20;
   employeeId?: string | null;
-}): Promise<ReservationView | null> => {
+}): Promise<NewReservationResult> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return null;
-  const nombre = args.name.trim().slice(0, 80) || "Reserva";
-  const personas = Math.max(1, Math.min(50, args.partySize || 2));
+  if (!supabase) return { ok: false, reason: "error" };
   const nums = [...new Set(args.tableNumbers)]
     .filter((n) => n >= 1)
     .sort((a, b) => a - b);
-  if (!nums.length) {
-    console.error("insertReservation: sin mesas");
-    return null;
-  }
+  if (!nums.length) return { ok: false, reason: "sin-mesas" };
 
-  const { data: mesasRows } = await supabase
-    .from("mesas")
-    .select(SELECT_TABLE)
-    .eq("local_id", args.branchId)
-    .in("numero", nums);
-  const mesasPick = ((mesasRows as TableRow[] | null) ?? []).map(mapTable);
-  if (mesasPick.length !== nums.length) {
-    console.error("insertReservation: mesa inexistente");
-    return null;
-  }
-  const cap = mesasPick.reduce((s, m) => s + m.capacity, 0);
-  if (cap < personas) {
-    console.error("insertReservation: capacidad insuficiente");
-    return null;
-  }
+  const { data, error } = await supabase.rpc("crear_reserva", {
+    p_local: args.branchId,
+    p_mesas: nums,
+    p_nombre: args.name,
+    p_personas: args.partySize,
+    p_horario: args.scheduledAt,
+    p_gracia: args.graceMinutes,
+    p_empleado: args.employeeId ?? null,
+  });
 
-  const { data: activasRows } = await supabase
-    .from("reservas")
-    .select(SELECT_RESERVATION)
-    .eq("local_id", args.branchId)
-    .eq("estado", "activa");
-  const activas = ((activasRows as unknown as ReservationRow[]) ?? []).map((r) =>
-    mapReservation(r),
-  );
-  const choque = conflictingReservation(nums, args.scheduledAt, activas);
-  if (choque) {
-    console.error("insertReservation: choca con otra reserva", choque.id);
-    return null;
-  }
-
-  const primaria = nums[0];
-  const { data, error } = await supabase
-    .from("reservas")
-    .insert({
-      local_id: args.branchId,
-      nombre,
-      personas,
-      mesa_numero: primaria,
-      mesas_numeros: nums,
-      horario: args.scheduledAt,
-      gracia_minutos: args.graceMinutes,
-      estado: "activa",
-      empleado_id: args.employeeId ?? null,
-    })
-    .select(SELECT_RESERVATION)
-    .single();
   if (error) {
     console.error("insertReservation", error.message);
-    return null;
+    return { ok: false, reason: "error" };
   }
-  return mapReservation(data as unknown as ReservationRow, nums);
+
+  const res = data as
+    | { ok: true; reserva: ReservationRow }
+    | { ok: false; reason: NewReservationReason }
+    | null;
+
+  if (!res?.ok) return { ok: false, reason: res?.reason ?? "error" };
+  return { ok: true, reserva: mapReservation(res.reserva, nums) };
 };
 
 export type SeatWalkInReason =
