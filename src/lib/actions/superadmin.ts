@@ -10,6 +10,7 @@ import {
   parseInput,
   type CreateOrgInput,
 } from "@/lib/schemas";
+import { leadToOrgPayload, type LeadRow } from "@/lib/leadToOrg";
 import type { Lead } from "@/lib/db/schema";
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
@@ -453,46 +454,9 @@ export const activateLead = async (id: string): Promise<Resultado> => {
     };
   }
 
-  const esContrato = sol.tipo === "contrato";
-  const planSol =
-    sol.plan === "anual" || sol.plan === "mensual" ? sol.plan : "mensual";
-  const packSol =
-    sol.pack === "espera" || sol.pack === "pack" || sol.pack === "pedidos"
-      ? sol.pack
-      : "pedidos";
-  const moduloPedidos = packSol === "pedidos" || packSol === "pack";
-  const moduloEspera = packSol === "espera" || packSol === "pack";
+  const payload = leadToOrgPayload({ ...(sol as LeadRow), email: mail });
 
-  const alta = parseInput(createOrganizationSchema, {
-    nombre: sol.local || sol.nombre,
-    responsable: sol.nombre,
-    telefono: typeof sol.telefono === "string" ? sol.telefono : "",
-    cuil: typeof sol.cuil === "string" && sol.cuil.replace(/\D/g, "").length === 11
-      ? sol.cuil.replace(/\D/g, "")
-      : "",
-    direccion:
-      (typeof sol.direccion === "string" && sol.direccion) ||
-      (typeof sol.ciudad === "string" && sol.ciudad) ||
-      "",
-    ownerEmail: mail,
-    cupo: 1,
-    plan: esContrato ? planSol : "mensual",
-    mesGratis: !esContrato,
-    moduloPedidos: esContrato ? moduloPedidos : true,
-    moduloEspera: esContrato ? moduloEspera : false,
-    sucursales: [
-      {
-        nombre: sol.local || "Principal",
-        tipo: "otro",
-        direccion:
-          (typeof sol.direccion === "string" && sol.direccion) ||
-          (typeof sol.ciudad === "string" && sol.ciudad) ||
-          "",
-        moduloPedidos: esContrato ? moduloPedidos : true,
-        moduloEspera: esContrato ? moduloEspera : false,
-      },
-    ],
-  });
+  const alta = parseInput(createOrganizationSchema, payload);
   if (!alta.ok) return { ok: false, error: alta.error };
 
   const res = await createOrganizationValidated(alta.data);

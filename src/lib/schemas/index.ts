@@ -106,7 +106,14 @@ export const createOrganizationSchema = z.object({
     });
   }
 });
+/* Salida del parseo: los defaults ya aplicados. Es lo que recibe la capa que
+ * escribe en la base. */
 export type CreateOrgInput = z.infer<typeof createOrganizationSchema>;
+
+/* Entrada del parseo: lo que se le pasa a `parseInput`. Tiparlo con esto hace
+ * que TypeScript rechace claves mal escritas (`nombre` en vez de `name`), que
+ * de otro modo sólo fallan en runtime porque `parseInput` acepta `unknown`. */
+export type CreateOrgPayload = z.input<typeof createOrganizationSchema>;
 
 export const idSchema = z.object({ id: uuid });
 
