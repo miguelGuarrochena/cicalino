@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { useSeenWatch } from "@/lib/hooks/useSeenWatch";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
@@ -88,14 +87,13 @@ const PanelOrdersPage = () => {
     setPage(1);
   }, [filtro, q]);
 
+  /* Cerrar el QR cuando el cliente lo abre. `visto_en` llega por realtime
+   * dentro del propio pedido, así que alcanza con mirar la lista. */
   useEffect(() => {
     if (!qrOrder) return;
     const fresh = orders.find((o) => o.id === qrOrder.id);
     if (fresh?.seenAt) setQrOrder(null);
   }, [orders, qrOrder]);
-
-  const closeQrOrder = useCallback(() => setQrOrder(null), []);
-  useSeenWatch("order", qrOrder?.id ?? null, closeQrOrder);
 
   const filtrados = useMemo(() => {
     const needle = q.trim().toLowerCase();

@@ -11,6 +11,10 @@ const nuevoNonce = (): string => {
 };
 
 export const middleware = async (req: NextRequest) => {
+  const path = req.nextUrl.pathname;
+  const protegido = path.startsWith("/panel") || path.startsWith("/admin");
+  const esLogin = path === "/login" || path === "/entrar";
+
   const nonce = nuevoNonce();
   const enforce = cspEnforce();
   const csp = buildCsp(nonce, enforce);
@@ -20,6 +24,7 @@ export const middleware = async (req: NextRequest) => {
 
   const reqHeaders = new Headers(req.headers);
   reqHeaders.set("x-nonce", nonce);
+  // Next lee esta cabecera del request para poner el nonce en sus scripts.
   reqHeaders.set("Content-Security-Policy", csp);
 
   const conCsp = <T extends NextResponse>(r: T): T => {
@@ -27,12 +32,26 @@ export const middleware = async (req: NextRequest) => {
     return r;
   };
 
+  const seguir = () =>
+    conCsp(NextResponse.next({ request: { headers: reqHeaders } }));
+
+  /* En una ruta pública no hay nada que decidir con la sesión, así que no la
+   * consultamos. `getUser()` es una llamada de red al servidor de Auth de
+   * Supabase, y antes salía en TODAS las requests que pasaran por acá.
+   *
+   * La pantalla del cliente pollea cada 3-8 segundos mientras espera su
+   * pedido, así que esa llamada de más estaba en el camino más caliente de la
+   * app: latencia extra para el cliente final y una request a Supabase por
+   * cada poll, sin usarse para nada.
+   *
+   * El refresco de sesión que hace getUser() sigue ocurriendo en /panel y
+   * /admin, que es donde navegan los usuarios logueados. */
+  if (!protegido && !esLogin) return seguir();
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const path = req.nextUrl.pathname;
-  const protegido = path.startsWith("/panel") || path.startsWith("/admin");
 
   if ((!url || !anon) && process.env.NODE_ENV === "production" && protegido) {
     return conCsp(
@@ -43,9 +62,7 @@ export const middleware = async (req: NextRequest) => {
     );
   }
 
-  if (!url || !anon) {
-    return conCsp(NextResponse.next({ request: { headers: reqHeaders } }));
-  }
+  if (!url || !anon) return seguir();
 
   let res = NextResponse.next({ request: { headers: reqHeaders } });
 
@@ -73,7 +90,7 @@ export const middleware = async (req: NextRequest) => {
     return conCsp(NextResponse.redirect(login));
   }
 
-  if (user && (path === "/login" || path === "/entrar")) {
+  if (user && esLogin) {
     const { data: perfil } = await supabase
       .from("usuarios")
       .select("rol")
@@ -90,6 +107,10 @@ export const middleware = async (req: NextRequest) => {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    /* Las rutas de /api no renderizan HTML, así que no necesitan CSP ni nonce,
+     * y ninguna depende del middleware para autorizar: las protegidas lo
+     * resuelven ellas mismas. Sacarlas de acá evita ejecutar el middleware en
+     * el endpoint más llamado de la app. */
+    "/((?!api/|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

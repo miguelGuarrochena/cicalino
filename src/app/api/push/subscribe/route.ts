@@ -47,14 +47,22 @@ export const POST = async (req: Request) => {
     waitlistId = espera.id;
   }
 
-  await admin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-  const { error } = await admin.from("push_subscriptions").insert({
-    pedido_id: pedido?.id ?? null,
-    espera_id: waitlistId,
-    endpoint: sub.endpoint,
-    p256dh: sub.keys.p256dh,
-    auth: sub.keys.auth,
-  });
+  /* Upsert por endpoint en vez de delete + insert. El endpoint identifica al
+   * navegador, así que reapuntarlo al pedido nuevo es lo que corresponde.
+   *
+   * Antes eran dos pasos: si algo se cortaba en el medio, el cliente quedaba
+   * sin suscripción y sin aviso. Necesita el índice único uq_push_endpoint
+   * (supabase/push-indices.sql). */
+  const { error } = await admin.from("push_subscriptions").upsert(
+    {
+      pedido_id: pedido?.id ?? null,
+      espera_id: waitlistId,
+      endpoint: sub.endpoint,
+      p256dh: sub.keys.p256dh,
+      auth: sub.keys.auth,
+    },
+    { onConflict: "endpoint" },
+  );
   if (error) {
     console.error("push/subscribe", error.message);
     return NextResponse.json({ ok: false, reason: "db-error" }, { status: 500 });

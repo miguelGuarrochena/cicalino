@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSeenWatch } from "@/lib/hooks/useSeenWatch";
 import type { NotifyResult } from "@/lib/notify";
 import Link from "next/link";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
@@ -484,14 +483,13 @@ const EsperaPanelPage = () => {
     if (!visibles.espera && visibles.pedidos) router.replace("/panel");
   }, [branchConfigReady, visibles, router]);
 
+  /* Cerrar el QR cuando el cliente lo abre. `visto_en` llega por realtime
+   * dentro de la propia espera, así que alcanza con mirar la lista. */
   useEffect(() => {
     if (!qr) return;
     const fresh = esperas.find((e) => e.id === qr.id);
     if (fresh?.seenAt) setQr(null);
   }, [esperas, qr]);
-
-  const closeQr = useCallback(() => setQr(null), []);
-  useSeenWatch("waitlist", qr?.id ?? null, closeQr);
 
   const toastAviso = useCallback(
     (r: NotifyResult | null) => {

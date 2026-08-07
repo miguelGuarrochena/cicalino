@@ -41,7 +41,22 @@ const mapRow = (r: Row): OrderView => ({
   employee: r.empleados?.nombre ?? null,
 });
 
-const SELECT = "*, empleados(nombre)";
+const SELECT =
+  "id, referencia, estado, creado_en, en_preparacion_en, listo_en, retirado_en, cancelado_en, visto_en, qr_token, empleados(nombre)";
+
+/* Techo de filas de la jornada.
+ *
+ * Antes la consulta no tenía limit, así que la cantidad la decidía el
+ * max-rows de PostgREST: pasado ese techo la respuesta se corta y nadie se
+ * entera. El panel mostraba una lista incompleta como si fuera completa, y
+ * los contadores de los filtros salían mal.
+ *
+ * Con un limit explícito el corte es nuestro y lo podemos detectar. 1000
+ * pedidos en una jornada de una sola sucursal está muy por encima del
+ * volumen real de los locales a los que apunta el producto; si alguno lo
+ * alcanza, la lista pasa a necesitar paginado del lado del servidor y el
+ * aviso de abajo es la señal de que llegó ese momento. */
+const MAX_FILAS_JORNADA = 1000;
 
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
 const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
@@ -57,12 +72,19 @@ export const fetchTodayOrders = async (
     .select(SELECT)
     .eq("local_id", branchId)
     .gte("creado_en", startOfBusinessDay())
-    .order("creado_en", { ascending: false });
+    .order("creado_en", { ascending: false })
+    .limit(MAX_FILAS_JORNADA);
   if (error) {
     console.error("fetchTodayOrders", error.message);
     return [];
   }
-  return (data as unknown as Row[]).map(mapRow);
+  const filas = data as unknown as Row[];
+  if (filas.length === MAX_FILAS_JORNADA) {
+    console.error(
+      `fetchTodayOrders: la sucursal ${branchId} llegó al techo de ${MAX_FILAS_JORNADA} pedidos en la jornada. La lista y los contadores están incompletos: hace falta paginado del lado del servidor.`,
+    );
+  }
+  return filas.map(mapRow);
 };
 
 export const fetchBranchName = async (
