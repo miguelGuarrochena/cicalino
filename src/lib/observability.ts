@@ -1,15 +1,19 @@
 /* One place where failures get reported.
  *
- * Right now this only writes to the console, which in a browser means it goes
- * nowhere: when a shop calls saying "it's not working", there's nothing to
- * look at. That's the actual problem, and it isn't solved yet — what this does
- * is stop the reporting from being scattered across forty call sites, so
- * wiring up a real service later is one function instead of a sweep.
+ * Goes to Sentry and to the console. The console line is what you want while
+ * developing; Sentry is what's there when a shop calls saying it isn't working
+ * and you weren't watching.
  *
  * The context is the part that matters. `console.error("fetchTodayOrders",
  * err.message)` tells you a query failed; it doesn't tell you which branch,
- * which is the first thing you need to reproduce it.
+ * which is the first thing you need to reproduce it. Everything passed here is
+ * ids and scope names — no customer names, no emails. Sentry is configured
+ * with sendDefaultPii: false so the SDK doesn't add any either.
+ *
+ * With no DSN configured, Sentry.init never ran and these calls are no-ops, so
+ * the app behaves exactly as it did before.
  */
+import * as Sentry from "@sentry/nextjs";
 
 export interface ErrorContext {
   branchId?: string | null;
@@ -39,6 +43,13 @@ export const reportError = (
     Object.entries(context).filter(([, v]) => v != null),
   );
   console.error(`[${scope}] ${mensaje(err)}`, limpio);
+
+  Sentry.captureException(err instanceof Error ? err : new Error(mensaje(err)), {
+    /* `scope` agrupa: todos los fallos de "panel.pedidos.cargar" caen en el
+     * mismo issue en vez de uno por mensaje de Postgres. */
+    tags: { scope },
+    extra: limpio,
+  });
 };
 
 /* For things that aren't failures but shouldn't happen either — a list hitting
@@ -53,4 +64,11 @@ export const reportWarning = (
     Object.entries(context).filter(([, v]) => v != null),
   );
   console.warn(`[${scope}] ${detalle}`, limpio);
+
+  /* Mensaje y no excepción: no hay nada roto, es algo que conviene mirar. */
+  Sentry.captureMessage(`[${scope}] ${detalle}`, {
+    level: "warning",
+    tags: { scope },
+    extra: limpio,
+  });
 };
