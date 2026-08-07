@@ -41,6 +41,9 @@ const RootLayout = ({
   return (
     <html lang="es-AR" suppressHydrationWarning>
       <head>
+        {/* Has to be blocking: it sets the theme before the first paint, and
+            deferring it brings back the white flash on every load. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="/theme-init.js" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link

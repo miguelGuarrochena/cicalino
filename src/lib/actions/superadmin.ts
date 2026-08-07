@@ -99,7 +99,7 @@ const createOrganizationValidated = async (
   if (data.sucursales.length) {
     const rows = data.sucursales.map((b) => {
       let pedidos = b.moduloPedidos !== false;
-      let espera = Boolean(b.moduloEspera);
+      const espera = Boolean(b.moduloEspera);
       if (!pedidos && !espera) pedidos = true;
       return {
         organizacion_id: org.id,
@@ -360,8 +360,6 @@ export const ensureDemoOrg = async (): Promise<
       },
     };
   }
-
-  const trial = startTrial(toDateOnly(new Date()));
 
   const { data: org, error } = await admin
     .from("organizaciones")

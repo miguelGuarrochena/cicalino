@@ -118,7 +118,6 @@ export const useCustomerWaitlist = (token: string): Result => {
     if (!live) return;
     let active = true;
     let inFlight = false;
-    let id: number | undefined;
     const load = async () => {
       if (inFlight) return;
       inFlight = true;
@@ -149,7 +148,7 @@ export const useCustomerWaitlist = (token: string): Result => {
       }
     };
     void load();
-    id = window.setInterval(() => void load(), POLL_MS);
+    const id = window.setInterval(() => void load(), POLL_MS);
     const onVis = () => {
       if (document.visibilityState === "visible") void load();
     };

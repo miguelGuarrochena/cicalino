@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { useApp } from "@/components/providers/Providers";
@@ -24,7 +23,6 @@ import {
 import { addBillingCycle } from "@/lib/billing";
 import type { BusinessType } from "@/lib/store/config-store";
 import { BUSINESS_TYPE_LABEL, BUSINESS_TYPES } from "@/lib/store/config-store";
-import { useSessionStore } from "@/lib/store/session-store";
 import { isEmail, isCuil, isWhatsapp, formatCuil } from "@/lib/validations";
 import { Select } from "@/components/ui/Select";
 import { PackPicker } from "@/components/admin/PackPicker";
@@ -138,18 +136,6 @@ const textoProximoCobro = (org: OrganizationRow): string => {
     : "Pendiente: cobrá el mes en curso.";
 };
 
-const montoPlanPreview = (
-  plan: PlanTipo,
-  sucursales: number,
-  modulos: { pedidos: boolean; espera: boolean } = {
-    pedidos: true,
-    espera: false,
-  },
-): number => {
-  if (plan === "gratis") return 0;
-  const mes = sucursales * monthlyPriceForBranch(modulos);
-  return plan === "anual" ? mes * 10 : mes;
-};
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-3 py-2.5 text-sm text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20";
@@ -183,7 +169,6 @@ export const OrgModal = ({
 }) => {
   const { t } = useApp();
   const toast = useToast();
-  const router = useRouter();
   const {
     altaOrg: createOrg,
     actualizarOrg,
@@ -192,7 +177,6 @@ export const OrgModal = ({
     quitarOrg,
     darMesGratis: giveFreeMonth,
   } = useSuperadminStore();
-  const enterAsOwner = useSessionStore((s) => s.entrarComoDueño);
   const live = supabaseConfigured;
 
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -527,17 +511,6 @@ export const OrgModal = ({
     });
   };
 
-  const enterOwner = (branchId: string, branchNameLabel: string) => {
-    if (!org) return;
-    enterAsOwner({
-      organizationId: org.id,
-      organizationName: org.name,
-      sucursalId: branchId,
-      branchName: branchNameLabel,
-    });
-    onClose();
-    router.push("/panel");
-  };
 
   const fresca = useSuperadminStore((s) =>
     org ? s.organizaciones.find((o) => o.id === org.id) : undefined,
