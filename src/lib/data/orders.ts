@@ -6,7 +6,7 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { newOrderSchema, parseInput, isValidTransition } from "@/lib/schemas";
 import { debounced, watchChannel } from "@/lib/realtime";
 import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
-import { reportError, reportWarning } from "@/lib/observability";
+import { reportError } from "@/lib/observability";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
@@ -46,49 +46,89 @@ const mapRow = (r: Row): OrderView => ({
 const SELECT =
   "id, referencia, estado, creado_en, en_preparacion_en, listo_en, retirado_en, cancelado_en, visto_en, qr_token, empleados(nombre)";
 
-/* Techo de filas de la jornada.
- *
- * Antes la consulta no tenía limit, así que la cantidad la decidía el
- * max-rows de PostgREST: pasado ese techo la respuesta se corta y nadie se
- * entera. El panel mostraba una lista incompleta como si fuera completa, y
- * los contadores de los filtros salían mal.
- *
- * Con un limit explícito el corte es nuestro y lo podemos detectar. 1000
- * pedidos en una jornada de una sola sucursal está muy por encima del
- * volumen real de los locales a los que apunta el producto; si alguno lo
- * alcanza, la lista pasa a necesitar paginado del lado del servidor y el
- * aviso de abajo es la señal de que llegó ese momento. */
-const MAX_FILAS_JORNADA = 1000;
-
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
 const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
 const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString();
 
-export const fetchTodayOrders = async (
+export interface OrdersPage {
+  items: OrderView[];
+  /* Cuántos pedidos matchean el filtro y la búsqueda actuales. Manda la
+   * paginación. */
+  total: number;
+  /* Cuántos hay bajo cada pestaña de filtro, sobre la jornada entera. Van con
+   * la página porque el panel los muestra al lado de cada pestaña, y pedirlos
+   * aparte serían dos idas por refresco. */
+  conteos: {
+    todos: number;
+    creado: number;
+    listo: number;
+    retirado: number;
+    cancelado: number;
+  };
+  proximoNumero: number;
+}
+
+export type OrdersFiltro =
+  | "todos"
+  | "creado"
+  | "listo"
+  | "retirado"
+  | "cancelado";
+
+/* Una página de pedidos de la jornada, con los contadores.
+ *
+ * Antes el panel se traía el día entero y filtraba, buscaba, ordenaba y
+ * paginaba en el navegador. Andaba hasta que el día se hacía grande, y ahí
+ * dejaba de andar sin avisar: la lectura estaba topeada en 1000 filas, así
+ * que pasado eso la lista quedaba corta y los contadores mentían. */
+export const fetchOrdersPage = async (
   branchId: string,
-): Promise<DataResult<OrderView[]>> => {
+  opts: {
+    filtro: OrdersFiltro;
+    busqueda: string;
+    pagina: number;
+    tam: number;
+  },
+): Promise<DataResult<OrdersPage>> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return ok([]);
-  const { data, error } = await supabase
-    .from("pedidos")
-    .select(SELECT)
-    .eq("local_id", branchId)
-    .gte("creado_en", startOfBusinessDay())
-    .order("creado_en", { ascending: false })
-    .limit(MAX_FILAS_JORNADA);
+  if (!supabase) {
+    return ok({
+      items: [],
+      total: 0,
+      conteos: { todos: 0, creado: 0, listo: 0, retirado: 0, cancelado: 0 },
+      proximoNumero: 1,
+    });
+  }
+
+  const { data, error } = await supabase.rpc("pedidos_pagina", {
+    p_local: branchId,
+    p_desde: startOfBusinessDay(),
+    p_filtro: opts.filtro,
+    p_busqueda: opts.busqueda,
+    p_pagina: opts.pagina,
+    p_tam: opts.tam,
+  });
+
   if (error) {
-    reportError("panel.pedidos.cargar", error, { branchId });
+    reportError("panel.pedidos.pagina", error, { branchId });
     return fail(desdeSupabase(error));
   }
-  const filas = data as unknown as Row[];
-  if (filas.length === MAX_FILAS_JORNADA) {
-    reportWarning(
-      "panel.pedidos.cargar",
-      `Se alcanzó el techo de ${MAX_FILAS_JORNADA} pedidos en la jornada: la lista y los contadores están incompletos.`,
-      { branchId },
-    );
-  }
-  return ok(filas.map(mapRow));
+
+  const res = data as {
+    items: (Row & { empleado_nombre: string | null })[];
+    total: number;
+    conteos: OrdersPage["conteos"];
+    proximoNumero: number;
+  };
+
+  return ok({
+    items: (res.items ?? []).map((r) =>
+      mapRow({ ...r, empleados: { nombre: r.empleado_nombre } }),
+    ),
+    total: res.total ?? 0,
+    conteos: res.conteos,
+    proximoNumero: res.proximoNumero ?? 1,
+  });
 };
 
 export const fetchBranchName = async (
@@ -133,6 +173,30 @@ export const insertOrder = async (args: {
     return null;
   }
   return mapRow(data as unknown as Row);
+};
+
+/* ¿El cliente ya abrió el QR de este pedido?
+ *
+ * El panel cierra el modal del QR cuando aparece `visto_en`, y lo detectaba
+ * buscando el pedido en la lista. Con la lista paginada el pedido puede no
+ * estar en la página que se ve — un pedido recién creado queda detrás de los
+ * que están listos, que van primero.
+ *
+ * Se llama solo en ese caso y solo con el modal abierto, y se dispara con los
+ * eventos de realtime, no con un intervalo. */
+export const fetchOrderSeen = async (id: string): Promise<boolean> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return false;
+  const { data, error } = await supabase
+    .from("pedidos")
+    .select("visto_en")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    reportError("panel.pedidos.visto", error, { orderId: id });
+    return false;
+  }
+  return Boolean((data as { visto_en: string | null } | null)?.visto_en);
 };
 
 export const updateOrderStatus = async (
