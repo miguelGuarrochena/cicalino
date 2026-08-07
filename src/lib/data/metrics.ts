@@ -3,8 +3,16 @@
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { businessDayStart } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
+import {
+  ejes,
+  minutos,
+  pico,
+  porcentaje,
+  type Bucket,
+  type Periodo,
+} from "@/lib/metricsChart";
 
-export type Periodo = "dia" | "semana" | "mes" | "ano";
+export type { Periodo };
 
 export interface MetricsData {
   pedidos: string;
@@ -17,18 +25,47 @@ export interface MetricsData {
   valores: number[];
 }
 
-type Row = {
-  estado: string;
-  creado_en: string;
-  listo_en: string | null;
-  retirado_en: string | null;
+const VACIO: MetricsData = {
+  pedidos: "0",
+  prep: "—",
+  retiro: "—",
+  cola: "0",
+  pico: "—",
+  avisos: "—",
+  labels: [],
+  valores: [],
 };
 
-const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-const MESES = ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+/* Lo que devuelve la RPC. La agregación entera la hace Postgres. */
+interface Resumen {
+  total: number;
+  avisados: number;
+  enCurso: number;
+  prepMin: number | null;
+  retiroMin?: number | null;
+  mesasTotal?: number;
+  mesasOcupadas?: number;
+  buckets: Bucket[];
+}
+
+/* La zona horaria viaja como parámetro para no cambiar acá el criterio con
+ * que se cortan los días: hoy lo define el reloj del navegador. Lo correcto
+ * sería que viva en la sucursal (hallazgo I-12 de la auditoría). */
+const zonaHoraria = (): string => {
+  try {
+    return (
+      Intl.DateTimeFormat().resolvedOptions().timeZone ||
+      "America/Argentina/Buenos_Aires"
+    );
+  } catch {
+    return "America/Argentina/Buenos_Aires";
+  }
+};
 
 const desde = (period: Periodo): Date => {
-  if (period === "dia") return businessDayStart(useConfigStore.getState().cutoffHour);
+  if (period === "dia") {
+    return businessDayStart(useConfigStore.getState().cutoffHour);
+  }
   const d = new Date();
   if (period === "semana") d.setDate(d.getDate() - 6);
   else if (period === "mes") d.setDate(d.getDate() - 29);
@@ -36,218 +73,73 @@ const desde = (period: Periodo): Date => {
   return d;
 };
 
-const minutosProm = (
-  rows: Row[],
-  a: (r: Row) => string | null,
-  b: (r: Row) => string | null,
-): string => {
-  const difs = rows
-    .map((r) => {
-      const x = a(r);
-      const y = b(r);
-      if (!x || !y) return null;
-      return (new Date(y).getTime() - new Date(x).getTime()) / 60000;
-    })
-    .filter((v): v is number => v != null && v >= 0);
-  if (!difs.length) return "—";
-  const avg = difs.reduce((s, v) => s + v, 0) / difs.length;
-  return `${avg.toFixed(1)} min`;
-};
-
-const buckets = (
-  rows: Row[],
+const llamar = async (
+  fn: "metricas_pedidos" | "metricas_espera",
+  branchId: string,
   period: Periodo,
-): { labels: string[]; valores: number[]; pico: string } => {
-  if (period === "ano") {
-    const now = new Date();
-    const labels: string[] = [];
-    const valores: number[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      labels.push(MESES[m.getMonth()]);
-      valores.push(
-        rows.filter((r) => {
-          const d = new Date(r.creado_en);
-          return (
-            d.getMonth() === m.getMonth() &&
-            d.getFullYear() === m.getFullYear()
-          );
-        }).length,
-      );
-    }
-    return { labels, valores, pico: pico(labels, valores) };
-  }
-  if (period === "mes") {
-    const labels = ["Sem 1", "Sem 2", "Sem 3", "Sem 4"];
-    const valores = [0, 0, 0, 0];
-    const start = desde("mes").getTime();
-    rows.forEach((r) => {
-      const idx = Math.min(
-        3,
-        Math.floor((new Date(r.creado_en).getTime() - start) / (7 * 86400000)),
-      );
-      if (idx >= 0) valores[idx]++;
-    });
-    return { labels, valores, pico: pico(labels, valores) };
-  }
-  if (period === "semana") {
-    const now = new Date();
-    const labels: string[] = [];
-    const valores: number[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      labels.push(DIAS[d.getDay()]);
-      valores.push(
-        rows.filter((r) => {
-          const rd = new Date(r.creado_en);
-          return rd.toDateString() === d.toDateString();
-        }).length,
-      );
-    }
-    return { labels, valores, pico: pico(labels, valores) };
-  }
-  const porHora = new Array(24).fill(0) as number[];
-  rows.forEach((r) => porHora[new Date(r.creado_en).getHours()]++);
-  let min = 8;
-  let max = 20;
-  const activas = porHora.map((v, h) => (v > 0 ? h : -1)).filter((h) => h >= 0);
-  if (activas.length) {
-    min = Math.min(min, activas[0]);
-    max = Math.max(max, activas[activas.length - 1]);
-  }
-  const labels: string[] = [];
-  const valores: number[] = [];
-  for (let h = min; h <= max; h++) {
-    labels.push(`${h}h`);
-    valores.push(porHora[h]);
-  }
-  return { labels, valores, pico: pico(labels, valores) };
-};
+): Promise<{ resumen: Resumen; inicio: Date } | null> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return null;
+  const inicio = desde(period);
 
-const pico = (labels: string[], valores: number[]): string => {
-  if (!valores.length) return "—";
-  let bi = 0;
-  valores.forEach((v, i) => {
-    if (v > valores[bi]) bi = i;
+  const { data, error } = await supabase.rpc(fn, {
+    p_local: branchId,
+    p_desde: inicio.toISOString(),
+    p_periodo: period,
+    p_tz: zonaHoraria(),
   });
-  return valores[bi] > 0 ? labels[bi] : "—";
+
+  if (error || !data) {
+    console.error(fn, error?.message);
+    return null;
+  }
+  const resumen = data as unknown as Resumen;
+  return { resumen: { ...resumen, buckets: resumen.buckets ?? [] }, inicio };
 };
 
 export const fetchMetrics = async (
   branchId: string,
   period: Periodo,
 ): Promise<MetricsData> => {
-  const supabase = createBrowserSupabase();
-  const vacio: MetricsData = {
-    pedidos: "0",
-    prep: "—",
-    retiro: "—",
-    cola: "0",
-    pico: "—",
-    avisos: "—",
-    labels: [],
-    valores: [],
-  };
-  if (!supabase) return vacio;
-  const { data, error } = await supabase
-    .from("pedidos")
-    .select("estado, creado_en, listo_en, retirado_en")
-    .eq("local_id", branchId)
-    .gte("creado_en", desde(period).toISOString());
-  if (error || !data) return vacio;
-  const rows = data as Row[];
-  const total = rows.length;
-  const avisados = rows.filter(
-    (r) => r.estado === "listo" || r.estado === "retirado",
-  ).length;
-  const enCurso = rows.filter((r) => r.estado === "creado").length;
-  const { labels, valores, pico: pk } = buckets(rows, period);
+  const res = await llamar("metricas_pedidos", branchId, period);
+  if (!res) return VACIO;
+  const { resumen, inicio } = res;
+  const { labels, valores } = ejes(resumen.buckets, period, inicio);
+
   return {
-    pedidos: total.toLocaleString("es-AR"),
-    prep: minutosProm(
-      rows,
-      (r) => r.creado_en,
-      (r) => r.listo_en,
-    ),
-    retiro: minutosProm(
-      rows,
-      (r) => r.listo_en,
-      (r) => r.retirado_en,
-    ),
-    cola: period === "dia" ? String(enCurso) : "—",
-    pico: pk,
-    avisos: total ? `${Math.round((avisados / total) * 100)}%` : "—",
+    pedidos: resumen.total.toLocaleString("es-AR"),
+    prep: minutos(resumen.prepMin),
+    retiro: minutos(resumen.retiroMin),
+    cola: period === "dia" ? String(resumen.enCurso) : "—",
+    pico: pico(labels, valores),
+    avisos: porcentaje(resumen.avisados, resumen.total),
     labels,
     valores,
   };
-};
-
-type WaitlistRow = {
-  estado: string;
-  creado_en: string;
-  avisado_en: string | null;
-  sentado_en: string | null;
 };
 
 export const fetchWaitlistMetrics = async (
   branchId: string,
   period: Periodo,
 ): Promise<MetricsData> => {
-  const supabase = createBrowserSupabase();
-  const vacio: MetricsData = {
-    pedidos: "0",
-    prep: "—",
-    retiro: "—",
-    cola: "0",
-    pico: "—",
-    avisos: "—",
-    labels: [],
-    valores: [],
-  };
-  if (!supabase) return vacio;
-  const [{ data, error }, mesasRes] = await Promise.all([
-    supabase
-      .from("esperas")
-      .select("estado, creado_en, avisado_en, sentado_en")
-      .eq("local_id", branchId)
-      .gte("creado_en", desde(period).toISOString()),
-    period === "dia"
-      ? supabase
-          .from("mesas")
-          .select("estado")
-          .eq("local_id", branchId)
-      : Promise.resolve({ data: null as { estado: string }[] | null }),
-  ]);
-  if (error || !data) return vacio;
-  const rows = data as WaitlistRow[];
-  const total = rows.length;
-  const avisados = rows.filter(
-    (r) => r.estado === "avisado" || r.estado === "sentado",
-  ).length;
-  const enCola = rows.filter(
-    (r) => r.estado === "esperando" || r.estado === "avisado",
-  ).length;
-  const mesas = mesasRes.data ?? [];
-  const ocupadas = mesas.filter((m) => m.estado === "ocupada").length;
-  const ocupPct =
-    mesas.length > 0
-      ? `${Math.round((ocupadas / mesas.length) * 100)}%`
+  const res = await llamar("metricas_espera", branchId, period);
+  if (!res) return VACIO;
+  const { resumen, inicio } = res;
+  const { labels, valores } = ejes(resumen.buckets, period, inicio);
+
+  const mesasTotal = resumen.mesasTotal ?? 0;
+  const ocupacion =
+    mesasTotal > 0
+      ? porcentaje(resumen.mesasOcupadas ?? 0, mesasTotal)
       : "—";
-  const asRow: Row[] = rows.map((r) => ({
-    estado: r.estado,
-    creado_en: r.creado_en,
-    listo_en: r.avisado_en,
-    retirado_en: r.sentado_en,
-  }));
-  const { labels, valores, pico: pk } = buckets(asRow, period);
+
   return {
-    pedidos: total.toLocaleString("es-AR"),
-    prep: minutosProm(asRow, (r) => r.creado_en, (r) => r.listo_en),
-    retiro: ocupPct,
-    cola: period === "dia" ? String(enCola) : "—",
-    pico: pk,
-    avisos: total ? `${Math.round((avisados / total) * 100)}%` : "—",
+    pedidos: resumen.total.toLocaleString("es-AR"),
+    prep: minutos(resumen.prepMin),
+    retiro: ocupacion,
+    cola: period === "dia" ? String(resumen.enCurso) : "—",
+    pico: pico(labels, valores),
+    avisos: porcentaje(resumen.avisados, resumen.total),
     labels,
     valores,
   };
