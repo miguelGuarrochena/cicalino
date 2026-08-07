@@ -55,6 +55,9 @@ yarn-error.log*
 # --- Editores / OS ---
 .DS_Store
 Thumbs.db
+# Restos que deja FUSE cuando se borra un archivo que todavía está abierto
+# (pasa al editar sobre sshfs / unidades de red). Son copias viejas, no fuente.
+.fuse_hidden*
 .vscode/*
 !.vscode/extensions.json
 .idea
