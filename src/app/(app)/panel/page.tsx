@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useOrders } from "@/lib/hooks/useOrders";
+import { fetchOrderSeen } from "@/lib/data/orders";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
@@ -19,19 +20,11 @@ import {
   useSuperadminStore,
   branchById,
 } from "@/lib/store/superadmin-store";
-import { Pagination, slicePage } from "@/components/ui/Pagination";
+import { Pagination } from "@/components/ui/Pagination";
+import { useDebounced } from "@/lib/hooks/useDebounced";
 import { useToast } from "@/components/ui/Toast";
 import { dingNew, notifyReady } from "@/lib/sound";
 import type { OrderStatus, OrderView } from "@/lib/types";
-import { orderClosed } from "@/lib/types";
-
-const ORDEN: Record<OrderStatus, number> = {
-  listo: 0,
-  creado: 1,
-  en_preparacion: 1,
-  retirado: 2,
-  cancelado: 3,
-};
 
 const PAGE_SIZE = 9;
 
@@ -48,14 +41,6 @@ const FILTROS: FiltroEstado[] = [
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 
-const matchFiltro = (status: OrderStatus, filtro: FiltroEstado): boolean => {
-  if (filtro === "todos") return true;
-  if (filtro === "creado") {
-    return status === "creado" || status === "en_preparacion";
-  }
-  return status === filtro;
-};
-
 const PanelOrdersPage = () => {
   const { t, locale } = useApp();
   const toast = useToast();
@@ -64,22 +49,35 @@ const PanelOrdersPage = () => {
   const activeEmployee = useSessionStore((s) => s.empleadoActivo);
   const branchId = useSessionStore((s) => s.sucursalId);
   const orgs = useSuperadminStore((s) => s.organizaciones);
+  const [filtro, setFiltro] = useState<FiltroEstado>("todos");
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+
+  /* La búsqueda va con retardo porque ahora consulta al servidor. Sin esto
+   * cada tecla sería una consulta, y el mostrador escribe rápido. */
+  const qDebounced = useDebounced(q, 300);
+
   const {
     orders,
+    total,
+    conteos,
+    proximoNumero,
     createOrder,
     changeStatus,
     branchName: liveBranchName,
     live,
     syncError,
-  } = useOrders(branchId);
+  } = useOrders(branchId, {
+    filtro,
+    busqueda: qDebounced,
+    pagina: page,
+    tam: PAGE_SIZE,
+  });
   const branchNameLabel = live
     ? liveBranchName
     : branchById(orgs, branchId)?.name;
 
   const [qrOrder, setQrOrder] = useState<OrderView | null>(null);
-  const [page, setPage] = useState(1);
-  const [filtro, setFiltro] = useState<FiltroEstado>("todos");
-  const [q, setQ] = useState("");
   const [createOpen, setCrearOpen] = useState(false);
   const [refDraft, setRefDraft] = useState("");
   const [creating, setCreando] = useState(false);
@@ -94,35 +92,29 @@ const PanelOrdersPage = () => {
   useEffect(() => {
     if (!qrOrder) return;
     const fresh = orders.find((o) => o.id === qrOrder.id);
-    if (fresh?.seenAt) setQrOrder(null);
+    if (fresh) {
+      if (fresh.seenAt) setQrOrder(null);
+      return;
+    }
+    /* No está en la página visible: se pregunta por ese pedido puntualmente.
+     * Corre con cada recarga, o sea con cada evento de realtime, no en bucle. */
+    let vivo = true;
+    void fetchOrderSeen(qrOrder.id).then((visto) => {
+      if (vivo && visto) setQrOrder(null);
+    });
+    return () => {
+      vivo = false;
+    };
   }, [orders, qrOrder]);
 
-  const filtrados = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return orders
-      .filter((p) => matchFiltro(p.status, filtro))
-      .filter((p) =>
-        needle ? p.reference.toLowerCase().includes(needle) : true,
-      )
-      .sort((a, b) => {
-        if (a.status === b.status) return 0;
-        return ORDEN[a.status] - ORDEN[b.status];
-      });
-  }, [orders, filtro, q]);
-
-  const nextNumero = useMemo(() => {
-    const nums = orders
-      .map((p) => parseInt(p.reference, 10))
-      .filter((n) => Number.isFinite(n));
-    return (nums.length ? Math.max(...nums) : 0) + 1;
-  }, [orders]);
-
-  const activeItems = orders.filter((p) => !orderClosed(p.status));
-  const enCurso = activeItems.filter(
-    (p) => p.status === "creado" || p.status === "en_preparacion",
-  ).length;
-  const listos = activeItems.filter((p) => p.status === "listo").length;
-  const pageItems = slicePage(filtrados, page, PAGE_SIZE);
+  /* `orders` ya viene filtrado, ordenado y recortado a la página. Los
+   * contadores vienen aparte porque son sobre la jornada entera, no sobre lo
+   * que se ve. */
+  const pageItems = orders;
+  const enCurso = conteos.creado;
+  const listos = conteos.listo;
+  const activos = enCurso + listos;
+  const nextNumero = proximoNumero;
 
   const buscarPh =
     mode === "mesa"
@@ -230,9 +222,7 @@ const PanelOrdersPage = () => {
         return t(`estado.${f}`);
       };
 
-  const countFiltro = (f: FiltroEstado) => {
-        return orders.filter((p) => matchFiltro(p.status, f)).length;
-      };
+  const countFiltro = (f: FiltroEstado) => conteos[f];
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
@@ -255,7 +245,7 @@ const PanelOrdersPage = () => {
             <HelpLink seccion="pedidos" />
           </div>
           <p className="mt-1 text-sm text-carbon/55">
-            {t("panel.activos", { n: activeItems.length })}
+            {t("panel.activos", { n: activos })}
           </p>
         </div>
         <button
@@ -280,7 +270,7 @@ const PanelOrdersPage = () => {
           <p className="text-[10px] font-semibold uppercase tracking-wide text-carbon/45">
             {t("panel.resumenActivos")}
           </p>
-          <p className="mt-0.5 font-display text-2xl text-carbon">{activeItems.length}</p>
+          <p className="mt-0.5 font-display text-2xl text-carbon">{activos}</p>
         </button>
         <button
           type="button"
@@ -347,7 +337,7 @@ const PanelOrdersPage = () => {
         />
       </div>
 
-      {filtrados.length === 0 ? (
+      {total === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-[32px] border border-linea bg-surface/60 px-6 py-16 text-center">
           <div className="u-float">
             <ThemedImg name="bell" alt="" className="h-28" />
@@ -391,7 +381,7 @@ const PanelOrdersPage = () => {
           <Pagination
             page={page}
             pageSize={PAGE_SIZE}
-            total={filtrados.length}
+            total={total}
             onChange={setPage}
           />
         </>

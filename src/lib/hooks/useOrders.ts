@@ -5,20 +5,33 @@ import { useOrdersStore } from "@/lib/store/orders-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   isRealBranchId,
-  fetchTodayOrders,
+  fetchOrdersPage,
   fetchBranchName,
   insertOrder,
   updateOrderStatus,
   subscribeOrders,
 } from "@/lib/data/orders";
 import type { DataError } from "@/lib/data/result";
+import type { OrdersFiltro, OrdersPage } from "@/lib/data/orders";
 import type { OrderStatus, OrderView } from "@/lib/types";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 
 type EmployeeRef = { id: string; name: string } | null;
 
+export interface UseOrdersQuery {
+  filtro: OrdersFiltro;
+  busqueda: string;
+  pagina: number;
+  tam: number;
+}
+
 export interface UseOrders {
+  /* Solo la página visible. En modo demo, la lista entera. */
   orders: OrderView[];
+  /* Cuántos matchean el filtro y la búsqueda, para el paginador. */
+  total: number;
+  conteos: OrdersPage["conteos"];
+  proximoNumero: number;
   ready: boolean;
   live: boolean;
   branchName: string | null;
@@ -36,7 +49,18 @@ export interface UseOrders {
   ) => Promise<NotifyResult | null>;
 }
 
-export const useOrders = (branchId: string | null): UseOrders => {
+const CONTEOS_VACIOS: OrdersPage["conteos"] = {
+  todos: 0,
+  creado: 0,
+  listo: 0,
+  retirado: 0,
+  cancelado: 0,
+};
+
+export const useOrders = (
+  branchId: string | null,
+  query: UseOrdersQuery,
+): UseOrders => {
   const live = supabaseConfigured && isRealBranchId(branchId);
 
   const demoOrders = useOrdersStore((s) => s.pedidos);
@@ -45,21 +69,36 @@ export const useOrders = (branchId: string | null): UseOrders => {
   const demoChange = useOrdersStore((s) => s.cambiarEstado);
 
   const [liveOrders, setLiveOrders] = useState<OrderView[]>([]);
+  const [total, setTotal] = useState(0);
+  const [conteos, setConteos] = useState(CONTEOS_VACIOS);
+  const [proximoNumero, setProximoNumero] = useState(1);
   const [branchName, setBranchName] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [syncError, setSyncError] = useState<DataError | null>(null);
 
+  const { filtro, busqueda, pagina, tam } = query;
+
   const reload = useCallback(async () => {
     if (!live || !branchId) return;
-    const res = await fetchTodayOrders(branchId);
+    const res = await fetchOrdersPage(branchId, {
+      filtro,
+      busqueda,
+      pagina,
+      tam,
+    });
     if (res.ok) {
-      setLiveOrders(res.data);
+      setLiveOrders(res.data.items);
+      setTotal(res.data.total);
+      setConteos(res.data.conteos);
+      setProximoNumero(res.data.proximoNumero);
       setSyncError(null);
     } else {
+      /* Se conserva la página que ya estaba: perder la pantalla en pleno
+       * servicio por un refresco fallido es peor que mostrarla algo vieja. */
       setSyncError(res.error);
     }
     setReady(true);
-  }, [live, branchId]);
+  }, [live, branchId, filtro, busqueda, pagina, tam]);
 
   useEffect(() => {
     if (!live || !branchId) {
@@ -115,15 +154,13 @@ export const useOrders = (branchId: string | null): UseOrders => {
       const employeeId =
         employee && isRealBranchId(employee.id) ? employee.id : null;
       const created = await insertOrder({ branchId, reference, employeeId });
-      if (created) {
-        setLiveOrders((cur) => [
-          created,
-          ...cur.filter((o) => o.id !== created.id),
-        ]);
-      }
+      /* Recargar en vez de meterlo a mano al principio de la lista: la página
+       * viene ordenada y recortada por el servidor, así que anteponerlo la
+       * dejaría con un elemento de más y en el orden equivocado. */
+      if (created) void reload();
       return created;
     },
-    [live, branchId, demoAdd],
+    [live, branchId, demoAdd, reload],
   );
 
   const changeStatus = useCallback<UseOrders["changeStatus"]>(
@@ -146,6 +183,9 @@ export const useOrders = (branchId: string | null): UseOrders => {
 
   return {
     orders: live ? liveOrders : demoOrders,
+    total: live ? total : demoOrders.length,
+    conteos: live ? conteos : CONTEOS_VACIOS,
+    proximoNumero: live ? proximoNumero : 1,
     ready,
     live,
     branchName,
