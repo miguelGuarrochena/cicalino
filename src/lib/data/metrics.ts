@@ -1,7 +1,7 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { businessDayStart } from "@/lib/businessDay";
+import { businessDayStart, TZ_NEGOCIO } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import {
   ejes,
@@ -48,20 +48,6 @@ interface Resumen {
   buckets: Bucket[];
 }
 
-/* La zona horaria viaja como parámetro para no cambiar acá el criterio con
- * que se cortan los días: hoy lo define el reloj del navegador. Lo correcto
- * sería que viva en la sucursal (hallazgo I-12 de la auditoría). */
-const zonaHoraria = (): string => {
-  try {
-    return (
-      Intl.DateTimeFormat().resolvedOptions().timeZone ||
-      "America/Argentina/Buenos_Aires"
-    );
-  } catch {
-    return "America/Argentina/Buenos_Aires";
-  }
-};
-
 const desde = (period: Periodo): Date => {
   if (period === "dia") {
     return businessDayStart(useConfigStore.getState().cutoffHour);
@@ -86,7 +72,7 @@ const llamar = async (
     p_local: branchId,
     p_desde: inicio.toISOString(),
     p_periodo: period,
-    p_tz: zonaHoraria(),
+    p_tz: TZ_NEGOCIO,
   });
 
   if (error || !data) {
