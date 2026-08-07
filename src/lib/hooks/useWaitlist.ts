@@ -23,6 +23,7 @@ import {
   expireOverdueReservations,
   subscribeWaitlist,
 } from "@/lib/data/waitlist";
+import type { SeatWalkInResult } from "@/lib/data/waitlist";
 import type { WaitlistView, TableView, ReservationView } from "@/lib/types";
 import { reservationTables } from "@/lib/reservations";
 import { staffWaitlistCancelIds } from "@/lib/store/waitlist-alerts-store";
@@ -64,7 +65,7 @@ export interface UseWaitlist {
     name?: string;
     partySize?: number;
     employee?: EmployeeRef;
-  }) => Promise<WaitlistView | null>;
+  }) => Promise<SeatWalkInResult>;
   setCapacidad: (number: number, capacity: number) => Promise<void>;
   sincronizarCantidadMesas: () => Promise<void>;
 }
@@ -361,14 +362,17 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     employee?: EmployeeRef;
   }) => {
     if (!live || !branchId) {
-      return demoWalkIn({
+      const demo = demoWalkIn({
         tableNumbers: args.tableNumbers,
         name: args.name,
         partySize: args.partySize,
         employee: args.employee?.name ?? null,
       });
+      return demo
+        ? { ok: true as const, espera: demo }
+        : { ok: false as const, reason: "error" as const };
     }
-    const created = await seatWalkIn({
+    const res = await seatWalkIn({
       branchId,
       tableNumbers: args.tableNumbers,
       name: args.name,
@@ -376,7 +380,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       employeeId: args.employee?.id,
     });
     await reload();
-    return created;
+    return res;
   };
 
   return {

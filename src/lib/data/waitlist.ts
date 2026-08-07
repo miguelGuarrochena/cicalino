@@ -344,95 +344,64 @@ export const insertReservation = async (args: {
   return mapReservation(data as unknown as ReservationRow, nums);
 };
 
+export type SeatWalkInReason =
+  | "sin-mesas"
+  | "mesa-no-disponible"
+  | "mesa-reservada"
+  | "error";
+
+export type SeatWalkInResult =
+  | { ok: true; espera: WaitlistView }
+  | { ok: false; reason: SeatWalkInReason };
+
+/* Seat a walk-in.
+ *
+ * One call to a Postgres function, which is a single transaction over there:
+ * it inserts the waitlist entry and marks the tables, or does nothing.
+ *
+ * This used to be four separate requests with a hand-written rollback. When
+ * that rollback failed, tables were left as 'ocupada' pointing at a deleted
+ * waitlist entry — and since the FK is `on delete set null`, they ended up
+ * occupied with nothing backing them and no way to free them from the panel.
+ *
+ * The function also locks the tables, so two counters trying the same table no
+ * longer step on each other, and it rejects tables that are inside a
+ * reservation's grace period. */
 export const seatWalkIn = async (args: {
   branchId: string;
   tableNumbers: number[];
   name?: string;
   partySize?: number;
   employeeId?: string | null;
-}): Promise<WaitlistView | null> => {
+}): Promise<SeatWalkInResult> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { ok: false, reason: "error" };
   const nums = [...new Set(args.tableNumbers)]
     .filter((n) => n >= 1)
     .sort((a, b) => a - b);
-  if (!nums.length) return null;
+  if (!nums.length) return { ok: false, reason: "sin-mesas" };
 
-  const { data: mesasRows } = await supabase
-    .from("mesas")
-    .select(SELECT_TABLE)
-    .eq("local_id", args.branchId)
-    .in("numero", nums);
-  const mesasPick = ((mesasRows as TableRow[] | null) ?? []).map(mapTable);
-  if (mesasPick.length !== nums.length) {
-    console.error("seatWalkIn: mesa inexistente");
-    return null;
-  }
-  if (mesasPick.some((m) => m.status !== "libre")) {
-    console.error("seatWalkIn: mesa no libre");
-    return null;
-  }
-  const cap = mesasPick.reduce((s, m) => s + m.capacity, 0);
-  const personas = Math.max(1, Math.min(50, args.partySize ?? cap));
-  const nombre = (args.name ?? "").trim().slice(0, 80) || "Walk-in";
-  const primaria = nums[0];
-  const now = new Date().toISOString();
+  const { data, error } = await supabase.rpc("sentar_walkin", {
+    p_local: args.branchId,
+    p_mesas: nums,
+    p_nombre: args.name ?? null,
+    p_personas: args.partySize ?? null,
+    p_empleado: args.employeeId ?? null,
+    p_expira: endOfBusinessDay(),
+  });
 
-  const { data, error } = await supabase
-    .from("esperas")
-    .insert({
-      local_id: args.branchId,
-      nombre,
-      personas,
-      estado: "sentado",
-      mesa_numero: primaria,
-      empleado_id: args.employeeId ?? null,
-      qr_token: crypto.randomUUID(),
-      qr_expira_en: endOfBusinessDay(),
-      sentado_en: now,
-    })
-    .select(SELECT_WAITLIST)
-    .single();
   if (error) {
     console.error("seatWalkIn", error.message);
-    return null;
+    return { ok: false, reason: "error" };
   }
-  const espera = mapWaitlistEntry(data as unknown as WaitlistRow);
-  const marcadas: number[] = [];
-  for (const n of nums) {
-    const { error: mesaErr, data: updated } = await supabase
-      .from("mesas")
-      .update({
-        estado: "ocupada",
-        espera_id: espera.id,
-        reserva_id: null,
-        actualizado_en: now,
-      })
-      .eq("local_id", args.branchId)
-      .eq("numero", n)
-      .eq("estado", "libre")
-      .select("id")
-      .maybeSingle();
-    if (mesaErr || !updated) {
-      console.error("seatWalkIn mesa", mesaErr?.message ?? "no libre");
-      if (marcadas.length) {
-        await supabase
-          .from("mesas")
-          .update({
-            estado: "libre",
-            espera_id: null,
-            actualizado_en: now,
-          })
-          .eq("local_id", args.branchId)
-          .in("numero", marcadas)
-          .eq("espera_id", espera.id);
-      }
-      await supabase.from("esperas").delete().eq("id", espera.id);
-      return null;
-    }
-    marcadas.push(n);
-  }
-  return espera;
+
+  const res = data as
+    | { ok: true; espera: WaitlistRow }
+    | { ok: false; reason: SeatWalkInReason }
+    | null;
+
+  if (!res?.ok) return { ok: false, reason: res?.reason ?? "error" };
+  return { ok: true, espera: mapWaitlistEntry(res.espera) };
 };
 
 export const updateWaitlistStatus = async (
