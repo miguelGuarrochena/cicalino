@@ -113,8 +113,13 @@ export const useWaitlistCancelWatch = () => {
     const supabase = createBrowserSupabase();
 
     const tick = async () => {
-      const rows = await fetchTodayWaitlist(branchId);
+      const res = await fetchTodayWaitlist(branchId);
       if (!active) return;
+      /* On a failed read, skip this tick rather than treating it as an empty
+       * list: doing otherwise would clear `prev` and then announce every open
+       * entry as newly cancelled once the connection came back. */
+      if (!res.ok) return;
+      const rows = res.data;
       const next = new Map(rows.map((e) => [e.id, e.status]));
       if (!ready.current) {
         for (const e of rows) {

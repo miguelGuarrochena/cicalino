@@ -5,6 +5,8 @@ import { businessDayStart, businessDayEnd } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import { newOrderSchema, parseInput, isValidTransition } from "@/lib/schemas";
 import { debounced, watchChannel } from "@/lib/realtime";
+import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
+import { reportError, reportWarning } from "@/lib/observability";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
@@ -64,9 +66,9 @@ const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString(
 
 export const fetchTodayOrders = async (
   branchId: string,
-): Promise<OrderView[]> => {
+): Promise<DataResult<OrderView[]>> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return [];
+  if (!supabase) return ok([]);
   const { data, error } = await supabase
     .from("pedidos")
     .select(SELECT)
@@ -75,16 +77,18 @@ export const fetchTodayOrders = async (
     .order("creado_en", { ascending: false })
     .limit(MAX_FILAS_JORNADA);
   if (error) {
-    console.error("fetchTodayOrders", error.message);
-    return [];
+    reportError("panel.pedidos.cargar", error, { branchId });
+    return fail(desdeSupabase(error));
   }
   const filas = data as unknown as Row[];
   if (filas.length === MAX_FILAS_JORNADA) {
-    console.error(
-      `fetchTodayOrders: la sucursal ${branchId} llegó al techo de ${MAX_FILAS_JORNADA} pedidos en la jornada. La lista y los contadores están incompletos: hace falta paginado del lado del servidor.`,
+    reportWarning(
+      "panel.pedidos.cargar",
+      `Se alcanzó el techo de ${MAX_FILAS_JORNADA} pedidos en la jornada: la lista y los contadores están incompletos.`,
+      { branchId },
     );
   }
-  return filas.map(mapRow);
+  return ok(filas.map(mapRow));
 };
 
 export const fetchBranchName = async (

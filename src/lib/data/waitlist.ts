@@ -9,6 +9,8 @@ import {
   reservationTransitionSources,
 } from "@/lib/schemas";
 import { debounced, watchChannel } from "@/lib/realtime";
+import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
+import { reportError, reportWarning } from "@/lib/observability";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type {
   WaitlistStatus,
@@ -162,9 +164,9 @@ export const syncTables = async (
 
 export const fetchTodayWaitlist = async (
   branchId: string,
-): Promise<WaitlistView[]> => {
+): Promise<DataResult<WaitlistView[]>> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return [];
+  if (!supabase) return ok([]);
   const { data, error } = await supabase
     .from("esperas")
     .select(SELECT_WAITLIST)
@@ -173,38 +175,42 @@ export const fetchTodayWaitlist = async (
     .order("creado_en", { ascending: false })
     .limit(MAX_FILAS_JORNADA);
   if (error) {
-    console.error("fetchTodayWaitlist", error.message);
-    return [];
+    reportError("panel.espera.cargar", error, { branchId });
+    return fail(desdeSupabase(error));
   }
   const filas = (data as unknown as WaitlistRow[]) ?? [];
   if (filas.length === MAX_FILAS_JORNADA) {
-    console.error(
-      `fetchTodayWaitlist: la sucursal ${branchId} llegó al techo de ${MAX_FILAS_JORNADA} esperas en la jornada. La lista está incompleta.`,
+    reportWarning(
+      "panel.espera.cargar",
+      `Se alcanzó el techo de ${MAX_FILAS_JORNADA} esperas en la jornada: la lista está incompleta.`,
+      { branchId },
     );
   }
-  return filas.map(mapWaitlistEntry);
+  return ok(filas.map(mapWaitlistEntry));
 };
 
-export const fetchTables = async (branchId: string): Promise<TableView[]> => {
+export const fetchTables = async (
+  branchId: string,
+): Promise<DataResult<TableView[]>> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return [];
+  if (!supabase) return ok([]);
   const { data, error } = await supabase
     .from("mesas")
     .select(SELECT_TABLE)
     .eq("local_id", branchId)
     .order("numero");
   if (error) {
-    console.error("fetchTables", error.message);
-    return [];
+    reportError("panel.mesas.cargar", error, { branchId });
+    return fail(desdeSupabase(error));
   }
-  return ((data as TableRow[] | null) ?? []).map(mapTable);
+  return ok(((data as TableRow[] | null) ?? []).map(mapTable));
 };
 
 export const fetchTodayReservations = async (
   branchId: string,
-): Promise<ReservationView[]> => {
+): Promise<DataResult<ReservationView[]>> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return [];
+  if (!supabase) return ok([]);
   const { data, error } = await supabase
     .from("reservas")
     .select(SELECT_RESERVATION)
@@ -213,10 +219,12 @@ export const fetchTodayReservations = async (
     .lte("horario", endOfBusinessDay())
     .order("horario", { ascending: true });
   if (error) {
-    console.error("fetchTodayReservations", error.message);
-    return [];
+    reportError("panel.reservas.cargar", error, { branchId });
+    return fail(desdeSupabase(error));
   }
-  return ((data as unknown as ReservationRow[]) ?? []).map((r) => mapReservation(r));
+  return ok(
+    ((data as unknown as ReservationRow[]) ?? []).map((r) => mapReservation(r)),
+  );
 };
 
 /* Vencer las reservas que pasaron su horario más la gracia.

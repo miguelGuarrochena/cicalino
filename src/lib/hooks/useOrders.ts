@@ -11,6 +11,7 @@ import {
   updateOrderStatus,
   subscribeOrders,
 } from "@/lib/data/orders";
+import type { DataError } from "@/lib/data/result";
 import type { OrderStatus, OrderView } from "@/lib/types";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 
@@ -21,6 +22,10 @@ export interface UseOrders {
   ready: boolean;
   live: boolean;
   branchName: string | null;
+  /* Set when the last refresh failed. The list keeps whatever it had: losing
+   * the screen mid-service because one poll timed out would be worse than
+   * showing slightly stale orders with a warning on top. */
+  syncError: DataError | null;
   createOrder: (
     reference: string,
     employee?: EmployeeRef,
@@ -42,10 +47,17 @@ export const useOrders = (branchId: string | null): UseOrders => {
   const [liveOrders, setLiveOrders] = useState<OrderView[]>([]);
   const [branchName, setBranchName] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [syncError, setSyncError] = useState<DataError | null>(null);
 
   const reload = useCallback(async () => {
     if (!live || !branchId) return;
-    setLiveOrders(await fetchTodayOrders(branchId));
+    const res = await fetchTodayOrders(branchId);
+    if (res.ok) {
+      setLiveOrders(res.data);
+      setSyncError(null);
+    } else {
+      setSyncError(res.error);
+    }
     setReady(true);
   }, [live, branchId]);
 
@@ -137,6 +149,7 @@ export const useOrders = (branchId: string | null): UseOrders => {
     ready,
     live,
     branchName,
+    syncError: live ? syncError : null,
     createOrder,
     changeStatus,
   };
