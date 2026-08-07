@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ThemedImg } from "@/components/ui/ThemedImg";
+import Image from "next/image";
+import iconoApp from "../../../public/icon-192.png";
 import { useApp } from "@/components/providers/Providers";
 
 const AUTO_MS = 4200;
@@ -189,9 +191,11 @@ export const CustomerWalkthrough = ({
             {step.key === "aviso" && (
               <div className="u-pop absolute inset-x-2 top-2 z-20 rounded-[14px] bg-[#f2f2f7] px-3 py-2.5 text-left shadow-lg ring-1 ring-black/10">
                 <div className="flex items-start gap-2.5">
-                  <img
-                    src="/icon-192.png"
+                  <Image
+                    src={iconoApp}
                     alt=""
+                    width={32}
+                    height={32}
                     className={`mt-0.5 size-8 shrink-0 rounded-[8px] object-cover ${
                       flow === "espera" ? "bg-[#0f766e]" : "bg-[#2536d4]"
                     }`}

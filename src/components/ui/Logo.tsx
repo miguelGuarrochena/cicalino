@@ -17,6 +17,9 @@ export const Logo = ({
       <ThemedImg
         name="logo"
         alt="Cicalino"
+        /* Está en el header de todas las pantallas: si carga en diferido se
+         * ve aparecer. */
+        priority
         className="!h-full !w-auto max-w-[9.5rem] object-contain object-left sm:max-w-[12rem]"
       />
     </span>
