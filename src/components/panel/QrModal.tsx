@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { useApp } from "@/components/providers/Providers";
+import { useBrowserValue } from "@/lib/hooks/useBrowserValue";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 
@@ -28,7 +29,10 @@ export const QrModal = ({
   const { t, locale } = useApp();
   const [dataUrl, setDataUrl] = useState("");
   const [copiado, setCopiado] = useState(false);
-  const [puedeCompartir, setPuedeCompartir] = useState(false);
+  const puedeCompartir = useBrowserValue(
+    () => typeof navigator !== "undefined" && typeof navigator.share === "function",
+    false,
+  );
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const url =
@@ -52,9 +56,6 @@ export const QrModal = ({
     })
       .then(setDataUrl)
       .catch(() => {});
-    setPuedeCompartir(
-      typeof navigator !== "undefined" && typeof navigator.share === "function",
-    );
   }, [url, darkColor]);
 
   const waText =

@@ -23,6 +23,8 @@ export const SolicitudesPanel = () => {
   }, []);
 
   useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- `load` hace
+       el setState después de un await, no acá; la regla no lo distingue. */
     void load();
   }, [load]);
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
+import { useBrowserValue } from "@/lib/hooks/useBrowserValue";
 import {
   dingTest,
   isSoundMuted,
@@ -11,9 +12,10 @@ import {
 
 export const SoundToggle = () => {
   const { locale } = useApp();
-  const [muted, setMuted] = useState(false);
-
-  useEffect(() => setMuted(isSoundMuted()), []);
+  const guardado = useBrowserValue(isSoundMuted, false);
+  const [override, setOverride] = useState<boolean | null>(null);
+  const muted = override ?? guardado;
+  const setMuted = setOverride;
 
   const toggle = () => {
     const next = !muted;

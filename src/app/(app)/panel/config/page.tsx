@@ -1,7 +1,8 @@
 "use client";
 
 import { SubscriptionCard } from "@/components/panel/SubscriptionCard";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useBrowserValue } from "@/lib/hooks/useBrowserValue";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { NoAccess } from "@/components/ui/NoAccess";
@@ -67,11 +68,12 @@ const ConfigPage = () => {
   const [guardado, setGuardado] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [dispositivo, setDispositivo] = useState<DeviceMode>("ambos");
-
-  useEffect(() => {
-    setDispositivo(readDeviceMode());
-  }, []);
+  /* Lo guardado en el dispositivo, más lo que el usuario haya cambiado en esta
+   * sesión. Se lee con useSyncExternalStore porque en el servidor no existe. */
+  const dispositivoGuardado = useBrowserValue<DeviceMode>(readDeviceMode, "ambos");
+  const [elegido, setElegido] = useState<DeviceMode | null>(null);
+  const dispositivo = elegido ?? dispositivoGuardado;
+  const setDispositivo = setElegido;
 
   const modes: {
     id: IdentificationMode;
