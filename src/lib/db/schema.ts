@@ -180,7 +180,9 @@ export const pushSubscriptions = pgTable(
     pedidoId: uuid("pedido_id").references(() => orders.id, {
       onDelete: "cascade",
     }),
-    waitlistId: uuid("espera_id"),
+    waitlistId: uuid("espera_id").references(() => waitlistEntries.id, {
+      onDelete: "cascade",
+    }),
     endpoint: text("endpoint").notNull(),
     p256dh: text("p256dh").notNull(),
     auth: text("auth").notNull(),
@@ -188,7 +190,12 @@ export const pushSubscriptions = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("idx_push_pedido").on(t.pedidoId)],
+  (t) => [
+    index("idx_push_pedido").on(t.pedidoId),
+    // Un endpoint es un navegador, y espera un pedido a la vez.
+    uniqueIndex("uq_push_endpoint").on(t.endpoint),
+    index("idx_push_espera").on(t.waitlistId),
+  ],
 );
 
 export const leads = pgTable("solicitudes", {

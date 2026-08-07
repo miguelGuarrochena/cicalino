@@ -46,38 +46,29 @@ export const GET = async (
     return NextResponse.json({ ok: false, reason: "expired" });
   }
 
+  /* Solo la primera vez: sin la guarda, cada poll haría un UPDATE y el panel
+   * recibiría un evento de realtime por segundo y por espera. */
   if (!data.visto_en) {
     await supabase
       .from("esperas")
       .update({ visto_en: new Date().toISOString() })
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .is("visto_en", null);
   }
 
   const local = Array.isArray(data.locales) ? data.locales[0] : data.locales;
 
-  let gruposDelante = 0;
-  let personasDelante = 0;
-  let gruposEnCola = 0;
-  let personasEnCola = 0;
+  /* La posición la calcula la base con un agregado. Antes se bajaba la cola
+   * entera y se contaba en JS: como cada cliente pollea la suya, con la cola
+   * larga eso era O(n²) por ciclo. */
+  const { data: colaRows, error: colaErr } = await supabase.rpc(
+    "cola_de_espera",
+    { p_token: token },
+  );
 
-  const { data: cola } = await supabase
-    .from("esperas")
-    .select("id, personas, creado_en, estado")
-    .eq("local_id", data.local_id)
-    .in("estado", ["esperando", "avisado"]);
-
-  if (cola?.length) {
-    const miCreado = new Date(data.creado_en).getTime();
-    for (const row of cola) {
-      gruposEnCola += 1;
-      personasEnCola += row.personas ?? 0;
-      if (row.id === data.id) continue;
-      const t = new Date(row.creado_en).getTime();
-      if (t < miCreado || (t === miCreado && row.id < data.id)) {
-        gruposDelante += 1;
-        personasDelante += row.personas ?? 0;
-      }
-    }
+  const cola = Array.isArray(colaRows) ? colaRows[0] : colaRows;
+  if (colaErr) {
+    console.error("api/e cola_de_espera", colaErr.message);
   }
 
   return NextResponse.json({
@@ -90,10 +81,10 @@ export const GET = async (
     notifiedAt: data.avisado_en ?? null,
     branchName: local?.nombre ?? "",
     cola: {
-      gruposDelante,
-      personasDelante,
-      gruposEnCola,
-      personasEnCola,
+      gruposDelante: cola?.grupos_delante ?? 0,
+      personasDelante: cola?.personas_delante ?? 0,
+      gruposEnCola: cola?.grupos_en_cola ?? 0,
+      personasEnCola: cola?.personas_en_cola ?? 0,
     },
   });
 };
