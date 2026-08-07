@@ -57,7 +57,13 @@ export const organizations = pgTable("organizaciones", {
   plan: text("plan").notNull().default("mensual"),
   freeMonthUntil: timestamp("mes_gratis_hasta", { withTimezone: true }),
   nextChargeAt: timestamp("proximo_cobro_en", { withTimezone: true }),
+  /* Last time the CUSTOMER was emailed about an overdue payment.
+   * Only subscriptionCron writes this. */
   billingReminderAt: timestamp("aviso_cobro_en", { withTimezone: true }),
+  /* Last time the OPERATOR was emailed about this account. Internal only:
+   * they used to share one column and the internal one silently suppressed
+   * the customer notice. */
+  internalReminderAt: timestamp("aviso_interno_en", { withTimezone: true }),
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
   contractToken: text("contrato_token"),
