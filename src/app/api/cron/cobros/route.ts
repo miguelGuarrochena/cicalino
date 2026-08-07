@@ -72,7 +72,30 @@ export const GET = async (req: Request) => {
   try {
     const suscripciones = await sweepSubscriptions();
     const cobros = await sendBillingReminders();
-    return NextResponse.json({ ...cobros, suscripciones });
+
+    /* Mantenimiento diario. Ninguno de los dos puede depender de que alguien
+     * tenga una pantalla abierta:
+     *
+     *  - Las reservas vencidas las barría el panel. Si el local cerraba con
+     *    reservas activas, al otro día seguían bloqueando la mesa.
+     *  - Las suscripciones push no las borraba nadie: la tabla solo crecía. */
+    const { data: reservas, error: errRes } = await admin.rpc(
+      "expirar_reservas_vencidas",
+    );
+    if (errRes) console.error("cron/cobros: expirar reservas", errRes.message);
+
+    const { data: push, error: errPush } = await admin.rpc(
+      "purgar_push_viejas",
+      { p_dias: 3 },
+    );
+    if (errPush) console.error("cron/cobros: purgar push", errPush.message);
+
+    return NextResponse.json({
+      ...cobros,
+      suscripciones,
+      reservasExpiradas: reservas ?? null,
+      pushPurgadas: push ?? null,
+    });
   } finally {
     if (!lockErr) {
       const { error } = await admin.rpc("soltar_cron_lock", { p_nombre: LOCK });

@@ -67,6 +67,16 @@ const MARCA: Record<CronEmail, string> = {
   overdue: "aviso_cobro_en",
 };
 
+/* Cuántas organizaciones mira una corrida del cron.
+ *
+ * El barrido manda los mails de a uno y espera cada respuesta de Resend, así
+ * que el tiempo total crece con la cantidad de organizaciones accionables y
+ * la función de Vercel tiene un timeout. Con el filtro de la consulta las
+ * accionables son pocas, pero el techo está para que el día que no lo sean se
+ * entere alguien en vez de que el cron muera a mitad de camino dejando la
+ * mitad de las filas actualizadas. */
+const MAX_ORGS_POR_CORRIDA = 200;
+
 export const sweepSubscriptions = async (): Promise<{
   ok: boolean;
   revisadas: number;
@@ -76,14 +86,33 @@ export const sweepSubscriptions = async (): Promise<{
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, revisadas: 0, mails: 0, cambios: 0 };
 
+  /* Solo las organizaciones sobre las que planDailyActions puede llegar a
+   * hacer algo. Las de plan gratis y las pausadas o vencidas devuelven NOTHING
+   * siempre, así que traerlas era recorrerlas al pedo: antes esta consulta se
+   * llevaba la tabla entera.
+   *
+   * Los null van incluidos a propósito, porque más abajo se los trata como
+   * plan "mensual" y estado "active", que sí son accionables. En SQL
+   * `plan <> 'gratis'` da NULL para plan NULL y la fila se perdería. */
   const { data, error } = await admin
     .from("organizaciones")
     .select(
       "id, nombre, dueno_email, plan, estado_suscripcion, prueba_fin, proxima_factura, aviso_prueba_5d_en, aviso_prueba_fin_en, aviso_cobro_en",
-    );
+    )
+    .or("plan.is.null,plan.neq.gratis")
+    .or(
+      "estado_suscripcion.is.null,and(estado_suscripcion.neq.paused,estado_suscripcion.neq.expired)",
+    )
+    .order("id")
+    .limit(MAX_ORGS_POR_CORRIDA);
   if (error || !data) {
     console.error("sweepSubscriptions", error?.message);
     return { ok: false, revisadas: 0, mails: 0, cambios: 0 };
+  }
+  if (data.length === MAX_ORGS_POR_CORRIDA) {
+    console.error(
+      `sweepSubscriptions: se alcanzó el techo de ${MAX_ORGS_POR_CORRIDA} organizaciones en una corrida. Quedaron sin revisar: hace falta procesar en lotes.`,
+    );
   }
 
   const hoy = toDateOnly(new Date());
