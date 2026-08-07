@@ -415,6 +415,9 @@ export const OrgModal = ({
     } else if (
       vista.plan === "anual" &&
       vista.proximaFactura &&
+      /* eslint-disable-next-line react-hooks/purity -- esto corre al hacer
+         click en "Marcar pagado", no durante el render: la función se declara
+         acá pero solo se ejecuta en el handler. */
       new Date(vista.proximaFactura).getTime() > Date.now()
     ) {
       nextInvoice = vista.proximaFactura;

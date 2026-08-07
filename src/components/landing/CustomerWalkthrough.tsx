@@ -44,15 +44,24 @@ export const CustomerWalkthrough = ({
   const touchX = useRef<number | null>(null);
   const steps = flow === "pedidos" ? STEPS_PEDIDOS : STEPS_ESPERA;
 
-  useEffect(() => {
-    if (!open) return;
-    setI(0);
-    setFlow("pedidos");
-  }, [open]);
+  /* Al abrir se vuelve al primer paso y al flujo de pedidos; al cambiar de
+   * flujo, al primer paso. Ajustado durante el render para que la primera
+   * pintada ya sea la correcta y no se vea un fotograma del estado anterior,
+   * que en un carrusel se nota. */
+  const [abiertoAnterior, setAbiertoAnterior] = useState(open);
+  if (open !== abiertoAnterior) {
+    setAbiertoAnterior(open);
+    if (open) {
+      setI(0);
+      setFlow("pedidos");
+    }
+  }
 
-  useEffect(() => {
+  const [flowAnterior, setFlowAnterior] = useState(flow);
+  if (flow !== flowAnterior) {
+    setFlowAnterior(flow);
     setI(0);
-  }, [flow]);
+  }
 
   useEffect(() => {
     if (!open) return;

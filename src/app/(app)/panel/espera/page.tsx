@@ -153,11 +153,12 @@ const EsperaPanelPage = () => {
 
   /* Cerrar el QR cuando el cliente lo abre. `visto_en` llega por realtime
    * dentro de la propia espera, así que alcanza con mirar la lista. */
-  useEffect(() => {
-    if (!qr) return;
-    const fresh = esperas.find((e) => e.id === qr.id);
-    if (fresh?.seenAt) setQr(null);
-  }, [esperas, qr]);
+  /* Que el cliente haya abierto el QR se deduce de la lista, que llega por
+   * realtime: no hace falta guardar nada ni cerrar el modal a mano, alcanza
+   * con no renderizarlo. */
+  const qrVisto = qr
+    ? Boolean(esperas.find((e) => e.id === qr.id)?.seenAt)
+    : false;
 
   const toastAviso = useCallback(
     (r: NotifyResult | null) => {
@@ -1025,7 +1026,7 @@ const EsperaPanelPage = () => {
         </Link>
       </p>
 
-      {qr && (
+      {qr && !qrVisto && (
         <QrModal
           reference={qr.name}
           token={qr.qrToken}

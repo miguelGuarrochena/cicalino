@@ -102,14 +102,15 @@ export const Select = ({
     };
   }, [open, place]);
 
-  useEffect(() => {
-    if (!open) return;
-    const idx = Math.max(
-      0,
-      options.findIndex((o) => o.value === value),
-    );
-    setActive(idx);
-  }, [open, options, value]);
+  /* Al abrir, el resaltado arranca en la opción elegida. Ajustado durante el
+   * render: en un efecto el menú se pintaba una vez con el resaltado viejo. */
+  const [abiertoAnterior, setAbiertoAnterior] = useState(open);
+  if (open !== abiertoAnterior) {
+    setAbiertoAnterior(open);
+    if (open) {
+      setActive(Math.max(0, options.findIndex((o) => o.value === value)));
+    }
+  }
 
   useEffect(() => {
     if (!open) return;

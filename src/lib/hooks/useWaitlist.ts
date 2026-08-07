@@ -169,6 +169,11 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       window.removeEventListener("online", onWake);
       window.clearInterval(iv);
     };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps -- `tableCount`
+       queda afuera a propósito. Se usa para sincronizar las mesas al entrar a
+       la sucursal; agregarlo haría que cambiar la cantidad en Configuración
+       desarme y rearme la suscripción de realtime y los intervalos. El caso de
+       "cambió la cantidad" ya tiene su propia salida: sincronizarCantidadMesas. */
   }, [
     live,
     branchId,

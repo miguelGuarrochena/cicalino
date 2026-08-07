@@ -20,7 +20,16 @@ export const AdminGate = ({ children }: { children: React.ReactNode }) => {
   const [busy, setBusy] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
+  /* Sí, lee el reloj durante el render, y no hay forma pura de hacerlo: la
+   * pregunta es "¿venció el desbloqueo?" y la respuesta cambia con el tiempo
+   * sin que cambie ningún estado. Moverlo a un efecto solo lo cambia por el
+   * problema de al lado (setState en el efecto) y agrega un render en el que
+   * el panel se ve desbloqueado antes de saberlo.
+   *
+   * Vale la pena recordar que esta pantalla es una barrera de UI: el acceso
+   * real a los datos lo decide RLS, no esto. */
   const vigente =
+    /* eslint-disable-next-line react-hooks/purity -- ver arriba. */
     unlocked || (unlockedUntil != null && unlockedUntil > Date.now());
 
   useEffect(() => {
