@@ -1,8 +1,30 @@
 import type { Metadata, Viewport } from "next";
+import { Archivo, Archivo_Black } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
 import { ToastProvider } from "@/components/ui/Toast";
+
+/* Auto-hospedadas por next/font: se descargan en el build y salen de nuestro
+ * dominio. Antes venían de Google con dos preconnect y una hoja de estilos que
+ * bloquea el render, y eso además obligaba a listar los dos hosts de Google en
+ * la CSP.
+ *
+ * `display: swap` mantiene lo que ya hacía la URL de Google: el texto se ve
+ * con la tipografía de sistema hasta que llega la nuestra, en vez de quedar
+ * invisible. */
+const archivo = Archivo({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--fuente-archivo",
+});
+
+const archivoBlack = Archivo_Black({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+  variable: "--fuente-archivo-black",
+});
 
 export const metadata: Metadata = {
   title: "Cicalino: avisamos el momento justo",
@@ -39,22 +61,16 @@ const RootLayout = ({
   children,
 }: Readonly<{ children: React.ReactNode }>) => {
   return (
-    <html lang="es-AR" suppressHydrationWarning>
+    <html
+      lang="es-AR"
+      className={`${archivo.variable} ${archivoBlack.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Has to be blocking: it sets the theme before the first paint, and
             deferring it brings back the white flash on every load. */}
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="/theme-init.js" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Black&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body>
         <a href="#contenido" className="skip-link">
