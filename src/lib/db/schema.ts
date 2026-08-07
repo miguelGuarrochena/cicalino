@@ -465,6 +465,31 @@ export type Payment = typeof payments.$inferSelect;
 export type SentEmail = typeof sentEmails.$inferSelect;
 export type UserBranch = typeof userBranches.$inferSelect;
 
+
+/* supabase/reservas-sin-solape.sql — una fila por mesa de cada reserva activa,
+ * con la ventana que esa reserva bloquea.
+ *
+ * Es derivada: un trigger la mantiene al día desde `reservas`, que sigue
+ * siendo la tabla que se lee y se escribe. Existe porque un exclusion
+ * constraint necesita una fila por (mesa, ventana) para comparar, y no puede
+ * mirar adentro del array `mesas_numeros`. */
+export const reservationTables = pgTable(
+  "reserva_mesas",
+  {
+    reservaId: uuid("reserva_id")
+      .notNull()
+      .references(() => reservations.id, { onDelete: "cascade" }),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => branches.id, { onDelete: "cascade" }),
+    numero: integer("numero").notNull(),
+    /* tstzrange. Drizzle no lo modela, así que va como texto: nadie lo lee
+     * desde la app, lo usa el constraint. */
+    ventana: text("ventana").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.reservaId, t.numero] })],
+);
+
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   branches: many(branches),
   appUsers: many(users),
