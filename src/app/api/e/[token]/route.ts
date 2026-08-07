@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { rateLimit } from "@/lib/security/rateLimit";
+import { sharedRateLimit } from "@/lib/security/rateLimitShared";
+import { clientIp } from "@/lib/security/ip";
 import { qrTokenSchema } from "@/lib/schemas";
 
 export const dynamic = "force-dynamic";
 
 export const GET = async (
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ token: string }> },
 ) => {
   const { token } = await params;
@@ -14,11 +15,13 @@ export const GET = async (
     return NextResponse.json({ ok: false, reason: "not-found" });
   }
 
-  const rl = rateLimit(`e:${token}`, 40, 10_000);
-  if (!rl.ok) {
+  const porToken = await sharedRateLimit(`e:${token}`, 40, 10_000);
+  const porIp = await sharedRateLimit(`e:ip:${clientIp(req)}`, 600, 60_000);
+  if (!porToken.ok || !porIp.ok) {
+    const espera = Math.max(porToken.retryAfter, porIp.retryAfter);
     return NextResponse.json(
       { ok: false, reason: "rate-limited" },
-      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      { status: 429, headers: { "Retry-After": String(espera) } },
     );
   }
 
