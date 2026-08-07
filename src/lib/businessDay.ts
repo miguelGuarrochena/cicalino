@@ -27,7 +27,11 @@ interface Partes {
 const partesEnZona = (d: Date, tz: string): Partes => {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
-    hour12: false,
+    /* h23 y no `hour12: false`: con hour12 el ciclo queda a criterio del ICU y
+     * algunos devuelven "24" para la medianoche. El `% 24` de abajo ya lo
+     * cubría, pero es mejor pedir el formato que queremos que corregirlo
+     * después. */
+    hourCycle: "h23",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
