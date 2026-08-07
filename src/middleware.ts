@@ -110,7 +110,10 @@ export const config = {
     /* Las rutas de /api no renderizan HTML, así que no necesitan CSP ni nonce,
      * y ninguna depende del middleware para autorizar: las protegidas lo
      * resuelven ellas mismas. Sacarlas de acá evita ejecutar el middleware en
-     * el endpoint más llamado de la app. */
-    "/((?!api/|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+     * el endpoint más llamado de la app.
+     *
+     * /monitoring es el túnel de Sentry: reenvía eventos y no tiene por qué
+     * pasar por acá. */
+    "/((?!api/|monitoring|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
