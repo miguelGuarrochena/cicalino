@@ -5,6 +5,10 @@ import { businessDayStart, businessDayEnd } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import { isRealBranchId } from "@/lib/data/orders";
 import { conflictingReservation } from "@/lib/reservations";
+import {
+  waitlistTransitionSources,
+  reservationTransitionSources,
+} from "@/lib/schemas";
 import { debounced, watchChannel } from "@/lib/realtime";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type {
@@ -434,6 +438,13 @@ export const seatWalkIn = async (args: {
   return espera;
 };
 
+/* El update solo prende si la fila todavía está en un estado desde el que la
+ * transición es válida. Antes iba `where id = $1` a secas, así que dos
+ * dispositivos del mostrador podían pisarse: uno sentaba al grupo y el otro,
+ * con la pantalla vieja, lo cancelaba encima.
+ *
+ * Devuelve false cuando no afectó ninguna fila, que es justamente el caso
+ * "alguien se te adelantó". */
 export const updateWaitlistStatus = async (
   id: string,
   estado: WaitlistStatus,
@@ -449,9 +460,27 @@ export const updateWaitlistStatus = async (
     if (tableNumber != null) patch.mesa_numero = tableNumber;
   }
   if (estado === "cancelado") patch.cancelado_en = now;
-  const { error } = await supabase.from("esperas").update(patch).eq("id", id);
+
+  const desde = waitlistTransitionSources(estado);
+  if (!desde.length) {
+    console.error("updateWaitlistStatus: estado sin origen válido", estado);
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from("esperas")
+    .update(patch)
+    .eq("id", id)
+    .in("estado", desde)
+    .select("id");
   if (error) {
     console.error("updateWaitlistStatus", error.message);
+    return false;
+  }
+  if (!data?.length) {
+    console.warn(
+      `updateWaitlistStatus: la espera ${id} ya no estaba en ${desde.join("|")}, no se pasó a ${estado}`,
+    );
     return false;
   }
   return true;
@@ -477,6 +506,8 @@ export const deleteWaitlistEntry = async (id: string): Promise<boolean> => {
   return true;
 };
 
+/* Mismo criterio que en updateWaitlistStatus: solo prende si la reserva sigue
+ * activa. Evita, por ejemplo, sentar una reserva que el cron ya expiró. */
 export const updateReservationStatus = async (
   id: string,
   estado: ReservationStatus,
@@ -488,9 +519,27 @@ export const updateReservationStatus = async (
   if (estado === "sentada") patch.sentado_en = now;
   if (estado === "cancelada") patch.cancelado_en = now;
   if (estado === "expirada") patch.expirado_en = now;
-  const { error } = await supabase.from("reservas").update(patch).eq("id", id);
+
+  const desde = reservationTransitionSources(estado);
+  if (!desde.length) {
+    console.error("updateReservationStatus: estado sin origen válido", estado);
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from("reservas")
+    .update(patch)
+    .eq("id", id)
+    .in("estado", desde)
+    .select("id");
   if (error) {
     console.error("updateReservationStatus", error.message);
+    return false;
+  }
+  if (!data?.length) {
+    console.warn(
+      `updateReservationStatus: la reserva ${id} ya no estaba activa, no se pasó a ${estado}`,
+    );
     return false;
   }
   return true;
