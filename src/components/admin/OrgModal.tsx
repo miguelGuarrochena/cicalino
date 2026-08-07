@@ -119,9 +119,11 @@ const textoProximoCobro = (org: OrganizationRow): string => {
     return `Cortesía hasta el ${fechaCorta(org.freeMonthUntil)}. Después empieza el ciclo ${ciclo}.`;
   }
   if (!org.activo) return "Cuenta pausada: no se cobra.";
-  if (org.nextChargeAt) {
-    const fecha = fechaCorta(org.nextChargeAt);
-    if (!org.pagado) return `Pendiente de cobro · vencía el ${fecha}.`;
+  if (org.proximaFactura) {
+    const fecha = fechaCorta(org.proximaFactura);
+    if (org.estadoSuscripcion === "pending_payment") {
+      return `Pendiente de cobro · vencía el ${fecha}.`;
+    }
     return org.plan === "anual"
       ? `Próximo cobro anual: ${fecha}.`
       : `Próximo cobro mensual: ${fecha}.`;
@@ -399,25 +401,34 @@ export const OrgModal = ({
   const togglePagado = async () => {
     if (!vista || busy) return;
     const next = !vista.pagado;
-    let nextChargeAt: string | null;
+
+    /* Marcar impago deja la cuenta en pending_payment, que es el estado de
+     * gracia: no la corta. El corte lo hace el cron cuando pasan los días de
+     * gracia desde la fecha de factura.
+     *
+     * Antes esto solo escribía `pagado`, que desde que el corte mira
+     * `estado_suscripcion` no afectaba a nada: el botón no hacía más que
+     * cambiar un cartel. */
+    let nextInvoice: string | null;
     if (!next) {
-      nextChargeAt = new Date().toISOString();
+      nextInvoice = new Date().toISOString();
     } else if (
       vista.plan === "anual" &&
-      vista.nextChargeAt &&
-      new Date(vista.nextChargeAt).getTime() > Date.now()
+      vista.proximaFactura &&
+      new Date(vista.proximaFactura).getTime() > Date.now()
     ) {
-      nextChargeAt = vista.nextChargeAt;
+      nextInvoice = vista.proximaFactura;
     } else {
       const prox = addBillingCycle(vista.plan);
-      nextChargeAt = prox ? prox.toISOString() : null;
+      nextInvoice = prox ? prox.toISOString() : null;
     }
     await conBusy(next ? "Marcando pagado…" : "Marcando impago…", async () => {
       if (live) {
         toggleOrgPagado(vista.id);
         await updateOrgDb(vista.id, {
           pagado: next,
-          nextChargeAt,
+          status: next ? "active" : "pending_payment",
+          nextInvoice,
         });
         await refreshOrganizations();
       } else {
@@ -501,7 +512,7 @@ export const OrgModal = ({
         const iso = base.toISOString();
         await updateOrgDb(vista.id, {
           freeMonthUntil: iso,
-          nextChargeAt: iso,
+          nextInvoice: iso,
         });
         await refreshOrganizations();
       } else {

@@ -44,7 +44,6 @@ export interface OrganizationRow {
   activo: boolean;
   plan: PlanTipo;
   freeMonthUntil: string | null;
-  nextChargeAt: string | null;
   contractAcceptedAt: string | null;
   moduloPedidos: boolean;
   moduloEspera: boolean;
@@ -126,7 +125,6 @@ const seed = (): OrganizationRow[] => {
       activo: true,
       plan: "mensual",
       freeMonthUntil: null,
-      nextChargeAt: dia(5),
       contractAcceptedAt: dia(40),
       moduloPedidos: true,
       moduloEspera: true,
@@ -134,7 +132,7 @@ const seed = (): OrganizationRow[] => {
       estadoSuscripcion: "active",
       pruebaInicio: null,
       pruebaFin: null,
-      proximaFactura: null,
+      proximaFactura: dia(5).slice(0, 10),
       diaCiclo: null,
       ultimoPagoEn: null,
       sucursales: [
@@ -181,15 +179,14 @@ const seed = (): OrganizationRow[] => {
       activo: true,
       plan: "mensual",
       freeMonthUntil: null,
-      nextChargeAt: dia(-2),
       contractAcceptedAt: dia(7),
       moduloPedidos: true,
       moduloEspera: false,
       altaEn: dia(7),
-      estadoSuscripcion: "active",
+      estadoSuscripcion: "pending_payment",
       pruebaInicio: null,
       pruebaFin: null,
-      proximaFactura: null,
+      proximaFactura: dia(-2).slice(0, 10),
       diaCiclo: null,
       ultimoPagoEn: null,
       sucursales: [
@@ -272,7 +269,6 @@ export const useSuperadminStore = create<SuperadminState>()(
               activo: false,
               plan: data.plan ?? "mensual",
               freeMonthUntil: null,
-              nextChargeAt: null,
               contractAcceptedAt: null,
               moduloPedidos: data.moduloPedidos !== false,
               moduloEspera: Boolean(data.moduloEspera),
@@ -328,13 +324,13 @@ export const useSuperadminStore = create<SuperadminState>()(
             if (o.id !== id) return o;
             const next = !o.pagado;
             if (!next) {
-              return { ...o, pagado: false, nextChargeAt: new Date().toISOString() };
+              return { ...o, pagado: false, estadoSuscripcion: "pending_payment" as const };
             }
             const prox = addBillingCycle(o.plan);
             return {
               ...o,
               pagado: true,
-              nextChargeAt: prox ? prox.toISOString() : null,
+              proximaFactura: prox ? prox.toISOString().slice(0, 10) : null,
             };
           }),
         })),
@@ -348,7 +344,7 @@ export const useSuperadminStore = create<SuperadminState>()(
               : new Date();
             base.setMonth(base.getMonth() + meses);
             const iso = base.toISOString();
-            return { ...o, freeMonthUntil: iso, nextChargeAt: iso };
+            return { ...o, freeMonthUntil: iso, proximaFactura: iso.slice(0, 10) };
           }),
         })),
 

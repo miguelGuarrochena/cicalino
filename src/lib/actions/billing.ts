@@ -15,10 +15,7 @@ type OrgRow = OrgBilling & {
   id: string;
   nombre: string;
   dueno_email: string;
-  plan: string;
   aviso_interno_en: string | null;
-  mes_gratis_hasta: string | null;
-  proximo_cobro_en: string | null;
 };
 
 const mapRow = (r: {
@@ -26,23 +23,21 @@ const mapRow = (r: {
   nombre: string;
   dueno_email: string;
   activo: boolean;
-  pagado: boolean;
   plan: string;
+  estado_suscripcion: string | null;
   mes_gratis_hasta: string | null;
-  proximo_cobro_en: string | null;
+  proxima_factura: string | null;
   aviso_interno_en: string | null;
 }): OrgRow => ({
   id: r.id,
   nombre: r.nombre,
   dueno_email: r.dueno_email,
   activo: r.activo,
-  pagado: r.pagado,
   plan: r.plan as OrgBilling["plan"],
+  status: (r.estado_suscripcion as OrgBilling["status"]) ?? "active",
   freeMonthUntil: r.mes_gratis_hasta,
-  nextChargeAt: r.proximo_cobro_en,
+  nextInvoice: r.proxima_factura,
   aviso_interno_en: r.aviso_interno_en,
-  mes_gratis_hasta: r.mes_gratis_hasta,
-  proximo_cobro_en: r.proximo_cobro_en,
 });
 
 /* Has the operator already been emailed about this account today?
@@ -80,7 +75,7 @@ export const listPendingCharges = async (): Promise<
   const { data } = await admin
     .from("organizaciones")
     .select(
-      "id, nombre, dueno_email, activo, pagado, plan, mes_gratis_hasta, proximo_cobro_en, aviso_interno_en",
+      "id, nombre, dueno_email, activo, plan, estado_suscripcion, mes_gratis_hasta, proxima_factura, aviso_interno_en",
     )
     .eq("activo", true);
 
@@ -105,7 +100,7 @@ export const sendBillingReminders = async (): Promise<{
   const { data } = await admin
     .from("organizaciones")
     .select(
-      "id, nombre, dueno_email, activo, pagado, plan, mes_gratis_hasta, proximo_cobro_en, aviso_interno_en",
+      "id, nombre, dueno_email, activo, plan, estado_suscripcion, mes_gratis_hasta, proxima_factura, aviso_interno_en",
     )
     .eq("activo", true);
 

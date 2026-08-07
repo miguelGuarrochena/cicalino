@@ -18,10 +18,10 @@ export const CobrosPanel = ({
         .filter((o) =>
           isOrgBillingDue({
             activo: o.activo,
-            pagado: o.pagado,
             plan: o.plan,
+            status: o.estadoSuscripcion,
             freeMonthUntil: o.freeMonthUntil,
-            nextChargeAt: o.nextChargeAt,
+            nextInvoice: o.proximaFactura,
           }),
         )
         .map((o) => ({
@@ -29,10 +29,10 @@ export const CobrosPanel = ({
           name: o.name,
           motivo: billingReason({
             activo: o.activo,
-            pagado: o.pagado,
             plan: o.plan,
+            status: o.estadoSuscripcion,
             freeMonthUntil: o.freeMonthUntil,
-            nextChargeAt: o.nextChargeAt,
+            nextInvoice: o.proximaFactura,
           }),
           email: o.ownerEmail,
         })),
