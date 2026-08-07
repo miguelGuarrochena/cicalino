@@ -250,7 +250,14 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       demoChange(id, "sentado", primaria, nums);
       return;
     }
-    await updateWaitlistStatus(id, "sentado", primaria);
+    /* Si el update no prendió, alguien se adelantó desde otro dispositivo: ya
+     * sentaron o cancelaron a este grupo. Ocupar las mesas igual dejaría mesas
+     * marcadas para una espera que no está esperando. */
+    const ok = await updateWaitlistStatus(id, "sentado", primaria);
+    if (!ok) {
+      await reload();
+      return;
+    }
     for (const n of nums) {
       await setTableState(branchId, n, "ocupada", {
         waitlistId: id,
@@ -288,7 +295,13 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     }
     const reserva = liveReservas.find((r) => r.id === id);
     if (!reserva) return;
-    await updateReservationStatus(id, "sentada");
+    /* Igual que en sentar: si el cron ya la expiró o alguien la canceló, no
+     * hay que ocupar las mesas. */
+    const ok = await updateReservationStatus(id, "sentada");
+    if (!ok) {
+      await reload();
+      return;
+    }
     for (const n of reservationTables(reserva)) {
       await setTableState(branchId, n, "ocupada", {
         reservationId: id,

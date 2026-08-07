@@ -186,6 +186,54 @@ const TRANSICIONES: Record<string, readonly string[]> = {
 export const isValidTransition = (desde: string, hacia: string): boolean =>
   (TRANSICIONES[desde] ?? []).includes(hacia);
 
+/* Espera y reservas: las mismas máquinas de estado que valen para pedidos,
+ * que hasta ahora no existían en ningún lado. Son el espejo de los triggers
+ * de supabase/espera-constraints.sql; si cambia una tiene que cambiar el otro.
+ *
+ * Salen de lo que ofrece el panel: a una espera se la avisa, se la sienta o
+ * se la cancela, y una vez sentada o cancelada no se toca más. */
+const TRANSICIONES_ESPERA: Record<string, readonly string[]> = {
+  esperando: ["avisado", "sentado", "cancelado"],
+  avisado: ["sentado", "cancelado"],
+  sentado: [],
+  cancelado: [],
+};
+
+const TRANSICIONES_RESERVA: Record<string, readonly string[]> = {
+  activa: ["sentada", "cancelada", "expirada"],
+  sentada: [],
+  cancelada: [],
+  expirada: [],
+};
+
+export const isValidWaitlistTransition = (
+  desde: string,
+  hacia: string,
+): boolean => (TRANSICIONES_ESPERA[desde] ?? []).includes(hacia);
+
+export const isValidReservationTransition = (
+  desde: string,
+  hacia: string,
+): boolean => (TRANSICIONES_RESERVA[desde] ?? []).includes(hacia);
+
+/* Desde qué estados se puede llegar a `hacia`.
+ *
+ * Sirve para hacer compare-and-swap sin que el llamador tenga que saber el
+ * estado actual: en vez de `update ... where id = $1`, va
+ * `update ... where id = $1 and estado in (origenes)`. Si otro dispositivo se
+ * adelantó, el update no afecta ninguna fila en vez de pisarlo. */
+const origenes = (
+  tabla: Record<string, readonly string[]>,
+  hacia: string,
+): string[] =>
+  Object.keys(tabla).filter((desde) => tabla[desde]!.includes(hacia));
+
+export const waitlistTransitionSources = (hacia: string): string[] =>
+  origenes(TRANSICIONES_ESPERA, hacia);
+
+export const reservationTransitionSources = (hacia: string): string[] =>
+  origenes(TRANSICIONES_RESERVA, hacia);
+
 export const statusChangeSchema = z
   .object({
     id: uuid,
