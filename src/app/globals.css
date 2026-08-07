@@ -75,10 +75,12 @@
   --color-listo: #16a34a;
   --color-prep: #f59e0b;
 
-  --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
-  --font-display: "Archivo Black", "Archivo", ui-sans-serif, system-ui,
-    sans-serif;
+  /* Las dos variables las define next/font en el <html>. Los fallbacks quedan
+     por si la fuente no llegó todavía. */
+  --font-sans: var(--fuente-archivo), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--fuente-archivo-black), var(--fuente-archivo),
+    ui-sans-serif, system-ui, sans-serif;
 
   --animate-float: float 4s ease-in-out infinite;
 }
