@@ -8,6 +8,9 @@ import {
   uniqueIndex,
   integer,
   boolean,
+  date,
+  jsonb,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -43,6 +46,14 @@ export const userRoleEnum = pgEnum("rol_usuario", [
   "supervisor",
 ]);
 
+export const subscriptionStatusEnum = pgEnum("estado_suscripcion", [
+  "trial",
+  "active",
+  "pending_payment",
+  "expired",
+  "paused",
+]);
+
 export const organizations = pgTable("organizaciones", {
   id: uuid("id").primaryKey().defaultRandom(),
   nombre: text("nombre").notNull(),
@@ -69,6 +80,24 @@ export const organizations = pgTable("organizaciones", {
   contractToken: text("contrato_token"),
   contractAcceptedAt: timestamp("contrato_aceptado_en", { withTimezone: true }),
   termsVersion: text("terminos_version"),
+
+  /* Subscription model, added by supabase/suscripciones.sql. Coexists with the
+   * older pagado/activo/proximo_cobro_en trio above: this one drives the cron
+   * and the cut-off, that one drives the Superadmin billing panel. Merging them
+   * is still pending. */
+  subscriptionStatus: subscriptionStatusEnum("estado_suscripcion").default(
+    "trial",
+  ),
+  trialStart: date("prueba_inicio"),
+  trialEnd: date("prueba_fin"),
+  nextInvoice: date("proxima_factura"),
+  cycleDay: integer("dia_ciclo"),
+  lastPaymentAt: date("ultimo_pago_en"),
+  suspendedAt: timestamp("suspendida_en", { withTimezone: true }),
+  welcomeAt: timestamp("bienvenida_en", { withTimezone: true }),
+  trial5dNoticeAt: timestamp("aviso_prueba_5d_en", { withTimezone: true }),
+  trialEndNoticeAt: timestamp("aviso_prueba_fin_en", { withTimezone: true }),
+
   createdAt: timestamp("creado_en", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -91,6 +120,11 @@ export const branches = pgTable("locales", {
   cutoffHour: integer("hora_corte").notNull().default(6),
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
+  activa: boolean("activa").notNull().default(true),
+  bajaEn: timestamp("baja_en", { withTimezone: true }),
+  /* When this branch starts being billed. Null means from day one. */
+  cobroDesde: date("cobro_desde"),
+  responsableId: uuid("responsable_id"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -109,6 +143,10 @@ export const employees = pgTable(
     nombre: text("nombre").notNull(),
     rol: text("rol"),
     pinHash: text("pin_hash"),
+    /* Generated column (pin_hash is not null). The client can read this one;
+     * pin_hash itself is revoked from anon/authenticated. */
+    tienePin: boolean("tiene_pin"),
+    usuarioId: uuid("usuario_id"),
     activo: boolean("activo").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -340,6 +378,88 @@ export const tables = pgTable(
     uniqueIndex("uq_mesas_local_numero").on(t.localId, t.numero),
   ],
 );
+
+
+/* ---------------------------------------------------------------------------
+ * Tables that only existed in supabase/*.sql until now. The app reads all
+ * three, so leaving them out meant the schema didn't describe the database.
+ * ------------------------------------------------------------------------ */
+
+/* supabase/suscripciones.sql — payment history, written by savePayment. */
+export const payments = pgTable(
+  "pagos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organizacion_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    fecha: date("fecha").notNull(),
+    monto: integer("monto").notNull(),
+    periodoDesde: date("periodo_desde").notNull(),
+    periodoHasta: date("periodo_hasta").notNull(),
+    medio: text("medio"),
+    nota: text("nota"),
+    detalle: jsonb("detalle").default([]),
+    createdAt: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("idx_pagos_org_fecha").on(t.organizationId, t.fecha)],
+);
+
+/* supabase/emails-enviados.sql — delivery log. `aceptado` means Resend took
+ * it, not that it reached an inbox. */
+export const sentEmails = pgTable(
+  "emails_enviados",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organizacion_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    destinatario: text("destinatario").notNull(),
+    tipo: text("tipo").notNull(),
+    asunto: text("asunto").notNull(),
+    aceptado: boolean("aceptado").notNull().default(false),
+    error: text("error"),
+    proveedorId: text("proveedor_id"),
+    createdAt: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("idx_emails_org_fecha").on(t.organizationId, t.createdAt)],
+);
+
+/* supabase/usuarios-sucursales.sql — which branches a supervisor can open.
+ * `auth_locales()` reads this, so it decides what RLS lets them see. */
+export const userBranches = pgTable(
+  "usuario_sucursal",
+  {
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    localId: uuid("local_id")
+      .notNull()
+      .references(() => branches.id, { onDelete: "cascade" }),
+    createdAt: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.usuarioId, t.localId] }),
+    index("idx_usuario_sucursal_local").on(t.localId),
+  ],
+);
+
+/* supabase/cron-lock.sql — stops two cron runs overlapping. */
+export const cronLocks = pgTable("cron_locks", {
+  nombre: text("nombre").primaryKey(),
+  tomadoEn: timestamp("tomado_en", { withTimezone: true }).notNull().defaultNow(),
+  expiraEn: timestamp("expira_en", { withTimezone: true }).notNull(),
+});
+
+export type Payment = typeof payments.$inferSelect;
+export type SentEmail = typeof sentEmails.$inferSelect;
+export type UserBranch = typeof userBranches.$inferSelect;
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   branches: many(branches),

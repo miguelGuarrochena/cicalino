@@ -47,14 +47,28 @@ pnpm dev         # desarrollo
 pnpm build       # build de producción
 pnpm start       # servir el build
 pnpm typecheck   # tsc --noEmit
+pnpm lint        # eslint
 pnpm test:run    # tests unitarios
-pnpm db:generate # generar migraciones desde el schema (Drizzle)
-pnpm db:migrate  # aplicar migraciones (usa DATABASE_URL)
 pnpm db:studio   # explorador visual
+pnpm db:pull     # regenerar el schema desde la base (usa DATABASE_URL)
 ```
 
-> **Cuidado:** preferí los scripts de `supabase/*.sql` para RLS/PIN. No hagas
-> `pnpm db:push` a ciegas contra prod (puede pelear con columnas generadas).
+### Cómo se cambia el schema
+
+**La fuente de verdad es `supabase/*.sql`, no Drizzle.** Todo cambio de
+estructura se escribe como un script en esa carpeta y se corre a mano desde el
+SQL Editor de Supabase. Los scripts son idempotentes y suelen empezar con un
+bloque de chequeo que hay que leer antes de seguir.
+
+`src/lib/db/schema.ts` va detrás: existe para que TypeScript conozca las
+tablas, y se actualiza a mano cuando se agrega una columna.
+
+> `pnpm db:push` ya no está. Comparaba el archivo contra la base y aplicaba la
+> diferencia, así que con el schema desactualizado —lo estuvo mucho tiempo—
+> borraba en producción las columnas que faltaban en el archivo.
+
+Para verificar que el archivo y la base siguen coincidiendo:
+`supabase/chequeo-schema.sql`.
 
 ---
 
