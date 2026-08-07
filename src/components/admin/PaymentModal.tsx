@@ -102,9 +102,15 @@ export const PaymentModal = ({
     [state, cycleDay, ciclos],
   );
 
-  useEffect(() => {
-    setMonto(cicloMensual * Math.max(1, ciclos));
-  }, [ciclos, cicloMensual]);
+  /* El monto arranca calculado pero se puede editar a mano, así que se
+   * recalcula cuando cambia el ciclo. Va durante el render y no en un efecto:
+   * si no, el input muestra un instante el monto del ciclo anterior. */
+  const sugerido = cicloMensual * Math.max(1, ciclos);
+  const [sugeridoAnterior, setSugeridoAnterior] = useState(sugerido);
+  if (sugerido !== sugeridoAnterior) {
+    setSugeridoAnterior(sugerido);
+    setMonto(sugerido);
+  }
 
   useEffect(() => {
     let alive = true;

@@ -83,19 +83,32 @@ const PanelOrdersPage = () => {
   const [creating, setCreando] = useState(false);
   const [refError, setRefError] = useState(false);
 
-  useEffect(() => {
+  /* Volver a la página 1 cuando cambia el filtro o la búsqueda.
+   *
+   * Se ajusta durante el render y no en un efecto: así el primer render con el
+   * filtro nuevo ya sale con la página correcta, en vez de pintar la vieja y
+   * corregirla en una segunda pasada. Es el patrón que documenta React para
+   * "resetear estado cuando cambia otro". */
+  const claveConsulta = `${filtro}|${q}`;
+  const [claveAnterior, setClaveAnterior] = useState(claveConsulta);
+  if (claveConsulta !== claveAnterior) {
+    setClaveAnterior(claveConsulta);
     setPage(1);
-  }, [filtro, q]);
+  }
 
   /* Cerrar el QR cuando el cliente lo abre. `visto_en` llega por realtime
    * dentro del propio pedido, así que alcanza con mirar la lista. */
+  /* Si el pedido está en la página visible, que el cliente lo haya abierto se
+   * deduce de la lista y no hace falta tocar estado: más abajo el modal
+   * directamente no se renderiza. */
+  const qrVisto = qrOrder
+    ? Boolean(orders.find((o) => o.id === qrOrder.id)?.seenAt)
+    : false;
+
   useEffect(() => {
     if (!qrOrder) return;
     const fresh = orders.find((o) => o.id === qrOrder.id);
-    if (fresh) {
-      if (fresh.seenAt) setQrOrder(null);
-      return;
-    }
+    if (fresh) return;
     /* No está en la página visible: se pregunta por ese pedido puntualmente.
      * Corre con cada recarga, o sea con cada evento de realtime, no en bucle. */
     let vivo = true;
@@ -508,7 +521,7 @@ const PanelOrdersPage = () => {
         </ModalShell>
       )}
 
-      {qrOrder && (
+      {qrOrder && !qrVisto && (
         <QrModal
           reference={qrOrder.reference}
           token={qrOrder.qrToken}
