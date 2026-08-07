@@ -49,11 +49,23 @@ export const signIn = async (
   if (error) return { ok: false, error: traducirError(error.message) };
 
   const perfil = await getCurrentProfile();
+  if (!perfil) {
+    /* La contraseña era correcta pero la cuenta no tiene perfil. Dejarlo pasar
+     * como 'admin' (lo que hacía antes) lo mandaba a un panel vacío sin
+     * organización. Cerramos la sesión para no dejarlo a medio loguear: la
+     * cookie ya está puesta y el middleware lo dejaría entrar a /panel. */
+    await supabase.auth.signOut();
+    return {
+      ok: false,
+      error: "Tu cuenta no tiene un perfil asignado. Escribinos a info@cicalino.net.",
+    };
+  }
+
   return {
     ok: true,
-    rol: perfil?.rol ?? "admin",
-    organizationId: perfil?.organizationId ?? null,
-    localId: perfil?.localId ?? null,
+    rol: perfil.rol,
+    organizationId: perfil.organizationId,
+    localId: perfil.localId,
   };
 };
 
