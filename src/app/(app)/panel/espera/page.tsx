@@ -451,6 +451,11 @@ const AvisoBloqueoReserva = ({
  * table held by a booking that is still inside its grace period. */
 const motivoOcupar = (reason: SeatWalkInReason, locale: string): string => {
   const es = locale !== "en";
+  if (reason === "suscripcion-vencida") {
+    return es
+      ? "La cuenta está dada de baja. Escribinos para reactivarla."
+      : "The account is suspended. Get in touch to reactivate it.";
+  }
   if (reason === "mesa-reservada") {
     return es
       ? "Esa mesa tiene una reserva en curso. Esperá a que venza la tolerancia o elegí otra."
@@ -477,6 +482,11 @@ const motivoReserva = (
   locale: string,
 ): string => {
   const es = locale !== "en";
+  if (reason === "suscripcion-vencida") {
+    return es
+      ? "La cuenta está dada de baja. Escribinos para reactivarla."
+      : "The account is suspended. Get in touch to reactivate it.";
+  }
   if (reason === "choque") {
     return es
       ? "Esa mesa ya tiene una reserva muy cerca de ese horario. Elegí otra mesa u otro horario."

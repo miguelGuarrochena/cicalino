@@ -7,6 +7,7 @@ import type { BillingPlan } from "@/lib/billing";
 export interface MySubscription {
   status: SubscriptionStatus;
   plan: BillingPlan;
+  activo: boolean;
   altaEn: string | null;
   pruebaInicio: string | null;
   pruebaFin: string | null;
@@ -17,12 +18,22 @@ export interface MySubscription {
 type Row = {
   plan: string | null;
   estado_suscripcion: string | null;
+  activo: boolean | null;
   creado_en: string | null;
   prueba_inicio: string | null;
   prueba_fin: string | null;
   proxima_factura: string | null;
   ultimo_pago_en: string | null;
 };
+
+/* Can this account still write?
+ *
+ * Mirrors `local_operativo` in supabase/corte-por-impago.sql, which is what
+ * actually enforces it. This copy only drives the UI: without it the panel
+ * would look normal and every action would fail with an RLS error and no
+ * explanation. */
+export const puedeOperar = (s: MySubscription): boolean =>
+  s.activo && s.status !== "expired";
 
 export const fetchMySubscription = async (
   orgId: string,
@@ -32,7 +43,7 @@ export const fetchMySubscription = async (
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "plan, estado_suscripcion, creado_en, prueba_inicio, prueba_fin, proxima_factura, ultimo_pago_en",
+      "plan, estado_suscripcion, activo, creado_en, prueba_inicio, prueba_fin, proxima_factura, ultimo_pago_en",
     )
     .eq("id", orgId)
     .maybeSingle();
@@ -44,6 +55,7 @@ export const fetchMySubscription = async (
   return {
     status: (r.estado_suscripcion as SubscriptionStatus) ?? "active",
     plan: (r.plan as BillingPlan) ?? "mensual",
+    activo: r.activo !== false,
     altaEn: r.creado_en,
     pruebaInicio: r.prueba_inicio,
     pruebaFin: r.prueba_fin,

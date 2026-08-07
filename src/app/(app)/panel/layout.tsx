@@ -18,6 +18,7 @@ import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { EsperaCancelWatch } from "@/components/panel/EsperaCancelWatch";
 import { MascotLoader } from "@/components/ui/MascotLoader";
+import { SubscriptionGate } from "@/components/panel/SubscriptionGate";
 
 const SuperadminRedirect = () => {
   const router = useRouter();
@@ -106,7 +107,7 @@ const PanelLayout = ({
         {role === "superadmin" && !impersonating ? (
           <SuperadminRedirect />
         ) : (
-          children
+          <SubscriptionGate>{children}</SubscriptionGate>
         )}
       </main>
 

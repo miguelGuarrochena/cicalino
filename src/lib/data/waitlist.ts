@@ -274,6 +274,7 @@ export type NewReservationReason =
   | "mesa-inexistente"
   | "capacidad-insuficiente"
   | "choque"
+  | "suscripcion-vencida"
   | "error";
 
 export type NewReservationResult =
@@ -335,6 +336,7 @@ export type SeatWalkInReason =
   | "sin-mesas"
   | "mesa-no-disponible"
   | "mesa-reservada"
+  | "suscripcion-vencida"
   | "error";
 
 export type SeatWalkInResult =
