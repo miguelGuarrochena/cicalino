@@ -23,7 +23,10 @@ import {
   expireOverdueReservations,
   subscribeWaitlist,
 } from "@/lib/data/waitlist";
-import type { SeatWalkInResult } from "@/lib/data/waitlist";
+import type {
+  SeatWalkInResult,
+  NewReservationResult,
+} from "@/lib/data/waitlist";
 import type { WaitlistView, TableView, ReservationView } from "@/lib/types";
 import { reservationTables } from "@/lib/reservations";
 import { staffWaitlistCancelIds } from "@/lib/store/waitlist-alerts-store";
@@ -48,7 +51,7 @@ export interface UseWaitlist {
     scheduledAt: string;
     graceMinutes: 15 | 20;
     employee?: EmployeeRef;
-  }) => Promise<ReservationView | null>;
+  }) => Promise<NewReservationResult>;
   avisar: (id: string) => Promise<NotifyResult | null>;
   reavisar: (id: string) => Promise<NotifyResult>;
   sentar: (id: string, tableNumbers: number[]) => Promise<void>;
@@ -202,10 +205,13 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     employee?: EmployeeRef;
   }) => {
     if (!live || !branchId) {
-      return demoAddReserva({
+      const demo = demoAddReserva({
         ...args,
         employee: args.employee?.name ?? null,
       });
+      return demo
+        ? { ok: true as const, reserva: demo }
+        : { ok: false as const, reason: "error" as const };
     }
     const created = await insertReservation({
       branchId,

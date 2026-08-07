@@ -40,7 +40,10 @@ import {
 } from "@/lib/modules";
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import type { SeatWalkInReason } from "@/lib/data/waitlist";
+import type {
+  SeatWalkInReason,
+  NewReservationReason,
+} from "@/lib/data/waitlist";
 
 const PAGE_SIZE = 20;
 const INPUT =
@@ -466,6 +469,40 @@ const motivoOcupar = (reason: SeatWalkInReason, locale: string): string => {
     : "Couldn’t seat. Check the connection and try again.";
 };
 
+/* Why the booking was rejected. It used to be one generic "table not
+ * available" for all five failure modes, including the one that matters most:
+ * another booking already sitting too close in time on the same table. */
+const motivoReserva = (
+  reason: NewReservationReason,
+  locale: string,
+): string => {
+  const es = locale !== "en";
+  if (reason === "choque") {
+    return es
+      ? "Esa mesa ya tiene una reserva muy cerca de ese horario. Elegí otra mesa u otro horario."
+      : "That table already has a booking too close to that time. Pick another table or time.";
+  }
+  if (reason === "capacidad-insuficiente") {
+    return es
+      ? "Las mesas elegidas no alcanzan para esa cantidad de personas."
+      : "The selected tables don't fit that party size.";
+  }
+  if (reason === "mesa-inexistente") {
+    return es
+      ? "Alguna de esas mesas ya no existe. Recargá y probá de nuevo."
+      : "One of those tables no longer exists. Reload and try again.";
+  }
+  if (reason === "sin-mesas") {
+    return es ? "Elegí al menos una mesa." : "Pick at least one table.";
+  }
+  if (reason === "sin-horario") {
+    return es ? "Elegí un horario válido." : "Pick a valid time.";
+  }
+  return es
+    ? "No se pudo reservar. Revisá la conexión y probá de nuevo."
+    : "Couldn't book. Check the connection and try again.";
+};
+
 const formatHora = (iso: string, locale: string) =>
   new Date(iso).toLocaleString(locale === "en" ? "en-US" : "es-AR", {
     hour: "2-digit",
@@ -878,27 +915,23 @@ const EsperaPanelPage = () => {
         graceMinutes: reservaGracia,
         employee: employeeRef,
       });
-      if (created) {
+      if (created.ok) {
         setReservaOpen(false);
         setReservaNombre("");
         setReservaPersonas(2);
         setReservaMesas([]);
         setReservaHorario(defaultHorarioInput());
         setReservaGracia(15);
-        const label = tablesTitle(created.tableNumbers, locale === "en" ? "en" : "es");
+        const label = tablesTitle(
+          created.reserva.tableNumbers,
+          locale === "en" ? "en" : "es",
+        );
         toast(
-          locale === "en"
-            ? `${label} reserved`
-            : `${label} reservada`,
+          locale === "en" ? `${label} reserved` : `${label} reservada`,
           "success",
         );
       } else {
-        toast(
-          locale === "en"
-            ? "Table not available"
-            : "Mesa no disponible",
-          "error",
-        );
+        toast(motivoReserva(created.reason, locale), "error");
       }
     } finally {
       setCreatingReserva(false);
