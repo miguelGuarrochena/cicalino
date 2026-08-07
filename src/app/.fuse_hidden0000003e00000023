@@ -1,9 +1,0 @@
-import { MascotLoader } from "@/components/ui/MascotLoader";
-
-const Loading = () => (
-  <div className="flex min-h-dvh items-center justify-center bg-crema">
-    <MascotLoader />
-  </div>
-);
-
-export default Loading;

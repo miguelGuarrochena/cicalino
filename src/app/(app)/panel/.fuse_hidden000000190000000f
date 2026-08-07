@@ -1,9 +1,0 @@
-import { MascotLoader } from "@/components/ui/MascotLoader";
-
-const PanelLoading = () => (
-  <div className="flex min-h-[50vh] items-center justify-center">
-    <MascotLoader />
-  </div>
-);
-
-export default PanelLoading;
