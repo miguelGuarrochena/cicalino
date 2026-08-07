@@ -97,3 +97,41 @@ describe("conflictingReservation", () => {
     expect(conflictingReservation([3], at(0), otras)?.id).toBe("cerca");
   });
 });
+
+/* La ventana del exclusion constraint sale de este mismo número.
+ *
+ * `reserva_mesas.ventana` es horario ± (gap / 2), así que dos reservas
+ * separadas exactamente por el gap dan rangos que se tocan pero no se pisan, y
+ * una menos ya se solapan. Si alguien cambia MIN_GAP_BETWEEN_RESERVATIONS sin
+ * tocar `reservas_gap_minutos()` en la base, el chequeo de JS y el constraint
+ * empiezan a decir cosas distintas: uno deja pasar la reserva y el otro la
+ * rechaza con un error que el panel no sabe explicar. */
+describe("el gap y la ventana del constraint", () => {
+  it("el gap es par, así que la media ventana es exacta", () => {
+    // La base hace `gap / 2` con división entera. Si el gap fuera impar, la
+    // ventana quedaría más chica y el constraint sería más permisivo que este
+    // chequeo.
+    expect(MIN_GAP_BETWEEN_RESERVATIONS % 2).toBe(0);
+  });
+
+  it("dos reservas separadas por el gap exacto no chocan", () => {
+    const otras = [mkReserva()];
+    expect(
+      conflictingReservation([3], at(MIN_GAP_BETWEEN_RESERVATIONS), otras),
+    ).toBeNull();
+  });
+
+  it("y una menos sí", () => {
+    const otras = [mkReserva()];
+    expect(
+      conflictingReservation([3], at(MIN_GAP_BETWEEN_RESERVATIONS - 1), otras),
+    ).not.toBeNull();
+  });
+
+  it("es simétrico: antes o después da lo mismo", () => {
+    const otras = [mkReserva()];
+    const antes = conflictingReservation([3], at(-MIN_GAP_BETWEEN_RESERVATIONS + 1), otras);
+    const despues = conflictingReservation([3], at(MIN_GAP_BETWEEN_RESERVATIONS - 1), otras);
+    expect(Boolean(antes)).toBe(Boolean(despues));
+  });
+});
