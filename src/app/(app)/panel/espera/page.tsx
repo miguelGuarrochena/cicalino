@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { NotifyResult } from "@/lib/notify";
 import Link from "next/link";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
+import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { QrModal } from "@/components/panel/QrModal";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
@@ -560,6 +561,7 @@ const EsperaPanelPage = () => {
     liberarMesa,
     ocuparMesas,
     setCapacidad,
+    syncError,
   } = useWaitlist(branchId);
 
   const [qr, setQr] = useState<WaitlistView | null>(null);
@@ -952,6 +954,7 @@ const EsperaPanelPage = () => {
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <ModuleSwitcher />
+      <SyncErrorBanner error={syncError} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>

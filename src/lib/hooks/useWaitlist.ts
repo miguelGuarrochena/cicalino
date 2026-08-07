@@ -27,6 +27,7 @@ import type {
   SeatWalkInResult,
   NewReservationResult,
 } from "@/lib/data/waitlist";
+import type { DataError } from "@/lib/data/result";
 import type { WaitlistView, TableView, ReservationView } from "@/lib/types";
 import { reservationTables } from "@/lib/reservations";
 import { staffWaitlistCancelIds } from "@/lib/store/waitlist-alerts-store";
@@ -39,6 +40,9 @@ export interface UseWaitlist {
   reservas: ReservationView[];
   ready: boolean;
   live: boolean;
+  /* Set when the last refresh failed. Same reasoning as useOrders: the lists
+   * keep what they had rather than emptying out mid-service. */
+  syncError: DataError | null;
   crearEspera: (
     name: string,
     partySize: number,
@@ -98,6 +102,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   const [liveMesas, setLiveMesas] = useState<TableView[]>([]);
   const [liveReservas, setLiveReservas] = useState<ReservationView[]>([]);
   const [ready, setReady] = useState(false);
+  const [syncError, setSyncError] = useState<DataError | null>(null);
 
   const expire = useMemo(
     () =>
@@ -116,9 +121,13 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       fetchTables(branchId),
       fetchTodayReservations(branchId),
     ]);
-    setLiveEsperas(e);
-    setLiveMesas(m);
-    setLiveReservas(r);
+    /* Each list keeps its last good value independently: one failing query
+     * shouldn't blank the other two. */
+    if (e.ok) setLiveEsperas(e.data);
+    if (m.ok) setLiveMesas(m.data);
+    if (r.ok) setLiveReservas(r.data);
+    const fallo = [e, m, r].find((x) => !x.ok);
+    setSyncError(fallo && !fallo.ok ? fallo.error : null);
     setReady(true);
   }, [live, branchId, expire]);
 
@@ -408,6 +417,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     reservas: live ? liveReservas : demoReservas,
     ready,
     live,
+    syncError: live ? syncError : null,
     crearEspera,
     crearReserva,
     avisar,
