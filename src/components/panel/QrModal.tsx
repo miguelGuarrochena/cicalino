@@ -109,6 +109,10 @@ export const QrModal = ({
           <div className="relative rounded-2xl bg-white p-3 shadow-sm">
             {dataUrl ? (
               <>
+                {/* next/image no aplica: el QR es un data: URL que genera la
+                    librería en el navegador con el token de este pedido. No
+                    hay archivo que optimizar ni URL que servir. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={dataUrl} alt="QR" className="size-52" />
                 <span className="absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white shadow-sm ring-2 ring-white">
                   <svg viewBox="0 0 512 512" className={`size-8 ${accentClass}`} fill="currentColor" aria-hidden="true">

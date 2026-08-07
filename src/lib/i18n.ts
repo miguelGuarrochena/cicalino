@@ -1,4 +1,3 @@
-
 export type Locale = "es" | "en";
 
 export const LOCALES: Locale[] = ["es", "en"];
@@ -79,9 +78,9 @@ const dict = {
     },
     home: {
       kicker: "Cicalino",
-      h1a: "Avisá al cliente",
+      h1a: "Avisa al cliente",
       h1b: "cuando el pedido",
-      h1c: "está listo o hay mesa",
+      h1c: "esta listo o hay mesa",
       sub: "Sin buzzers, sin apps. Pedidos listos y espera de mesa, en un solo lugar.",
       cta1: "Entrar a la app",
       ctaProbar: "Probá gratis 30 días",
@@ -159,7 +158,8 @@ const dict = {
       admin: "Dueño",
       adminDet: "Toda la empresa: sucursales, métricas globales y config.",
       supervisor: "Supervisor",
-      supervisorDet: "Una sucursal: pedidos, personal y modo. Sin métricas globales.",
+      supervisorDet:
+        "Una sucursal: pedidos, personal y modo. Sin métricas globales.",
       empleado: "Empleado",
       empleadoDet: "Solo pedidos. Ficha con PIN en el mostrador.",
       volver: "Volver al inicio",
@@ -260,7 +260,8 @@ const dict = {
       },
       metricas: {
         titulo: "Métricas",
-        intro: "Números del día, semana, mes o año. Solo el dueño (con contraseña).",
+        intro:
+          "Números del día, semana, mes o año. Solo el dueño (con contraseña).",
         p1t: "Elegí el período",
         p1d: "Día, semana, mes o año. Las tarjetas y el gráfico se actualizan.",
         p2t: "Pedidos vs Espera",
@@ -324,13 +325,15 @@ const dict = {
     cliente: {
       pedido: "Pedido",
       preparandoTitulo: "Estamos preparando tu pedido",
-      preparandoSub: "Te avisamos apenas esté listo. Dejá esta pestaña abierta.",
+      preparandoSub:
+        "Te avisamos apenas esté listo. Dejá esta pestaña abierta.",
       listoTitulo: "¡Tu pedido está listo!",
       listoSub: "Podés pasar a retirarlo.",
       retiradoTitulo: "Pedido retirado",
       retiradoSub: "Listo. Ya podés cerrar esta pestaña.",
       canceladoTitulo: "Pedido cancelado",
-      canceladoSub: "Este pedido ya no está activo. Consultá en el mostrador si hace falta.",
+      canceladoSub:
+        "Este pedido ya no está activo. Consultá en el mostrador si hace falta.",
       activar: "Avisarme con una notificación",
       activados: "Avisos activados",
       pushCargando: "Activando avisos…",
@@ -382,8 +385,7 @@ const dict = {
       confirmarCancelSi: "Sí, cancelar",
       confirmarCancelNo: "Seguir esperando",
       colaPrimero: "Sos el próximo grupo",
-      colaDelante:
-        "{g} {gLabel} delante · {p} {pLabel} esperando",
+      colaDelante: "{g} {gLabel} delante · {p} {pLabel} esperando",
       colaGrupo: "grupo",
       colaGrupos: "grupos",
       colaPersona: "persona",
@@ -456,32 +458,37 @@ const dict = {
       whatsapp: "WhatsApp",
       direccion: "Dirección",
       seccionId: "Cómo identificás los pedidos",
-      seccionIdSub: "Elegí cómo se muestra cada pedido a tu personal y al cliente.",
+      seccionIdSub:
+        "Elegí cómo se muestra cada pedido a tu personal y al cliente.",
       modoPedidoDet: "Turno correlativo (42, 43…). Ideal para take away.",
       modoNombreDet: "El cliente da su nombre. Cálido, típico en cafeterías.",
       modoMesaDet: "Número de mesa. Ayuda a organizar al personal.",
       tableCount: "Cantidad de mesas",
       seccionEmp: "Empleados",
-      seccionEmpSub: "El personal que atiende y prepara los pedidos. Se listan acá; para agregar usá el popup.",
+      seccionEmpSub:
+        "El personal que atiende y prepara los pedidos. Se listan acá; para agregar usá el popup.",
       empNombre: "Nombre",
       empRol: "Puesto (opcional)",
       empRolPh: "Mozo, cocina…",
       empPin: "PIN (4 dígitos)",
-      empPinHint: "Único por persona. Se usa al fichar: elegís tu nombre y después tu PIN.",
+      empPinHint:
+        "Único por persona. Se usa al fichar: elegís tu nombre y después tu PIN.",
       empNombreReq: "El nombre es obligatorio.",
       empNombreDup:
         "Ya hay alguien con ese nombre. Probá otro (ej. Lucía B, Lucy, Luli).",
       empPinReq: "El PIN tiene que tener 4 dígitos.",
       empPinDup: "Ese PIN ya lo usa otro empleado.",
       guardarEmp: "Agregar",
-      modalSub: "Nombre + PIN de fichaje (piso). Config pide la contraseña de la cuenta del dueño.",
+      modalSub:
+        "Nombre + PIN de fichaje (piso). Config pide la contraseña de la cuenta del dueño.",
       agregar: "Agregar empleado",
       sinEmp: "Todavía no cargaste empleados.",
       sinRol: "Sin puesto",
       sinPin: "Sin PIN",
       pinOk: "PIN activo",
       cambiarPin: "Cambiar PIN",
-      cambiarPinSub: "Definí un PIN nuevo de 4 dígitos para {n}. El anterior deja de servir.",
+      cambiarPinSub:
+        "Definí un PIN nuevo de 4 dígitos para {n}. El anterior deja de servir.",
       guardarPin: "Guardar PIN",
       borrar: "Borrar",
       errNombre: "El nombre del local es obligatorio.",
@@ -710,7 +717,8 @@ const dict = {
       admin: "Owner",
       adminDet: "Whole company: branches, global metrics and settings.",
       supervisor: "Supervisor",
-      supervisorDet: "One branch: orders, staff and ID mode. No global metrics.",
+      supervisorDet:
+        "One branch: orders, staff and ID mode. No global metrics.",
       empleado: "Staff",
       empleadoDet: "Orders only. Clock in with PIN at the counter.",
       volver: "Back to home",
@@ -811,7 +819,8 @@ const dict = {
       },
       metricas: {
         titulo: "Metrics",
-        intro: "Numbers for day, week, month or year. Owner only (with password).",
+        intro:
+          "Numbers for day, week, month or year. Owner only (with password).",
         p1t: "Pick the period",
         p1d: "Day, week, month or year. Cards and chart update.",
         p2t: "Orders vs Wait",
@@ -881,7 +890,8 @@ const dict = {
       retiradoTitulo: "Order picked up",
       retiradoSub: "All set. You can close this tab now.",
       canceladoTitulo: "Order cancelled",
-      canceladoSub: "This order is no longer active. Ask at the counter if you need help.",
+      canceladoSub:
+        "This order is no longer active. Ask at the counter if you need help.",
       activar: "Notify me",
       activados: "Notifications on",
       pushCargando: "Enabling notices…",
@@ -933,8 +943,7 @@ const dict = {
       confirmarCancelSi: "Yes, cancel",
       confirmarCancelNo: "Keep waiting",
       colaPrimero: "You’re next",
-      colaDelante:
-        "{g} {gLabel} ahead · {p} {pLabel} waiting",
+      colaDelante: "{g} {gLabel} ahead · {p} {pLabel} waiting",
       colaGrupo: "party",
       colaGrupos: "parties",
       colaPersona: "person",
@@ -1007,32 +1016,37 @@ const dict = {
       whatsapp: "WhatsApp",
       direccion: "Address",
       seccionId: "How you identify orders",
-      seccionIdSub: "Choose how each order is shown to your staff and the customer.",
+      seccionIdSub:
+        "Choose how each order is shown to your staff and the customer.",
       modoPedidoDet: "Sequential number (42, 43…). Great for takeaway.",
       modoNombreDet: "The customer gives their name. Warm, common in cafés.",
       modoMesaDet: "Table number. Helps organize the staff.",
       tableCount: "Number of tables",
       seccionEmp: "Staff",
-      seccionEmpSub: "People who take and prepare orders. Listed here; add via the popup.",
+      seccionEmpSub:
+        "People who take and prepare orders. Listed here; add via the popup.",
       empNombre: "Name",
       empRol: "Job title (optional)",
       empRolPh: "Waiter, kitchen…",
       empPin: "PIN (4 digits)",
-      empPinHint: "Unique per person. Used when clocking in: pick your name, then your PIN.",
+      empPinHint:
+        "Unique per person. Used when clocking in: pick your name, then your PIN.",
       empNombreReq: "Name is required.",
       empNombreDup:
         "Someone already has that name. Try another (e.g. Lucia B, Lucy, Luli).",
       empPinReq: "PIN must be 4 digits.",
       empPinDup: "That PIN is already used by someone else.",
       guardarEmp: "Add",
-      modalSub: "Name + clock-in PIN (floor). Settings needs the owner account password.",
+      modalSub:
+        "Name + clock-in PIN (floor). Settings needs the owner account password.",
       agregar: "Add staff member",
       sinEmp: "No staff added yet.",
       sinRol: "No title",
       sinPin: "No PIN",
       pinOk: "PIN set",
       cambiarPin: "Change PIN",
-      cambiarPinSub: "Set a new 4-digit PIN for {n}. The old one stops working.",
+      cambiarPinSub:
+        "Set a new 4-digit PIN for {n}. The old one stops working.",
       guardarPin: "Save PIN",
       borrar: "Delete",
       errNombre: "Business name is required.",
@@ -1108,12 +1122,21 @@ const dict = {
   },
 } as const;
 
-export const translate = (locale: Locale, key: string, vars?: Record<string, string | number>): string => {
+export const translate = (
+  locale: Locale,
+  key: string,
+  vars?: Record<string, string | number>,
+): string => {
   const parts = key.split(".");
   let node: unknown = dict[locale];
   for (const p of parts) {
-    if (p === "__proto__" || p === "constructor" || p === "prototype") return key;
-    if (node && typeof node === "object" && Object.prototype.hasOwnProperty.call(node, p)) {
+    if (p === "__proto__" || p === "constructor" || p === "prototype")
+      return key;
+    if (
+      node &&
+      typeof node === "object" &&
+      Object.prototype.hasOwnProperty.call(node, p)
+    ) {
       node = (node as Record<string, unknown>)[p];
     } else {
       return key;
