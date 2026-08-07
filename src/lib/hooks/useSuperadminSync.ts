@@ -18,10 +18,7 @@ export const useSuperadminSync = (): { ready: boolean } => {
     })();
 
     const supabase = createBrowserSupabase();
-    if (!supabase) {
-      setReady(true);
-      return;
-    }
+    if (!supabase) return;
 
     const channel = supabase
       .channel("superadmin-orgs")

@@ -73,7 +73,10 @@ export const useOrders = (
   const [conteos, setConteos] = useState(CONTEOS_VACIOS);
   const [proximoNumero, setProximoNumero] = useState(1);
   const [branchName, setBranchName] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  /* Solo cuenta cuando hay algo que traer. En demo no se busca nada, así que
+   * `ready` se deriva y no hace falta un setState sincrónico en el efecto. */
+  const [cargado, setCargado] = useState(false);
+  const ready = !live || cargado;
   const [syncError, setSyncError] = useState<DataError | null>(null);
 
   const { filtro, busqueda, pagina, tam } = query;
@@ -97,18 +100,18 @@ export const useOrders = (
        * servicio por un refresco fallido es peor que mostrarla algo vieja. */
       setSyncError(res.error);
     }
-    setReady(true);
+    setCargado(true);
   }, [live, branchId, filtro, busqueda, pagina, tam]);
 
   useEffect(() => {
     if (!live || !branchId) {
       if (!supabaseConfigured) seed();
-      setReady(true);
       return;
     }
-    setReady(false);
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- `reload`
+       hace el setState después de un await, no en el cuerpo del efecto. */
     void reload();
-    void fetchBranchName(branchId).then(setBranchName);
+    void fetchBranchName(branchId).then((n) => setBranchName(n));
     const sub = subscribeOrders(branchId, reload);
     const onWake = () => {
       if (document.visibilityState === "visible") void reload();

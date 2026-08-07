@@ -60,11 +60,10 @@ export const SubscriptionCard = () => {
 
   const esDueno = rol === "admin" || rol === "superadmin";
 
+  const hayQueConsultar = esDueno && supabaseConfigured && Boolean(orgId);
+
   useEffect(() => {
-    if (!esDueno || !supabaseConfigured || !orgId) {
-      setCargando(false);
-      return;
-    }
+    if (!hayQueConsultar || !orgId) return;
     let alive = true;
     void fetchMySubscription(orgId).then((r) => {
       if (!alive) return;
@@ -74,7 +73,7 @@ export const SubscriptionCard = () => {
     return () => {
       alive = false;
     };
-  }, [orgId, esDueno]);
+  }, [orgId, hayQueConsultar]);
 
   if (!esDueno || cargando || !sub) return null;
 

@@ -101,7 +101,9 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   const [liveEsperas, setLiveEsperas] = useState<WaitlistView[]>([]);
   const [liveMesas, setLiveMesas] = useState<TableView[]>([]);
   const [liveReservas, setLiveReservas] = useState<ReservationView[]>([]);
-  const [ready, setReady] = useState(false);
+  /* Igual que en useOrders: derivado, no guardado. */
+  const [cargado, setCargado] = useState(false);
+  const ready = !live || cargado;
   const [syncError, setSyncError] = useState<DataError | null>(null);
 
   const expire = useMemo(
@@ -128,7 +130,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     if (r.ok) setLiveReservas(r.data);
     const fallo = [e, m, r].find((x) => !x.ok);
     setSyncError(fallo && !fallo.ok ? fallo.error : null);
-    setReady(true);
+    setCargado(true);
   }, [live, branchId, expire]);
 
   useEffect(() => {
@@ -138,11 +140,9 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
         setMesasCount(tableCount);
         demoExpirar();
       }
-      setReady(true);
       const demoIv = window.setInterval(() => demoExpirar(), 15_000);
       return () => window.clearInterval(demoIv);
     }
-    setReady(false);
     void (async () => {
       await syncTables(branchId, tableCount);
       await reload();

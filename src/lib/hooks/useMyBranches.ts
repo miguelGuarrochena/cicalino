@@ -14,20 +14,25 @@ export const useMyBranches = (): { branches: BranchLite[]; ready: boolean } => {
   const live = supabaseConfigured;
 
   const [branches, setBranches] = useState<BranchLite[]>([]);
-  const [ready, setReady] = useState(false);
+  const [cargado, setCargado] = useState(false);
+
+  const puedeElegir = role === "admin" || role === "supervisor";
+  const vaABuscar = live && puedeElegir && isRealBranchId(orgId);
+
+  /* `ready` se deriva en vez de guardarse. Antes había un `setReady(true)`
+   * sincrónico en la rama que no busca nada, que es un render de más para
+   * decir algo que ya se sabe sin mirar el estado: si no vamos a buscar,
+   * estamos listos. */
+  const ready = !vaABuscar || cargado;
 
   useEffect(() => {
-    const puedeElegir = role === "admin" || role === "supervisor";
-    if (!live || !puedeElegir || !isRealBranchId(orgId)) {
-      setReady(true);
-      return;
-    }
+    if (!vaABuscar) return;
     let active = true;
     void (async () => {
       const list = await fetchMyBranches(orgId);
       if (!active) return;
       setBranches(list);
-      setReady(true);
+      setCargado(true);
       if (list.length && !isRealBranchId(branchId)) {
         setBranchId(list[0].id);
       }
@@ -35,7 +40,7 @@ export const useMyBranches = (): { branches: BranchLite[]; ready: boolean } => {
     return () => {
       active = false;
     };
-  }, [live, role, orgId, branchId, setBranchId]);
+  }, [vaABuscar, orgId, branchId, setBranchId]);
 
   return { branches, ready };
 };

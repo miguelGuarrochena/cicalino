@@ -39,9 +39,15 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
 
   useAuthSessionSync();
 
+  /* Esto sí es lo que la regla desaconseja, y va igual: hay que leer
+   * localStorage y rehidratar los stores, y nada de eso existe en el
+   * servidor, así que no puede pasar durante el render. Es la sincronización
+   * inicial con el navegador, que es justamente para lo que están los efectos.
+   * El render de más ocurre una vez, al montar. */
   useEffect(() => {
     const st = (localStorage.getItem("cicalino-theme") as ThemePref) || "system";
     const sl = (localStorage.getItem("cicalino-lang") as Locale) || "es";
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- ver arriba. */
     setThemeState(st);
     setLocaleState(sl);
     applyTheme(st);

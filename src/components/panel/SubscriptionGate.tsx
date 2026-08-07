@@ -81,17 +81,21 @@ export const SubscriptionGate = ({
   const orgId = useSessionStore((s) => s.organizationId);
   const role = useSessionStore((s) => s.rol);
 
-  const [estado, setEstado] = useState<
-    { tipo: "cargando" } | { tipo: "ok" } | { tipo: "bloqueado"; pausada: boolean }
-  >({ tipo: "cargando" });
+  const [resuelto, setResuelto] = useState<
+    { tipo: "ok" } | { tipo: "bloqueado"; pausada: boolean } | null
+  >(null);
+
+  /* Superadmin pasa derecho, para que soporte pueda trabajar sobre una cuenta
+   * cortada, incluso mientras impersona al dueño. La base opina lo mismo. */
+  const hayQueConsultar =
+    supabaseConfigured && role !== "superadmin" && Boolean(orgId);
+
+  /* Derivado: si no hay nada que consultar, ya está resuelto. Antes eso era un
+   * setState sincrónico dentro del efecto. */
+  const estado = hayQueConsultar ? resuelto : { tipo: "ok" as const };
 
   useEffect(() => {
-    /* Superadmin passes through so support can work on a cut-off account,
-     * including while impersonating the owner. The database agrees. */
-    if (!supabaseConfigured || role === "superadmin" || !orgId) {
-      setEstado({ tipo: "ok" });
-      return;
-    }
+    if (!hayQueConsultar || !orgId) return;
     let vivo = true;
     void fetchMySubscription(orgId).then((s) => {
       if (!vivo) return;
@@ -99,17 +103,17 @@ export const SubscriptionGate = ({
        * lock a shop out of its own register in the middle of service — and the
        * database is still blocking the writes either way. */
       if (!s || puedeOperar(s)) {
-        setEstado({ tipo: "ok" });
+        setResuelto({ tipo: "ok" });
         return;
       }
-      setEstado({ tipo: "bloqueado", pausada: s.status !== "expired" });
+      setResuelto({ tipo: "bloqueado", pausada: s.status !== "expired" });
     });
     return () => {
       vivo = false;
     };
-  }, [orgId, role]);
+  }, [hayQueConsultar, orgId]);
 
-  if (estado.tipo === "cargando") {
+  if (estado === null) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <MascotLoader className="h-16" />

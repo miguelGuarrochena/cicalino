@@ -112,11 +112,7 @@ const MetricasPage = () => {
   const [liveData, setLiveData] = useState<MetricsData | null>(null);
   const [liveEspera, setLiveEspera] = useState<MetricsData | null>(null);
   useEffect(() => {
-    if (!live || !branchId) {
-      setLiveData(null);
-      setLiveEspera(null);
-      return;
-    }
+    if (!live || !branchId) return;
     let active = true;
     void fetchMetrics(branchId, periodo).then((m) => {
       if (active) setLiveData(m);
