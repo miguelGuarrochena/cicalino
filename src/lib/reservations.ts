@@ -35,6 +35,48 @@ export const nextReservationByTable = (
 export const isReservationSoon = (r: ReservationView, now = Date.now()): boolean =>
   minutesUntil(r.scheduledAt, now) <= SOON_THRESHOLD_MIN;
 
+/* Is the booking inside its grace period right now?
+ *
+ * From the booking time until booking time + grace, the table belongs to
+ * whoever booked it and can't be given to a walk-in. Once that window closes
+ * the cron expires the booking and the table frees up; a guest arriving after
+ * that gets seated as a new walk-in.
+ *
+ * Mirrors `mesa_en_ventana_de_reserva` in supabase/sentar-walkin.sql. The one
+ * that actually enforces this is the database — this one only drives the UI,
+ * so a stale screen can't offer a table the server is going to reject. */
+export const isWithinGrace = (
+  r: ReservationView,
+  now = Date.now(),
+): boolean => {
+  if (r.status !== "activa") return false;
+  const start = new Date(r.scheduledAt).getTime();
+  if (Number.isNaN(start)) return false;
+  return now >= start && now <= start + r.graceMinutes * 60_000;
+};
+
+/* Tables currently held by a booking inside its grace period.
+ *
+ * Sorted by time so that when two bookings overlap on the same table we report
+ * the earlier one, same as the `order by horario limit 1` in the SQL. Either
+ * one blocks the table, but they have to agree on which one they name or the
+ * panel says something different from the server. */
+export const tablesHeldByReservation = (
+  reservas: ReservationView[],
+  now = Date.now(),
+): Map<number, ReservationView> => {
+  const out = new Map<number, ReservationView>();
+  const enVentana = reservas
+    .filter((r) => isWithinGrace(r, now))
+    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+  for (const r of enVentana) {
+    for (const n of reservationTables(r)) {
+      if (!out.has(n)) out.set(n, r);
+    }
+  }
+  return out;
+};
+
 export const conflictingReservation = (
   tableNumbers: number[],
   horarioIso: string,

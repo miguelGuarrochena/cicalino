@@ -32,6 +32,7 @@ import {
   reservationTables,
   conflictingReservation,
   nextReservationByTable,
+  tablesHeldByReservation,
 } from "@/lib/reservations";
 import {
   readDeviceMode,
@@ -39,6 +40,7 @@ import {
 } from "@/lib/modules";
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
+import type { SeatWalkInReason } from "@/lib/data/waitlist";
 
 const PAGE_SIZE = 20;
 const INPUT =
@@ -385,6 +387,85 @@ const ReservaHorarioPicker = ({
   );
 };
 
+/* Hard block, unlike AvisoReserva which is only a heads-up. These tables have
+ * a booking inside its grace period, so the database is going to refuse them
+ * and the button stays disabled. Says who is coming and until when, otherwise
+ * it just looks like the button broke. */
+const AvisoBloqueoReserva = ({
+  mesas,
+  porMesa,
+  locale,
+}: {
+  mesas: number[];
+  porMesa: Map<number, ReservationView>;
+  locale: string;
+}) => {
+  if (!mesas.length) return null;
+  const es = locale !== "en";
+  return (
+    <div className="mt-4 rounded-2xl border border-red-400/60 bg-red-50/80 px-3.5 py-3 dark:bg-red-500/10">
+      <p className="text-sm font-semibold text-red-900 dark:text-red-200">
+        {mesas.length === 1
+          ? es
+            ? "Esta mesa está reservada ahora"
+            : "This table is booked right now"
+          : es
+            ? "Estas mesas están reservadas ahora"
+            : "These tables are booked right now"}
+      </p>
+      <ul className="mt-2 flex flex-col gap-1.5">
+        {mesas.map((n) => {
+          const r = porMesa.get(n);
+          if (!r) return null;
+          const hasta = new Date(
+            new Date(r.scheduledAt).getTime() + r.graceMinutes * 60_000,
+          );
+          return (
+            <li key={n} className="text-sm text-carbon/75">
+              <span className="font-semibold text-carbon">
+                {es ? `Mesa ${n}` : `Table ${n}`} ·{" "}
+                {reservationTime(r.scheduledAt)}
+              </span>{" "}
+              — {r.name}
+              {es
+                ? `, tolerancia hasta las ${reservationTime(hasta.toISOString())}`
+                : `, held until ${reservationTime(hasta.toISOString())}`}
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-2 text-sm text-carbon/60">
+        {es
+          ? "Elegí otra mesa. Cuando venza la tolerancia esta se libera sola."
+          : "Pick another table. This one frees up on its own once the grace period ends."}
+      </p>
+    </div>
+  );
+};
+
+/* Why the seat attempt was rejected. It used to be one generic "table taken?"
+ * for every failure, which was wrong half the time: the usual case now is a
+ * table held by a booking that is still inside its grace period. */
+const motivoOcupar = (reason: SeatWalkInReason, locale: string): string => {
+  const es = locale !== "en";
+  if (reason === "mesa-reservada") {
+    return es
+      ? "Esa mesa tiene una reserva en curso. Esperá a que venza la tolerancia o elegí otra."
+      : "That table has a booking in progress. Wait for the grace period to end or pick another.";
+  }
+  if (reason === "mesa-no-disponible") {
+    return es
+      ? "Alguien ocupó esa mesa recién. Recargá y elegí otra."
+      : "Someone just took that table. Reload and pick another.";
+  }
+  if (reason === "sin-mesas") {
+    return es ? "Elegí al menos una mesa." : "Pick at least one table.";
+  }
+  return es
+    ? "No se pudo ocupar. Revisá la conexión y probá de nuevo."
+    : "Couldn’t seat. Check the connection and try again.";
+};
+
 const formatHora = (iso: string, locale: string) =>
   new Date(iso).toLocaleString(locale === "en" ? "en-US" : "es-AR", {
     hour: "2-digit",
@@ -553,6 +634,14 @@ const EsperaPanelPage = () => {
     return map;
   }, [esperas]);
 
+  /* Tables the database will refuse for a walk-in right now: a booking is
+   * inside its grace period. Kept separate from reservaPorMesa, which is the
+   * soft "this table has a booking later" warning. */
+  const mesaTomadaPorReserva = useMemo(
+    () => tablesHeldByReservation(reservas, ahora),
+    [reservas, ahora],
+  );
+
   const reservaPorMesa = useMemo(
     () => nextReservationByTable(reservas, ahora),
     [reservas, ahora],
@@ -630,8 +719,13 @@ const EsperaPanelPage = () => {
     .filter((m) => ocuparMesasSel.includes(m.number))
     .reduce((s, m) => s + (m.capacity ?? 4), 0);
   const ocuparFaltan = Math.max(0, ocuparPersonas - ocuparCap);
+  const ocuparBloqueadas = ocuparMesasSel.filter((n) =>
+    mesaTomadaPorReserva.has(n),
+  );
   const ocuparOk =
-    ocuparMesasSel.length > 0 && ocuparCap >= ocuparPersonas;
+    ocuparMesasSel.length > 0 &&
+    ocuparCap >= ocuparPersonas &&
+    ocuparBloqueadas.length === 0;
   const ocuparPrimariaMesa =
     ocuparPrimaria != null
       ? mesas.find((m) => m.number === ocuparPrimaria)
@@ -1948,14 +2042,9 @@ const EsperaPanelPage = () => {
                     partySize: ocuparPersonas,
                     employee: employeeRef,
                   })
-                    .then((created) => {
-                      if (!created) {
-                        toast(
-                          locale === "en"
-                            ? "Couldn’t seat — table taken?"
-                            : "No se pudo ocupar. ¿Mesa tomada?",
-                          "error",
-                        );
+                    .then((res) => {
+                      if (!res.ok) {
+                        toast(motivoOcupar(res.reason, locale), "error");
                         return;
                       }
                       const titulo = tablesTitle(
@@ -2051,6 +2140,11 @@ const EsperaPanelPage = () => {
             />
           </div>
 
+          <AvisoBloqueoReserva
+            mesas={ocuparBloqueadas}
+            porMesa={mesaTomadaPorReserva}
+            locale={locale}
+          />
           <AvisoReserva avisos={ocuparAvisos} locale={locale} ahora={ahora} />
 
           <label className="mt-4 flex flex-col gap-1.5 text-sm">
