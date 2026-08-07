@@ -11,15 +11,25 @@ import {
 
 /* Qué hora de pared marca ese instante en la zona del negocio. */
 const enBsAs = (d: Date): string =>
+  formatear(d).replace(/, 24:/, ", 00:");
+
+const formatear = (d: Date): string =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: TZ_NEGOCIO,
-    hour12: false,
+    /* h23, no `hour12: false`. Con hour12 el ciclo lo elige el ICU: en macOS
+     * la medianoche sale "00" y en el Linux del CI sale "24", así que este
+     * mismo test pasaba local y fallaba en CI. */
+    hourCycle: "h23",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
   }).format(d);
+
+/* La normalización de arriba es cinturón y tiradores: `hourCycle: "h23"` ya
+ * debería dar 00, pero este test pasó local y falló en CI justamente por esto
+ * y prefiero que no dependa de qué ICU tenga el runner. */
 
 describe("businessDayStart", () => {
   it("después del corte, la jornada arrancó hoy", () => {
