@@ -9,5 +9,5 @@
     }
     var l = localStorage.getItem("cicalino-lang");
     if (l) document.documentElement.lang = l === "en" ? "en" : "es-AR";
-  } catch (e) {}
+  } catch (_e) {}
 })();

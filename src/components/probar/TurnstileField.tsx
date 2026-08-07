@@ -42,10 +42,18 @@ export const TurnstileField = ({
 }: Props) => {
   const boxRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
+  /* The Turnstile callbacks fire long after mount, so they read the latest
+   * props through refs instead of being baked into the widget at creation.
+   *
+   * Updating them runs in an effect rather than during render: mutating a ref
+   * while rendering breaks under concurrent rendering, where React can render
+   * a component and then throw the result away. */
   const onTokenRef = useRef(onToken);
   const onStatusRef = useRef(onStatus);
-  onTokenRef.current = onToken;
-  onStatusRef.current = onStatus;
+  useEffect(() => {
+    onTokenRef.current = onToken;
+    onStatusRef.current = onStatus;
+  }, [onToken, onStatus]);
 
   useEffect(() => {
     let cancelled = false;

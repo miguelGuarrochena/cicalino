@@ -60,6 +60,9 @@ export const LandingHeader = ({
           <Link href="/pricing" className={navLink}>
             {t("nav.precios")}
           </Link>
+          {/* Not a navigation: it scrolls to the FAQ on this same page and
+              only falls back to the href when JS hasn't loaded yet. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/#faq"
             onClick={(e) => {

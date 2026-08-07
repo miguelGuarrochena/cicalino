@@ -29,7 +29,6 @@ import {
   isReservationSoon,
   timeUntilLabel,
   reservationTime,
-  reservationTables,
   conflictingReservation,
   nextReservationByTable,
   tablesHeldByReservation,
