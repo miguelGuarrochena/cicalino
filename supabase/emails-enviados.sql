@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Registro de emails enviados
 -- Correr en: Supabase Dashboard → SQL Editor
+-- Requiere: setup.sql
+-- Orden sugerido: #18 de 39 (ver chequeo-migraciones.sql)
 -- Idempotente.
 --
 -- Para saber qué se le mandó a cada cliente y cuándo, sin tener que entrar

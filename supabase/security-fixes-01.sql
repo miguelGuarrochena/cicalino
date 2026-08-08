@@ -1,5 +1,7 @@
 -- ===========================================================================
 -- Cicalino — Fixes de seguridad #01 (auditoría, parte 1: RLS + autorización)
+-- Requiere: setup.sql
+-- Orden sugerido: #2 de 39 (ver chequeo-migraciones.sql)
 -- Correr DESPUÉS de supabase/setup.sql, en: Dashboard → SQL Editor → Run
 -- Es idempotente: se puede correr varias veces.
 -- ===========================================================================

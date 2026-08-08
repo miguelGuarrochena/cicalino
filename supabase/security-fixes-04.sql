@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Acceso del encargado a varias sucursales
 -- Correr en: Supabase Dashboard → SQL Editor
+-- Requiere: setup.sql, usuarios-sucursales.sql, modulo-espera.sql, reservas-mesa.sql
+-- Orden sugerido: #9 de 39 (ver chequeo-migraciones.sql)
 -- Requiere haber corrido antes: usuarios-sucursales.sql
 -- (empleados-acceso.sql puede correrse antes o después: no importa el orden)
 -- Idempotente.

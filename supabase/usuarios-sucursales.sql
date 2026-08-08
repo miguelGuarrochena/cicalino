@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Responsable de sucursal y acceso multi-sucursal
 -- Correr en: Supabase Dashboard → SQL Editor
+-- Requiere: setup.sql
+-- Orden sugerido: #5 de 39 (ver chequeo-migraciones.sql)
 -- Idempotente.
 --
 -- Dos cosas distintas que conviene no mezclar:

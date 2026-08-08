@@ -1,5 +1,7 @@
 -- Cicalino — pedidos de sucursal extra (dueño pide +1 cupo)
 -- Corré en el SQL Editor de Supabase (una vez).
+-- Requiere: setup.sql
+-- Orden sugerido: #27 de 39 (ver chequeo-migraciones.sql)
 
 create table if not exists public.pedidos_sucursal (
   id uuid primary key default gen_random_uuid(),

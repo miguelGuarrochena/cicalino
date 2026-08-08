@@ -1,5 +1,7 @@
 -- ===========================================================================
 -- Cicalino — Seat a walk-in atomically
+-- Requiere: security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql
+-- Orden sugerido: #15 de 39 (ver chequeo-migraciones.sql)
 -- Run in: Supabase Dashboard → SQL Editor. Idempotent.
 --
 -- PROBLEM 1: it wasn't atomic

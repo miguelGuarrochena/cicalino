@@ -1,5 +1,7 @@
 -- ===========================================================================
 -- Cicalino — Atomic booking creation and table syncing
+-- Requiere: security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql
+-- Orden sugerido: #14 de 39 (ver chequeo-migraciones.sql)
 -- Run in: Supabase Dashboard → SQL Editor. Idempotent.
 --
 -- PROBLEM 1: two hosts could book the same table for the same slot

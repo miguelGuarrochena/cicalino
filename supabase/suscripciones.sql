@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Suscripciones y facturación manual
 -- Correr en: Supabase Dashboard → SQL Editor
+-- Requiere: setup.sql
+-- Orden sugerido: #24 de 39 (ver chequeo-migraciones.sql)
 -- Idempotente: se puede re-ejecutar.
 --
 -- Modelo:

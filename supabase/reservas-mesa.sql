@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Reservas de mesa (módulo espera)
 -- Correr en: Supabase Dashboard → SQL Editor
+-- Requiere: setup.sql, modulo-espera.sql
+-- Orden sugerido: #8 de 39 (ver chequeo-migraciones.sql)
 -- Idempotente: se puede re-ejecutar.
 -- ===========================================================================
 

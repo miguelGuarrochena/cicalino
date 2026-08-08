@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Índices y retención de push_subscriptions
 -- Correr en: Supabase Dashboard → SQL Editor. Idempotente.
+-- Requiere: modulo-espera.sql
+-- Orden sugerido: #29 de 39 (ver chequeo-migraciones.sql)
 --
 -- PROBLEMA
 -- La tabla solo tenía índice por pedido_id, pero se la consulta por otras dos

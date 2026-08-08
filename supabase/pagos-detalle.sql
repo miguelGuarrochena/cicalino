@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Desglose por sucursal en cada pago
 -- Correr en: Supabase Dashboard → SQL Editor
+-- Requiere: suscripciones.sql
+-- Orden sugerido: #25 de 39 (ver chequeo-migraciones.sql)
 -- Idempotente.
 --
 -- El cliente paga una sola vez por el total, pero queda registrado qué parte

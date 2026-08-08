@@ -1,5 +1,7 @@
 -- ===========================================================================
 -- Cicalino — Fixes de seguridad #03 (PINs de empleados)
+-- Requiere: security-fixes-01.sql
+-- Orden sugerido: #4 de 39 (ver chequeo-migraciones.sql)
 -- Correr DESPUÉS de security-fixes-02.sql. Idempotente.
 --
 -- PROBLEMA
