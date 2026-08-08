@@ -4,10 +4,39 @@ import { useEffect, useState } from "react";
 import { useSessionStore } from "@/lib/store/session-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { useApp } from "@/components/providers/Providers";
-import { fetchMySubscription, puedeOperar } from "@/lib/data/subscription";
+import {
+  fetchMySubscription,
+  puedeOperar,
+  motivoBloqueo,
+  type MotivoBloqueo,
+} from "@/lib/data/subscription";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 
 const EMAIL_SOPORTE = "info@cicalino.net";
+
+/* Un cartel por motivo. Antes había dos, y "pausada" se comía el caso de la
+ * cuenta que nunca terminó de activarse — que es el que más confunde, porque
+ * del otro lado el Superadmin la muestra como una prueba gratuita en curso. */
+const TITULO: Record<MotivoBloqueo, { es: string; en: string }> = {
+  vencida: { es: "Suscripción vencida", en: "Subscription expired" },
+  pausada: { es: "Cuenta pausada", en: "Account paused" },
+  "sin-activar": { es: "Cuenta sin activar", en: "Account not active yet" },
+};
+
+const CUERPO: Record<MotivoBloqueo, { es: string; en: string }> = {
+  vencida: {
+    es: "Terminó el plazo de pago y la cuenta quedó dada de baja. Por eso no se pueden cargar pedidos ni esperas.",
+    en: "The payment window closed and the account was suspended, so orders and waitlist entries are on hold.",
+  },
+  pausada: {
+    es: "Tu cuenta está pausada, así que por ahora no se pueden cargar pedidos ni esperas.",
+    en: "Your account is paused, so orders and waitlist entries are on hold.",
+  },
+  "sin-activar": {
+    es: "El alta todavía no está terminada, así que por ahora no se pueden cargar pedidos ni esperas.",
+    en: "Setup isn't finished yet, so orders and waitlist entries are on hold.",
+  },
+};
 
 /* La dirección, copiable de un toque.
  *
@@ -107,7 +136,7 @@ const MailCopiable = ({ es }: { es: boolean }) => {
  *
  * Reads still work, so they keep seeing their history — that's why this
  * replaces the panel rather than logging anyone out. */
-const Bloqueado = ({ pausada }: { pausada: boolean }) => {
+const Bloqueado = ({ motivo }: { motivo: MotivoBloqueo }) => {
   const { locale } = useApp();
   const es = locale !== "en";
   return (
@@ -131,27 +160,19 @@ const Bloqueado = ({ pausada }: { pausada: boolean }) => {
       </span>
       <div>
         <h1 className="font-display text-2xl uppercase tracking-tight text-carbon">
-          {pausada
-            ? es
-              ? "Cuenta pausada"
-              : "Account paused"
-            : es
-              ? "Suscripción vencida"
-              : "Subscription expired"}
+          {TITULO[motivo][es ? "es" : "en"]}
         </h1>
         <p className="mt-2 text-sm text-carbon/60">
-          {pausada
-            ? es
-              ? "Tu cuenta está pausada, así que por ahora no se pueden cargar pedidos ni esperas."
-              : "Your account is paused, so orders and waitlist entries are on hold."
-            : es
-              ? "Terminó el plazo de pago y la cuenta quedó dada de baja. Por eso no se pueden cargar pedidos ni esperas."
-              : "The payment window closed and the account was suspended, so orders and waitlist entries are on hold."}
+          {CUERPO[motivo][es ? "es" : "en"]}
         </p>
         <p className="mt-3 text-sm text-carbon/60">
-          {es
-            ? "Tus datos y tu historial siguen acá. Escribinos y en cuanto registremos el pago vuelve a funcionar todo."
-            : "Your data and history are still here. Get in touch and everything comes back as soon as we register the payment."}
+          {motivo === "sin-activar"
+            ? es
+              ? "Escribinos y la dejamos lista."
+              : "Get in touch and we'll finish setting it up."
+            : es
+              ? "Tus datos y tu historial siguen acá. Escribinos y en cuanto registremos el pago vuelve a funcionar todo."
+              : "Your data and history are still here. Get in touch and everything comes back as soon as we register the payment."}
         </p>
       </div>
       <a
@@ -173,15 +194,23 @@ export const SubscriptionGate = ({
 }) => {
   const orgId = useSessionStore((s) => s.organizationId);
   const role = useSessionStore((s) => s.rol);
+  const impersonando = useSessionStore((s) => s.impersonando);
 
   const [resuelto, setResuelto] = useState<
-    { tipo: "ok" } | { tipo: "bloqueado"; pausada: boolean } | null
+    { tipo: "ok" } | { tipo: "bloqueado"; motivo: MotivoBloqueo } | null
   >(null);
 
-  /* Superadmin pasa derecho, para que soporte pueda trabajar sobre una cuenta
-   * cortada, incluso mientras impersona al dueño. La base opina lo mismo. */
+  /* Superadmin pasa derecho, incluso impersonando al dueño.
+   *
+   * Hay que mirar `impersonando` aparte: `entrarComoDueño` pone rol "admin"
+   * en el store, así que con el rol solo esta pantalla bloqueaba a soporte —
+   * mostrando "cuenta pausada" sobre un panel donde en realidad todo funciona,
+   * porque para la base `auth_rol()` sigue siendo superadmin. */
   const hayQueConsultar =
-    supabaseConfigured && role !== "superadmin" && Boolean(orgId);
+    supabaseConfigured &&
+    role !== "superadmin" &&
+    !impersonando &&
+    Boolean(orgId);
 
   /* Derivado: si no hay nada que consultar, ya está resuelto. Antes eso era un
    * setState sincrónico dentro del efecto. */
@@ -199,7 +228,7 @@ export const SubscriptionGate = ({
         setResuelto({ tipo: "ok" });
         return;
       }
-      setResuelto({ tipo: "bloqueado", pausada: s.status !== "expired" });
+      setResuelto({ tipo: "bloqueado", motivo: motivoBloqueo(s) });
     });
     return () => {
       vivo = false;
@@ -213,6 +242,6 @@ export const SubscriptionGate = ({
       </div>
     );
   }
-  if (estado.tipo === "bloqueado") return <Bloqueado pausada={estado.pausada} />;
+  if (estado.tipo === "bloqueado") return <Bloqueado motivo={estado.motivo} />;
   return <>{children}</>;
 };

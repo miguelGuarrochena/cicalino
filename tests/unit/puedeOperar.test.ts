@@ -1,10 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { puedeOperar, type MySubscription } from "@/lib/data/subscription";
+import {
+  puedeOperar,
+  motivoBloqueo,
+  type MySubscription,
+} from "@/lib/data/subscription";
 
 const sub = (over: Partial<MySubscription> = {}): MySubscription => ({
   status: "active",
   plan: "mensual",
   activo: true,
+  contratoAceptadoEn: "2026-01-01T00:00:00Z",
   altaEn: null,
   pruebaInicio: null,
   pruebaFin: null,
@@ -50,5 +55,34 @@ describe("puedeOperar", () => {
     // toca el panel de Superadmin.
     expect(puedeOperar(sub({ status: "paused" }))).toBe(true);
     expect(puedeOperar(sub({ status: "paused", activo: false }))).toBe(false);
+  });
+});
+
+/* El motivo importa tanto como el bloqueo: `activo = false` significa dos
+ * cosas y el cartel decía "pausada" para las dos. Una organización recién
+ * creada nace con activo=false esperando la activación, y el panel de
+ * Superadmin la muestra como prueba gratuita en curso — llamarla "pausada"
+ * era contradecir lo que el operador está viendo del otro lado. */
+describe("motivoBloqueo", () => {
+  it("vencida cuando la suscripción expiró", () => {
+    expect(motivoBloqueo(sub({ status: "expired", activo: false }))).toBe(
+      "vencida",
+    );
+  });
+
+  it("la baja por falta de pago gana sobre cualquier otra cosa", () => {
+    expect(
+      motivoBloqueo(sub({ status: "expired", contratoAceptadoEn: null })),
+    ).toBe("vencida");
+  });
+
+  it("sin activar cuando nunca se aceptó el contrato", () => {
+    expect(
+      motivoBloqueo(sub({ activo: false, contratoAceptadoEn: null })),
+    ).toBe("sin-activar");
+  });
+
+  it("pausada cuando la cuenta sí llegó a activarse", () => {
+    expect(motivoBloqueo(sub({ activo: false }))).toBe("pausada");
   });
 });
