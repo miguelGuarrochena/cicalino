@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Posición en la cola de espera, calculada en la base
 -- Correr en: Supabase Dashboard → SQL Editor. Idempotente.
+-- Requiere: modulo-espera.sql
+-- Orden sugerido: #12 de 39 (ver chequeo-migraciones.sql)
 --
 -- PROBLEMA
 -- /api/e/[token] resolvía la posición así: traía TODAS las esperas activas de

@@ -1,5 +1,7 @@
 -- ===========================================================================
 -- Cicalino — Stop two bookings landing on the same table, for good
+-- Requiere: security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql, reservas-atomicas.sql, corte-por-impago.sql
+-- Orden sugerido: #33 de 39 (ver chequeo-migraciones.sql)
 -- Run in: Supabase Dashboard → SQL Editor. Idempotent.
 --
 -- WHERE WE LEFT IT

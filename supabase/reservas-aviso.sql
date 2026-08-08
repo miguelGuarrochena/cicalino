@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Reservas que avisan, no bloquean (módulo espera)
 -- Correr en: Supabase Dashboard → SQL Editor
+-- Requiere: modulo-espera.sql, reservas-mesa.sql
+-- Orden sugerido: #31 de 39 (ver chequeo-migraciones.sql)
 -- Idempotente: se puede re-ejecutar.
 --
 -- Qué cambia:

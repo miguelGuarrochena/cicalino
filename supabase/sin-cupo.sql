@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Se elimina el cupo de sucursales
 -- Correr en: Supabase Dashboard → SQL Editor
+-- Requiere: security-fixes-02.sql
+-- Orden sugerido: #34 de 39 (ver chequeo-migraciones.sql)
 -- Idempotente.
 --
 -- El cobro pasó a armarse con el pack de cada sucursal activa, así que el

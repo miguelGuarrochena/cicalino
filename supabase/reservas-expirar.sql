@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Vencimiento de reservas en la base
 -- Correr en: Supabase Dashboard → SQL Editor. Idempotente.
+-- Requiere: security-fixes-01.sql, reservas-mesa.sql
+-- Orden sugerido: #32 de 39 (ver chequeo-migraciones.sql)
 --
 -- PROBLEMA
 -- Las reservas vencían así: el panel traía todas las reservas activas de la

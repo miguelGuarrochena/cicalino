@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Métricas agregadas en la base
 -- Correr en: Supabase Dashboard → SQL Editor. Idempotente.
+-- Requiere: security-fixes-01.sql, modulo-espera.sql
+-- Orden sugerido: #22 de 39 (ver chequeo-migraciones.sql)
 --
 -- PROBLEMA
 -- El panel de métricas bajaba TODAS las filas del período al navegador y

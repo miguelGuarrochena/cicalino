@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Acceso a la app desde la ficha del empleado
 -- Correr en: Supabase Dashboard → SQL Editor
+-- Requiere: setup.sql
+-- Orden sugerido: #6 de 39 (ver chequeo-migraciones.sql)
 -- Idempotente.
 --
 -- Hasta ahora había dos mundos separados:

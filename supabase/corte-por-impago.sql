@@ -1,5 +1,7 @@
 -- ===========================================================================
 -- Cicalino — Stop expired accounts from writing
+-- Requiere: setup.sql, security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql, reservas-atomicas.sql, sentar-walkin.sql
+-- Orden sugerido: #16 de 39 (ver chequeo-migraciones.sql)
 -- Run in: Supabase Dashboard → SQL Editor. Idempotent.
 --
 -- ⚠️ THIS ONE CUTS PEOPLE OFF. Run block 0 first and read the list before

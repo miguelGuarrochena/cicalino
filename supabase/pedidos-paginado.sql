@@ -1,5 +1,7 @@
 -- ===========================================================================
 -- Cicalino — Paginated orders for the panel
+-- Requiere: security-fixes-01.sql
+-- Orden sugerido: #26 de 39 (ver chequeo-migraciones.sql)
 -- Run in: Supabase Dashboard → SQL Editor. Idempotent.
 --
 -- PROBLEM

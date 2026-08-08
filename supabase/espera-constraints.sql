@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- Cicalino — Constraints y transiciones para espera, reservas y mesas
 -- Correr en: Supabase Dashboard → SQL Editor. Idempotente.
+-- Requiere: modulo-espera.sql, reservas-mesa.sql
+-- Orden sugerido: #20 de 39 (ver chequeo-migraciones.sql)
 --
 -- CONTEXTO
 -- security-fixes-02.sql le puso a `pedidos` cuatro defensas: transiciones de
