@@ -46,5 +46,6 @@
   "tipos-negocio.sql",
   "un-solo-modelo-cobro.sql",
   "security-fixes-07.sql",
-  "security-fixes-13.sql"
+  "security-fixes-13.sql",
+  "security-fixes-14.sql"
 ]
