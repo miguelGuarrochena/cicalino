@@ -43,9 +43,6 @@ const mapRow = (r: Row): OrderView => ({
   employee: r.empleados?.nombre ?? null,
 });
 
-const SELECT =
-  "id, referencia, estado, creado_en, en_preparacion_en, listo_en, retirado_en, cancelado_en, visto_en, qr_token, empleados(nombre)";
-
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
 const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
 const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString();
@@ -146,33 +143,44 @@ export const fetchBranchName = async (
 
 export const insertOrder = async (args: {
   branchId: string;
-  reference: string;
+  /* null/omit → crear_pedido asigna el próximo número de la jornada. */
+  reference?: string | null;
   employeeId?: string | null;
 }): Promise<OrderView | null> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return null;
-  const v = parseInput(newOrderSchema, args);
+  const v = parseInput(newOrderSchema, {
+    ...args,
+    reference: args.reference?.trim() ? args.reference.trim() : null,
+  });
   if (!v.ok) {
     console.error("insertOrder", v.error);
     return null;
   }
-  const { data, error } = await supabase
-    .from("pedidos")
-    .insert({
-      local_id: v.data.branchId,
-      referencia: v.data.reference,
-      estado: "creado",
-      empleado_id: v.data.employeeId ?? null,
-      qr_token: crypto.randomUUID(),
-      qr_expira_en: endOfBusinessDay(),
-    })
-    .select(SELECT)
-    .single();
+  const { data, error } = await supabase.rpc("crear_pedido", {
+    p_local: v.data.branchId,
+    p_referencia: v.data.reference ?? null,
+    p_empleado: v.data.employeeId ?? null,
+    p_desde: startOfBusinessDay(),
+    p_expira: endOfBusinessDay(),
+  });
   if (error) {
     console.error("insertOrder", error.message);
     return null;
   }
-  return mapRow(data as unknown as Row);
+  const res = data as {
+    ok: boolean;
+    reason?: string;
+    pedido?: Row & { empleado_nombre?: string | null };
+  };
+  if (!res?.ok || !res.pedido) {
+    console.error("insertOrder", res?.reason ?? "crear_pedido falló");
+    return null;
+  }
+  return mapRow({
+    ...res.pedido,
+    empleados: { nombre: res.pedido.empleado_nombre ?? null },
+  });
 };
 
 /* ¿El cliente ya abrió el QR de este pedido?

@@ -61,7 +61,6 @@ const PanelOrdersPage = () => {
     orders,
     total,
     conteos,
-    proximoNumero,
     createOrder,
     changeStatus,
     branchName: liveBranchName,
@@ -127,7 +126,6 @@ const PanelOrdersPage = () => {
   const enCurso = conteos.creado;
   const listos = conteos.listo;
   const activos = enCurso + listos;
-  const nextNumero = proximoNumero;
 
   const buscarPh =
     mode === "mesa"
@@ -166,7 +164,7 @@ const PanelOrdersPage = () => {
     toastAviso(await notifyCustomer({ orderId: id }));
   };
 
-  const handleCreate = async (reference: string): Promise<boolean> => {
+  const handleCreate = async (reference: string | null): Promise<boolean> => {
     const created = await createOrder(reference, activeEmployee);
     if (!created) {
       toast("No se pudo crear el pedido", "error");
@@ -176,7 +174,7 @@ const PanelOrdersPage = () => {
     setFiltro("todos");
     setQ("");
     dingNew();
-    toast(t("toast.creado", { n: reference }), "success");
+    toast(t("toast.creado", { n: created.reference }), "success");
     return true;
   };
 
@@ -185,7 +183,8 @@ const PanelOrdersPage = () => {
       void (async () => {
         if (creating) return;
         setCreando(true);
-        await handleCreate(String(nextNumero));
+        /* null → RPC asigna el número bajo lock (evita race entre cajas). */
+        await handleCreate(null);
         setCreando(false);
       })();
       return;

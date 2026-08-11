@@ -40,7 +40,7 @@ export interface UseOrders {
    * showing slightly stale orders with a warning on top. */
   syncError: DataError | null;
   createOrder: (
-    reference: string,
+    reference: string | null,
     employee?: EmployeeRef,
   ) => Promise<OrderView | null>;
   changeStatus: (
@@ -141,7 +141,7 @@ export const useOrders = (
       if (!live || !branchId) {
         const o: OrderView = {
           id: crypto.randomUUID(),
-          reference: reference,
+          reference: reference?.trim() || String(proximoNumero),
           status: "creado",
           createdAt: new Date().toISOString(),
           preparingAt: null,
@@ -163,7 +163,7 @@ export const useOrders = (
       if (created) void reload();
       return created;
     },
-    [live, branchId, demoAdd, reload],
+    [live, branchId, demoAdd, reload, proximoNumero],
   );
 
   const changeStatus = useCallback<UseOrders["changeStatus"]>(

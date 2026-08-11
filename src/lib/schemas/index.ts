@@ -170,7 +170,8 @@ export type EmployeeInput = z.infer<typeof employeeSchema>;
 
 export const newOrderSchema = z.object({
   branchId: uuid,
-  reference: textField(1, 40, "la referencia del pedido"),
+  /* null/omit = el RPC asigna el próximo número de la jornada. */
+  reference: textField(1, 40, "la referencia del pedido").nullable().optional(),
   employeeId: uuid.nullable().optional(),
 });
 export type NewOrderInput = z.infer<typeof newOrderSchema>;
