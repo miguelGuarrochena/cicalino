@@ -43,7 +43,8 @@ interface Result {
  */
 const INTERVALO_MS: Record<WaitlistStatus, number> = {
   esperando: 5_000,
-  avisado: 3_000,
+  /* Avisado → sentado/cancelado: mismo criterio que pedido listo. */
+  avisado: 2_000,
   sentado: 0,
   cancelado: 0,
 };

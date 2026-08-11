@@ -164,10 +164,35 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
   it("poll de espera es adaptativo (no martilla cada 1s)", () => {
     expect(WAITLIST_POLL_MS.esperando).toBeGreaterThanOrEqual(3_000);
     expect(WAITLIST_POLL_MS.avisado).toBeGreaterThanOrEqual(2_000);
+    expect(WAITLIST_POLL_MS.avisado).toBeLessThanOrEqual(3_000);
     expect(WAITLIST_POLL_MS.sentado).toBe(0);
     expect(WAITLIST_POLL_MS.cancelado).toBe(0);
     expect(orderHook).toMatch(/en_preparacion:\s*3_000/);
     expect(orderHook).toMatch(/creado:\s*8_000/);
+    expect(orderHook).toMatch(/listo:\s*2_000/);
+  });
+
+  it("panel cierra el QR al detectar visto_en (poll de respaldo)", () => {
+    const panel = read("src/app/(app)/panel/page.tsx");
+    const esperaPanel = read("src/app/(app)/panel/espera/page.tsx");
+    const ordersData = read("src/lib/data/orders.ts");
+    const waitData = read("src/lib/data/waitlist.ts");
+    expect(ordersData).toContain("fetchOrderSeen");
+    expect(waitData).toContain("fetchEsperaSeen");
+    expect(panel).toContain("fetchOrderSeen");
+    expect(panel).toMatch(/setInterval\(check,\s*1_200\)/);
+    expect(esperaPanel).toContain("fetchEsperaSeen");
+    expect(esperaPanel).toMatch(/setInterval\(check,\s*1_200\)/);
+    /* Ya no se corta el check solo porque el pedido está en la página. */
+    expect(panel).not.toMatch(/if \(fresh\) return;/);
+  });
+
+  it("espera marca visto_en al abrir el SSR (como pedidos)", () => {
+    const ePage = read("src/app/(customer)/e/[token]/page.tsx");
+    const pPage = read("src/app/(customer)/p/[token]/page.tsx");
+    expect(pPage).toContain("markCustomerOrderSeen");
+    expect(ePage).toContain("markCustomerEsperaSeen");
+    expect(ePage).toContain("after(");
   });
 
   it("orden.json y scripts SQL de supabase están alineados", () => {
@@ -178,7 +203,6 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     for (const f of orden) {
       expect(files, `falta ${f} listado en orden.json`).toContain(f);
     }
-    /* Tracker + push indices tienen que estar en el orden de apply. */
     expect(orden).toContain("security-fixes-13.sql");
     expect(orden).toContain("push-indices.sql");
     expect(orden).toContain("security-fixes-05.sql");

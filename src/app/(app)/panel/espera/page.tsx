@@ -12,6 +12,7 @@ import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { HelpLink } from "@/components/panel/HelpLink";
 import { useApp } from "@/components/providers/Providers";
 import { useWaitlist } from "@/lib/hooks/useWaitlist";
+import { fetchEsperaSeen } from "@/lib/data/waitlist";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
@@ -151,14 +152,27 @@ const EsperaPanelPage = () => {
     if (!visibles.espera && visibles.pedidos) router.replace("/panel");
   }, [branchConfigReady, visibles, router]);
 
-  /* Cerrar el QR cuando el cliente lo abre. `visto_en` llega por realtime
-   * dentro de la propia espera, así que alcanza con mirar la lista. */
-  /* Que el cliente haya abierto el QR se deduce de la lista, que llega por
-   * realtime: no hace falta guardar nada ni cerrar el modal a mano, alcanza
-   * con no renderizarlo. */
+  /* Cerrar el QR cuando el cliente abre el link (`visto_en`).
+   * Lista (realtime) = camino rápido; intervalo = respaldo si realtime falla. */
   const qrVisto = qr
     ? Boolean(esperas.find((e) => e.id === qr.id)?.seenAt)
     : false;
+
+  useEffect(() => {
+    if (!qr || qrVisto) return;
+    let vivo = true;
+    const check = () => {
+      void fetchEsperaSeen(qr.id).then((visto) => {
+        if (vivo && visto) setQr(null);
+      });
+    };
+    check();
+    const iv = window.setInterval(check, 1_200);
+    return () => {
+      vivo = false;
+      window.clearInterval(iv);
+    };
+  }, [qr, qrVisto]);
 
   const toastAviso = useCallback(
     (r: NotifyResult | null) => {
