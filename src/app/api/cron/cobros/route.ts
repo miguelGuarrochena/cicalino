@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
-import { sendBillingReminders } from "@/lib/actions/billing";
-import { sweepSubscriptions } from "@/lib/actions/subscriptionSweep";
+import { sendBillingReminders } from "@/lib/server/billingReminders";
+import { sweepSubscriptions } from "@/lib/server/subscriptionSweep";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";

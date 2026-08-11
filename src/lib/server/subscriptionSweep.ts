@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/resend";
@@ -77,6 +77,8 @@ const MARCA: Record<CronEmail, string> = {
  * mitad de las filas actualizadas. */
 const MAX_ORGS_POR_CORRIDA = 200;
 
+/* Helper interno (server-only). Lo llama el cron autenticado con CRON_SECRET.
+ * No es Server Action: no puede invocarse desde el cliente. */
 export const sweepSubscriptions = async (): Promise<{
   ok: boolean;
   revisadas: number;
@@ -173,6 +175,7 @@ export const sweepSubscriptions = async (): Promise<{
   return { ok: true, revisadas: rows.length, mails, cambios };
 };
 
+/* Helper interno. Solo lo invocan Server Actions ya autorizadas (superadmin). */
 export const sendWelcomeEmail = async (args: {
   orgId: string;
   nombre: string;
