@@ -349,9 +349,11 @@ const dict = {
         "Demasiados intentos. Esperá un momento y probá de nuevo.",
       espera: "Actualiza solo",
       noCerrar:
-        "No cierres esta pestaña mientras esperás. Si te vas a WhatsApp, volvé acá o activá avisos.",
+        "No cierres esta pestaña. Para enterarte cuando el pedido esté listo, tenela abierta en primer plano. Si vas a otra app, volvé acá: se actualiza sola.",
       noCerrarPush:
         "Avisos activos: podés cambiar de app y te avisamos cuando esté listo.",
+      mantenerPestana:
+        "En este teléfono no usamos notificaciones. Dejá esta pestaña abierta en primer plano para ver cuándo está listo el pedido. Si vas a otra app y volvés, se actualiza sola.",
       noEncontradoTitulo: "Pedido no encontrado",
       noEncontradoSub:
         "Este QR ya no es válido o expiró. Pedí uno nuevo en el mostrador.",
@@ -383,9 +385,11 @@ const dict = {
         "Demasiados intentos. Esperá un momento y probá de nuevo.",
       espera: "Actualiza solo",
       noCerrar:
-        "No cierres esta pestaña mientras esperás. Si te vas a WhatsApp, volvé acá o activá avisos.",
+        "No cierres esta pestaña. Para enterarte cuando tu mesa esté lista, tenela abierta en primer plano. Si vas a otra app, volvé acá: se actualiza sola.",
       noCerrarPush:
         "Avisos activos: podés cambiar de app y te avisamos cuando tu mesa esté lista.",
+      mantenerPestana:
+        "En este teléfono no usamos notificaciones. Dejá esta pestaña abierta en primer plano para ver cuándo está lista tu mesa. Si vas a otra app y volvés, se actualiza sola.",
       noEncontradoTitulo: "Link vencido",
       noEncontradoSub:
         "Este QR ya no es válido o expiró. Pedí uno nuevo en la recepción.",
@@ -919,9 +923,11 @@ const dict = {
         "Too many attempts. Wait a moment and try again.",
       espera: "Updates on its own",
       noCerrar:
-        "Don't close this tab while waiting. If you leave for WhatsApp, come back or enable notices.",
+        "Don't close this tab. Keep it in the foreground to see when your order is ready. If you switch apps, come back here — it updates on its own.",
       noCerrarPush:
         "Notices on: you can switch apps and we'll ping you when it's ready.",
+      mantenerPestana:
+        "This phone doesn't use notifications. Keep this tab open in the foreground to see when your order is ready. If you switch apps and come back, it updates on its own.",
       noEncontradoTitulo: "Order not found",
       noEncontradoSub:
         "This QR is no longer valid or expired. Ask for a new one at the counter.",
@@ -953,9 +959,11 @@ const dict = {
         "Too many attempts. Wait a moment and try again.",
       espera: "Updates on its own",
       noCerrar:
-        "Don't close this tab while waiting. If you leave for WhatsApp, come back or enable notices.",
+        "Don't close this tab. Keep it in the foreground to see when your table is ready. If you switch apps, come back here — it updates on its own.",
       noCerrarPush:
         "Notices on: you can switch apps and we'll ping you when your table is ready.",
+      mantenerPestana:
+        "This phone doesn't use notifications. Keep this tab open in the foreground to see when your table is ready. If you switch apps and come back, it updates on its own.",
       noEncontradoTitulo: "Link expired",
       noEncontradoSub:
         "This QR is no longer valid or expired. Ask for a new one at the host stand.",

@@ -14,13 +14,13 @@ export type PushSubscribeResult =
         | "error";
     };
 
-const isIosSafari = (): boolean => {
+const isIosDevice = (): boolean => {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
-  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const webkit = /WebKit/.test(ua);
-  const chromeIos = /CriOS|FxiOS|EdgiOS/.test(ua);
-  return iOS && webkit && !chromeIos;
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
 };
 
 const pushManagerSupported = (): boolean =>
@@ -28,6 +28,17 @@ const pushManagerSupported = (): boolean =>
   "serviceWorker" in navigator &&
   "PushManager" in window &&
   "Notification" in window;
+
+/**
+ * ¿Mostramos el botón de avisos push?
+ * En iPhone/iPad no: Web Push exige PWA y no queremos pedir instalar nada.
+ * El cliente deja la pestaña abierta; al volver se actualiza sola.
+ */
+export const canOfferWebPush = (): boolean => {
+  if (typeof window === "undefined") return false;
+  if (isIosDevice()) return false;
+  return pushManagerSupported();
+};
 
 export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
@@ -158,10 +169,6 @@ export const subscribeWebPush = async (
       return await postSubscription(token, sub);
     } catch (err2) {
       console.error("subscribeWebPush/retry", err2);
-      /* iOS Safari en pestaña (sin PWA) suele fallar acá. */
-      if (isIosSafari() || !pushManagerSupported()) {
-        return { ok: false, reason: "unsupported" };
-      }
       return { ok: false, reason: "error" };
     }
   }

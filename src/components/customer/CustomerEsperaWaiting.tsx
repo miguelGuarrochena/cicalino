@@ -15,6 +15,7 @@ import {
   registerServiceWorker,
   subscribeWebPush,
   pushErrorMessageKey,
+  canOfferWebPush,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
 
@@ -55,6 +56,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
+  const [pushDisponible, setPushDisponible] = useState(false);
   const [flash, setFlash] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelando, setCancelando] = useState(false);
@@ -62,6 +64,10 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const vioEsperando = useRef(false);
 
   useEffect(() => {
+    const ofrecer = canOfferWebPush();
+    setPushDisponible(ofrecer);
+    if (!ofrecer) return;
+
     let alive = true;
     void (async () => {
       await registerServiceWorker();
@@ -127,6 +133,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   }, [espera, pushActivo, token, t]);
 
   const activarAvisos = async () => {
+    if (!canOfferWebPush()) return;
     setPushCargando(true);
     setPushError(null);
     await registerServiceWorker();
@@ -198,7 +205,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
 
       {waiting && (
         <p className="u-in mb-6 w-full rounded-2xl border border-espera/40 bg-espera/10 px-3 py-2.5 text-xs font-medium leading-snug text-espera sm:max-w-sm">
-          {pushActivo
+          {pushDisponible && pushActivo
             ? t("clienteMesa.noCerrarPush")
             : t("clienteMesa.noCerrar")}
         </p>
@@ -341,20 +348,28 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
 
         {!cerrado && (
           <div className="u-in mt-8 flex w-full flex-col gap-3 sm:max-w-sm">
-            <button
-              type="button"
-              onClick={() => void activarAvisos()}
-              disabled={pushActivo || pushCargando}
-              className="w-full rounded-full bg-espera px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte active:scale-95 disabled:opacity-70"
-            >
-              {pushCargando
-                ? t("clienteMesa.pushCargando")
-                : pushActivo
-                  ? `${t("clienteMesa.activados")} 🔔`
-                  : t("clienteMesa.activar")}
-            </button>
-            {pushError && (
-              <p className="text-center text-xs text-red-500">{pushError}</p>
+            {pushDisponible ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void activarAvisos()}
+                  disabled={pushActivo || pushCargando}
+                  className="w-full rounded-full bg-espera px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte active:scale-95 disabled:opacity-70"
+                >
+                  {pushCargando
+                    ? t("clienteMesa.pushCargando")
+                    : pushActivo
+                      ? `${t("clienteMesa.activados")} 🔔`
+                      : t("clienteMesa.activar")}
+                </button>
+                {pushError && (
+                  <p className="text-center text-xs text-red-500">{pushError}</p>
+                )}
+              </>
+            ) : (
+              <p className="rounded-2xl border border-carbon/10 bg-carbon/[0.04] px-4 py-3 text-sm leading-snug text-carbon/75">
+                {t("clienteMesa.mantenerPestana")}
+              </p>
             )}
             {puedeCancelar && (
               <button

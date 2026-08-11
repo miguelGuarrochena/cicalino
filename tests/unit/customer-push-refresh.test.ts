@@ -45,6 +45,25 @@ describe("Customer push + refresh", () => {
     expect(pushErrorMessageKey("server")).toBe("pushError");
   });
 
+  it("iOS no ofrece botón de push; muestra mantener pestaña", () => {
+    const waiting = readFileSync(
+      join(root, "src/components/customer/CustomerWaiting.tsx"),
+      "utf8",
+    );
+    const espera = readFileSync(
+      join(root, "src/components/customer/CustomerEsperaWaiting.tsx"),
+      "utf8",
+    );
+    const notif = readFileSync(join(root, "src/lib/notifications.ts"), "utf8");
+    expect(notif).toContain("canOfferWebPush");
+    expect(notif).toMatch(/isIosDevice[\s\S]*return false/);
+    for (const src of [waiting, espera]) {
+      expect(src).toContain("canOfferWebPush");
+      expect(src).toContain("mantenerPestana");
+      expect(src).toContain("pushDisponible");
+    }
+  });
+
   it("subscribe no trata 200+ok:false como éxito", () => {
     const src = readFileSync(join(root, "src/lib/notifications.ts"), "utf8");
     expect(src).toContain("!res.ok || !body?.ok");
