@@ -7,7 +7,7 @@ import { useSessionStore } from "@/lib/store/session-store";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
-import { verifyEmployeePin } from "@/lib/data/branch";
+import { verifyEmployeePinAction } from "@/lib/actions/pin";
 import { supabaseConfigured } from "@/lib/supabase/config";
 
 const inicial = (name: string) => {
@@ -61,7 +61,7 @@ export const Fichaje = () => {
     }
 
     setVerificando(true);
-    const ok = await verifyEmployeePin(id, (pinIngresado ?? "").trim());
+    const ok = await verifyEmployeePinAction(id, (pinIngresado ?? "").trim());
     setVerificando(false);
     if (!ok) {
       setError(true);

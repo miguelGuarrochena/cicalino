@@ -177,7 +177,13 @@ export const useOrders = (
         desde = cur.find((o) => o.id === id)?.status;
         return cur.map((o) => (o.id === id ? { ...o, status: status } : o));
       });
-      await updateOrderStatus(id, status, desde);
+      const ok = await updateOrderStatus(id, status, desde);
+      if (!ok && desde) {
+        setLiveOrders((cur) =>
+          cur.map((o) => (o.id === id ? { ...o, status: desde! } : o)),
+        );
+        return null;
+      }
       if (status !== "listo") return null;
       return notifyCustomer({ orderId: id });
     },

@@ -47,18 +47,22 @@ export const POST = async (
     return NextResponse.json({ ok: false, reason: "closed" }, { status: 409 });
   }
 
-  const { error } = await admin
+  const { data: updated, error } = await admin
     .from("esperas")
     .update({
       estado: "cancelado",
       cancelado_en: new Date().toISOString(),
     })
     .eq("id", data.id)
-    .in("estado", ["esperando", "avisado"]);
+    .in("estado", ["esperando", "avisado"])
+    .select("id");
 
   if (error) {
     console.error("e/cancelar", error.message);
     return NextResponse.json({ ok: false, reason: "db-error" }, { status: 500 });
+  }
+  if (!updated?.length) {
+    return NextResponse.json({ ok: false, reason: "closed" }, { status: 409 });
   }
 
   try {

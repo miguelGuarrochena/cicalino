@@ -167,16 +167,21 @@ export const acceptContract = async (token: string): Promise<Simple> => {
   }
 
   const ahora = new Date().toISOString();
-  const { error } = await admin
+  const { data: stamped, error } = await admin
     .from("organizaciones")
     .update({
       contrato_aceptado_en: ahora,
       terminos_version: TERMS_VERSION,
     })
-    .eq("id", org.id);
+    .eq("id", org.id)
+    .is("contrato_aceptado_en", null)
+    .select("id");
   if (error) {
     console.error("aceptarContrato", error.message);
     return { ok: false, error: "No se pudo registrar la aceptación." };
+  }
+  if (!stamped?.length) {
+    return { ok: true };
   }
 
   const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";

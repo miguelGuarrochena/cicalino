@@ -211,12 +211,12 @@ export const updateOrderStatus = async (
   id: string,
   estado: OrderStatus,
   desde?: OrderStatus,
-): Promise<void> => {
+): Promise<boolean> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return;
+  if (!supabase) return false;
   if (desde && !isValidTransition(desde, estado)) {
     console.error("updateOrderStatus: transición inválida", desde, "→", estado);
-    return;
+    return false;
   }
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = { estado: estado };
@@ -229,8 +229,12 @@ export const updateOrderStatus = async (
 
   let q = supabase.from("pedidos").update(patch).eq("id", id);
   if (desde) q = q.eq("estado", desde);
-  const { error } = await q;
-  if (error) console.error("updateOrderStatus", error.message);
+  const { data, error } = await q.select("id");
+  if (error) {
+    console.error("updateOrderStatus", error.message);
+    return false;
+  }
+  return (data?.length ?? 0) > 0;
 };
 
 export const subscribeOrders = (

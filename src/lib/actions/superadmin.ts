@@ -96,7 +96,9 @@ const createOrganizationValidated = async (
     email: data.ownerEmail,
     pruebaFin: trial.trialEnd,
     primeraFactura: trial.nextBilling,
-  }).catch(() => {});
+  }).catch((e) => {
+    console.error("crearOrganizacion/welcome", e);
+  });
 
   if (data.sucursales.length) {
     const rows = data.sucursales.map((b) => {
