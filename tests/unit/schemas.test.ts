@@ -196,6 +196,12 @@ describe("nuevoPedidoSchema", () => {
       parseInput(newOrderSchema, { branchId: UUID, reference: "x".repeat(200) }).ok,
     ).toBe(false);
   });
+
+  it("acepta reference null (asignación atómica en el RPC)", () => {
+    expect(parseInput(newOrderSchema, { branchId: UUID, reference: null }).ok)
+      .toBe(true);
+    expect(parseInput(newOrderSchema, { branchId: UUID }).ok).toBe(true);
+  });
 });
 
 describe("transicionValida", () => {
