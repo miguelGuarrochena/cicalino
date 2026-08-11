@@ -1,13 +1,13 @@
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
 
+/* Solo para `pnpm test:db` (requiere DATABASE_URL + pg). */
 export default defineConfig({
   test: {
     environment: "node",
-    /* Integration (DB) se corre con `pnpm test:db`, no en CI sin DATABASE_URL.
-     * Incluirlos acá hace que Vitest cargue `pg` aunque los tests estén skipped. */
-    include: ["tests/unit/**/*.test.ts"],
+    include: ["tests/integration/**/*.test.ts"],
     setupFiles: ["tests/setup.ts"],
+    fileParallelism: false,
   },
   resolve: {
     alias: {
