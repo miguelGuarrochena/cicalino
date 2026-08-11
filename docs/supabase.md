@@ -171,6 +171,8 @@ Archivos: `src/lib/push/server.ts`, `src/app/api/push/{subscribe,notify}/route.t
 ## Pendiente (próximo)
 
 - Upstash en Vercel (rate limit global); CSP_ENFORCE=1 cuando la consola esté limpia.
+- Aplicar fixes SQL: `pnpm db:security` (o `node scripts/db-apply-security.mjs --from=12`).
+- Smoke de grants en la DB: `pnpm test:db` (requiere `DATABASE_URL` en `.env.local`).
 - Mercado Pago si el volumen lo justifica; tests E2E.
 
 ## Archivos clave (backend de datos)
