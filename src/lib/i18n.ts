@@ -335,7 +335,7 @@ const dict = {
       canceladoSub:
         "Este pedido ya no está activo. Consultá en el mostrador si hace falta.",
       activar: "Avisarme con una notificación",
-      activados: "Avisos activados",
+      activados: "Notificaciones activadas",
       pushCargando: "Activando avisos…",
       pushError:
         "No se pudo activar el aviso. Probá de nuevo o revisá el permiso de notificaciones del navegador.",
@@ -346,12 +346,12 @@ const dict = {
       pushExpired:
         "Este QR ya no admite avisos (venció o no es válido). Pedí uno nuevo en el mostrador.",
       pushRateLimited:
-        "Demasiados intentos. Esperá un momento y probá de nuevo.",
+        "No se pudo activar ahora. Esperá un momento y tocá de nuevo.",
       espera: "Actualiza solo",
       noCerrar:
         "No cierres esta pestaña. Para enterarte cuando el pedido esté listo, tenela abierta en primer plano. Si vas a otra app, volvé acá: se actualiza sola.",
       noCerrarPush:
-        "Avisos activos: podés cambiar de app y te avisamos cuando esté listo.",
+        "Notificaciones activadas: podés cambiar de app y te avisamos cuando esté listo.",
       mantenerPestana:
         "En este teléfono no usamos notificaciones. Dejá esta pestaña abierta en primer plano para ver cuándo está listo el pedido. Si vas a otra app y volvés, se actualiza sola.",
       noEncontradoTitulo: "Pedido no encontrado",
@@ -371,7 +371,7 @@ const dict = {
       canceladoSub:
         "Esta espera ya no está activa. Consultá en recepción si hace falta.",
       activar: "Avisarme con una notificación",
-      activados: "Avisos activados",
+      activados: "Notificaciones activadas",
       pushCargando: "Activando avisos…",
       pushError:
         "No se pudo activar el aviso. Probá de nuevo o revisá el permiso de notificaciones del navegador.",
@@ -382,12 +382,12 @@ const dict = {
       pushExpired:
         "Este QR ya no admite avisos (venció o no es válido). Pedí uno nuevo en el mostrador.",
       pushRateLimited:
-        "Demasiados intentos. Esperá un momento y probá de nuevo.",
+        "No se pudo activar ahora. Esperá un momento y tocá de nuevo.",
       espera: "Actualiza solo",
       noCerrar:
         "No cierres esta pestaña. Para enterarte cuando tu mesa esté lista, tenela abierta en primer plano. Si vas a otra app, volvé acá: se actualiza sola.",
       noCerrarPush:
-        "Avisos activos: podés cambiar de app y te avisamos cuando tu mesa esté lista.",
+        "Notificaciones activadas: podés cambiar de app y te avisamos cuando tu mesa esté lista.",
       mantenerPestana:
         "En este teléfono no usamos notificaciones. Dejá esta pestaña abierta en primer plano para ver cuándo está lista tu mesa. Si vas a otra app y volvés, se actualiza sola.",
       noEncontradoTitulo: "Link vencido",
@@ -909,7 +909,7 @@ const dict = {
       canceladoSub:
         "This order is no longer active. Ask at the counter if you need help.",
       activar: "Notify me",
-      activados: "Notifications on",
+      activados: "Notifications activated",
       pushCargando: "Enabling notices…",
       pushError:
         "Couldn’t enable background notices. Try again or check the browser notification permission.",
@@ -920,12 +920,12 @@ const dict = {
       pushExpired:
         "This QR can no longer enable notices (expired or invalid). Ask for a new one at the counter.",
       pushRateLimited:
-        "Too many attempts. Wait a moment and try again.",
+        "Couldn't enable just now. Wait a moment and try again.",
       espera: "Updates on its own",
       noCerrar:
         "Don't close this tab. Keep it in the foreground to see when your order is ready. If you switch apps, come back here — it updates on its own.",
       noCerrarPush:
-        "Notices on: you can switch apps and we'll ping you when it's ready.",
+        "Notifications activated: you can switch apps and we'll ping you when it's ready.",
       mantenerPestana:
         "This phone doesn't use notifications. Keep this tab open in the foreground to see when your order is ready. If you switch apps and come back, it updates on its own.",
       noEncontradoTitulo: "Order not found",
@@ -945,7 +945,7 @@ const dict = {
       canceladoSub:
         "This wait is no longer active. Ask at the host stand if you need help.",
       activar: "Notify me",
-      activados: "Notifications on",
+      activados: "Notifications activated",
       pushCargando: "Enabling notices…",
       pushError:
         "Couldn’t enable background notices. Try again or check the browser notification permission.",
@@ -956,12 +956,12 @@ const dict = {
       pushExpired:
         "This QR can no longer enable notices (expired or invalid). Ask for a new one at the counter.",
       pushRateLimited:
-        "Too many attempts. Wait a moment and try again.",
+        "Couldn't enable just now. Wait a moment and try again.",
       espera: "Updates on its own",
       noCerrar:
         "Don't close this tab. Keep it in the foreground to see when your table is ready. If you switch apps, come back here — it updates on its own.",
       noCerrarPush:
-        "Notices on: you can switch apps and we'll ping you when your table is ready.",
+        "Notifications activated: you can switch apps and we'll ping you when your table is ready.",
       mantenerPestana:
         "This phone doesn't use notifications. Keep this tab open in the foreground to see when your table is ready. If you switch apps and come back, it updates on its own.",
       noEncontradoTitulo: "Link expired",

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-describe("High — Upstash rate limit fail-closed", () => {
+describe("High — Upstash rate limit fail-open", () => {
   const envBackup = { ...process.env };
 
   beforeEach(() => {
@@ -29,21 +29,21 @@ describe("High — Upstash rate limit fail-closed", () => {
     expect(r.ok).toBe(true);
   });
 
-  it("en Vercel production sin Upstash deniega (fail-closed)", async () => {
+  it("en Vercel production sin Upstash no corta el servicio (memoria)", async () => {
     process.env.VERCEL_ENV = "production";
     const { sharedRateLimit, requiresDistributedRateLimit } = await import(
       "@/lib/security/rateLimitShared"
     );
     expect(requiresDistributedRateLimit()).toBe(true);
     const r = await sharedRateLimit("test:prod-missing", 5, 60_000);
-    expect(r).toEqual({ ok: false, retryAfter: 60 });
+    expect(r.ok).toBe(true);
   });
 
-  it("RATE_LIMIT_REQUIRE_UPSTASH=1 sin Redis también deniega", async () => {
+  it("RATE_LIMIT_REQUIRE_UPSTASH=1 sin Redis también usa memoria", async () => {
     process.env.RATE_LIMIT_REQUIRE_UPSTASH = "1";
     const { sharedRateLimit } = await import("@/lib/security/rateLimitShared");
     const r = await sharedRateLimit("test:forced", 5, 60_000);
-    expect(r.ok).toBe(false);
+    expect(r.ok).toBe(true);
   });
 
   it("en production con Upstash configurado consulta Redis", async () => {
@@ -66,7 +66,7 @@ describe("High — Upstash rate limit fail-closed", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it("en production si Redis falla deniega (no cae a memoria)", async () => {
+  it("en production si Redis falla cae a memoria (no tumba pedidos/push)", async () => {
     process.env.VERCEL_ENV = "production";
     process.env.UPSTASH_REDIS_REST_URL = "https://example.upstash.io";
     process.env.UPSTASH_REDIS_REST_TOKEN = "token";
@@ -78,8 +78,7 @@ describe("High — Upstash rate limit fail-closed", () => {
 
     const { sharedRateLimit } = await import("@/lib/security/rateLimitShared");
     const r = await sharedRateLimit("test:redis-down", 5, 60_000);
-    expect(r.ok).toBe(false);
-    expect(r.retryAfter).toBeGreaterThan(0);
+    expect(r.ok).toBe(true);
   });
 
   it("en local si Redis falla cae a memoria (dev no se traba)", async () => {

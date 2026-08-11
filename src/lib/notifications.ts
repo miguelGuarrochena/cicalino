@@ -127,6 +127,11 @@ const postSubscription = async (
   return { ok: true };
 };
 
+export const notificationPermissionGranted = (): boolean =>
+  typeof window !== "undefined" &&
+  "Notification" in window &&
+  Notification.permission === "granted";
+
 export const subscribeWebPush = async (
   token: string,
 ): Promise<PushSubscribeResult> => {
@@ -158,10 +163,15 @@ export const subscribeWebPush = async (
     return await postSubscription(token, sub);
   } catch (err) {
     console.error("subscribeWebPush", err);
+    /* No reintentar con unsubscribe si el permiso se negó a mitad de camino:
+     * quemaría rate limit y el usuario vería "demasiados intentos". */
+    if (Notification.permission !== "granted") {
+      return { ok: false, reason: "denied" };
+    }
     try {
       const reg = await navigator.serviceWorker.ready;
       const old = await reg.pushManager.getSubscription();
-      if (old) await old.unsubscribe();
+      if (old) await old.unsubscribe().catch(() => {});
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,

@@ -16,6 +16,7 @@ import {
   subscribeWebPush,
   pushErrorMessageKey,
   canOfferWebPush,
+  notificationPermissionGranted,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
 
@@ -71,24 +72,24 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
 
   useEffect(() => {
     if (!pushDisponible) return;
+    if (!notificationPermissionGranted()) return;
 
     let alive = true;
     void (async () => {
       await registerServiceWorker();
-      if (!("Notification" in window) || Notification.permission !== "granted") {
-        return;
-      }
       const r = await subscribeWebPush(token);
       if (!alive) return;
-      setPushActivo(r.ok);
-      setPushError(
-        r.ok ? null : t(`cliente.${pushErrorMessageKey(r.reason)}`),
-      );
+      /* Silencioso: no mostrar error de re-bind automático (evita el falso
+       * "demasiados intentos" al abrir la pestaña). */
+      if (r.ok) {
+        setPushActivo(true);
+        setPushError(null);
+      }
     })();
     return () => {
       alive = false;
     };
-  }, [token, t, pushDisponible]);
+  }, [token, pushDisponible]);
 
   const status = order?.status ?? "creado";
   const esListo = status === "listo";
@@ -139,23 +140,25 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   }, [order, pushActivo, t, token]);
 
   const activarAvisos = async () => {
-    if (!canOfferWebPush()) return;
+    if (!canOfferWebPush() || pushCargando) return;
     setPushCargando(true);
     setPushError(null);
-    await registerServiceWorker();
-    const permiso = await requestNotificationPermission();
-    if (!permiso) {
-      setPushActivo(false);
-      setPushError(t("cliente.pushDenegado"));
+    try {
+      await registerServiceWorker();
+      const permiso = await requestNotificationPermission();
+      if (!permiso) {
+        setPushActivo(false);
+        setPushError(t("cliente.pushDenegado"));
+        return;
+      }
+      const r = await subscribeWebPush(token);
+      setPushActivo(r.ok);
+      setPushError(
+        r.ok ? null : t(`cliente.${pushErrorMessageKey(r.reason)}`),
+      );
+    } finally {
       setPushCargando(false);
-      return;
     }
-    const r = await subscribeWebPush(token);
-    setPushActivo(r.ok);
-    setPushError(
-      r.ok ? null : t(`cliente.${pushErrorMessageKey(r.reason)}`),
-    );
-    setPushCargando(false);
   };
 
   if (!hydrated) {
@@ -278,25 +281,29 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
         {!cerrado && (
           <div className="u-in mt-8 w-full sm:max-w-sm">
             {pushDisponible ? (
-              <>
-                <button
-                  type="button"
-                  onClick={activarAvisos}
-                  disabled={pushActivo || pushCargando}
-                  className="w-full rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
-                >
-                  {pushCargando
-                    ? t("cliente.pushCargando")
-                    : pushActivo
-                      ? `${t("cliente.activados")} 🔔`
+              pushActivo ? (
+                <p className="rounded-2xl border border-emerald-300/70 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+                  {t("cliente.activados")}
+                </p>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void activarAvisos()}
+                    disabled={pushCargando}
+                    className="w-full rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
+                  >
+                    {pushCargando
+                      ? t("cliente.pushCargando")
                       : t("cliente.activar")}
-                </button>
-                {pushError && (
-                  <p className="mt-2 text-center text-xs text-red-500">
-                    {pushError}
-                  </p>
-                )}
-              </>
+                  </button>
+                  {pushError && (
+                    <p className="mt-2 text-center text-xs text-red-500">
+                      {pushError}
+                    </p>
+                  )}
+                </>
+              )
             ) : (
               <p className="rounded-2xl border border-carbon/10 bg-carbon/[0.04] px-4 py-3 text-sm leading-snug text-carbon/75">
                 {t("cliente.mantenerPestana")}
