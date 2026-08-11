@@ -22,10 +22,21 @@ export const saveDeviceMode = (modo: DeviceMode): void => {
   window.localStorage.setItem(DEVICE_MODE_KEY, modo);
 };
 
+/**
+ * Módulos visibles en este dispositivo.
+ * Si la sucursal solo contrató uno, ignoramos el modo guardado en localStorage
+ * (puede quedar "pedidos" de otra sucursal y dejar la UI en cero módulos).
+ */
 export const visibleModules = (
   activos: ModuleFlags,
   dispositivo: DeviceMode = "ambos",
 ): ModuleFlags => {
+  if (activos.pedidos && !activos.espera) {
+    return { pedidos: true, espera: false };
+  }
+  if (activos.espera && !activos.pedidos) {
+    return { pedidos: false, espera: true };
+  }
   if (dispositivo === "pedidos") {
     return { pedidos: activos.pedidos, espera: false };
   }
@@ -42,3 +53,7 @@ export const onlyModule = (m: ModuleFlags): ModuleId | null => {
   if (m.espera && !m.pedidos) return "espera";
   return null;
 };
+
+/** Home del panel según módulos visibles. */
+export const panelHomePath = (m: ModuleFlags): string =>
+  !m.pedidos && m.espera ? "/panel/espera" : "/panel";

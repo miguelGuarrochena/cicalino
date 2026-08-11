@@ -152,6 +152,7 @@ const EsperaPanelPage = () => {
   useEffect(() => {
     if (!branchConfigReady) return;
     if (!visibles.espera && visibles.pedidos) router.replace("/panel");
+    if (!visibles.espera && !visibles.pedidos) router.replace("/panel");
   }, [branchConfigReady, visibles, router]);
 
   /* Cerrar el QR al escanear solo en el alta (`qrAutoClose`).
@@ -433,6 +434,13 @@ const EsperaPanelPage = () => {
         toast(
           locale === "en" ? "Added to waitlist" : "Agregado a la lista",
           "success",
+        );
+      } else {
+        toast(
+          locale === "en"
+            ? "Couldn’t add the party. Check the connection and try again."
+            : "No se pudo agregar el grupo. Revisá la conexión y probá de nuevo.",
+          "error",
         );
       }
     } finally {
@@ -1074,7 +1082,7 @@ const EsperaPanelPage = () => {
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                disabled={creating}
+                disabled={creating || !name.trim()}
                 onClick={() => void onCrear()}
                 className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
               >
@@ -1227,7 +1235,33 @@ const EsperaPanelPage = () => {
                     ? "Elegí una mesa que entre al grupo. Que esté ocupada ahora no importa: la reserva es para más tarde."
                     : "Ninguna mesa sola alcanza: juntá 2 o más."}
               </p>
-              {!mesasParaReserva.length ? (
+              {!mesas.length ? (
+                <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
+                  {locale === "en" ? (
+                    <>
+                      No tables configured. Set the table count in{" "}
+                      <Link
+                        href="/panel/config"
+                        className="underline underline-offset-2"
+                      >
+                        Settings
+                      </Link>{" "}
+                      and save.
+                    </>
+                  ) : (
+                    <>
+                      No hay mesas configuradas. Definí la cantidad en{" "}
+                      <Link
+                        href="/panel/config"
+                        className="underline underline-offset-2"
+                      >
+                        Configuración
+                      </Link>{" "}
+                      y guardá.
+                    </>
+                  )}
+                </p>
+              ) : !mesasParaReserva.length ? (
                 <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
                   {locale === "en"
                     ? "Every table is already booked around that time."
