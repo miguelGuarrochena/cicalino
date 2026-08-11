@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
@@ -14,8 +14,12 @@ import {
   requestNotificationPermission,
   registerServiceWorker,
   subscribeWebPush,
+  pushErrorMessageKey,
+  canOfferWebPush,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
+
+const subscribeNoop = () => () => {};
 
 interface Props {
   token: string;
@@ -53,6 +57,11 @@ const senalListo = (opts?: {
 export const CustomerWaiting = ({ token, initial }: Props) => {
   const { t } = useApp();
   const { ready: hydrated, order } = useCustomerOrder(token, initial);
+  const pushDisponible = useSyncExternalStore(
+    subscribeNoop,
+    canOfferWebPush,
+    () => false,
+  );
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
@@ -61,6 +70,8 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   const vioEsperando = useRef(false);
 
   useEffect(() => {
+    if (!pushDisponible) return;
+
     let alive = true;
     void (async () => {
       await registerServiceWorker();
@@ -70,12 +81,14 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
       const r = await subscribeWebPush(token);
       if (!alive) return;
       setPushActivo(r.ok);
-      setPushError(r.ok ? null : t("cliente.pushError"));
+      setPushError(
+        r.ok ? null : t(`cliente.${pushErrorMessageKey(r.reason)}`),
+      );
     })();
     return () => {
       alive = false;
     };
-  }, [token, t]);
+  }, [token, t, pushDisponible]);
 
   const status = order?.status ?? "creado";
   const esListo = status === "listo";
@@ -126,6 +139,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   }, [order, pushActivo, t, token]);
 
   const activarAvisos = async () => {
+    if (!canOfferWebPush()) return;
     setPushCargando(true);
     setPushError(null);
     await registerServiceWorker();
@@ -138,7 +152,9 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
     }
     const r = await subscribeWebPush(token);
     setPushActivo(r.ok);
-    setPushError(r.ok ? null : t("cliente.pushError"));
+    setPushError(
+      r.ok ? null : t(`cliente.${pushErrorMessageKey(r.reason)}`),
+    );
     setPushCargando(false);
   };
 
@@ -175,7 +191,9 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
 
       {waiting && (
         <p className="u-in mb-6 w-full rounded-2xl border border-amber-300/80 bg-amber-100 px-3 py-2.5 text-xs font-medium leading-snug text-amber-950 sm:max-w-sm">
-          {pushActivo ? t("cliente.noCerrarPush") : t("cliente.noCerrar")}
+          {pushDisponible && pushActivo
+            ? t("cliente.noCerrarPush")
+            : t("cliente.noCerrar")}
         </p>
       )}
 
@@ -259,20 +277,30 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
 
         {!cerrado && (
           <div className="u-in mt-8 w-full sm:max-w-sm">
-            <button
-              type="button"
-              onClick={activarAvisos}
-              disabled={pushActivo || pushCargando}
-              className="w-full rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
-            >
-              {pushCargando
-                ? t("cliente.pushCargando")
-                : pushActivo
-                  ? `${t("cliente.activados")} 🔔`
-                  : t("cliente.activar")}
-            </button>
-            {pushError && (
-              <p className="mt-2 text-center text-xs text-red-500">{pushError}</p>
+            {pushDisponible ? (
+              <>
+                <button
+                  type="button"
+                  onClick={activarAvisos}
+                  disabled={pushActivo || pushCargando}
+                  className="w-full rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
+                >
+                  {pushCargando
+                    ? t("cliente.pushCargando")
+                    : pushActivo
+                      ? `${t("cliente.activados")} 🔔`
+                      : t("cliente.activar")}
+                </button>
+                {pushError && (
+                  <p className="mt-2 text-center text-xs text-red-500">
+                    {pushError}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="rounded-2xl border border-carbon/10 bg-carbon/[0.04] px-4 py-3 text-sm leading-snug text-carbon/75">
+                {t("cliente.mantenerPestana")}
+              </p>
             )}
           </div>
         )}

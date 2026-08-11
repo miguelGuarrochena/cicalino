@@ -1,15 +1,71 @@
 
 export type PushSubscribeResult =
   | { ok: true }
-  | { ok: false; reason: "no-vapid" | "unsupported" | "denied" | "server" | "error" };
+  | {
+      ok: false;
+      reason:
+        | "no-vapid"
+        | "unsupported"
+        | "denied"
+        | "server"
+        | "expired"
+        | "not-found"
+        | "rate-limited"
+        | "error";
+    };
+
+const isIosDevice = (): boolean => {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+};
+
+const pushManagerSupported = (): boolean =>
+  typeof window !== "undefined" &&
+  "serviceWorker" in navigator &&
+  "PushManager" in window &&
+  "Notification" in window;
+
+/**
+ * ¿Mostramos el botón de avisos push?
+ * En iPhone/iPad no: Web Push exige PWA y no queremos pedir instalar nada.
+ * El cliente deja la pestaña abierta; al volver se actualiza sola.
+ */
+export const canOfferWebPush = (): boolean => {
+  if (typeof window === "undefined") return false;
+  if (isIosDevice()) return false;
+  return pushManagerSupported();
+};
 
 export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
     return null;
   }
   try {
-    const reg = await navigator.serviceWorker.register("/sw.js");
+    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
     await navigator.serviceWorker.ready;
+    /* En Android a veces subscribe corre mientras el SW sigue installing. */
+    if (!reg.active) {
+      const worker = reg.installing ?? reg.waiting;
+      if (worker) {
+        await new Promise<void>((resolve) => {
+          if (worker.state === "activated") {
+            resolve();
+            return;
+          }
+          const onChange = () => {
+            if (worker.state === "activated" || worker.state === "redundant") {
+              worker.removeEventListener("statechange", onChange);
+              resolve();
+            }
+          };
+          worker.addEventListener("statechange", onChange);
+        });
+      }
+    }
     return reg;
   } catch {
     return null;
@@ -30,21 +86,62 @@ const clavesOk = (sub: PushSubscription): boolean => {
   return Boolean(j.endpoint && j.keys?.p256dh && j.keys?.auth);
 };
 
+const reasonFromServer = (
+  status: number,
+  body: { ok?: boolean; reason?: string } | null,
+): Extract<PushSubscribeResult, { ok: false }>["reason"] => {
+  const r = body?.reason;
+  if (r === "expired" || status === 410) return "expired";
+  if (r === "not-found" || status === 404) return "not-found";
+  if (r === "rate-limited" || status === 429) return "rate-limited";
+  return "server";
+};
+
+const postSubscription = async (
+  token: string,
+  sub: PushSubscription,
+): Promise<PushSubscribeResult> => {
+  const json = sub.toJSON();
+  const res = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      token,
+      subscription: {
+        endpoint: json.endpoint,
+        keys: {
+          p256dh: json.keys?.p256dh ?? "",
+          auth: json.keys?.auth ?? "",
+        },
+      },
+    }),
+  });
+  const body = (await res.json().catch(() => null)) as {
+    ok?: boolean;
+    reason?: string;
+  } | null;
+  if (!res.ok || !body?.ok) {
+    console.error("push/subscribe", res.status, body);
+    return { ok: false, reason: reasonFromServer(res.status, body) };
+  }
+  return { ok: true };
+};
+
 export const subscribeWebPush = async (
   token: string,
 ): Promise<PushSubscribeResult> => {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   if (!publicKey) return { ok: false, reason: "no-vapid" };
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+  if (!pushManagerSupported()) {
     return { ok: false, reason: "unsupported" };
   }
-  if (!("Notification" in window) || Notification.permission !== "granted") {
+  if (Notification.permission !== "granted") {
     return { ok: false, reason: "denied" };
   }
 
   try {
     const reg = await registerServiceWorker();
-    if (!reg) return { ok: false, reason: "unsupported" };
+    if (!reg?.pushManager) return { ok: false, reason: "unsupported" };
 
     let sub = await reg.pushManager.getSubscription();
     if (sub && !clavesOk(sub)) {
@@ -58,26 +155,7 @@ export const subscribeWebPush = async (
       });
     }
 
-    const json = sub.toJSON();
-    const res = await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        token,
-        subscription: {
-          endpoint: json.endpoint,
-          keys: {
-            p256dh: json.keys?.p256dh ?? "",
-            auth: json.keys?.auth ?? "",
-          },
-        },
-      }),
-    });
-    if (!res.ok) {
-      console.error("push/subscribe", res.status, await res.text().catch(() => ""));
-      return { ok: false, reason: "server" };
-    }
-    return { ok: true };
+    return await postSubscription(token, sub);
   } catch (err) {
     console.error("subscribeWebPush", err);
     try {
@@ -88,22 +166,7 @@ export const subscribeWebPush = async (
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
       });
-      const json = sub.toJSON();
-      const res = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          token,
-          subscription: {
-            endpoint: json.endpoint,
-            keys: {
-              p256dh: json.keys?.p256dh ?? "",
-              auth: json.keys?.auth ?? "",
-            },
-          },
-        }),
-      });
-      return res.ok ? { ok: true } : { ok: false, reason: "server" };
+      return await postSubscription(token, sub);
     } catch (err2) {
       console.error("subscribeWebPush/retry", err2);
       return { ok: false, reason: "error" };
@@ -117,6 +180,16 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
   if (Notification.permission === "denied") return false;
   const permiso = await Notification.requestPermission();
   return permiso === "granted";
+};
+
+export const pushErrorMessageKey = (
+  reason: Extract<PushSubscribeResult, { ok: false }>["reason"],
+): "pushDenegado" | "pushUnsupported" | "pushExpired" | "pushRateLimited" | "pushError" => {
+  if (reason === "denied") return "pushDenegado";
+  if (reason === "unsupported" || reason === "no-vapid") return "pushUnsupported";
+  if (reason === "expired" || reason === "not-found") return "pushExpired";
+  if (reason === "rate-limited") return "pushRateLimited";
+  return "pushError";
 };
 
 export const showReadyNotice = async (opts: {

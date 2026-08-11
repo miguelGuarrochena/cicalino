@@ -3,7 +3,7 @@
  * - Web Push: muestra el aviso cuando el pedido pasa a "listo".
  */
 
-const CACHE = "cicalino-v6";
+const CACHE = "cicalino-v7";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [
   OFFLINE_URL,
@@ -75,6 +75,27 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+const pathFromUrl = (raw) => {
+  try {
+    return new URL(raw, self.location.origin).pathname;
+  } catch {
+    return raw || "/";
+  }
+};
+
+const avisarClientes = async (targetPath) => {
+  const clientList = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+  for (const client of clientList) {
+    const clientPath = pathFromUrl(client.url);
+    if (!targetPath || clientPath === targetPath) {
+      client.postMessage({ type: "cicalino-refresh", url: targetPath || clientPath });
+    }
+  }
+};
+
 /* ---- Web Push ---- */
 self.addEventListener("push", (event) => {
   let data = {};
@@ -90,6 +111,7 @@ self.addEventListener("push", (event) => {
   // Copy calmado + tag estable: Chrome Android marca como spam emojis,
   // urgencia y muchas notificaciones distintas del mismo sitio.
   const titulo = data.titulo || "Cicalino";
+  const targetPath = pathFromUrl(data.url || "/");
   const opciones = {
     body: data.body || "Tu pedido está listo para retirar.",
     icon: "/icon-192.png",
@@ -97,26 +119,38 @@ self.addEventListener("push", (event) => {
     vibrate: [200, 100, 200],
     tag: data.tag || "cicalino-pedido",
     renotify: Boolean(data.tag),
-    data: { url: data.url || "/" },
+    data: { url: targetPath },
   };
-  event.waitUntil(self.registration.showNotification(titulo, opciones));
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(titulo, opciones),
+      // Si la pestaña sigue viva en segundo plano, que refresque el estado
+      // sin esperar a que el usuario toque la notificación.
+      avisarClientes(targetPath),
+    ]),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = event.notification.data?.url || "/";
+  const targetPath = pathFromUrl(event.notification.data?.url || "/");
   // Si la pestaña del pedido ya está abierta, enfocarla en vez de abrir otra:
   // la que estaba abierta es la que viene siguiendo el estado.
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clientList) => {
+      .then(async (clientList) => {
         for (const client of clientList) {
-          if (new URL(client.url).pathname === target && "focus" in client) {
-            return client.focus();
+          if (pathFromUrl(client.url) === targetPath && "focus" in client) {
+            const focused = await client.focus();
+            focused.postMessage({
+              type: "cicalino-refresh",
+              url: targetPath,
+            });
+            return focused;
           }
         }
-        return self.clients.openWindow(target);
+        return self.clients.openWindow(targetPath);
       }),
   );
 });

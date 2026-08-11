@@ -23,8 +23,8 @@ export const POST = async (req: Request) => {
   }
   const { token, subscription: sub } = v.data;
 
-  const porToken = await sharedRateLimit(`sub:${token}`, 5, 60_000);
-  const porIp = await sharedRateLimit(`sub:ip:${clientIp(req)}`, 30, 60_000);
+  const porToken = await sharedRateLimit(`sub:${token}`, 12, 60_000);
+  const porIp = await sharedRateLimit(`sub:ip:${clientIp(req)}`, 40, 60_000);
   if (!porToken.ok || !porIp.ok) {
     const espera = Math.max(porToken.retryAfter, porIp.retryAfter);
     return NextResponse.json(
@@ -42,7 +42,10 @@ export const POST = async (req: Request) => {
   let waitlistId: string | null = null;
   if (pedido) {
     if (qrVencido(pedido.qr_expira_en as string | null)) {
-      return NextResponse.json({ ok: false, reason: "expired" });
+      return NextResponse.json(
+        { ok: false, reason: "expired" },
+        { status: 410 },
+      );
     }
   } else {
     const { data: espera } = await admin
@@ -50,9 +53,17 @@ export const POST = async (req: Request) => {
       .select("id, qr_expira_en")
       .eq("qr_token", token)
       .maybeSingle();
-    if (!espera) return NextResponse.json({ ok: false, reason: "not-found" });
+    if (!espera) {
+      return NextResponse.json(
+        { ok: false, reason: "not-found" },
+        { status: 404 },
+      );
+    }
     if (qrVencido(espera.qr_expira_en as string | null)) {
-      return NextResponse.json({ ok: false, reason: "expired" });
+      return NextResponse.json(
+        { ok: false, reason: "expired" },
+        { status: 410 },
+      );
     }
     waitlistId = espera.id;
   }

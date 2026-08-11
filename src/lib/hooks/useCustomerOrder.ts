@@ -6,6 +6,10 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { orderByToken, useOrdersStore } from "@/lib/store/orders-store";
 import type { IdentificationMode } from "@/lib/store/config-store";
 import type { OrderStatus } from "@/lib/types";
+import {
+  attachCustomerWake,
+  tabVisible,
+} from "@/lib/hooks/customerPollWake";
 
 export interface CustomerOrder {
   reference: string;
@@ -105,6 +109,7 @@ export const useCustomerOrder = (
     const arranque = initialRef.current;
     let active = true;
     let inFlight = false;
+    let pendingWake = false;
     let detenido = false;
     let fallos = 0;
     let estado: OrderStatus =
@@ -129,15 +134,20 @@ export const useCustomerOrder = (
       limpiarTimer();
       if (!active || detenido) return;
       // Pestaña oculta: no se programa nada. Se retoma en onWake.
-      if (document.visibilityState !== "visible") return;
+      if (!tabVisible()) return;
       const delay = proximoDelay();
       if (!delay) return;
       timer = window.setTimeout(() => void load(), delay);
     };
 
     const load = async () => {
-      if (!active || detenido || inFlight) return;
+      if (!active || detenido) return;
+      if (inFlight) {
+        pendingWake = true;
+        return;
+      }
       inFlight = true;
+      pendingWake = false;
       try {
         const res = await fetch(`/api/p/${token}`, { cache: "no-store" });
 
@@ -176,19 +186,24 @@ export const useCustomerOrder = (
         inFlight = false;
         if (active) {
           setReady(true);
-          programar();
+          if (pendingWake) {
+            pendingWake = false;
+            void load();
+          } else {
+            programar();
+          }
         }
       }
     };
 
     const onWake = () => {
-      if (document.visibilityState !== "visible") return;
+      if (!tabVisible()) return;
       limpiarTimer();
       void load();
     };
 
     const onHide = () => {
-      if (document.visibilityState === "hidden") limpiarTimer();
+      if (!tabVisible()) limpiarTimer();
     };
 
     /* Si el servidor ya nos dio el pedido, la primera consulta no hace falta:
@@ -203,22 +218,14 @@ export const useCustomerOrder = (
       void load();
     }
 
-    document.addEventListener("visibilitychange", onWake);
     document.addEventListener("visibilitychange", onHide);
-    window.addEventListener("focus", onWake);
-    window.addEventListener("online", onWake);
-    // iOS restaura la pestaña desde bfcache al volver de otra app y no siempre
-    // dispara visibilitychange.
-    window.addEventListener("pageshow", onWake);
+    const detachWake = attachCustomerWake(onWake);
 
     return () => {
       active = false;
       limpiarTimer();
-      document.removeEventListener("visibilitychange", onWake);
       document.removeEventListener("visibilitychange", onHide);
-      window.removeEventListener("focus", onWake);
-      window.removeEventListener("online", onWake);
-      window.removeEventListener("pageshow", onWake);
+      detachWake();
     };
   }, [live, token]);
 

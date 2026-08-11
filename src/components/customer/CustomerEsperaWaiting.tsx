@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
@@ -14,8 +14,12 @@ import {
   requestNotificationPermission,
   registerServiceWorker,
   subscribeWebPush,
+  pushErrorMessageKey,
+  canOfferWebPush,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
+
+const subscribeNoop = () => () => {};
 
 interface Props {
   token: string;
@@ -51,6 +55,11 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const { t, locale } = useApp();
   const { ready, found, espera } = useCustomerWaitlist(token);
   const demoCancelar = useWaitlistStore((s) => s.cambiarEstado);
+  const pushDisponible = useSyncExternalStore(
+    subscribeNoop,
+    canOfferWebPush,
+    () => false,
+  );
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
@@ -61,6 +70,8 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const vioEsperando = useRef(false);
 
   useEffect(() => {
+    if (!pushDisponible) return;
+
     let alive = true;
     void (async () => {
       await registerServiceWorker();
@@ -74,7 +85,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     return () => {
       alive = false;
     };
-  }, [token]);
+  }, [token, pushDisponible]);
 
   useEffect(() => {
     if (!espera) return;
@@ -126,6 +137,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   }, [espera, pushActivo, token, t]);
 
   const activarAvisos = async () => {
+    if (!canOfferWebPush()) return;
     setPushCargando(true);
     setPushError(null);
     await registerServiceWorker();
@@ -138,7 +150,9 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     }
     const r = await subscribeWebPush(token);
     setPushActivo(r.ok);
-    setPushError(r.ok ? null : t("clienteMesa.pushError"));
+    setPushError(
+      r.ok ? null : t(`clienteMesa.${pushErrorMessageKey(r.reason)}`),
+    );
     setPushCargando(false);
   };
 
@@ -195,7 +209,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
 
       {waiting && (
         <p className="u-in mb-6 w-full rounded-2xl border border-espera/40 bg-espera/10 px-3 py-2.5 text-xs font-medium leading-snug text-espera sm:max-w-sm">
-          {pushActivo
+          {pushDisponible && pushActivo
             ? t("clienteMesa.noCerrarPush")
             : t("clienteMesa.noCerrar")}
         </p>
@@ -338,20 +352,28 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
 
         {!cerrado && (
           <div className="u-in mt-8 flex w-full flex-col gap-3 sm:max-w-sm">
-            <button
-              type="button"
-              onClick={() => void activarAvisos()}
-              disabled={pushActivo || pushCargando}
-              className="w-full rounded-full bg-espera px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte active:scale-95 disabled:opacity-70"
-            >
-              {pushCargando
-                ? t("clienteMesa.pushCargando")
-                : pushActivo
-                  ? `${t("clienteMesa.activados")} 🔔`
-                  : t("clienteMesa.activar")}
-            </button>
-            {pushError && (
-              <p className="text-center text-xs text-red-500">{pushError}</p>
+            {pushDisponible ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void activarAvisos()}
+                  disabled={pushActivo || pushCargando}
+                  className="w-full rounded-full bg-espera px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte active:scale-95 disabled:opacity-70"
+                >
+                  {pushCargando
+                    ? t("clienteMesa.pushCargando")
+                    : pushActivo
+                      ? `${t("clienteMesa.activados")} 🔔`
+                      : t("clienteMesa.activar")}
+                </button>
+                {pushError && (
+                  <p className="text-center text-xs text-red-500">{pushError}</p>
+                )}
+              </>
+            ) : (
+              <p className="rounded-2xl border border-carbon/10 bg-carbon/[0.04] px-4 py-3 text-sm leading-snug text-carbon/75">
+                {t("clienteMesa.mantenerPestana")}
+              </p>
             )}
             {puedeCancelar && (
               <button

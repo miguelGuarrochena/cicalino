@@ -58,6 +58,7 @@ describe("Medium — push/subscribe respeta qr_expira_en", () => {
     } as never);
 
     const res = await POST(req());
+    expect(res.status).toBe(410);
     expect(await res.json()).toEqual({ ok: false, reason: "expired" });
     expect(upsert).not.toHaveBeenCalled();
   });
@@ -94,6 +95,7 @@ describe("Medium — push/subscribe respeta qr_expira_en", () => {
     } as never);
 
     const res = await POST(req());
+    expect(res.status).toBe(410);
     expect(await res.json()).toEqual({ ok: false, reason: "expired" });
     expect(calls).toBe(1);
     expect(upsert).not.toHaveBeenCalled();
