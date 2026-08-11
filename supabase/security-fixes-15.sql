@@ -94,10 +94,12 @@ begin
 end;
 $$;
 
+revoke all on function public.verificar_pin_empleado(uuid, text)
+  from public, anon;
 grant execute on function public.verificar_pin_empleado(uuid, text) to authenticated;
 
 comment on function public.verificar_pin_empleado(uuid, text) is
-  'Verifica PIN de empleado. Rate-limited por (uid, empleado). SECURITY DEFINER.';
+  'Verifica PIN de empleado. Solo authenticated (server action / panel). Rate-limited por (uid, empleado). SECURITY DEFINER.';
 
 -- ---------------------------------------------------------------------------
 -- 2) crear_pedido: jornada desde locales.hora_corte (ignora p_desde/p_expira

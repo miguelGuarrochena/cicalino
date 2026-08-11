@@ -36,6 +36,15 @@ describe("Prod final — security-fixes-15 + hardening", () => {
     expect(fix).toMatch(/v_ventana_sec int := 60/);
   });
 
+  it("verificar_pin_empleado revoca PUBLIC/anon y deja authenticated", () => {
+    expect(fix).toMatch(
+      /revoke all on function public\.verificar_pin_empleado\s*\(\s*uuid\s*,\s*text\s*\)\s*from public,\s*anon/i,
+    );
+    expect(fix).toMatch(
+      /grant execute on function public\.verificar_pin_empleado\s*\(\s*uuid\s*,\s*text\s*\)\s*to authenticated/i,
+    );
+  });
+
   it("crear_pedido calcula jornada desde locales.hora_corte", () => {
     expect(fix).toMatch(/coalesce\(l\.hora_corte, 6\)/);
     expect(fix).toMatch(/America\/Argentina\/Buenos_Aires/);

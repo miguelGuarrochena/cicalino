@@ -237,6 +237,7 @@ requisitos (archivo, necesita) as (
     ('security-fixes-13.sql', '—'),
     ('security-fixes-14.sql', 'reservas-expirar.sql'),
     ('security-fixes-15.sql', 'security-fixes-03.sql, security-fixes-10.sql'),
+    ('security-fixes-16.sql', 'security-fixes-15.sql'),
     ('realtime-organizaciones.sql', '—'),
     ('reservas-aviso.sql', 'modulo-espera.sql, reservas-mesa.sql'),
     ('reservas-expirar.sql', 'security-fixes-01.sql, reservas-mesa.sql'),
