@@ -48,5 +48,6 @@
   "security-fixes-07.sql",
   "security-fixes-13.sql",
   "security-fixes-14.sql",
-  "security-fixes-15.sql"
+  "security-fixes-15.sql",
+  "security-fixes-16.sql"
 ]

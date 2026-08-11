@@ -227,4 +227,19 @@ describe.skipIf(!enabled)("Integration — security grants smoke", () => {
     ]]);
     expect(rows).toEqual([]);
   });
+
+  it("verificar_pin_empleado: authenticated sí, public/anon no", async () => {
+    const { rows } = await client.query(`
+      select
+        has_function_privilege('public', 'public.verificar_pin_empleado(uuid, text)', 'execute') as pub,
+        has_function_privilege('anon', 'public.verificar_pin_empleado(uuid, text)', 'execute') as anon,
+        has_function_privilege('authenticated', 'public.verificar_pin_empleado(uuid, text)', 'execute') as auth,
+        has_function_privilege('service_role', 'public.verificar_pin_empleado(uuid, text)', 'execute') as service
+    `);
+    expect(rows[0].pub).toBe(false);
+    expect(rows[0].anon).toBe(false);
+    expect(rows[0].auth).toBe(true);
+    /* service_role hereda o no según grants; el flujo legítimo no lo usa. */
+    expect(typeof rows[0].service).toBe("boolean");
+  });
 });
