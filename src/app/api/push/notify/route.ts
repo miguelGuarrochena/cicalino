@@ -3,6 +3,8 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { webpush, vapidConfigured } from "@/lib/push/server";
 import { parseInput, pushNotifySchema } from "@/lib/schemas";
+import { sharedRateLimit } from "@/lib/security/rateLimitShared";
+import { clientIp } from "@/lib/security/ip";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +24,26 @@ export const POST = async (req: Request) => {
     return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
   }
 
+  const porUser = await sharedRateLimit(`push-notify:u:${user.id}`, 30, 60_000);
+  const porIp = await sharedRateLimit(
+    `push-notify:ip:${clientIp(req)}`,
+    60,
+    60_000,
+  );
+  if (!porUser.ok || !porIp.ok) {
+    const espera = Math.max(porUser.retryAfter, porIp.retryAfter);
+    return NextResponse.json(
+      { ok: false, reason: "rate-limited" },
+      { status: 429, headers: { "Retry-After": String(espera) } },
+    );
+  }
+
   const admin = createAdminSupabase();
   if (!admin) return NextResponse.json({ ok: false, reason: "not-configured" });
+
+  if (!vapidConfigured) {
+    return NextResponse.json({ ok: true, enviados: 0, reason: "no-vapid" });
+  }
 
   const ahora = new Date().toISOString();
 
@@ -35,15 +55,6 @@ export const POST = async (req: Request) => {
       .single();
     if (!espera) {
       return NextResponse.json({ ok: false, reason: "forbidden" }, { status: 403 });
-    }
-
-    await admin
-      .from("esperas")
-      .update({ avisado_en: ahora })
-      .eq("id", waitlistId);
-
-    if (!vapidConfigured) {
-      return NextResponse.json({ ok: true, enviados: 0, reason: "no-vapid" });
     }
 
     const { data: subs } = await admin
@@ -78,6 +89,16 @@ export const POST = async (req: Request) => {
         }
       }
     }
+
+    /* Solo sellar si hubo envío (o no había suscripciones): evita marcar
+     * avisado cuando VAPID/envío falló y el cliente nunca vio el push. */
+    if (enviados > 0 || !(subs ?? []).length) {
+      await admin
+        .from("esperas")
+        .update({ avisado_en: ahora })
+        .eq("id", waitlistId);
+    }
+
     return NextResponse.json({ ok: true, enviados });
   }
 
@@ -88,12 +109,6 @@ export const POST = async (req: Request) => {
     .single();
   if (!pedido) {
     return NextResponse.json({ ok: false, reason: "forbidden" }, { status: 403 });
-  }
-
-  await admin.from("pedidos").update({ avisado_en: ahora }).eq("id", orderId!);
-
-  if (!vapidConfigured) {
-    return NextResponse.json({ ok: true, enviados: 0, reason: "no-vapid" });
   }
 
   const { data: subs } = await admin
@@ -128,5 +143,10 @@ export const POST = async (req: Request) => {
       }
     }
   }
+
+  if (enviados > 0 || !(subs ?? []).length) {
+    await admin.from("pedidos").update({ avisado_en: ahora }).eq("id", orderId!);
+  }
+
   return NextResponse.json({ ok: true, enviados });
 };

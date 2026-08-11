@@ -52,21 +52,25 @@ export const GET = async (req: Request) => {
   }
 
   /* El lock evita que dos corridas solapadas manden los mails dos veces.
-   * Si todavía no corriste supabase/cron-lock.sql la RPC no existe: en ese
-   * caso seguimos igual y lo avisamos. El lock protege de duplicados, no es
-   * un control de seguridad, así que no vale la pena romper el cobro por él.
-   * El token de ownership evita que un retry suelte el lock de otra corrida. */
+   * Fail-closed si la RPC falla: sin lock, un reintento de Vercel duplicaría
+   * cobros/emails. El token de ownership evita que un retry suelte el lock
+   * de otra corrida. */
   const { data: lockToken, error: lockErr } = await admin.rpc("tomar_cron_lock", {
     p_nombre: LOCK,
     p_segundos: LOCK_SEGUNDOS,
   });
 
   if (lockErr) {
-    console.warn(
-      "cron/cobros: no se pudo tomar el lock, sigo sin él. ¿Falta correr supabase/cron-lock.sql?",
+    console.error(
+      "cron/cobros: no se pudo tomar el lock, aborto. ¿Falta security-fixes-12?",
       lockErr.message,
     );
-  } else if (!lockToken) {
+    return NextResponse.json(
+      { ok: false, reason: "lock-unavailable" },
+      { status: 503 },
+    );
+  }
+  if (!lockToken) {
     return NextResponse.json({ ok: true, reason: "ya-corriendo", saltado: true });
   }
 

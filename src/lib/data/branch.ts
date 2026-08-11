@@ -149,24 +149,6 @@ export const setEmployeePin = async (
   return { ok: true };
 };
 
-export const verifyEmployeePin = async (
-  employeeId: string,
-  pin: string,
-): Promise<{ id: string; name: string } | null> => {
-  const supabase = createBrowserSupabase();
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc("verificar_pin_empleado", {
-    p_empleado: employeeId,
-    p_pin: pin,
-  });
-  if (error) {
-    console.error("verifyEmployeePin", error.message);
-    return null;
-  }
-  const fila = Array.isArray(data) ? data[0] : data;
-  return fila ? { id: fila.id, name: fila.nombre } : null;
-};
-
 export type InsertEmployeeResult =
   | { ok: true; emp: EmployeeUI }
   | { ok: false; reason: "nombre_dup" | "pin_dup" | "error" };

@@ -107,10 +107,13 @@ describe("Critical #3 — lógica del lock no se altera", () => {
 });
 
 describe("Critical #3 — llamador legítimo (cron / service_role)", () => {
-  it("solo el cron invoca tomar/soltar_cron_lock en el código de la app", () => {
+  it("solo el cron y billingReminders invocan tomar/soltar_cron_lock", () => {
     expect(cronSrc).toContain("tomar_cron_lock");
     expect(cronSrc).toContain("soltar_cron_lock");
 
+    const allowed = new Set([
+      join(root, "src/lib/server/billingReminders.ts"),
+    ]);
     const forbiddenRoots = [
       "src/lib/actions",
       "src/lib/data",
@@ -120,6 +123,7 @@ describe("Critical #3 — llamador legítimo (cron / service_role)", () => {
     ];
     for (const base of forbiddenRoots) {
       for (const file of walk(join(root, base))) {
+        if (allowed.has(file)) continue;
         const src = readFileSync(file, "utf8");
         expect(
           src.includes("tomar_cron_lock") || src.includes("soltar_cron_lock"),
@@ -127,6 +131,13 @@ describe("Critical #3 — llamador legítimo (cron / service_role)", () => {
         ).toBe(false);
       }
     }
+
+    const billing = readFileSync(
+      join(root, "src/lib/server/billingReminders.ts"),
+      "utf8",
+    );
+    expect(billing).toContain("tomar_cron_lock");
+    expect(billing).toContain("cobros-interno");
   });
 
   it("el cron usa createAdminSupabase (service_role), CRON_SECRET y el flujo tomar→procesar→soltar", () => {

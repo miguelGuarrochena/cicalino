@@ -55,7 +55,8 @@ export const GET = async (
     await supabase
       .from("pedidos")
       .update({ visto_en: new Date().toISOString() })
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .is("visto_en", null);
   }
 
   const local = Array.isArray(data.locales) ? data.locales[0] : data.locales;
