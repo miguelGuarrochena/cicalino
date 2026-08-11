@@ -14,6 +14,7 @@ import {
   requestNotificationPermission,
   registerServiceWorker,
   subscribeWebPush,
+  pushErrorMessageKey,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
 
@@ -138,7 +139,9 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     }
     const r = await subscribeWebPush(token);
     setPushActivo(r.ok);
-    setPushError(r.ok ? null : t("clienteMesa.pushError"));
+    setPushError(
+      r.ok ? null : t(`clienteMesa.${pushErrorMessageKey(r.reason)}`),
+    );
     setPushCargando(false);
   };
 

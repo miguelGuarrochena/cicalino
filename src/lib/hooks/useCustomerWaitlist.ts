@@ -5,6 +5,10 @@ import { supabaseConfigured } from "@/lib/supabase/config";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import type { WaitlistStatus } from "@/lib/types";
+import {
+  attachCustomerWake,
+  tabVisible,
+} from "@/lib/hooks/customerPollWake";
 
 export interface CustomerWaitlistQueue {
   gruposDelante: number;
@@ -136,6 +140,7 @@ export const useCustomerWaitlist = (token: string): Result => {
     if (!live) return;
     let active = true;
     let inFlight = false;
+    let pendingWake = false;
     let detenido = false;
     let fallos = 0;
     let estado: WaitlistStatus = "esperando";
@@ -158,15 +163,20 @@ export const useCustomerWaitlist = (token: string): Result => {
     const programar = () => {
       limpiarTimer();
       if (!active || detenido) return;
-      if (document.visibilityState !== "visible") return;
+      if (!tabVisible()) return;
       const delay = proximoDelay();
       if (!delay) return;
       timer = window.setTimeout(() => void load(), delay);
     };
 
     const load = async () => {
-      if (!active || detenido || inFlight) return;
+      if (!active || detenido) return;
+      if (inFlight) {
+        pendingWake = true;
+        return;
+      }
       inFlight = true;
+      pendingWake = false;
       try {
         const res = await fetch(`/api/e/${token}`, { cache: "no-store" });
         if (res.status === 429 || res.status >= 500) {
@@ -205,21 +215,35 @@ export const useCustomerWaitlist = (token: string): Result => {
         inFlight = false;
         if (active) {
           setReady(true);
-          programar();
+          if (pendingWake) {
+            pendingWake = false;
+            void load();
+          } else {
+            programar();
+          }
         }
       }
     };
 
     const onWake = () => {
-      if (document.visibilityState === "visible") void load();
+      if (!tabVisible()) return;
+      limpiarTimer();
+      void load();
     };
-    document.addEventListener("visibilitychange", onWake);
+
+    const onHide = () => {
+      if (!tabVisible()) limpiarTimer();
+    };
+
+    document.addEventListener("visibilitychange", onHide);
+    const detachWake = attachCustomerWake(onWake);
     void load();
 
     return () => {
       active = false;
       limpiarTimer();
-      document.removeEventListener("visibilitychange", onWake);
+      document.removeEventListener("visibilitychange", onHide);
+      detachWake();
     };
   }, [live, token]);
 

@@ -338,9 +338,15 @@ const dict = {
       activados: "Avisos activados",
       pushCargando: "Activando avisos…",
       pushError:
-        "No se pudo activar el aviso en segundo plano. Probá de nuevo o revisá el permiso de Chrome.",
+        "No se pudo activar el aviso. Probá de nuevo o revisá el permiso de notificaciones del navegador.",
       pushDenegado:
-        "Chrome bloqueó las notificaciones. Activálas en el candado de la barra de dirección.",
+        "El navegador bloqueó las notificaciones. Activálas en el candado de la barra de dirección.",
+      pushUnsupported:
+        "Este navegador no admite avisos en segundo plano. En iPhone, agregá la página a la pantalla de inicio (iOS 16.4+) y abrila desde ahí.",
+      pushExpired:
+        "Este QR ya no admite avisos (venció o no es válido). Pedí uno nuevo en el mostrador.",
+      pushRateLimited:
+        "Demasiados intentos. Esperá un momento y probá de nuevo.",
       espera: "Actualiza solo",
       noCerrar:
         "No cierres esta pestaña mientras esperás. Si te vas a WhatsApp, volvé acá o activá avisos.",
@@ -366,9 +372,15 @@ const dict = {
       activados: "Avisos activados",
       pushCargando: "Activando avisos…",
       pushError:
-        "No se pudo activar el aviso en segundo plano. Probá de nuevo o revisá el permiso de Chrome.",
+        "No se pudo activar el aviso. Probá de nuevo o revisá el permiso de notificaciones del navegador.",
       pushDenegado:
-        "Chrome bloqueó las notificaciones. Activálas en el candado de la barra de dirección.",
+        "El navegador bloqueó las notificaciones. Activálas en el candado de la barra de dirección.",
+      pushUnsupported:
+        "Este navegador no admite avisos en segundo plano. En iPhone, agregá la página a la pantalla de inicio (iOS 16.4+) y abrila desde ahí.",
+      pushExpired:
+        "Este QR ya no admite avisos (venció o no es válido). Pedí uno nuevo en el mostrador.",
+      pushRateLimited:
+        "Demasiados intentos. Esperá un momento y probá de nuevo.",
       espera: "Actualiza solo",
       noCerrar:
         "No cierres esta pestaña mientras esperás. Si te vas a WhatsApp, volvé acá o activá avisos.",
@@ -896,9 +908,15 @@ const dict = {
       activados: "Notifications on",
       pushCargando: "Enabling notices…",
       pushError:
-        "Couldn’t enable background notices. Try again or check Chrome’s permission.",
+        "Couldn’t enable background notices. Try again or check the browser notification permission.",
       pushDenegado:
-        "Chrome blocked notifications. Enable them via the lock icon in the address bar.",
+        "The browser blocked notifications. Enable them via the lock icon in the address bar.",
+      pushUnsupported:
+        "This browser can’t show background notices. On iPhone, add the page to your Home Screen (iOS 16.4+) and open it from there.",
+      pushExpired:
+        "This QR can no longer enable notices (expired or invalid). Ask for a new one at the counter.",
+      pushRateLimited:
+        "Too many attempts. Wait a moment and try again.",
       espera: "Updates on its own",
       noCerrar:
         "Don't close this tab while waiting. If you leave for WhatsApp, come back or enable notices.",
@@ -924,9 +942,15 @@ const dict = {
       activados: "Notifications on",
       pushCargando: "Enabling notices…",
       pushError:
-        "Couldn’t enable background notices. Try again or check Chrome’s permission.",
+        "Couldn’t enable background notices. Try again or check the browser notification permission.",
       pushDenegado:
-        "Chrome blocked notifications. Enable them via the lock icon in the address bar.",
+        "The browser blocked notifications. Enable them via the lock icon in the address bar.",
+      pushUnsupported:
+        "This browser can’t show background notices. On iPhone, add the page to your Home Screen (iOS 16.4+) and open it from there.",
+      pushExpired:
+        "This QR can no longer enable notices (expired or invalid). Ask for a new one at the counter.",
+      pushRateLimited:
+        "Too many attempts. Wait a moment and try again.",
       espera: "Updates on its own",
       noCerrar:
         "Don't close this tab while waiting. If you leave for WhatsApp, come back or enable notices.",
