@@ -172,6 +172,9 @@ Archivos: `src/lib/push/server.ts`, `src/app/api/push/{subscribe,notify}/route.t
 
 - Upstash en Vercel (rate limit global); CSP_ENFORCE=1 cuando la consola esté limpia.
 - Aplicar fixes SQL: `pnpm db:security` (o `node scripts/db-apply-security.mjs --from=12`).
+- Migraciones ordenadas: `pnpm db:sql` (pendientes) / `pnpm db:sql:baseline` (DB ya alineada).
+  Orden canónico: `supabase/orden.json`. Tracker: `cicalino_schema_migrations`.
+  (`pnpm db:migrate` sigue siendo Drizzle.)
 - Smoke de grants en la DB: `pnpm test:db` (requiere `DATABASE_URL` en `.env.local`).
 - Mercado Pago si el volumen lo justifica; tests E2E.
 

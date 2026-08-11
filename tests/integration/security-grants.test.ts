@@ -124,4 +124,14 @@ describe.skipIf(!enabled)("Integration — security grants smoke", () => {
     `);
     expect(rows[0].ok).toBe(true);
   });
+
+  it("cicalino_schema_migrations existe (tracker)", async () => {
+    const { rows } = await client.query(`
+      select exists(
+        select 1 from information_schema.tables
+        where table_schema='public' and table_name='cicalino_schema_migrations'
+      ) as ok
+    `);
+    expect(rows[0].ok).toBe(true);
+  });
 });

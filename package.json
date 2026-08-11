@@ -17,6 +17,8 @@
     "test:run": "vitest run",
     "test:db": "RUN_DB_CHECKS=1 vitest run tests/integration",
     "db:security": "node scripts/db-apply-security.mjs",
+    "db:sql": "node scripts/db-migrate.mjs",
+    "db:sql:baseline": "node scripts/db-migrate.mjs --baseline",
     "test:e2e": "playwright test",
     "lint:fix": "eslint . --fix",
     "db:pull": "drizzle-kit pull"

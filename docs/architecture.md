@@ -128,7 +128,9 @@ se borran; el QR expira al cierre de jornada.
 
 ## Pendiente
 
-- Migraciones deterministas (Supabase CLI / carpeta `migrations`).
+- Migraciones deterministas: `supabase/orden.json` + `pnpm db:sql` /
+  `pnpm db:sql:baseline` (tabla `cicalino_schema_migrations`). Queda formalizar
+  el flujo tipo Supabase CLI a largo plazo.
 - Más tests de integración (RLS cross-tenant, API QR, cron end-to-end).
   Smoke de grants: `pnpm test:db`.
 - `CSP_ENFORCE=1` en producción cuando no haya violaciones.
