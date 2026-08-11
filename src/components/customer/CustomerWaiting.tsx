@@ -19,6 +19,7 @@ import {
   notificationPermissionGranted,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
+import { alertCustomerReady, unlockAudio } from "@/lib/sound";
 
 const subscribeNoop = () => () => {};
 
@@ -35,9 +36,7 @@ const senalListo = (opts?: {
   body?: string;
   notifLocal?: boolean;
 }) => {
-  if ("vibrate" in navigator) {
-    navigator.vibrate?.([200, 100, 200]);
-  }
+  alertCustomerReady();
   void fireReadyConfetti();
   if (
     opts?.notifLocal &&
@@ -90,6 +89,15 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
       alive = false;
     };
   }, [token, pushDisponible]);
+
+  /* Desbloquear audio con el primer toque: sin gesto el navegador bloquea el beep. */
+  useEffect(() => {
+    const unlock = () => {
+      void unlockAudio();
+    };
+    document.addEventListener("pointerdown", unlock, { once: true });
+    return () => document.removeEventListener("pointerdown", unlock);
+  }, []);
 
   const status = order?.status ?? "creado";
   const esListo = status === "listo";
@@ -145,6 +153,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
     setPushError(null);
     try {
       await registerServiceWorker();
+      void unlockAudio();
       const permiso = await requestNotificationPermission();
       if (!permiso) {
         setPushActivo(false);

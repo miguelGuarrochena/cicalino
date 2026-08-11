@@ -219,7 +219,7 @@ export const showReadyNotice = async (opts: {
     tag: `cicalino-${opts.reference}`,
     renotify: true,
     data: { url: opts.url },
-    vibrate: [200, 100, 200],
+    vibrate: [220, 100, 220, 100, 320],
   } as NotificationOptions & { renotify?: boolean; vibrate?: number[] };
 
   try {

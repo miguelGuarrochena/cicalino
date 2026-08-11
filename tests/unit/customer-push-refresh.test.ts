@@ -12,7 +12,7 @@ describe("Customer push + refresh", () => {
     expect(sw).toContain('type: "cicalino-refresh"');
     expect(sw).toContain("avisarClientes");
     expect(sw).toContain("notificationclick");
-    expect(sw).toContain("cicalino-v7");
+    expect(sw).toContain("cicalino-v8");
   });
 
   it("pedido y espera comparten wake + pendingWake", () => {

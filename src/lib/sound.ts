@@ -70,6 +70,36 @@ export const vibrate = (pattern: number | number[] = 120) => {
   }
 };
 
+/** Aviso al cliente cuando el pedido/mesa está listo.
+ * Vibrar siempre (el OS respeta modo vibrar/silencio).
+ * Sonar si el teléfono no está en silencio — no usa el mute del mostrador. */
+export const alertCustomerReady = () => {
+  vibrate([220, 100, 220, 100, 320]);
+  if (typeof window === "undefined") return;
+  try {
+    const c = getCtx();
+    if (!c) return;
+    if (c.state === "suspended") void c.resume();
+    const beep = (freq: number, ms: number, delay: number) => {
+      const t0 = c.currentTime + delay;
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = "sine";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.28, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + ms / 1000);
+      o.connect(g);
+      g.connect(c.destination);
+      o.start(t0);
+      o.stop(t0 + ms / 1000);
+    };
+    beep(988, 160, 0);
+    beep(1319, 220, 0.14);
+  } catch {
+  }
+};
+
 export const dingTest = () => {
   tone(880, 100);
 };

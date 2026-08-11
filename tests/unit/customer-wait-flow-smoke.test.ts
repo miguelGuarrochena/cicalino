@@ -183,8 +183,24 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     expect(panel).toMatch(/setInterval\(check,\s*1_200\)/);
     expect(esperaPanel).toContain("fetchEsperaSeen");
     expect(esperaPanel).toMatch(/setInterval\(check,\s*1_200\)/);
-    /* Ya no se corta el check solo porque el pedido está en la página. */
-    expect(panel).not.toMatch(/if \(fresh\) return;/);
+    /* Auto-cierre solo en alta nueva; "Ver QR" fuerza mostrar. */
+    expect(panel).toContain("qrAutoClose");
+    expect(panel).toMatch(/!\(qrAutoClose && qrVisto\)/);
+    expect(panel).toContain("setQrAutoClose(false)");
+    expect(esperaPanel).toContain("qrAutoClose");
+    expect(esperaPanel).toMatch(/!\(qrAutoClose && qrVisto\)/);
+  });
+
+  it("cliente vibra y suena al pasar a listo", () => {
+    const waiting = read("src/components/customer/CustomerWaiting.tsx");
+    const espera = read("src/components/customer/CustomerEsperaWaiting.tsx");
+    const sound = read("src/lib/sound.ts");
+    expect(sound).toContain("alertCustomerReady");
+    expect(sound).toContain("vibrate");
+    for (const src of [waiting, espera]) {
+      expect(src).toContain("alertCustomerReady");
+      expect(src).toContain("unlockAudio");
+    }
   });
 
   it("espera marca visto_en al abrir el SSR (como pedidos)", () => {

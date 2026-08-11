@@ -105,6 +105,8 @@ const EsperaPanelPage = () => {
   } = useWaitlist(branchId);
 
   const [qr, setQr] = useState<WaitlistView | null>(null);
+  /* true = alta nueva (cerrar al escanear). false = botón QR manual. */
+  const [qrAutoClose, setQrAutoClose] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [reservaOpen, setReservaOpen] = useState(false);
   const [name, setNombre] = useState("");
@@ -152,14 +154,15 @@ const EsperaPanelPage = () => {
     if (!visibles.espera && visibles.pedidos) router.replace("/panel");
   }, [branchConfigReady, visibles, router]);
 
-  /* Cerrar el QR cuando el cliente abre el link (`visto_en`).
-   * Lista (realtime) = camino rápido; intervalo = respaldo si realtime falla. */
+  /* Cerrar el QR al escanear solo en el alta (`qrAutoClose`).
+   * El botón "QR" reabre el código aunque ya lo hayan visto; cerrar el
+   * modal no cancela la espera. */
   const qrVisto = qr
     ? Boolean(esperas.find((e) => e.id === qr.id)?.seenAt)
     : false;
 
   useEffect(() => {
-    if (!qr || qrVisto) return;
+    if (!qr || !qrAutoClose || qrVisto) return;
     let vivo = true;
     const check = () => {
       void fetchEsperaSeen(qr.id).then((visto) => {
@@ -172,7 +175,7 @@ const EsperaPanelPage = () => {
       vivo = false;
       window.clearInterval(iv);
     };
-  }, [qr, qrVisto]);
+  }, [qr, qrAutoClose, qrVisto]);
 
   const toastAviso = useCallback(
     (r: NotifyResult | null) => {
@@ -422,6 +425,7 @@ const EsperaPanelPage = () => {
     try {
       const created = await crearEspera(name, partySize, employeeRef);
       if (created) {
+        setQrAutoClose(true);
         setQr(created);
         setCreateOpen(false);
         setNombre("");
@@ -923,7 +927,10 @@ const EsperaPanelPage = () => {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setQr(e)}
+                      onClick={() => {
+                        setQrAutoClose(false);
+                        setQr(e);
+                      }}
                       className={`${BTN_MOBILE} flex-1 border border-linea text-carbon/70 hover:bg-crema`}
                     >
                       QR
@@ -1040,7 +1047,7 @@ const EsperaPanelPage = () => {
         </Link>
       </p>
 
-      {qr && !qrVisto && (
+      {qr && !(qrAutoClose && qrVisto) && (
         <QrModal
           reference={qr.name}
           token={qr.qrToken}

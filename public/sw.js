@@ -3,7 +3,7 @@
  * - Web Push: muestra el aviso cuando el pedido pasa a "listo".
  */
 
-const CACHE = "cicalino-v7";
+const CACHE = "cicalino-v8";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [
   OFFLINE_URL,
@@ -116,7 +116,8 @@ self.addEventListener("push", (event) => {
     body: data.body || "Tu pedido está listo para retirar.",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    vibrate: [200, 100, 200],
+    vibrate: [220, 100, 220, 100, 320],
+    silent: false,
     tag: data.tag || "cicalino-pedido",
     renotify: Boolean(data.tag),
     data: { url: targetPath },
