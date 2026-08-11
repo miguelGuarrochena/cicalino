@@ -3,7 +3,7 @@
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { startTrial, toDateOnly } from "@/lib/subscription";
-import { sendWelcomeEmail } from "@/lib/actions/subscriptionSweep";
+import { sendWelcomeEmail } from "@/lib/server/subscriptionSweep";
 import {
   createOrganizationSchema,
   idSchema,
@@ -469,7 +469,9 @@ export const activateLead = async (id: string): Promise<Resultado> => {
 
   if (res.id) {
     try {
-      const { sendContractLinkInternal } = await import("@/lib/actions/contract");
+      const { sendContractLinkInternal } = await import(
+        "@/lib/server/sendContractLink"
+      );
       const mail = await sendContractLinkInternal(res.id);
       if (!mail.ok) console.error("activarSolicitud/contrato", mail.error);
     } catch (e) {
