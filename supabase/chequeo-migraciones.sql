@@ -218,6 +218,7 @@ requisitos (archivo, necesita) as (
     ('pedidos-sucursal.sql', 'setup.sql'),
     ('proximo-cobro.sql', '—'),
     ('push-indices.sql', 'modulo-espera.sql'),
+    ('security-fixes-05.sql', 'push-indices.sql'),
     ('realtime-organizaciones.sql', '—'),
     ('reservas-aviso.sql', 'modulo-espera.sql, reservas-mesa.sql'),
     ('reservas-expirar.sql', 'security-fixes-01.sql, reservas-mesa.sql'),
