@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { fetchOrderSeen } from "@/lib/data/orders";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
@@ -24,6 +25,11 @@ import { Pagination } from "@/components/ui/Pagination";
 import { useDebounced } from "@/lib/hooks/useDebounced";
 import { useToast } from "@/components/ui/Toast";
 import { dingNew, notifyReady } from "@/lib/sound";
+import {
+  readDeviceMode,
+  visibleModules,
+  panelHomePath,
+} from "@/lib/modules";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
 const PAGE_SIZE = 9;
@@ -44,8 +50,24 @@ const INPUT =
 const PanelOrdersPage = () => {
   const { t, locale } = useApp();
   const toast = useToast();
+  const router = useRouter();
   const mode = useConfigStore((s) => s.modo);
   const tableCount = useConfigStore((s) => s.tableCount);
+  const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
+  const moduloEspera = useConfigStore((s) => s.moduloEspera);
+  const branchConfigReady = useConfigStore((s) => s.branchConfigReady);
+  const dispositivo = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("storage", cb);
+      return () => window.removeEventListener("storage", cb);
+    },
+    readDeviceMode,
+    () => "ambos" as const,
+  );
+  const visibles = visibleModules(
+    { pedidos: moduloPedidos, espera: moduloEspera },
+    dispositivo,
+  );
   const activeEmployee = useSessionStore((s) => s.empleadoActivo);
   const branchId = useSessionStore((s) => s.sucursalId);
   const orgs = useSuperadminStore((s) => s.organizaciones);
@@ -75,6 +97,14 @@ const PanelOrdersPage = () => {
   const branchNameLabel = live
     ? liveBranchName
     : branchById(orgs, branchId)?.name;
+
+  /* Sucursal solo-espera: el login cae en /panel; mandamos a la sala. */
+  useEffect(() => {
+    if (!branchConfigReady) return;
+    if (!visibles.pedidos && visibles.espera) {
+      router.replace(panelHomePath(visibles));
+    }
+  }, [branchConfigReady, visibles, router]);
 
   const [qrOrder, setQrOrder] = useState<OrderView | null>(null);
   /* true = cerrar solo cuando el cliente abre el link (alta nueva).

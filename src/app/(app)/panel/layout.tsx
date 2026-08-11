@@ -14,11 +14,18 @@ import {
   ADMIN_UNLOCK_MS,
   useSessionStore,
 } from "@/lib/store/session-store";
+import { useConfigStore } from "@/lib/store/config-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { EsperaCancelWatch } from "@/components/panel/EsperaCancelWatch";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { SubscriptionGate } from "@/components/panel/SubscriptionGate";
+import {
+  readDeviceMode,
+  visibleModules,
+  panelHomePath,
+} from "@/lib/modules";
+import { useSyncExternalStore } from "react";
 
 const SuperadminRedirect = () => {
   const router = useRouter();
@@ -70,6 +77,22 @@ const PanelLayout = ({
   const impersonating = useSessionStore((s) => s.impersonando);
   const branchId = useSessionStore((s) => s.sucursalId);
   const path = usePathname();
+  const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
+  const moduloEspera = useConfigStore((s) => s.moduloEspera);
+  const dispositivo = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("storage", cb);
+      return () => window.removeEventListener("storage", cb);
+    },
+    readDeviceMode,
+    () => "ambos" as const,
+  );
+  const homeHref = panelHomePath(
+    visibleModules(
+      { pedidos: moduloPedidos, espera: moduloEspera },
+      dispositivo,
+    ),
+  );
   const mostrarFichaje =
     role !== "superadmin" &&
     (path === "/panel" || path.startsWith("/panel/espera"));
@@ -92,7 +115,7 @@ const PanelLayout = ({
       {role !== "superadmin" && <EsperaCancelWatch />}
       <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 sm:flex-nowrap sm:justify-between sm:gap-3 sm:px-8 sm:py-3">
-          <Logo href="/panel" className="h-8 shrink-0 sm:h-12" />
+          <Logo href={homeHref} className="h-8 shrink-0 sm:h-12" />
           <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:flex-nowrap sm:gap-3">
             {role !== "superadmin" && <BranchSwitcher />}
             {role !== "superadmin" && <PanelNav />}
