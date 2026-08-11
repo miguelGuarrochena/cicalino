@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
@@ -18,6 +18,8 @@ import {
   canOfferWebPush,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
+
+const subscribeNoop = () => () => {};
 
 interface Props {
   token: string;
@@ -55,18 +57,20 @@ const senalListo = (opts?: {
 export const CustomerWaiting = ({ token, initial }: Props) => {
   const { t } = useApp();
   const { ready: hydrated, order } = useCustomerOrder(token, initial);
+  const pushDisponible = useSyncExternalStore(
+    subscribeNoop,
+    canOfferWebPush,
+    () => false,
+  );
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
-  const [pushDisponible, setPushDisponible] = useState(false);
   const [flash, setFlash] = useState(false);
   const ultimoAviso = useRef<string | null>(null);
   const vioEsperando = useRef(false);
 
   useEffect(() => {
-    const ofrecer = canOfferWebPush();
-    setPushDisponible(ofrecer);
-    if (!ofrecer) return;
+    if (!pushDisponible) return;
 
     let alive = true;
     void (async () => {
@@ -84,7 +88,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
     return () => {
       alive = false;
     };
-  }, [token, t]);
+  }, [token, t, pushDisponible]);
 
   const status = order?.status ?? "creado";
   const esListo = status === "listo";

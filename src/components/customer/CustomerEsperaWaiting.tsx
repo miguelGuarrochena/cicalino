@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
@@ -18,6 +18,8 @@ import {
   canOfferWebPush,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
+
+const subscribeNoop = () => () => {};
 
 interface Props {
   token: string;
@@ -53,10 +55,14 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const { t, locale } = useApp();
   const { ready, found, espera } = useCustomerWaitlist(token);
   const demoCancelar = useWaitlistStore((s) => s.cambiarEstado);
+  const pushDisponible = useSyncExternalStore(
+    subscribeNoop,
+    canOfferWebPush,
+    () => false,
+  );
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
-  const [pushDisponible, setPushDisponible] = useState(false);
   const [flash, setFlash] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelando, setCancelando] = useState(false);
@@ -64,9 +70,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const vioEsperando = useRef(false);
 
   useEffect(() => {
-    const ofrecer = canOfferWebPush();
-    setPushDisponible(ofrecer);
-    if (!ofrecer) return;
+    if (!pushDisponible) return;
 
     let alive = true;
     void (async () => {
@@ -81,7 +85,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     return () => {
       alive = false;
     };
-  }, [token]);
+  }, [token, pushDisponible]);
 
   useEffect(() => {
     if (!espera) return;
