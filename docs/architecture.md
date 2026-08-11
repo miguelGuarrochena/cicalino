@@ -129,6 +129,7 @@ se borran; el QR expira al cierre de jornada.
 ## Pendiente
 
 - Migraciones deterministas (Supabase CLI / carpeta `migrations`).
-- Tests de integración (RLS cross-tenant, API QR, cron).
+- Más tests de integración (RLS cross-tenant, API QR, cron end-to-end).
+  Smoke de grants: `pnpm test:db`.
 - `CSP_ENFORCE=1` en producción cuando no haya violaciones.
 - Mercado Pago automatizado si el volumen lo justifica.
