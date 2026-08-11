@@ -61,6 +61,9 @@ describe("Customer push + refresh", () => {
       expect(src).toContain("canOfferWebPush");
       expect(src).toContain("mantenerPestana");
       expect(src).toContain("pushDisponible");
+      expect(src).toContain("notificationPermissionGranted");
+      expect(src).toContain("activados");
+      expect(src).toMatch(/pushActivo\s*\?\s*\(/);
     }
   });
 
@@ -68,5 +71,15 @@ describe("Customer push + refresh", () => {
     const src = readFileSync(join(root, "src/lib/notifications.ts"), "utf8");
     expect(src).toContain("!res.ok || !body?.ok");
     expect(src).toContain("serviceWorker.ready");
+  });
+
+  it("rate limit no tumba el servicio sin Upstash", () => {
+    const src = readFileSync(
+      join(root, "src/lib/security/rateLimitShared.ts"),
+      "utf8",
+    );
+    expect(src).toContain("usando límite en memoria");
+    expect(src).toContain("fallback a límite en memoria");
+    expect(src).not.toMatch(/return denegar/);
   });
 });

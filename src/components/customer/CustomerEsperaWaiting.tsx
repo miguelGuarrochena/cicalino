@@ -16,6 +16,7 @@ import {
   subscribeWebPush,
   pushErrorMessageKey,
   canOfferWebPush,
+  notificationPermissionGranted,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
 
@@ -71,16 +72,17 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
 
   useEffect(() => {
     if (!pushDisponible) return;
+    if (!notificationPermissionGranted()) return;
 
     let alive = true;
     void (async () => {
       await registerServiceWorker();
-      if (!("Notification" in window) || Notification.permission !== "granted") {
-        return;
-      }
       const r = await subscribeWebPush(token);
       if (!alive) return;
-      setPushActivo(r.ok);
+      if (r.ok) {
+        setPushActivo(true);
+        setPushError(null);
+      }
     })();
     return () => {
       alive = false;
@@ -137,23 +139,25 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   }, [espera, pushActivo, token, t]);
 
   const activarAvisos = async () => {
-    if (!canOfferWebPush()) return;
+    if (!canOfferWebPush() || pushCargando) return;
     setPushCargando(true);
     setPushError(null);
-    await registerServiceWorker();
-    const permiso = await requestNotificationPermission();
-    if (!permiso) {
-      setPushActivo(false);
-      setPushError(t("clienteMesa.pushDenegado"));
+    try {
+      await registerServiceWorker();
+      const permiso = await requestNotificationPermission();
+      if (!permiso) {
+        setPushActivo(false);
+        setPushError(t("clienteMesa.pushDenegado"));
+        return;
+      }
+      const r = await subscribeWebPush(token);
+      setPushActivo(r.ok);
+      setPushError(
+        r.ok ? null : t(`clienteMesa.${pushErrorMessageKey(r.reason)}`),
+      );
+    } finally {
       setPushCargando(false);
-      return;
     }
-    const r = await subscribeWebPush(token);
-    setPushActivo(r.ok);
-    setPushError(
-      r.ok ? null : t(`clienteMesa.${pushErrorMessageKey(r.reason)}`),
-    );
-    setPushCargando(false);
   };
 
   const confirmarCancelar = async () => {
@@ -353,23 +357,29 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
         {!cerrado && (
           <div className="u-in mt-8 flex w-full flex-col gap-3 sm:max-w-sm">
             {pushDisponible ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => void activarAvisos()}
-                  disabled={pushActivo || pushCargando}
-                  className="w-full rounded-full bg-espera px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte active:scale-95 disabled:opacity-70"
-                >
-                  {pushCargando
-                    ? t("clienteMesa.pushCargando")
-                    : pushActivo
-                      ? `${t("clienteMesa.activados")} 🔔`
+              pushActivo ? (
+                <p className="rounded-2xl border border-espera/40 bg-espera/10 px-4 py-3 text-sm font-semibold text-espera">
+                  {t("clienteMesa.activados")}
+                </p>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void activarAvisos()}
+                    disabled={pushCargando}
+                    className="w-full rounded-full bg-espera px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte active:scale-95 disabled:opacity-70"
+                  >
+                    {pushCargando
+                      ? t("clienteMesa.pushCargando")
                       : t("clienteMesa.activar")}
-                </button>
-                {pushError && (
-                  <p className="text-center text-xs text-red-500">{pushError}</p>
-                )}
-              </>
+                  </button>
+                  {pushError && (
+                    <p className="text-center text-xs text-red-500">
+                      {pushError}
+                    </p>
+                  )}
+                </>
+              )
             ) : (
               <p className="rounded-2xl border border-carbon/10 bg-carbon/[0.04] px-4 py-3 text-sm leading-snug text-carbon/75">
                 {t("clienteMesa.mantenerPestana")}

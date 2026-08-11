@@ -6,11 +6,10 @@ const TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 export const distributedRateLimit = Boolean(URL_BASE && TOKEN);
 
-/* En Vercel production el rate limit tiene que ser global: sin Upstash cada
- * instancia tiene su propio Map y un atacante multiplica el cupo por el
- * número de lambdas. Local / preview / CI siguen con memoria (un solo
- * proceso). Forzá el fail-closed en cualquier entorno con
- * RATE_LIMIT_REQUIRE_UPSTASH=1. */
+/* En Vercel production el rate limit ideal es global (Upstash). Sin Redis cada
+ * instancia tiene su propio Map. Aun así NUNCA denegamos todo el tráfico:
+ * fallar cerrado dejó a clientes sin poll ni push ("demasiados intentos" al
+ * primer click). Preferimos cupo por instancia + log fuerte. */
 export const requiresDistributedRateLimit = (): boolean =>
   process.env.VERCEL_ENV === "production" ||
   process.env.RATE_LIMIT_REQUIRE_UPSTASH === "1";
@@ -37,11 +36,6 @@ const ejecutar = async (comandos: Pipeline): Promise<unknown[] | null> => {
   }
 };
 
-const denegar = (retryAfter: number): RateResult => ({
-  ok: false,
-  retryAfter,
-});
-
 export const sharedRateLimit = async (
   key: string,
   limit: number,
@@ -51,9 +45,8 @@ export const sharedRateLimit = async (
 
   if (exigeRedis && !distributedRateLimit) {
     console.error(
-      "sharedRateLimit: falta UPSTASH_REDIS_REST_URL/TOKEN en producción",
+      "sharedRateLimit: falta UPSTASH_REDIS_REST_URL/TOKEN en producción — usando límite en memoria",
     );
-    return denegar(60);
   }
 
   const local = rateLimitLocal(key, limit, windowMs);
@@ -69,12 +62,9 @@ export const sharedRateLimit = async (
   ]);
 
   if (!r) {
-    /* Redis caído: en prod no abrimos el cupo por instancia; en local
-     * seguimos con memoria para no trabar el desarrollo. */
-    if (exigeRedis) {
-      console.error("sharedRateLimit: Upstash no respondió, fail-closed");
-      return denegar(ttl > 0 ? ttl : 30);
-    }
+    console.error(
+      "sharedRateLimit: Upstash no respondió — fallback a límite en memoria",
+    );
     return local;
   }
 
