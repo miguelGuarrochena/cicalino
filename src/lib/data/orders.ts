@@ -185,13 +185,9 @@ export const insertOrder = async (args: {
 
 /* ¿El cliente ya abrió el QR de este pedido?
  *
- * El panel cierra el modal del QR cuando aparece `visto_en`, y lo detectaba
- * buscando el pedido en la lista. Con la lista paginada el pedido puede no
- * estar en la página que se ve — un pedido recién creado queda detrás de los
- * que están listos, que van primero.
- *
- * Se llama solo en ese caso y solo con el modal abierto, y se dispara con los
- * eventos de realtime, no con un intervalo. */
+ * El panel cierra el modal cuando aparece `visto_en`. Realtime a veces llega
+ * tarde o el pedido no está en la página visible (paginación), así que con el
+ * QR abierto consultamos esto en un intervalo corto. */
 export const fetchOrderSeen = async (id: string): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;

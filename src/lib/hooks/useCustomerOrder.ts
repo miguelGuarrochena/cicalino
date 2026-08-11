@@ -39,19 +39,21 @@ interface Result {
  *
  *   creado          → recién entró a la cola, falta. Consultamos poco.
  *   en_preparacion  → puede salir en cualquier momento. Consultamos seguido.
- *   listo           → lo único que falta es que el local lo entregue, y eso
- *                     el cliente ya lo está viendo en el mostrador.
+ *   listo           → el cliente ya lo ve; el próximo salto es "retirado"
+ *                     (pestaña abierta). Poll corto.
  *   retirado/cancelado → no hay nada más que mirar, se corta.
  *
  * Antes era un intervalo fijo de 1,2 s: ~50 requests por minuto y por cliente.
  * Con estos valores, una espera típica de 10 minutos pasa de ~500 requests a
  * ~110, sin que la pantalla se sienta más lenta: el salto a "listo" se detecta
- * en 3 s en el peor caso, y además llega el push.
+ * en 3 s en el peor caso, "retirado" en ~2 s, y además llega el push.
  */
 const INTERVALO_MS: Record<OrderStatus, number> = {
   creado: 8_000,
   en_preparacion: 3_000,
-  listo: 6_000,
+  /* Listo: el próximo cambio que importa es "retirado". Tiene que notarse
+   * rápido con la pestaña abierta; 6 s se sentía como que no actualizaba. */
+  listo: 2_000,
   retirado: 0,
   cancelado: 0,
 };

@@ -95,29 +95,31 @@ const PanelOrdersPage = () => {
     setPage(1);
   }
 
-  /* Cerrar el QR cuando el cliente lo abre. `visto_en` llega por realtime
-   * dentro del propio pedido, así que alcanza con mirar la lista. */
-  /* Si el pedido está en la página visible, que el cliente lo haya abierto se
-   * deduce de la lista y no hace falta tocar estado: más abajo el modal
-   * directamente no se renderiza. */
+  /* Cerrar el QR cuando el cliente lo abre (`visto_en`).
+   * - Camino rápido: la lista (realtime) ya trae seenAt → no renderizamos.
+   * - Respaldo: mientras el modal esté abierto preguntamos cada ~1,2 s.
+   *   Antes solo se consultaba si el pedido NO estaba en la página, y si
+   *   realtime fallaba el QR quedaba pegado aunque el cliente ya hubiera
+   *   escaneado. */
   const qrVisto = qrOrder
     ? Boolean(orders.find((o) => o.id === qrOrder.id)?.seenAt)
     : false;
 
   useEffect(() => {
-    if (!qrOrder) return;
-    const fresh = orders.find((o) => o.id === qrOrder.id);
-    if (fresh) return;
-    /* No está en la página visible: se pregunta por ese pedido puntualmente.
-     * Corre con cada recarga, o sea con cada evento de realtime, no en bucle. */
+    if (!qrOrder || qrVisto) return;
     let vivo = true;
-    void fetchOrderSeen(qrOrder.id).then((visto) => {
-      if (vivo && visto) setQrOrder(null);
-    });
+    const check = () => {
+      void fetchOrderSeen(qrOrder.id).then((visto) => {
+        if (vivo && visto) setQrOrder(null);
+      });
+    };
+    check();
+    const iv = window.setInterval(check, 1_200);
     return () => {
       vivo = false;
+      window.clearInterval(iv);
     };
-  }, [orders, qrOrder]);
+  }, [qrOrder, qrVisto]);
 
   /* `orders` ya viene filtrado, ordenado y recortado a la página. Los
    * contadores vienen aparte porque son sobre la jornada entera, no sobre lo
