@@ -17,6 +17,14 @@ vi.mock("@/lib/email/resend", () => ({
   resendConfigured: true,
 }));
 
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers({ "x-forwarded-for": "127.0.0.1" })),
+}));
+
+vi.mock("@/lib/security/rateLimitShared", () => ({
+  sharedRateLimit: vi.fn(async () => ({ ok: true, remaining: 1 })),
+}));
+
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/resend";
@@ -270,7 +278,6 @@ describe("Critical #1 — helpers internos invocables desde server autorizado", 
         dueno_email: "dueno@example.com",
         plan: "mensual",
         cupo: 1,
-        contrato_token: "a".repeat(48),
         mes_gratis_hasta: null,
         responsable: null,
         locales: [],
@@ -278,7 +285,10 @@ describe("Critical #1 — helpers internos invocables desde server autorizado", 
     });
     const eq = vi.fn(() => ({ maybeSingle }));
     const select = vi.fn(() => ({ eq }));
-    const from = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    }));
+    const from = vi.fn(() => ({ select, update }));
     createAdminMock.mockReturnValue({ from } as never);
 
     const res = await sendContractLink(
@@ -288,6 +298,7 @@ describe("Critical #1 — helpers internos invocables desde server autorizado", 
     if (res.ok) {
       expect(res.url).toContain("/aceptar/");
     }
+    expect(update).toHaveBeenCalled();
     expect(sendEmailMock).toHaveBeenCalledOnce();
   });
 });
