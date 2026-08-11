@@ -104,7 +104,7 @@ export const POST = async (req: Request) => {
 
   const { data: pedido } = await supabase
     .from("pedidos")
-    .select("id, referencia, qr_token")
+    .select("id, referencia, qr_token, estado")
     .eq("id", orderId!)
     .single();
   if (!pedido) {
@@ -116,10 +116,15 @@ export const POST = async (req: Request) => {
     .select("id, endpoint, p256dh, auth")
     .eq("pedido_id", orderId!);
 
-  const tag = `cicalino-${orderId}`;
+  const esRetirado = pedido.estado === "retirado";
+  const tag = esRetirado
+    ? `cicalino-retirado-${orderId}`
+    : `cicalino-${orderId}`;
   const payload = JSON.stringify({
     titulo: "Cicalino",
-    body: `Pedido ${pedido.referencia} listo para retirar.`,
+    body: esRetirado
+      ? `Pedido ${pedido.referencia} retirado. Ya podés cerrar la pestaña.`
+      : `Pedido ${pedido.referencia} listo para retirar.`,
     url: `/p/${pedido.qr_token}`,
     pedidoId: orderId,
     tag,
@@ -144,7 +149,8 @@ export const POST = async (req: Request) => {
     }
   }
 
-  if (enviados > 0 || !(subs ?? []).length) {
+  /* avisado_en solo al marcar listo; en retirado solo avisamos por push. */
+  if (!esRetirado && (enviados > 0 || !(subs ?? []).length)) {
     await admin.from("pedidos").update({ avisado_en: ahora }).eq("id", orderId!);
   }
 

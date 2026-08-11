@@ -84,7 +84,9 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
 
   it("marcar listo / avisar mesa dispara push al cliente", () => {
     expect(ordersHook).toContain("notifyCustomer");
-    expect(ordersHook).toMatch(/status !== \"listo\"[\s\S]*notifyCustomer\(\{\s*orderId/);
+    expect(ordersHook).toMatch(
+      /status !== \"listo\" && status !== \"retirado\"[\s\S]*notifyCustomer\(\{\s*orderId/,
+    );
     expect(waitlistHook).toContain("notifyCustomer");
     expect(waitlistHook).toMatch(/waitlistId/);
     expect(notifyClient).toContain("/api/push/notify");
@@ -92,6 +94,14 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     expect(notifyRoute).toContain("pedido_id");
     expect(notifyRoute).toContain("espera_id");
     expect(notifyRoute).toContain("avisado_en");
+    expect(notifyRoute).toContain("esRetirado");
+    expect(notifyRoute).toContain("retirado");
+  });
+
+  it("cliente alerta también al pasar a retirado", () => {
+    expect(waiting).toContain("notifRetirado");
+    expect(waiting).toContain('order.status === "retirado"');
+    expect(waiting).toContain("senalPedido");
   });
 
   it("Android: con push activo no queda el botón; dice notificaciones activadas", () => {
@@ -142,7 +152,7 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
   });
 
   it("al pasar a listo/avisado hay señal local si no hay push activo", () => {
-    expect(waiting).toContain("senalListo");
+    expect(waiting).toContain("senalPedido");
     expect(waiting).toContain("notifLocal: !pushActivo");
     expect(espera).toContain("senalMesa");
     expect(espera).toContain("notifLocal: !pushActivo");
