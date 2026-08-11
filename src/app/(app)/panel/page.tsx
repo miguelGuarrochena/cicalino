@@ -77,6 +77,9 @@ const PanelOrdersPage = () => {
     : branchById(orgs, branchId)?.name;
 
   const [qrOrder, setQrOrder] = useState<OrderView | null>(null);
+  /* true = cerrar solo cuando el cliente abre el link (alta nueva).
+   * false = "Ver QR" manual: no auto-cerrar aunque ya tenga visto_en. */
+  const [qrAutoClose, setQrAutoClose] = useState(true);
   const [createOpen, setCrearOpen] = useState(false);
   const [refDraft, setRefDraft] = useState("");
   const [creating, setCreando] = useState(false);
@@ -95,18 +98,15 @@ const PanelOrdersPage = () => {
     setPage(1);
   }
 
-  /* Cerrar el QR cuando el cliente lo abre (`visto_en`).
-   * - Camino rápido: la lista (realtime) ya trae seenAt → no renderizamos.
-   * - Respaldo: mientras el modal esté abierto preguntamos cada ~1,2 s.
-   *   Antes solo se consultaba si el pedido NO estaba en la página, y si
-   *   realtime fallaba el QR quedaba pegado aunque el cliente ya hubiera
-   *   escaneado. */
+  /* Cerrar el QR al escanear solo en el alta nueva (`qrAutoClose`).
+   * "Ver QR" deja el modal abierto aunque el cliente ya lo haya visto:
+   * el pedido sigue pendiente; cerrar el modal no cancela nada. */
   const qrVisto = qrOrder
     ? Boolean(orders.find((o) => o.id === qrOrder.id)?.seenAt)
     : false;
 
   useEffect(() => {
-    if (!qrOrder || qrVisto) return;
+    if (!qrOrder || !qrAutoClose || qrVisto) return;
     let vivo = true;
     const check = () => {
       void fetchOrderSeen(qrOrder.id).then((visto) => {
@@ -119,7 +119,7 @@ const PanelOrdersPage = () => {
       vivo = false;
       window.clearInterval(iv);
     };
-  }, [qrOrder, qrVisto]);
+  }, [qrOrder, qrAutoClose, qrVisto]);
 
   /* `orders` ya viene filtrado, ordenado y recortado a la página. Los
    * contadores vienen aparte porque son sobre la jornada entera, no sobre lo
@@ -173,6 +173,7 @@ const PanelOrdersPage = () => {
       return false;
     }
     setQrOrder(created);
+    setQrAutoClose(true);
     setFiltro("todos");
     setQ("");
     dingNew();
@@ -387,7 +388,10 @@ const PanelOrdersPage = () => {
                 pedido={p}
                 index={i}
                 onCambiarEstado={changeStatusUX}
-                onMostrarQr={setQrOrder}
+                onMostrarQr={(order) => {
+                  setQrAutoClose(false);
+                  setQrOrder(order);
+                }}
                 onReavisar={live ? reavisar : undefined}
               />
             ))}
@@ -522,7 +526,7 @@ const PanelOrdersPage = () => {
         </ModalShell>
       )}
 
-      {qrOrder && !qrVisto && (
+      {qrOrder && !(qrAutoClose && qrVisto) && (
         <QrModal
           reference={qrOrder.reference}
           token={qrOrder.qrToken}

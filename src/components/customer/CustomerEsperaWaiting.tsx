@@ -19,6 +19,7 @@ import {
   notificationPermissionGranted,
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
+import { alertCustomerReady, unlockAudio } from "@/lib/sound";
 
 const subscribeNoop = () => () => {};
 
@@ -32,9 +33,7 @@ const senalMesa = (opts?: {
   token?: string;
   body?: string;
 }) => {
-  if ("vibrate" in navigator) {
-    navigator.vibrate?.([200, 100, 200, 100, 200]);
-  }
+  alertCustomerReady();
   void fireReadyConfetti();
   if (
     opts?.notifLocal &&
@@ -88,6 +87,14 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
       alive = false;
     };
   }, [token, pushDisponible]);
+
+  useEffect(() => {
+    const unlock = () => {
+      void unlockAudio();
+    };
+    document.addEventListener("pointerdown", unlock, { once: true });
+    return () => document.removeEventListener("pointerdown", unlock);
+  }, []);
 
   useEffect(() => {
     if (!espera) return;
@@ -144,6 +151,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     setPushError(null);
     try {
       await registerServiceWorker();
+      void unlockAudio();
       const permiso = await requestNotificationPermission();
       if (!permiso) {
         setPushActivo(false);
