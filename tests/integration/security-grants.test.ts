@@ -134,4 +134,97 @@ describe.skipIf(!enabled)("Integration — security grants smoke", () => {
     `);
     expect(rows[0].ok).toBe(true);
   });
+
+  it("expirar_reservas_vencidas solo service_role", async () => {
+    const { rows } = await client.query(`
+      select
+        has_function_privilege('anon', 'public.expirar_reservas_vencidas()', 'execute') as anon,
+        has_function_privilege('authenticated', 'public.expirar_reservas_vencidas()', 'execute') as auth,
+        has_function_privilege('service_role', 'public.expirar_reservas_vencidas()', 'execute') as service
+    `);
+    expect(rows[0]).toEqual({ anon: false, auth: false, service: true });
+  });
+
+  it("tenant tables tienen RLS activo", async () => {
+    const { rows } = await client.query(`
+      select c.relname as tabla, c.relrowsecurity as rls
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public'
+         and c.relkind = 'r'
+         and c.relname = any($1::text[])
+       order by 1
+    `, [[
+      "organizaciones",
+      "locales",
+      "empleados",
+      "pedidos",
+      "usuarios",
+      "usuario_sucursal",
+      "esperas",
+      "reservas",
+      "mesas",
+      "pagos",
+    ]]);
+    expect(rows.length).toBe(10);
+    for (const r of rows) {
+      expect(r.rls, String(r.tabla)).toBe(true);
+    }
+  });
+
+  it("tablas server-only: RLS on y sin policies de cliente", async () => {
+    const serverOnly = [
+      "solicitudes",
+      "push_subscriptions",
+      "cron_locks",
+      "reserva_mesas",
+      "cicalino_schema_migrations",
+    ];
+    const { rows } = await client.query(`
+      select c.relname as tabla,
+             c.relrowsecurity as rls,
+             (select count(*)::int from pg_policies p where p.tablename = c.relname) as policies
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public'
+         and c.relkind = 'r'
+         and c.relname = any($1::text[])
+       order by 1
+    `, [serverOnly]);
+    expect(rows.length).toBe(serverOnly.length);
+    for (const r of rows) {
+      expect(r.rls, String(r.tabla)).toBe(true);
+      expect(r.policies, String(r.tabla)).toBe(0);
+    }
+  });
+
+  it("policies de pedidos/esperas/mesas/reservas usan puede_ver_local", async () => {
+    const { rows } = await client.query(`
+      select tablename, policyname, coalesce(qual, '') || ' ' || coalesce(with_check, '') as expr
+        from pg_policies
+       where tablename = any($1::text[])
+    `, [["pedidos", "esperas", "mesas", "reservas"]]);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(
+        String(r.expr).includes("puede_ver_local"),
+        `${r.tablename}.${r.policyname}`,
+      ).toBe(true);
+    }
+  });
+
+  it("no quedan policies viejas de mi org en tenant tables", async () => {
+    const { rows } = await client.query(`
+      select tablename, policyname
+        from pg_policies
+       where policyname = any($1::text[])
+    `, [[
+      "esperas de mi org",
+      "mesas de mi org",
+      "reservas de mi org",
+      "pedidos de mi org",
+      "empleados de mi org",
+    ]]);
+    expect(rows).toEqual([]);
+  });
 });
