@@ -82,6 +82,9 @@ export const organizations = pgTable("organizaciones", {
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
   contractToken: text("contrato_token"),
+  contractTokenCreatedAt: timestamp("contrato_token_creado_en", {
+    withTimezone: true,
+  }),
   contractAcceptedAt: timestamp("contrato_aceptado_en", { withTimezone: true }),
   termsVersion: text("terminos_version"),
 

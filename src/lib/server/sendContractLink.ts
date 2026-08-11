@@ -39,7 +39,9 @@ const nuevoToken = (): string => {
 
 /* Helper interno (server-only). Lo llaman sendContractLink (superadmin) y
  * activateLead (superadmin). No es Server Action: no puede invocarse desde el
- * cliente ni devolver el link de contrato a un usuario no autorizado. */
+ * cliente ni devolver el link de contrato a un usuario no autorizado.
+ *
+ * Siempre renueva el token al enviar: invalida links viejos y arranca el TTL. */
 export const sendContractLinkInternal = async (
   organizationId: string,
 ): Promise<Simple & { url?: string }> => {
@@ -49,23 +51,23 @@ export const sendContractLinkInternal = async (
   const { data: org } = await admin
     .from("organizaciones")
     .select(
-      "id, nombre, dueno_email, plan, cupo, contrato_token, mes_gratis_hasta, responsable, locales(modulo_pedidos, modulo_espera)",
+      "id, nombre, dueno_email, plan, cupo, mes_gratis_hasta, responsable, locales(modulo_pedidos, modulo_espera)",
     )
     .eq("id", organizationId)
     .maybeSingle();
   if (!org) return { ok: false, error: "Empresa no encontrada." };
 
-  let token = org.contrato_token as string | null;
-  if (!token) {
-    token = nuevoToken();
-    const { error } = await admin
-      .from("organizaciones")
-      .update({ contrato_token: token })
-      .eq("id", org.id);
-    if (error) {
-      console.error("enviarLinkContrato/token", error.message);
-      return { ok: false, error: "No se pudo generar el link." };
-    }
+  const token = nuevoToken();
+  const { error: tokenErr } = await admin
+    .from("organizaciones")
+    .update({
+      contrato_token: token,
+      contrato_token_creado_en: new Date().toISOString(),
+    })
+    .eq("id", org.id);
+  if (tokenErr) {
+    console.error("enviarLinkContrato/token", tokenErr.message);
+    return { ok: false, error: "No se pudo generar el link." };
   }
 
   const url = `${appBaseUrl()}/aceptar/${token}`;

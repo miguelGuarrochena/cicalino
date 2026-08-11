@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { sendEmail } from "@/lib/email/resend";
@@ -12,12 +13,14 @@ import {
   mpAlias,
   contractAmountForBranches,
   billingCycleLabel,
+  contractTokenExpired,
 } from "@/lib/contract";
 import {
   branchesModuleLabel,
   type ModuleFlags,
 } from "@/lib/pricing";
 import { sendContractLinkInternal } from "@/lib/server/sendContractLink";
+import { sharedRateLimit } from "@/lib/security/rateLimitShared";
 
 type Simple = { ok: true } | { ok: false; error: string };
 
@@ -49,21 +52,58 @@ const nuevoToken = (): string => {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 };
 
+const clientIpFromHeaders = async (): Promise<string> => {
+  const hdrs = await headers();
+  return (
+    hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    hdrs.get("x-real-ip")?.trim() ||
+    "sin-ip"
+  );
+};
+
+const rateLimitContract = async (
+  action: "get" | "accept",
+  token: string,
+): Promise<boolean> => {
+  const ip = await clientIpFromHeaders();
+  const fingerprint = token.slice(0, 16);
+  const porIp = await sharedRateLimit(
+    `contrato:${action}:ip:${ip}`,
+    action === "get" ? 30 : 10,
+    60_000,
+  );
+  if (!porIp.ok) return false;
+  const porToken = await sharedRateLimit(
+    `contrato:${action}:tok:${fingerprint}`,
+    action === "get" ? 20 : 5,
+    60_000,
+  );
+  return porToken.ok;
+};
+
 export const getContractByToken = async (
   token: string,
 ): Promise<PublicContract | null> => {
   const t = token.trim();
   if (t.length < 16) return null;
+  if (!(await rateLimitContract("get", t))) return null;
+
   const admin = createAdminSupabase();
   if (!admin) return null;
   const { data } = await admin
     .from("organizaciones")
     .select(
-      "id, nombre, plan, cupo, contrato_aceptado_en, mes_gratis_hasta, terminos_version, locales(modulo_pedidos, modulo_espera)",
+      "id, nombre, plan, cupo, contrato_aceptado_en, contrato_token_creado_en, mes_gratis_hasta, terminos_version, locales(modulo_pedidos, modulo_espera)",
     )
     .eq("contrato_token", t)
     .maybeSingle();
   if (!data) return null;
+  if (
+    !data.contrato_aceptado_en &&
+    contractTokenExpired(data.contrato_token_creado_en as string | null)
+  ) {
+    return null;
+  }
   const plan = (data.plan as BillingPlanUI) ?? "mensual";
   const cupo = data.cupo ?? 1;
   const locales = (data.locales ?? []) as {
@@ -101,17 +141,29 @@ export const getContractByToken = async (
 export const acceptContract = async (token: string): Promise<Simple> => {
   const t = token.trim();
   if (t.length < 16) return { ok: false, error: "Link inválido." };
+  if (!(await rateLimitContract("accept", t))) {
+    return { ok: false, error: "Demasiados intentos. Probá en un minuto." };
+  }
+
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, error: "Servicio no configurado." };
 
   const { data: org } = await admin
     .from("organizaciones")
-    .select("id, nombre, dueno_email, contrato_aceptado_en")
+    .select(
+      "id, nombre, dueno_email, contrato_aceptado_en, contrato_token_creado_en",
+    )
     .eq("contrato_token", t)
     .maybeSingle();
   if (!org) return { ok: false, error: "Link inválido o vencido." };
   if (org.contrato_aceptado_en) {
     return { ok: true };
+  }
+  if (contractTokenExpired(org.contrato_token_creado_en as string | null)) {
+    return {
+      ok: false,
+      error: "Este link venció. Pedile uno nuevo a Cicalino.",
+    };
   }
 
   const ahora = new Date().toISOString();
@@ -172,17 +224,23 @@ export const getContractLink = async (
 
   const { data: org } = await admin
     .from("organizaciones")
-    .select("id, contrato_token")
+    .select("id, contrato_token, contrato_token_creado_en")
     .eq("id", v.data.id)
     .maybeSingle();
   if (!org) return { ok: false, error: "Empresa no encontrada." };
 
   let token = org.contrato_token as string | null;
-  if (!token) {
+  const vencido = contractTokenExpired(
+    org.contrato_token_creado_en as string | null,
+  );
+  if (!token || vencido) {
     token = nuevoToken();
     const { error } = await admin
       .from("organizaciones")
-      .update({ contrato_token: token })
+      .update({
+        contrato_token: token,
+        contrato_token_creado_en: new Date().toISOString(),
+      })
       .eq("id", org.id);
     if (error) return { ok: false, error: "No se pudo generar el link." };
   }
