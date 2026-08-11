@@ -137,7 +137,7 @@ describe("Critical #3 — llamador legítimo (cron / service_role)", () => {
       /\.rpc\(\s*["']tomar_cron_lock["']\s*,\s*\{[\s\S]*?p_nombre:\s*LOCK[\s\S]*?p_segundos:\s*LOCK_SEGUNDOS/,
     );
     expect(cronSrc).toMatch(
-      /\.rpc\(\s*["']soltar_cron_lock["']\s*,\s*\{\s*p_nombre:\s*LOCK\s*\}/,
+      /\.rpc\(\s*["']soltar_cron_lock["']\s*,\s*\{[\s\S]*?p_nombre:\s*LOCK[\s\S]*?p_token:\s*lockToken/,
     );
     expect(cronSrc).toContain("finally");
     expect(cronSrc).toContain('reason: "ya-corriendo"');
