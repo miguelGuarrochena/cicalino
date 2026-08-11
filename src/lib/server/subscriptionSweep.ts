@@ -154,8 +154,12 @@ export const sweepSubscriptions = async (): Promise<{
           pie: "Cicalino · aviso automático de suscripción",
         }),
       });
-      patch[MARCA[tipo]] = ahora;
-      if (enviado) mails++;
+      /* Solo marcar si salió: si Resend falla, el próximo cron reintenta.
+       * Antes se stampaba siempre y el cliente nunca recibía el aviso. */
+      if (enviado) {
+        patch[MARCA[tipo]] = ahora;
+        mails++;
+      }
     }
 
     if (accion.newStatus) {
@@ -164,6 +168,8 @@ export const sweepSubscriptions = async (): Promise<{
       if (accion.newStatus === "pending_payment") patch.pagado = false;
       cambios++;
     }
+
+    if (Object.keys(patch).length === 0) continue;
 
     const { error: errUp } = await admin
       .from("organizaciones")
@@ -202,10 +208,12 @@ export const sendWelcomeEmail = async (args: {
     }),
   });
 
+  if (!ok) return false;
+
   await admin
     .from("organizaciones")
     .update({ bienvenida_en: new Date().toISOString() })
     .eq("id", args.orgId);
 
-  return ok;
+  return true;
 };
