@@ -224,6 +224,7 @@ requisitos (archivo, necesita) as (
     ('security-fixes-05.sql', 'push-indices.sql'),
     ('security-fixes-06.sql', 'cron-lock.sql'),
     ('security-fixes-07.sql', 'usuarios-sucursales.sql, setup.sql'),
+    ('security-fixes-08.sql', 'cola-espera.sql'),
     ('realtime-organizaciones.sql', '—'),
     ('reservas-aviso.sql', 'modulo-espera.sql, reservas-mesa.sql'),
     ('reservas-expirar.sql', 'security-fixes-01.sql, reservas-mesa.sql'),
