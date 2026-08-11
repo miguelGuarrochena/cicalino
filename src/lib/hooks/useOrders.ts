@@ -184,7 +184,7 @@ export const useOrders = (
         );
         return null;
       }
-      if (status !== "listo") return null;
+      if (status !== "listo" && status !== "retirado") return null;
       return notifyCustomer({ orderId: id });
     },
     [live, demoChange],

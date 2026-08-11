@@ -30,14 +30,15 @@ interface Props {
   initial?: InitialCustomerOrder;
 }
 
-const senalListo = (opts?: {
+const senalPedido = (opts?: {
   reference?: string;
   token?: string;
   body?: string;
   notifLocal?: boolean;
+  confetti?: boolean;
 }) => {
   alertCustomerReady();
-  void fireReadyConfetti();
+  if (opts?.confetti !== false) void fireReadyConfetti();
   if (
     opts?.notifLocal &&
     opts.reference &&
@@ -125,8 +126,12 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   }, [waiting]);
 
   useEffect(() => {
-    if (!order || order.status !== "listo") return;
-    const clave = order.notifiedAt ?? "listo";
+    if (!order) return;
+    if (order.status !== "listo" && order.status !== "retirado") return;
+    const clave =
+      order.status === "retirado"
+        ? "retirado"
+        : (order.notifiedAt ?? "listo");
 
     if (ultimoAviso.current === null) {
       ultimoAviso.current = clave;
@@ -139,11 +144,15 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
 
     setFlash(true);
     window.setTimeout(() => setFlash(false), 900);
-    senalListo({
+    senalPedido({
       notifLocal: !pushActivo,
       reference: order.reference,
       token,
-      body: t("cliente.notifListo", { n: order.reference }),
+      confetti: order.status === "listo",
+      body:
+        order.status === "retirado"
+          ? t("cliente.notifRetirado", { n: order.reference })
+          : t("cliente.notifListo", { n: order.reference }),
     });
   }, [order, pushActivo, t, token]);
 

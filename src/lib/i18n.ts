@@ -358,6 +358,7 @@ const dict = {
       noEncontradoSub:
         "Este QR ya no es válido o expiró. Pedí uno nuevo en el mostrador.",
       notifListo: "Pedido {n} listo para retirar.",
+      notifRetirado: "Pedido {n} retirado. Ya podés cerrar esta pestaña.",
     },
     clienteMesa: {
       titulo: "Espera de mesa",
@@ -932,6 +933,7 @@ const dict = {
       noEncontradoSub:
         "This QR is no longer valid or expired. Ask for a new one at the counter.",
       notifListo: "Order {n} is ready for pickup.",
+      notifRetirado: "Order {n} picked up. You can close this tab now.",
     },
     clienteMesa: {
       titulo: "Table wait",
