@@ -54,8 +54,9 @@ export const GET = async (req: Request) => {
   /* El lock evita que dos corridas solapadas manden los mails dos veces.
    * Si todavía no corriste supabase/cron-lock.sql la RPC no existe: en ese
    * caso seguimos igual y lo avisamos. El lock protege de duplicados, no es
-   * un control de seguridad, así que no vale la pena romper el cobro por él. */
-  const { data: tomado, error: lockErr } = await admin.rpc("tomar_cron_lock", {
+   * un control de seguridad, así que no vale la pena romper el cobro por él.
+   * El token de ownership evita que un retry suelte el lock de otra corrida. */
+  const { data: lockToken, error: lockErr } = await admin.rpc("tomar_cron_lock", {
     p_nombre: LOCK,
     p_segundos: LOCK_SEGUNDOS,
   });
@@ -65,7 +66,7 @@ export const GET = async (req: Request) => {
       "cron/cobros: no se pudo tomar el lock, sigo sin él. ¿Falta correr supabase/cron-lock.sql?",
       lockErr.message,
     );
-  } else if (tomado === false) {
+  } else if (!lockToken) {
     return NextResponse.json({ ok: true, reason: "ya-corriendo", saltado: true });
   }
 
@@ -97,8 +98,11 @@ export const GET = async (req: Request) => {
       pushPurgadas: push ?? null,
     });
   } finally {
-    if (!lockErr) {
-      const { error } = await admin.rpc("soltar_cron_lock", { p_nombre: LOCK });
+    if (typeof lockToken === "string" && lockToken.length > 0) {
+      const { error } = await admin.rpc("soltar_cron_lock", {
+        p_nombre: LOCK,
+        p_token: lockToken,
+      });
       if (error) console.error("cron/cobros: no se pudo soltar el lock", error.message);
     }
   }
