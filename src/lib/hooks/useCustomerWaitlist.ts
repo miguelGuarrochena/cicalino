@@ -29,7 +29,25 @@ interface Result {
   espera: CustomerWaitlist | null;
 }
 
-const POLL_MS = 1200;
+/* Polling adaptativo (mismo criterio que useCustomerOrder).
+ *
+ * Antes: intervalo fijo 1,2 s → ~50 req/min por cliente en cola.
+ * Ahora:
+ *   esperando → 5 s (posición de cola importa, pero no tanto como avisado)
+ *   avisado   → 3 s (puede sentarse en cualquier momento)
+ *   sentado / cancelado → se corta
+ */
+const INTERVALO_MS: Record<WaitlistStatus, number> = {
+  esperando: 5_000,
+  avisado: 3_000,
+  sentado: 0,
+  cancelado: 0,
+};
+
+const MAX_BACKOFF_MS = 30_000;
+
+const conJitter = (ms: number): number =>
+  Math.round(ms * (0.85 + Math.random() * 0.3));
 
 const emptyCola = (): CustomerWaitlistQueue => ({
   gruposDelante: 0,
@@ -118,45 +136,90 @@ export const useCustomerWaitlist = (token: string): Result => {
     if (!live) return;
     let active = true;
     let inFlight = false;
+    let detenido = false;
+    let fallos = 0;
+    let estado: WaitlistStatus = "esperando";
+    let timer: number | undefined;
+
+    const limpiarTimer = () => {
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        timer = undefined;
+      }
+    };
+
+    const proximoDelay = (): number => {
+      const base = INTERVALO_MS[estado] || 0;
+      if (!base) return 0;
+      if (!fallos) return conJitter(base);
+      return conJitter(Math.min(base * Math.pow(1.8, fallos), MAX_BACKOFF_MS));
+    };
+
+    const programar = () => {
+      limpiarTimer();
+      if (!active || detenido) return;
+      if (document.visibilityState !== "visible") return;
+      const delay = proximoDelay();
+      if (!delay) return;
+      timer = window.setTimeout(() => void load(), delay);
+    };
+
     const load = async () => {
-      if (inFlight) return;
+      if (!active || detenido || inFlight) return;
       inFlight = true;
       try {
         const res = await fetch(`/api/e/${token}`, { cache: "no-store" });
-        if (res.status === 429 || res.status >= 500) return;
+        if (res.status === 429 || res.status >= 500) {
+          fallos++;
+          return;
+        }
         const data = await res.json();
         if (!active) return;
         if (data.ok) {
+          fallos = 0;
+          estado = data.status as WaitlistStatus;
           setRemote({
             name: data.name,
             partySize: data.partySize,
-            status: data.status,
+            status: estado,
             tableNumber: data.tableNumber,
             branchName: data.branchName,
             notifiedAt: data.notifiedAt,
             cola: normalizeCola(data.cola),
           });
           setRemoteFound(true);
+          if (estado === "sentado" || estado === "cancelado") detenido = true;
+        } else if (data.reason === "not-found" || data.reason === "expired") {
+          fallos = 0;
+          setRemote(null);
+          setRemoteFound(false);
+          detenido = true;
         } else {
+          fallos++;
           setRemote(null);
           setRemoteFound(false);
         }
       } catch {
+        fallos++;
       } finally {
         inFlight = false;
-        if (active) setReady(true);
+        if (active) {
+          setReady(true);
+          programar();
+        }
       }
     };
-    void load();
-    const id = window.setInterval(() => void load(), POLL_MS);
-    const onVis = () => {
+
+    const onWake = () => {
       if (document.visibilityState === "visible") void load();
     };
-    document.addEventListener("visibilitychange", onVis);
+    document.addEventListener("visibilitychange", onWake);
+    void load();
+
     return () => {
       active = false;
-      if (id) window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVis);
+      limpiarTimer();
+      document.removeEventListener("visibilitychange", onWake);
     };
   }, [live, token]);
 
@@ -181,3 +244,6 @@ export const useCustomerWaitlist = (token: string): Result => {
       : null,
   };
 };
+
+/** Expuesto para tests: intervalos por estado (sin jitter). */
+export const WAITLIST_POLL_MS = INTERVALO_MS;

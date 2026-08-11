@@ -6,6 +6,9 @@ import { parseInput, pushSubscribeSchema } from "@/lib/schemas";
 
 export const dynamic = "force-dynamic";
 
+const qrVencido = (qrExpiraEn: string | null | undefined): boolean =>
+  Boolean(qrExpiraEn && new Date(qrExpiraEn) < new Date());
+
 export const POST = async (req: Request) => {
   const admin = createAdminSupabase();
   if (!admin) return NextResponse.json({ ok: false, reason: "not-configured" });
@@ -32,18 +35,25 @@ export const POST = async (req: Request) => {
 
   const { data: pedido } = await admin
     .from("pedidos")
-    .select("id")
+    .select("id, qr_expira_en")
     .eq("qr_token", token)
     .maybeSingle();
 
   let waitlistId: string | null = null;
-  if (!pedido) {
+  if (pedido) {
+    if (qrVencido(pedido.qr_expira_en as string | null)) {
+      return NextResponse.json({ ok: false, reason: "expired" });
+    }
+  } else {
     const { data: espera } = await admin
       .from("esperas")
-      .select("id")
+      .select("id, qr_expira_en")
       .eq("qr_token", token)
       .maybeSingle();
     if (!espera) return NextResponse.json({ ok: false, reason: "not-found" });
+    if (qrVencido(espera.qr_expira_en as string | null)) {
+      return NextResponse.json({ ok: false, reason: "expired" });
+    }
     waitlistId = espera.id;
   }
 
