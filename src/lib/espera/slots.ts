@@ -16,7 +16,8 @@ export const toLocalInput = (d: Date) =>
 
 export const SLOT_STEP_MIN = 15;
 export const SLOT_START_MIN = 11 * 60;
-export const SLOT_END_MIN = 23 * 60 + 45;
+/* Default dinner cutoff. Bars / late kitchens can go later later via config. */
+export const SLOT_END_MIN = 23 * 60;
 
 export const snapToSlot = (d: Date) => {
   const out = new Date(d);

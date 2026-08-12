@@ -94,10 +94,10 @@ describe("claves de fecha y hora", () => {
 });
 
 describe("allTimeSlots", () => {
-  it("va de 11:00 a 23:45 cada 15 minutos", () => {
+  it("va de 11:00 a 23:00 cada 15 minutos", () => {
     expect(allTimeSlots[0]).toBe("11:00");
-    expect(allTimeSlots.at(-1)).toBe("23:45");
-    expect(allTimeSlots).toHaveLength((23 * 60 + 45 - 11 * 60) / 15 + 1);
+    expect(allTimeSlots.at(-1)).toBe("23:00");
+    expect(allTimeSlots).toHaveLength((23 * 60 - 11 * 60) / 15 + 1);
   });
 
   it("está ordenado y sin repetidos", () => {

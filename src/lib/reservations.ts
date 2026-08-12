@@ -9,8 +9,29 @@ export const SOON_THRESHOLD_MIN = HOLD_BEFORE_MIN;
 
 export const MIN_GAP_BETWEEN_RESERVATIONS = 90;
 
+/* If a table is busy right now, don't take a booking that starts sooner than
+ * this. Same order of magnitude as the gap between two bookings — enough for
+ * a typical turn before the reserved party arrives. */
+export const OCCUPIED_BOOKING_LEAD_MIN = MIN_GAP_BETWEEN_RESERVATIONS;
+
 export const minutesUntil = (iso: string, now = Date.now()): number =>
   Math.round((new Date(iso).getTime() - now) / 60_000);
+
+/* Busy table + booking too soon → block. Far-future booking on a busy table
+ * is fine (lunch seated, dinner reserved). */
+export const occupiedBlocksSoonBooking = (
+  scheduledAt: string,
+  tableStatus: "libre" | "ocupada",
+  now = Date.now(),
+): boolean => {
+  if (tableStatus !== "ocupada") return false;
+  const t = new Date(scheduledAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return t < now + OCCUPIED_BOOKING_LEAD_MIN * 60_000;
+};
+
+export const earliestBookingAfterOccupied = (now = Date.now()): Date =>
+  new Date(now + OCCUPIED_BOOKING_LEAD_MIN * 60_000);
 
 export const reservationTables = (r: ReservationView): number[] => {
   const nums = r.tableNumbers?.length ? r.tableNumbers : [r.tableNumber];

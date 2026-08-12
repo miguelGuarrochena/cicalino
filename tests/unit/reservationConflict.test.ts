@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   conflictingReservation,
   MIN_GAP_BETWEEN_RESERVATIONS,
+  OCCUPIED_BOOKING_LEAD_MIN,
+  occupiedBlocksSoonBooking,
 } from "@/lib/reservations";
 import type { ReservationView } from "@/lib/types";
 
@@ -133,5 +135,25 @@ describe("el gap y la ventana del constraint", () => {
     const antes = conflictingReservation([3], at(-MIN_GAP_BETWEEN_RESERVATIONS + 1), otras);
     const despues = conflictingReservation([3], at(MIN_GAP_BETWEEN_RESERVATIONS - 1), otras);
     expect(Boolean(antes)).toBe(Boolean(despues));
+  });
+});
+
+describe("occupiedBlocksSoonBooking", () => {
+  const now = AT.getTime();
+
+  it("no bloquea mesas libres", () => {
+    expect(occupiedBlocksSoonBooking(at(10), "libre", now)).toBe(false);
+  });
+
+  it("bloquea ocupada si el horario es antes del lead", () => {
+    expect(
+      occupiedBlocksSoonBooking(at(OCCUPIED_BOOKING_LEAD_MIN - 1), "ocupada", now),
+    ).toBe(true);
+  });
+
+  it("permite ocupada si el horario alcanza el lead", () => {
+    expect(
+      occupiedBlocksSoonBooking(at(OCCUPIED_BOOKING_LEAD_MIN), "ocupada", now),
+    ).toBe(false);
   });
 });

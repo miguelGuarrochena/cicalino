@@ -10,6 +10,7 @@ import { TZ_NEGOCIO } from "@/lib/businessDay";
 import { addDaysKey, pad2 } from "@/lib/espera/slots";
 import {
   RESERVATION_STATUS_LABEL,
+  reservationClosed,
   tablesTitle,
   type ReservationView,
 } from "@/lib/types";
@@ -130,6 +131,7 @@ export const ReservasAgenda = ({
 
   const upcoming = useMemo(() => {
     const list = reservas
+      .filter((r) => r.status === "activa")
       .filter(
         (r) => reservationDateKey(r.scheduledAt, TZ_NEGOCIO) >= todayKey,
       )
@@ -139,6 +141,30 @@ export const ReservasAgenda = ({
       extra: Math.max(0, list.length - UPCOMING_LIMIT),
     };
   }, [reservas, todayKey]);
+
+  /* Closed bookings for today — seated, no-show, cancelled. Keeps a day log
+   * after they leave “Próximas”. */
+  const registroHoy = useMemo(() => {
+    return reservas
+      .filter(
+        (r) => reservationDateKey(r.scheduledAt, TZ_NEGOCIO) === todayKey,
+      )
+      .filter((r) => reservationClosed(r.status))
+      .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt));
+  }, [reservas, todayKey]);
+
+  const statusChip = (r: ReservationView) => {
+    if (r.status === "expirada") {
+      return locale === "en" ? "No-show" : "No llegó";
+    }
+    if (r.status === "sentada") {
+      return locale === "en" ? "Seated" : "Sentada";
+    }
+    if (r.status === "cancelada") {
+      return locale === "en" ? "Cancelled" : "Cancelada";
+    }
+    return RESERVATION_STATUS_LABEL[r.status];
+  };
 
   const selectDay = (key: string) => {
     setSelectedKey(key);
@@ -155,6 +181,7 @@ export const ReservasAgenda = ({
   };
 
   const delDia = byDay.get(selectedKey) ?? [];
+  const delDiaNoShow = delDia.filter((r) => r.status === "expirada").length;
   const selectedLabel = (() => {
     const [y, m, d] = selectedKey.split("-").map(Number);
     return new Date(y, m - 1, d).toLocaleDateString(
@@ -250,6 +277,58 @@ export const ReservasAgenda = ({
         </div>
       )}
 
+      {registroHoy.length > 0 && (
+        <div className="rounded-[20px] border border-linea bg-surface/80 p-3 shadow-sm sm:p-4">
+          <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="font-display text-lg uppercase tracking-tight text-carbon">
+              {locale === "en" ? "Today’s log" : "Registro de hoy"}
+            </h3>
+            <p className="text-xs text-carbon/45">
+              {locale === "en"
+                ? "Seated · no-show · cancelled"
+                : "Sentadas · no llegó · canceladas"}
+            </p>
+          </div>
+          <ul className="flex max-h-48 flex-col gap-1.5 overflow-y-auto pr-0.5">
+            {registroHoy.map((r) => {
+              const noShow = r.status === "expirada";
+              return (
+                <li
+                  key={r.id}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${
+                    noShow
+                      ? "bg-rose-50/90 dark:bg-rose-500/10"
+                      : "bg-crema/60 dark:bg-carbon/5"
+                  }`}
+                >
+                  <span
+                    className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                      noShow
+                        ? "bg-rose-200/80 text-rose-950 dark:bg-rose-400/25 dark:text-rose-100"
+                        : "bg-carbon/10 text-carbon/70"
+                    }`}
+                  >
+                    {statusChip(r)}
+                  </span>
+                  <span className="font-display text-lg tabular-nums tracking-tight text-carbon">
+                    {reservationTime(r.scheduledAt)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-semibold text-carbon">
+                    {r.name}
+                  </span>
+                  <span className="hidden shrink-0 text-xs text-carbon/45 sm:inline">
+                    {tablesTitle(
+                      r.tableNumbers ?? [r.tableNumber],
+                      locale === "en" ? "en" : "es",
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
         <div className="rounded-[20px] border border-amber-400/35 bg-amber-50/50 p-3 shadow-sm dark:bg-amber-400/10 sm:p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -339,8 +418,16 @@ export const ReservasAgenda = ({
             <p className="text-xs text-carbon/50">
               {delDia.length
                 ? locale === "en"
-                  ? `${delDia.length} booking${delDia.length === 1 ? "" : "s"}`
-                  : `${delDia.length} reserva${delDia.length === 1 ? "" : "s"}`
+                  ? `${delDia.length} booking${delDia.length === 1 ? "" : "s"}${
+                      delDiaNoShow
+                        ? ` · ${delDiaNoShow} no-show${delDiaNoShow === 1 ? "" : "s"}`
+                        : ""
+                    }`
+                  : `${delDia.length} reserva${delDia.length === 1 ? "" : "s"}${
+                      delDiaNoShow
+                        ? ` · ${delDiaNoShow} no llegó${delDiaNoShow === 1 ? "" : "ron"}`
+                        : ""
+                    }`
                 : locale === "en"
                   ? "No bookings this day"
                   : "Sin reservas este día"}
@@ -348,61 +435,105 @@ export const ReservasAgenda = ({
           </div>
           {delDia.length ? (
             <div className="flex flex-col gap-3">
-              {delDia.map((r) => (
-                <article
-                  key={r.id}
-                  className="rounded-[20px] border border-amber-400/40 bg-amber-50/80 p-4 shadow-sm dark:bg-amber-400/10"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-display text-2xl tabular-nums tracking-tight text-amber-950 dark:text-amber-100">
-                          {reservationTime(r.scheduledAt)}
-                        </p>
-                        <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
-                          {r.name}
-                        </h3>
-                        <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 dark:bg-amber-400/30 dark:text-amber-100">
-                          {RESERVATION_STATUS_LABEL[r.status]}
-                        </span>
-                        <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
-                          {tablesTitle(
-                            r.tableNumbers ?? [r.tableNumber],
-                            locale === "en" ? "en" : "es",
+              {delDia.map((r) => {
+                const closed = reservationClosed(r.status);
+                const noShow = r.status === "expirada";
+                return (
+                  <article
+                    key={r.id}
+                    className={`rounded-[20px] border p-4 shadow-sm ${
+                      noShow
+                        ? "border-rose-300/50 bg-rose-50/70 dark:bg-rose-500/10"
+                        : closed
+                          ? "border-linea bg-surface"
+                          : "border-amber-400/40 bg-amber-50/80 dark:bg-amber-400/10"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p
+                            className={`font-display text-2xl tabular-nums tracking-tight ${
+                              noShow
+                                ? "text-rose-900 dark:text-rose-100"
+                                : "text-amber-950 dark:text-amber-100"
+                            }`}
+                          >
+                            {reservationTime(r.scheduledAt)}
+                          </p>
+                          <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
+                            {r.name}
+                          </h3>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                              noShow
+                                ? "bg-rose-200/80 text-rose-950 dark:bg-rose-400/30 dark:text-rose-100"
+                                : "bg-amber-200/80 text-amber-950 dark:bg-amber-400/30 dark:text-amber-100"
+                            }`}
+                          >
+                            {locale === "en" && noShow
+                              ? "No-show"
+                              : RESERVATION_STATUS_LABEL[r.status]}
+                          </span>
+                          <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
+                            {tablesTitle(
+                              r.tableNumbers ?? [r.tableNumber],
+                              locale === "en" ? "en" : "es",
+                            )}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-carbon/55">
+                          {r.partySize}{" "}
+                          {locale === "en" ? "guests" : "personas"} · +
+                          {r.graceMinutes} min
+                          {!closed && (
+                            <>
+                              {" "}
+                              ·{" "}
+                              {timeUntilLabel(
+                                r.scheduledAt,
+                                locale === "en" ? "en" : "es",
+                                ahora,
+                              )}
+                            </>
                           )}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-carbon/55">
-                        {r.partySize}{" "}
-                        {locale === "en" ? "guests" : "personas"} · +
-                        {r.graceMinutes} min ·{" "}
-                        {timeUntilLabel(
-                          r.scheduledAt,
-                          locale === "en" ? "en" : "es",
-                          ahora,
+                          {noShow && r.expiredAt
+                            ? locale === "en"
+                              ? ` · marked ${reservationTime(r.expiredAt)}`
+                              : ` · marcado ${reservationTime(r.expiredAt)}`
+                            : null}
+                          {r.employee ? ` · ${r.employee}` : ""}
+                        </p>
+                        {noShow && (
+                          <p className="mt-1 text-xs text-rose-800/80 dark:text-rose-200/80">
+                            {locale === "en"
+                              ? "Kept for the day in case of a claim."
+                              : "Queda del día por si hay reclamo."}
+                          </p>
                         )}
-                        {r.employee ? ` · ${r.employee}` : ""}
-                      </p>
+                      </div>
+                      {!closed && (
+                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => onSentar(r.id)}
+                            className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90`}
+                          >
+                            {locale === "en" ? "Seat" : "Sentar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onCancelar(r.id)}
+                            className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50`}
+                          >
+                            {locale === "en" ? "Cancel" : "Cancelar"}
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => onSentar(r.id)}
-                        className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90`}
-                      >
-                        {locale === "en" ? "Seat" : "Sentar"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onCancelar(r.id)}
-                        className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50`}
-                      >
-                        {locale === "en" ? "Cancel" : "Cancelar"}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <p className="rounded-2xl border border-dashed border-linea bg-surface px-4 py-8 text-center text-sm text-carbon/45">

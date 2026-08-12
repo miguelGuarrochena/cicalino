@@ -16,7 +16,7 @@ import { fetchEsperaSeen } from "@/lib/data/waitlist";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
-import { businessDayStart } from "@/lib/businessDay";
+import { businessDayStart, TZ_NEGOCIO } from "@/lib/businessDay";
 import {
   WAITLIST_STATUS_LABEL,
   waitlistClosed,
@@ -32,6 +32,11 @@ import {
   conflictingReservation,
   nextReservationByTable,
   tablesInFloorHold,
+  occupiedBlocksSoonBooking,
+  OCCUPIED_BOOKING_LEAD_MIN,
+  earliestBookingAfterOccupied,
+  timeUntilLabel,
+  reservationDateKey,
 } from "@/lib/reservations";
 import {
   readDeviceMode,
@@ -137,6 +142,7 @@ const EsperaPanelPage = () => {
   const [ocuparPrimaria, setOcuparPrimaria] = useState<number | null>(null);
   const [ocuparNombre, setOcuparNombre] = useState("");
   const [ocuparPersonas, setOcuparPersonas] = useState(2);
+  const [holdReservaId, setHoldReservaId] = useState<string | null>(null);
   const [ocupando, setOcupando] = useState(false);
   const [filtroMesa, setFiltroMesa] = useState<
     "todas" | "libre" | "conReserva" | "ocupada"
@@ -230,6 +236,18 @@ const EsperaPanelPage = () => {
     () => reservas.filter((r) => r.status === "activa"),
     [reservas],
   );
+  /* Agenda also keeps no-shows / closed bookings for the day (claims). */
+  const reservasAgenda = useMemo(
+    () =>
+      reservas.filter(
+        (r) =>
+          r.status === "activa" ||
+          r.status === "expirada" ||
+          r.status === "sentada" ||
+          r.status === "cancelada",
+      ),
+    [reservas],
+  );
   const reservaById = useMemo(() => {
     const map = new Map<string, ReservationView>();
     for (const r of reservas) map.set(r.id, r);
@@ -241,17 +259,26 @@ const EsperaPanelPage = () => {
     return map;
   }, [esperas]);
 
-  /* Floor hold: from HOLD_BEFORE before the booking through grace. Wider than
-   * the DB grace window on purpose — the map turns amber early so staff stop
-   * seating walk-ins on a table that's about to be claimed. */
+  /* Floor hold + map chips: only TODAY’s bookings. A reservation two days out
+   * still lives in the agenda/calendar — putting “14:00” on the floor map with
+   * no date made staff think it was tonight. */
+  const hoyKey = reservationDateKey(new Date(ahora).toISOString(), TZ_NEGOCIO);
+  const reservasHoyMapa = useMemo(
+    () =>
+      reservas.filter(
+        (r) => reservationDateKey(r.scheduledAt, TZ_NEGOCIO) === hoyKey,
+      ),
+    [reservas, hoyKey],
+  );
+
   const mesaTomadaPorReserva = useMemo(
-    () => tablesInFloorHold(reservas, ahora),
-    [reservas, ahora],
+    () => tablesInFloorHold(reservasHoyMapa, ahora),
+    [reservasHoyMapa, ahora],
   );
 
   const reservaPorMesa = useMemo(
-    () => nextReservationByTable(reservas, ahora),
-    [reservas, ahora],
+    () => nextReservationByTable(reservasHoyMapa, ahora),
+    [reservasHoyMapa, ahora],
   );
 
   const libres = mesas.filter((m) => m.status === "libre").length;
@@ -303,17 +330,37 @@ const EsperaPanelPage = () => {
     }
     return map;
   }, [mesas, reservas, reservaHorarioIso]);
-  /* Si cambió el horario y una mesa elegida ahora choca, la sacamos: si no,
-   * el botón queda disabled con la mesa "seleccionada" invisible y parece
-   * que no marca nada. */
+  const reservaOcupadaPronto = useMemo(() => {
+    const set = new Set<number>();
+    if (!reservaHorarioIso) return set;
+    for (const m of mesas) {
+      if (
+        occupiedBlocksSoonBooking(reservaHorarioIso, m.status, ahora)
+      ) {
+        set.add(m.number);
+      }
+    }
+    return set;
+  }, [mesas, reservaHorarioIso, ahora]);
+  const reservaDesdeOcupada = useMemo(
+    () => reservationTime(earliestBookingAfterOccupied(ahora).toISOString()),
+    [ahora],
+  );
+  /* Si cambió el horario y una mesa elegida ahora choca o está ocupada
+   * demasiado pronto, la sacamos: si no, el botón queda disabled con la mesa
+   * "seleccionada" invisible y parece que no marca nada. */
   useEffect(() => {
     setReservaMesas((prev) => {
-      const next = prev.filter((n) => !reservaChoquePorMesa.has(n));
+      const next = prev.filter(
+        (n) => !reservaChoquePorMesa.has(n) && !reservaOcupadaPronto.has(n),
+      );
       return next.length === prev.length ? prev : next;
     });
-  }, [reservaChoquePorMesa]);
+  }, [reservaChoquePorMesa, reservaOcupadaPronto]);
   const mesasParaReserva = mesas.filter(
-    (m) => !reservaChoquePorMesa.has(m.number),
+    (m) =>
+      !reservaChoquePorMesa.has(m.number) &&
+      !reservaOcupadaPronto.has(m.number),
   );
   const reservaCapSeleccionada = mesas
     .filter((m) => reservaMesas.includes(m.number))
@@ -365,6 +412,12 @@ const EsperaPanelPage = () => {
   const confirmCancelReserva = reservas.find(
     (r) => r.id === confirmCancelReservaId,
   );
+  const holdReserva = holdReservaId
+    ? reservasActivas.find((r) => r.id === holdReservaId)
+    : undefined;
+  useEffect(() => {
+    if (holdReservaId && !holdReserva) setHoldReservaId(null);
+  }, [holdReservaId, holdReserva]);
   const editCapacidadMesa = mesas.find((m) => m.number === editCapacidadNumero);
   const liberarMesaView = mesas.find((m) => m.number === liberarNumero);
   const liberarReserva =
@@ -467,8 +520,12 @@ const EsperaPanelPage = () => {
     if (!reservaMesasOk) {
       const msg = !mesasParaReserva.length
         ? locale === "en"
-          ? "Every table is already booked around that time"
-          : "Todas las mesas ya tienen reserva a esa hora"
+          ? reservaOcupadaPronto.size && !reservaChoquePorMesa.size
+            ? `Busy tables can’t take a booking before ${reservaDesdeOcupada}`
+            : "Every table is already booked around that time"
+          : reservaOcupadaPronto.size && !reservaChoquePorMesa.size
+            ? `Mesas ocupadas: no se puede reservar antes de las ${reservaDesdeOcupada}`
+            : "Todas las mesas ya tienen reserva a esa hora"
         : !reservaPuedeCubrir
           ? locale === "en"
             ? `Not enough seats for ${reservaPersonas} at that time (only ${reservaCapLibre} available)`
@@ -674,8 +731,8 @@ const EsperaPanelPage = () => {
         />
         <p className="text-xs text-carbon/45">
           {locale === "en"
-            ? `Tap free → seat · busy → free. Amber border = booking ahead. Full amber = reserved (${HOLD_BEFORE_MIN} min before until grace ends).`
-            : `Libre → sentar · ocupada → liberar. Borde ámbar = tiene reserva. Ámbar completo = reservada (${HOLD_BEFORE_MIN} min antes hasta que venza la tolerancia).`}
+            ? `Tap free → seat · busy → free. Amber = today’s booking (${HOLD_BEFORE_MIN} min before until grace). Later days stay in the calendar.`
+            : `Libre → sentar · ocupada → liberar. Ámbar = reserva de hoy (${HOLD_BEFORE_MIN} min antes hasta la tolerancia). Otros días solo en el calendario.`}
         </p>
       </div>
 
@@ -723,12 +780,7 @@ const EsperaPanelPage = () => {
                 type="button"
                 onClick={() => {
                   if (libre && holding && reservaProx) {
-                    toast(
-                      locale === "en"
-                        ? `Table ${m.number} is reserved at ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
-                        : `Mesa ${m.number} reservada a las ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`,
-                      "error",
-                    );
+                    setHoldReservaId(reservaProx.id);
                     return;
                   }
                   if (libre) {
@@ -746,8 +798,8 @@ const EsperaPanelPage = () => {
                     ? libre
                       ? holding
                         ? locale === "en"
-                          ? `Reserved ${reservationTime(reservaProx.scheduledAt)} — ${reservaProx.name}`
-                          : `Reservada ${reservationTime(reservaProx.scheduledAt)} — ${reservaProx.name}`
+                          ? `Reserved ${reservationTime(reservaProx.scheduledAt)} — ${reservaProx.name} · tap to manage`
+                          : `Reservada ${reservationTime(reservaProx.scheduledAt)} — ${reservaProx.name} · tocar para gestionar`
                         : locale === "en"
                           ? `Free now · booking ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
                           : `Libre ahora · reserva ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
@@ -763,7 +815,7 @@ const EsperaPanelPage = () => {
                         : "Tocar para liberar"
                 }
                 className={mesaTileClass(m.status, {
-                  pickable: !libre || !holding,
+                  pickable: true,
                   conReserva,
                   reservaHold: holding,
                 })}
@@ -833,22 +885,23 @@ const EsperaPanelPage = () => {
               ? ` · ${reservasActivas.length}`
               : ""}
           </h2>
-          {reservasActivas.length > 0 && (
+          {reservasAgenda.length > 0 && (
             <p className="text-xs text-carbon/45">
               {locale === "en"
-                ? "Auto-frees if they don’t arrive in time"
-                : "Se libera sola si no llegan a tiempo"}
+                ? "No-shows stay as “No-show” for the day (claims)."
+                : "Si no llegan, quedan como «No llegó» del día (reclamos)."}
             </p>
           )}
         </div>
-        {reservasActivas.length > 0 ? (
+        {reservasAgenda.length > 0 ? (
           <ReservasAgenda
-            reservas={reservasActivas}
+            reservas={reservasAgenda}
             locale={locale}
             ahora={ahora}
             onSentar={(id) => {
               void sentarReserva(id).then(() => {
                 const r = reservasActivas.find((x) => x.id === id);
+                setHoldReservaId(null);
                 toast(
                   locale === "en"
                     ? `Seated at ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "en")}`
@@ -857,7 +910,10 @@ const EsperaPanelPage = () => {
                 );
               });
             }}
-            onCancelar={(id) => setConfirmCancelReservaId(id)}
+            onCancelar={(id) => {
+              setHoldReservaId(null);
+              setConfirmCancelReservaId(id);
+            }}
           />
         ) : (
           <p className="text-sm text-carbon/45">
@@ -1245,11 +1301,11 @@ const EsperaPanelPage = () => {
               <p className="mb-2 text-xs text-carbon/45">
                 {locale === "en"
                   ? reservaCabeEnUna
-                    ? "Pick a table that fits. Busy now is fine — the booking is for later."
-                    : "No single table fits — join 2 or more."
+                    ? `Pick a table that fits. Busy tables need +${OCCUPIED_BOOKING_LEAD_MIN} min (from ${reservaDesdeOcupada}).`
+                    : `No single table fits — join 2 or more. Busy tables need +${OCCUPIED_BOOKING_LEAD_MIN} min.`
                   : reservaCabeEnUna
-                    ? "Elegí una mesa que entre al grupo. Que esté ocupada ahora no importa: la reserva es para más tarde."
-                    : "Ninguna mesa sola alcanza: juntá 2 o más."}
+                    ? `Elegí una mesa que entre al grupo. Si está ocupada ahora, recién desde las ${reservaDesdeOcupada} (+${OCCUPIED_BOOKING_LEAD_MIN} min).`
+                    : `Ninguna mesa sola alcanza: juntá 2 o más. Ocupadas: recién desde las ${reservaDesdeOcupada}.`}
               </p>
               {!mesas.length ? (
                 <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
@@ -1280,8 +1336,12 @@ const EsperaPanelPage = () => {
               ) : !mesasParaReserva.length ? (
                 <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
                   {locale === "en"
-                    ? "Every table is already booked around that time."
-                    : "Todas las mesas ya tienen reserva a esa hora."}
+                    ? reservaOcupadaPronto.size && !reservaChoquePorMesa.size
+                      ? `Busy tables can’t take a booking before ${reservaDesdeOcupada}. Pick a later time.`
+                      : "Every table is already booked around that time."
+                    : reservaOcupadaPronto.size && !reservaChoquePorMesa.size
+                      ? `Mesas ocupadas: no se puede reservar antes de las ${reservaDesdeOcupada}. Probá más tarde.`
+                      : "Todas las mesas ya tienen reserva a esa hora."}
                 </p>
               ) : !reservaPuedeCubrir ? (
                 <p className="mb-3 rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-100">
@@ -1314,10 +1374,13 @@ const EsperaPanelPage = () => {
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                   {mesas.map((m) => {
                     const choque = reservaChoquePorMesa.get(m.number);
-                    const elegible = !choque;
+                    const ocupadaPronto = reservaOcupadaPronto.has(m.number);
+                    const elegible = !choque && !ocupadaPronto;
                     const selected = reservaMesas.includes(m.number);
                     const cap = m.capacity ?? 4;
                     const oversized = elegible && cap > reservaPersonas;
+                    const ocupadaOk =
+                      m.status === "ocupada" && elegible;
                     return (
                       <button
                         key={m.id}
@@ -1328,7 +1391,15 @@ const EsperaPanelPage = () => {
                             ? locale === "en"
                               ? `Booked ${reservationTime(choque.scheduledAt)} — ${choque.name}`
                               : `Reservada ${reservationTime(choque.scheduledAt)} — ${choque.name}`
-                            : undefined
+                            : ocupadaPronto
+                              ? locale === "en"
+                                ? `Busy now — book from ${reservaDesdeOcupada}`
+                                : `Ocupada ahora — reservá desde las ${reservaDesdeOcupada}`
+                              : ocupadaOk
+                                ? locale === "en"
+                                  ? "Busy now · ok for this later time"
+                                  : "Ocupada ahora · ok para este horario"
+                                : undefined
                         }
                         onClick={() => {
                           if (!elegible) return;
@@ -1341,12 +1412,17 @@ const EsperaPanelPage = () => {
                         className={
                           choque
                             ? "relative flex aspect-square cursor-not-allowed flex-col items-center justify-center rounded-2xl border-2 border-amber-600 bg-amber-400 text-center text-amber-950 opacity-70"
-                            : mesaTileClass("libre", {
-                                pickable: true,
-                                selected,
-                                selectedAmber: true,
-                                oversized,
-                              })
+                            : ocupadaPronto
+                              ? "relative flex aspect-square cursor-not-allowed flex-col items-center justify-center rounded-2xl border-2 border-rose-500 bg-rose-500/90 text-center text-white opacity-80"
+                              : mesaTileClass(
+                                  ocupadaOk ? "ocupada" : "libre",
+                                  {
+                                    pickable: true,
+                                    selected,
+                                    selectedAmber: true,
+                                    oversized,
+                                  },
+                                )
                         }
                       >
                         <span className="font-display text-xl leading-none">
@@ -1355,13 +1431,17 @@ const EsperaPanelPage = () => {
                         <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
                           {choque
                             ? reservationTime(choque.scheduledAt)
-                            : m.status === "ocupada"
+                            : ocupadaPronto
                               ? locale === "en"
-                                ? "Busy now"
-                                : "Ocup. ahora"
-                              : locale === "en"
-                                ? "Free"
-                                : "Libre"}
+                                ? "Busy"
+                                : "Ocup."
+                              : ocupadaOk
+                                ? locale === "en"
+                                  ? "Busy · later ok"
+                                  : "Ocup. · ok"
+                                : locale === "en"
+                                  ? "Free"
+                                  : "Libre"}
                         </span>
                         <span className="mt-0.5 text-[9px] font-semibold opacity-80">
                           {cap}p
@@ -1467,6 +1547,7 @@ const EsperaPanelPage = () => {
               onClick={() => {
                 void cancelarReserva(confirmCancelReservaId);
                 setConfirmCancelReservaId(null);
+                setHoldReservaId(null);
               }}
               className="w-full rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
             >
@@ -1478,6 +1559,82 @@ const EsperaPanelPage = () => {
               className="w-full rounded-full border border-linea px-5 py-3 text-sm font-semibold text-carbon transition hover:bg-crema"
             >
               {locale === "en" ? "Keep it" : "Mantener"}
+            </button>
+          </div>
+        </ModalShell>
+      )}
+
+      {holdReservaId && holdReserva && (
+        <ModalShell
+          onClose={() => setHoldReservaId(null)}
+          labelledBy="hold-reserva-title"
+        >
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-800/70">
+            {locale === "en" ? "Reserved now" : "Reservada ahora"}
+          </p>
+          <h2
+            id="hold-reserva-title"
+            className="mt-1 font-display text-2xl uppercase tracking-tight text-carbon"
+          >
+            {holdReserva.name}
+          </h2>
+          <p className="mt-2 text-sm text-carbon/60">
+            {tablesTitle(
+              holdReserva.tableNumbers ?? [holdReserva.tableNumber],
+              locale === "en" ? "en" : "es",
+            )}{" "}
+            · {holdReserva.partySize}{" "}
+            {locale === "en" ? "guests" : "personas"} ·{" "}
+            {reservationTime(holdReserva.scheduledAt)} · +
+            {holdReserva.graceMinutes} min ·{" "}
+            {timeUntilLabel(
+              holdReserva.scheduledAt,
+              locale === "en" ? "en" : "es",
+              ahora,
+            )}
+          </p>
+          <p className="mt-3 rounded-2xl border border-amber-400/50 bg-amber-50/80 px-3.5 py-3 text-sm text-amber-950 dark:bg-amber-400/10 dark:text-amber-100">
+            {locale === "en"
+              ? "Walk-ins can’t take this table while the hold is on. Seat the booking, cancel it, or wait for grace to end."
+              : "No se puede sentar walk-in mientras esté en hold. Sentá la reserva, cancelala, o esperá que venza la tolerancia."}
+          </p>
+          <p className="mt-2 text-xs text-carbon/45">
+            {locale === "en"
+              ? "To change time or table: cancel and create a new booking."
+              : "Para cambiar horario o mesa: cancelá y creá otra reserva."}
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                const id = holdReserva.id;
+                void sentarReserva(id).then(() => {
+                  setHoldReservaId(null);
+                  toast(
+                    locale === "en"
+                      ? `Seated at ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "en")}`
+                      : `Sentados en ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "es")}`,
+                    "success",
+                  );
+                });
+              }}
+              className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90 sm:flex-1`}
+            >
+              {locale === "en" ? "Seat booking" : "Sentar reserva"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmCancelReservaId(holdReserva.id)}
+              className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50 sm:flex-1`}
+            >
+              {locale === "en" ? "Cancel booking" : "Cancelar reserva"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setHoldReservaId(null)}
+              className={`${BTN_MOBILE} border border-linea text-carbon/70 hover:bg-crema sm:w-full`}
+            >
+              {locale === "en" ? "Close" : "Cerrar"}
             </button>
           </div>
         </ModalShell>
