@@ -262,6 +262,13 @@ const PanelOrdersPage = () => {
     if (ok) setCrearOpen(false);
   };
 
+  const cerrarCrear = () => {
+    if (creating) return;
+    setCrearOpen(false);
+    setRefDraft("");
+    setRefError(false);
+  };
+
   const labelFiltro = (f: FiltroEstado) => {
         if (f === "todos") return t("panel.filtroTodos");
         return t(`estado.${f}`);
@@ -447,21 +454,7 @@ const PanelOrdersPage = () => {
 
       {createOpen && (
         <ModalShell
-          onClose={() => {
-            if (creating) return;
-            if (refDraft.trim()) {
-              if (
-                !window.confirm(
-                  locale === "en"
-                    ? "Discard without creating the order?"
-                    : "¿Salir sin crear el pedido?",
-                )
-              ) {
-                return;
-              }
-            }
-            setCrearOpen(false);
-          }}
+          onClose={cerrarCrear}
           labelledBy="nuevo-pedido"
           busy={creating}
           footer={
@@ -477,21 +470,7 @@ const PanelOrdersPage = () => {
               <button
                 type="button"
                 disabled={creating}
-                onClick={() => {
-                  if (creating) return;
-                  if (refDraft.trim()) {
-                    if (
-                      !window.confirm(
-                        locale === "en"
-                          ? "Discard without creating the order?"
-                          : "¿Salir sin crear el pedido?",
-                      )
-                    ) {
-                      return;
-                    }
-                  }
-                  setCrearOpen(false);
-                }}
+                onClick={cerrarCrear}
                 className="w-full rounded-full border border-linea bg-crema/60 px-4 py-3 text-sm font-semibold text-carbon disabled:opacity-50 sm:flex-1"
               >
                 {locale === "en" ? "Cancel" : "Cancelar"}
@@ -509,21 +488,7 @@ const PanelOrdersPage = () => {
             <ModalCloseBtn
               disabled={creating}
               label={t("qr.cerrar")}
-              onClick={() => {
-                if (creating) return;
-                if (refDraft.trim()) {
-                  if (
-                    !window.confirm(
-                      locale === "en"
-                        ? "Discard without creating the order?"
-                        : "¿Salir sin crear el pedido?",
-                    )
-                  ) {
-                    return;
-                  }
-                }
-                setCrearOpen(false);
-              }}
+              onClick={cerrarCrear}
             />
           </div>
           <p className="mt-1 text-sm text-carbon/55">
@@ -542,7 +507,11 @@ const PanelOrdersPage = () => {
               );
               setRefError(false);
             }}
-            onKeyDown={(e) => e.key === "Enter" && void confirmarCrear()}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              void confirmarCrear();
+            }}
             placeholder={mode === "mesa" ? "12" : "Sofía"}
             inputMode={mode === "mesa" ? "numeric" : "text"}
           />
