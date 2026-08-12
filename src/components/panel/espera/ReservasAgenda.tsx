@@ -520,9 +520,7 @@ export const ReservasAgenda = ({
                   : "Registro del día"}
             </h3>
             <p className="text-xs text-carbon/45">
-              {locale === "en"
-                ? "For claims and the day’s history"
-                : "Para reclamos e historial del día"}
+              {locale === "en" ? "Day history" : "Historial del día"}
             </p>
           </div>
           <div
