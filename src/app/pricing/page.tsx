@@ -87,6 +87,7 @@ const PreciosPage = () => {
         espera: [
           "Cola de espera de mesa",
           "Mapa de mesas libres/ocupadas",
+          "Calendario y próximas reservas",
           "QR + aviso al celular",
           "Métricas de espera",
           "1 sucursal incluida",
@@ -94,6 +95,7 @@ const PreciosPage = () => {
         pack: [
           "Pedidos + Espera de mesa",
           "QR + aviso en ambos flujos",
+          "Reservas incluidas en Espera",
           "Pestañas claras en el panel",
           "Métricas separadas",
           "1 sucursal incluida",
@@ -110,6 +112,7 @@ const PreciosPage = () => {
         espera: [
           "Table waitlist",
           "Free/busy floor map",
+          "Calendar + upcoming reservations",
           "QR + phone notice",
           "Wait metrics",
           "1 branch included",
@@ -117,6 +120,7 @@ const PreciosPage = () => {
         pack: [
           "Orders + Table wait",
           "QR notice for both flows",
+          "Reservations included with Wait",
           "Clear panel tabs",
           "Separate metrics",
           "1 branch included",

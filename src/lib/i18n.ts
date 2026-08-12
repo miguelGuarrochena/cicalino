@@ -51,9 +51,17 @@ const dict = {
       a7: "Sí. Desde el panel, en curso o listo, tocás «Cancelar pedido». Sirve si el cliente se arrepiente o nunca lo retira. Queda en el historial como cancelado.",
       e: {
         flujoTitulo: "Ciclo de espera de mesa",
-        flujoSub: "Cola de grupos y mapa de mesas. Ideal en recepción.",
+        flujoSub:
+          "Cola de grupos, mapa de mesas y reservas. Ideal en recepción.",
         flujoNota:
-          "Agregás el grupo, le pasás el QR y queda en cola. Cuando hay mesa libre, tocás «Avisar». Después «Sentar» eligiendo la mesa. Al irse, liberás la mesa con un toque. Podés usar un dispositivo solo para Espera y otro para Pedidos.",
+          "Agregás el grupo, le pasás el QR y queda en cola. Cuando hay mesa libre, tocás «Avisar». Después «Sentar» eligiendo la mesa. Al irse, liberás la mesa con un toque. En el mismo panel cargás reservas del día y ves el calendario. Podés usar un dispositivo solo para Espera y otro para Pedidos.",
+        reservasKicker: "Incluido en Espera",
+        reservasTitulo: "Reservas del día, en el mismo panel",
+        reservasSub:
+          "Calendario, próximas reservas y mapa de mesas juntos. Sin otra app ni plan aparte.",
+        reservasProximas: "Próximas reservas",
+        reservasNota:
+          "Los días con reserva se marcan. Tocás un día — o una próxima — y ves la lista.",
         estado: {
           esperando: "Esperando",
           avisado: "Avisado",
@@ -65,7 +73,7 @@ const dict = {
           sentado: "Los sentás y liberás cuando se van",
         },
         q1: "¿Es lo mismo que el modo mesa de pedidos?",
-        a1: "No. El modo mesa en pedidos solo etiqueta el retiro en mostrador. Espera de mesa es un módulo aparte: cola de grupos + mapa de mesas libres/ocupadas.",
+        a1: "No. El modo mesa en pedidos solo etiqueta el retiro en mostrador. Espera de mesa es un módulo aparte: cola de grupos, mapa de mesas libres/ocupadas y calendario de reservas.",
         q2: "¿Puedo tener Pedidos y Espera juntos?",
         a2: "Sí. Cada sucursal contrata su pack. Si tiene ambos, en Configuración podés dejar un dispositivo solo en Pedidos, solo en Espera, o ambos.",
         q3: "¿Cómo configuro cuántas mesas tengo?",
@@ -74,6 +82,8 @@ const dict = {
         a4: "No. Escanea el QR, deja la pantalla abierta y recibe el aviso cuando hay mesa.",
         q5: "¿Las métricas se mezclan con los pedidos?",
         a5: "No. Métricas tiene pestañas separadas: Pedidos y Espera.",
+        q6: "¿Las reservas vienen con Espera?",
+        a6: "Sí. En el módulo Espera tenés cola walk-in, mapa de mesas y agenda de reservas (próximas + calendario). No es un producto aparte ni un costo extra.",
       },
     },
     home: {
@@ -627,9 +637,17 @@ const dict = {
       a7: "Yes. From the panel, while in progress or ready, tap “Cancel order”. Use it if the customer changes their mind or never picks up. It stays in history as cancelled.",
       e: {
         flujoTitulo: "Table wait lifecycle",
-        flujoSub: "Party queue and floor map. Great at the host stand.",
+        flujoSub:
+          "Party queue, floor map, and reservations. Great at the host stand.",
         flujoNota:
-          "Add the party, hand over the QR, they’re in the queue. When a table frees up, tap Notify. Then Seat and pick the table. When they leave, free the table with one tap. You can dedicate one device to Wait and another to Orders.",
+          "Add the party, hand over the QR, they’re in the queue. When a table frees up, tap Notify. Then Seat and pick the table. When they leave, free the table with one tap. Same panel: load the day’s bookings and see the calendar. You can dedicate one device to Wait and another to Orders.",
+        reservasKicker: "Included with Wait",
+        reservasTitulo: "Day bookings, same panel",
+        reservasSub:
+          "Calendar, upcoming reservations, and floor map together. No extra app or plan.",
+        reservasProximas: "Upcoming",
+        reservasNota:
+          "Days with bookings are highlighted. Tap a day — or an upcoming row — to see the list.",
         estado: {
           esperando: "Waiting",
           avisado: "Notified",
@@ -641,7 +659,7 @@ const dict = {
           sentado: "Seat them; free the table when they leave",
         },
         q1: "Is this the same as “table” order mode?",
-        a1: "No. Table mode on orders only labels counter pickup. Table wait is a separate module: party queue + free/busy floor map.",
+        a1: "No. Table mode on orders only labels counter pickup. Table wait is a separate module: party queue, free/busy floor map, and reservation calendar.",
         q2: "Can I have Orders and Wait together?",
         a2: "Yes. Each branch has its own pack. If it includes both, in Settings you can lock a device to Orders, Wait, or both.",
         q3: "How do I set how many tables I have?",
@@ -650,6 +668,8 @@ const dict = {
         a4: "No. They scan the QR, keep the screen open, and get notified when a table is ready.",
         q5: "Are metrics mixed with orders?",
         a5: "No. Metrics has separate tabs: Orders and Wait.",
+        q6: "Do reservations come with Wait?",
+        a6: "Yes. The Wait module includes walk-in queue, floor map, and the reservation agenda (upcoming + calendar). Not a separate product or extra fee.",
       },
     },
     home: {

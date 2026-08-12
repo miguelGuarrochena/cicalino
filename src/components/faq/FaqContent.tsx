@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
+import { ReservasLandingPreview } from "@/components/landing/ReservasLandingPreview";
 
 type Tab = "pedidos" | "espera";
 
@@ -33,6 +34,7 @@ const FAQ_ESPERA = [
   { q: "faq.e.q3", a: "faq.e.a3" },
   { q: "faq.e.q4", a: "faq.e.a4" },
   { q: "faq.e.q5", a: "faq.e.a5" },
+  { q: "faq.e.q6", a: "faq.e.a6" },
 ] as const;
 
 export const FaqContent = ({
@@ -138,6 +140,8 @@ export const FaqContent = ({
           </p>
         </section>
       )}
+
+      {showFlow && tab === "espera" && <ReservasLandingPreview />}
 
       <section className={`flex flex-col gap-3 ${showFlow ? "mt-8" : ""}`}>
         {bloques.map((b) => (
