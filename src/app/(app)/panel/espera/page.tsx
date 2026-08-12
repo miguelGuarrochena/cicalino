@@ -19,7 +19,6 @@ import { useToast } from "@/components/ui/Toast";
 import { businessDayStart } from "@/lib/businessDay";
 import {
   WAITLIST_STATUS_LABEL,
-  RESERVATION_STATUS_LABEL,
   waitlistClosed,
   tableNumbersLabel,
   tablesTitle,
@@ -27,11 +26,12 @@ import {
   type ReservationView,
 } from "@/lib/types";
 import {
-  isReservationSoon,
+  HOLD_BEFORE_MIN,
+  isReservationHolding,
   reservationTime,
   conflictingReservation,
   nextReservationByTable,
-  tablesHeldByReservation,
+  tablesInFloorHold,
 } from "@/lib/reservations";
 import {
   readDeviceMode,
@@ -46,6 +46,7 @@ import {
   AvisoReserva,
   AvisoBloqueoReserva,
 } from "@/components/panel/espera/AvisoReserva";
+import { ReservasAgenda } from "@/components/panel/espera/ReservasAgenda";
 import { mesaTileClass } from "@/components/panel/espera/mesaTileClass";
 import { motivoOcupar, motivoReserva } from "@/lib/espera/motivos";
 import {
@@ -240,11 +241,11 @@ const EsperaPanelPage = () => {
     return map;
   }, [esperas]);
 
-  /* Tables the database will refuse for a walk-in right now: a booking is
-   * inside its grace period. Kept separate from reservaPorMesa, which is the
-   * soft "this table has a booking later" warning. */
+  /* Floor hold: from HOLD_BEFORE before the booking through grace. Wider than
+   * the DB grace window on purpose — the map turns amber early so staff stop
+   * seating walk-ins on a table that's about to be claimed. */
   const mesaTomadaPorReserva = useMemo(
-    () => tablesHeldByReservation(reservas, ahora),
+    () => tablesInFloorHold(reservas, ahora),
     [reservas, ahora],
   );
 
@@ -302,6 +303,15 @@ const EsperaPanelPage = () => {
     }
     return map;
   }, [mesas, reservas, reservaHorarioIso]);
+  /* Si cambió el horario y una mesa elegida ahora choca, la sacamos: si no,
+   * el botón queda disabled con la mesa "seleccionada" invisible y parece
+   * que no marca nada. */
+  useEffect(() => {
+    setReservaMesas((prev) => {
+      const next = prev.filter((n) => !reservaChoquePorMesa.has(n));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [reservaChoquePorMesa]);
   const mesasParaReserva = mesas.filter(
     (m) => !reservaChoquePorMesa.has(m.number),
   );
@@ -664,12 +674,34 @@ const EsperaPanelPage = () => {
         />
         <p className="text-xs text-carbon/45">
           {locale === "en"
-            ? "Tap free → seat now · tap busy → free. A booking only warns, it never blocks the table."
-            : "Libre → sentar · ocupada → liberar. La reserva solo avisa, nunca bloquea la mesa."}
+            ? `Tap free → seat · busy → free. Amber border = booking ahead. Full amber = reserved (${HOLD_BEFORE_MIN} min before until grace ends).`
+            : `Libre → sentar · ocupada → liberar. Borde ámbar = tiene reserva. Ámbar completo = reservada (${HOLD_BEFORE_MIN} min antes hasta que venza la tolerancia).`}
         </p>
       </div>
 
       <section className="rounded-[24px] border border-espera/20 bg-surface p-4 shadow-sm sm:p-5">
+        <div className="mb-3 flex flex-wrap gap-3 text-[10px] font-semibold uppercase tracking-wide text-carbon/50">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm bg-espera" />
+            {locale === "en" ? "Free" : "Libre"}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm border-2 border-amber-500 bg-espera" />
+            {locale === "en" ? "Free · booked later" : "Libre · con reserva"}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm bg-amber-400" />
+            {locale === "en" ? "Reserved now" : "Reservada ahora"}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm bg-rose-600" />
+            {locale === "en" ? "Busy" : "Ocupada"}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm border-2 border-amber-500 bg-rose-600" />
+            {locale === "en" ? "Busy · booked later" : "Ocup. · con reserva"}
+          </span>
+        </div>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
           {mesasFiltradas.map((m) => {
             const espera =
@@ -678,9 +710,10 @@ const EsperaPanelPage = () => {
               m.reservationId != null ? reservaById.get(m.reservationId) : undefined;
             const libre = m.status === "libre";
             const reservaProx = reservaPorMesa.get(m.number);
-            const pronto = reservaProx
-              ? isReservationSoon(reservaProx, ahora)
+            const holding = reservaProx
+              ? isReservationHolding(reservaProx, ahora)
               : false;
+            const conReserva = !!reservaProx && !holding;
             const etiquetaGrupo = libre
               ? reservaProx?.name
               : (espera?.name ?? reservaSentada?.name);
@@ -689,6 +722,15 @@ const EsperaPanelPage = () => {
                 key={m.id}
                 type="button"
                 onClick={() => {
+                  if (libre && holding && reservaProx) {
+                    toast(
+                      locale === "en"
+                        ? `Table ${m.number} is reserved at ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
+                        : `Mesa ${m.number} reservada a las ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`,
+                      "error",
+                    );
+                    return;
+                  }
                   if (libre) {
                     setOcuparPrimaria(m.number);
                     setOcuparMesasSel([m.number]);
@@ -700,29 +742,38 @@ const EsperaPanelPage = () => {
                   setLiberarNumero(m.number);
                 }}
                 title={
-                  libre
-                    ? reservaProx
-                      ? locale === "en"
-                        ? `Free now · booking ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
-                        : `Libre ahora · reserva ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
+                  reservaProx
+                    ? libre
+                      ? holding
+                        ? locale === "en"
+                          ? `Reserved ${reservationTime(reservaProx.scheduledAt)} — ${reservaProx.name}`
+                          : `Reservada ${reservationTime(reservaProx.scheduledAt)} — ${reservaProx.name}`
+                        : locale === "en"
+                          ? `Free now · booking ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
+                          : `Libre ahora · reserva ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
                       : locale === "en"
+                        ? `Busy · booking ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name}) — tap to free`
+                        : `Ocupada · reserva ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name}) — tocar para liberar`
+                    : libre
+                      ? locale === "en"
                         ? "Tap to seat now"
                         : "Tocar para sentar"
-                    : locale === "en"
-                      ? "Tap to free"
-                      : "Tocar para liberar"
+                      : locale === "en"
+                        ? "Tap to free"
+                        : "Tocar para liberar"
                 }
                 className={mesaTileClass(m.status, {
-                  pickable: libre,
-                  reservaPronto: pronto,
+                  pickable: !libre || !holding,
+                  conReserva,
+                  reservaHold: holding,
                 })}
               >
                 {reservaProx && (
                   <span
-                    className={`absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none shadow-sm ${
-                      pronto
-                        ? "bg-amber-400 text-amber-950"
-                        : "bg-carbon/70 text-crema"
+                    className={`absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none shadow-sm ${
+                      holding
+                        ? "bg-amber-950 text-amber-100"
+                        : "bg-amber-400 text-amber-950"
                     }`}
                   >
                     {reservationTime(reservaProx.scheduledAt)}
@@ -732,20 +783,26 @@ const EsperaPanelPage = () => {
                   {m.number}
                 </span>
                 <span className="mt-1 text-[10px] font-bold uppercase tracking-wide opacity-90">
-                  {libre
+                  {holding
                     ? locale === "en"
-                      ? "Free"
-                      : "Libre"
-                    : locale === "en"
-                      ? "Busy"
-                      : "Ocup."}
+                      ? "Booked"
+                      : "Reserva"
+                    : libre
+                      ? locale === "en"
+                        ? "Free"
+                        : "Libre"
+                      : locale === "en"
+                        ? "Busy"
+                        : "Ocup."}
                 </span>
                 <span className="mt-0.5 text-[9px] font-semibold opacity-80">
                   {m.capacity ?? 4}p
                 </span>
-                {etiquetaGrupo && (
+                {(etiquetaGrupo || (reservaProx && !libre)) && (
                   <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-80">
-                    {etiquetaGrupo}
+                    {!libre && reservaProx
+                      ? `${etiquetaGrupo ? `${etiquetaGrupo} · ` : ""}${reservationTime(reservaProx.scheduledAt)}`
+                      : etiquetaGrupo}
                   </span>
                 )}
               </button>
@@ -785,69 +842,28 @@ const EsperaPanelPage = () => {
           )}
         </div>
         {reservasActivas.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          {reservasActivas.map((r) => (
-            <article
-              key={r.id}
-              className="rounded-[20px] border border-amber-400/40 bg-amber-50/80 p-4 shadow-sm dark:bg-amber-400/10"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
-                      {r.name}
-                    </h3>
-                    <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 dark:bg-amber-400/30 dark:text-amber-100">
-                      {RESERVATION_STATUS_LABEL[r.status]}
-                    </span>
-                    <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
-                      {tablesTitle(
-                        r.tableNumbers ?? [r.tableNumber],
-                        locale === "en" ? "en" : "es",
-                      )}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-carbon/55">
-                    {formatHora(r.scheduledAt, locale)} · {r.partySize}{" "}
-                    {locale === "en" ? "guests" : "personas"} · +
-                    {r.graceMinutes} min
-                    {r.employee ? ` · ${r.employee}` : ""}
-                  </p>
-                </div>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void sentarReserva(r.id).then(() =>
-                        toast(
-                          locale === "en"
-                            ? `Seated at ${tablesTitle(r.tableNumbers ?? [r.tableNumber], "en")}`
-                            : `Sentados en ${tablesTitle(r.tableNumbers ?? [r.tableNumber], "es")}`,
-                          "success",
-                        ),
-                      );
-                    }}
-                    className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90`}
-                  >
-                    {locale === "en" ? "Seat" : "Sentar"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmCancelReservaId(r.id)}
-                    className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50`}
-                  >
-                    {locale === "en" ? "Cancel" : "Cancelar"}
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+          <ReservasAgenda
+            reservas={reservasActivas}
+            locale={locale}
+            ahora={ahora}
+            onSentar={(id) => {
+              void sentarReserva(id).then(() => {
+                const r = reservasActivas.find((x) => x.id === id);
+                toast(
+                  locale === "en"
+                    ? `Seated at ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "en")}`
+                    : `Sentados en ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "es")}`,
+                  "success",
+                );
+              });
+            }}
+            onCancelar={(id) => setConfirmCancelReservaId(id)}
+          />
         ) : (
           <p className="text-sm text-carbon/45">
             {locale === "en"
-              ? "None today — use + Reservation when you need one."
-              : "Ninguna hoy, usá + Reserva cuando haga falta."}
+              ? "None upcoming — use + Reservation when you need one."
+              : "Ninguna próxima, usá + Reserva cuando haga falta."}
           </p>
         )}
       </section>
@@ -1328,6 +1344,7 @@ const EsperaPanelPage = () => {
                             : mesaTileClass("libre", {
                                 pickable: true,
                                 selected,
+                                selectedAmber: true,
                                 oversized,
                               })
                         }
@@ -1612,13 +1629,17 @@ const EsperaPanelPage = () => {
               const reservaProx = libre
                 ? reservaPorMesa.get(m.number)
                 : undefined;
+              const holding = reservaProx
+                ? isReservationHolding(reservaProx, ahora)
+                : false;
+              const bloqueada = !libre || holding;
               return (
                 <button
                   key={m.id}
                   type="button"
-                  disabled={!libre}
+                  disabled={bloqueada}
                   onClick={() => {
-                    if (!libre) return;
+                    if (bloqueada) return;
                     setSentarMesas((prev) =>
                       prev.includes(m.number)
                         ? prev.filter((n) => n !== m.number)
@@ -1626,14 +1647,21 @@ const EsperaPanelPage = () => {
                     );
                   }}
                   className={mesaTileClass(m.status, {
-                    pickable: libre,
-                    selected: libre && selected,
+                    pickable: !bloqueada,
+                    selected: libre && selected && !holding,
                     oversized,
-                    reservaPronto: !!reservaProx,
+                    conReserva: !!reservaProx && !holding,
+                    reservaHold: holding,
                   })}
                 >
                   {reservaProx && !selected && (
-                    <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold leading-none text-amber-950 shadow-sm">
+                    <span
+                      className={`absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none shadow-sm ${
+                        holding
+                          ? "bg-amber-950 text-amber-100"
+                          : "bg-amber-400 text-amber-950"
+                      }`}
+                    >
                       {reservationTime(reservaProx.scheduledAt)}
                     </span>
                   )}
@@ -1641,13 +1669,17 @@ const EsperaPanelPage = () => {
                     {m.number}
                   </span>
                   <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
-                    {libre
+                    {holding
                       ? locale === "en"
-                        ? "Free"
-                        : "Libre"
-                      : locale === "en"
-                        ? "Busy"
-                        : "Ocup."}
+                        ? "Booked"
+                        : "Reserva"
+                      : libre
+                        ? locale === "en"
+                          ? "Free"
+                          : "Libre"
+                        : locale === "en"
+                          ? "Busy"
+                          : "Ocup."}
                   </span>
                   <span className="mt-0.5 text-[9px] font-semibold opacity-80">
                     {cap}p
@@ -1855,13 +1887,17 @@ const EsperaPanelPage = () => {
                   const cap = m.capacity ?? 4;
                   const esPrimaria = m.number === ocuparPrimaria;
                   const reservaProx = reservaPorMesa.get(m.number);
+                  const holding = reservaProx
+                    ? isReservationHolding(reservaProx, ahora)
+                    : false;
+                  const bloqueada = ocupando || esPrimaria || holding;
                   return (
                     <button
                       key={m.id}
                       type="button"
-                      disabled={ocupando || esPrimaria}
+                      disabled={bloqueada}
                       onClick={() => {
-                        if (esPrimaria) return;
+                        if (esPrimaria || holding) return;
                         setOcuparMesasSel((prev) =>
                           prev.includes(m.number)
                             ? prev.filter((n) => n !== m.number)
@@ -1869,13 +1905,20 @@ const EsperaPanelPage = () => {
                         );
                       }}
                       className={mesaTileClass("libre", {
-                        pickable: true,
-                        selected,
-                        reservaPronto: !!reservaProx,
+                        pickable: !bloqueada,
+                        selected: selected && !holding,
+                        conReserva: !!reservaProx && !holding,
+                        reservaHold: holding,
                       })}
                     >
                       {reservaProx && !selected && (
-                        <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold leading-none text-amber-950 shadow-sm">
+                        <span
+                          className={`absolute -top-1.5 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none shadow-sm ${
+                            holding
+                              ? "bg-amber-950 text-amber-100"
+                              : "bg-amber-400 text-amber-950"
+                          }`}
+                        >
                           {reservationTime(reservaProx.scheduledAt)}
                         </span>
                       )}
@@ -1883,13 +1926,17 @@ const EsperaPanelPage = () => {
                         {m.number}
                       </span>
                       <span className="mt-1 text-[9px] font-bold uppercase tracking-wide opacity-90">
-                        {selected
+                        {holding
                           ? locale === "en"
-                            ? "On"
-                            : "Sí"
-                          : locale === "en"
-                            ? "Free"
-                            : "Libre"}
+                            ? "Booked"
+                            : "Reserva"
+                          : selected
+                            ? locale === "en"
+                              ? "On"
+                              : "Sí"
+                            : locale === "en"
+                              ? "Free"
+                              : "Libre"}
                       </span>
                       <span className="mt-0.5 text-[9px] font-semibold opacity-80">
                         {cap}p

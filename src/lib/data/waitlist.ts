@@ -1,7 +1,11 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { businessDayStart, businessDayEnd } from "@/lib/businessDay";
+import {
+  businessDayStart,
+  businessDayEnd,
+  reservationFetchRange,
+} from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import { isRealBranchId } from "@/lib/data/orders";
 import {
@@ -211,12 +215,17 @@ export const fetchTodayReservations = async (
 ): Promise<DataResult<ReservationView[]>> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return ok([]);
+  /* No es solo "hoy": el picker cubre 7 días y, antes del corte, una reserva
+   * de la mañana siguiente queda fuera de la jornada abierta. Sin este
+   * horizonte el panel muestra lista vacía y `crear_reserva` igual rechaza
+   * por choque. */
+  const { start, end } = reservationFetchRange(cutoffHour());
   const { data, error } = await supabase
     .from("reservas")
     .select(SELECT_RESERVATION)
     .eq("local_id", branchId)
-    .gte("horario", startOfBusinessDay())
-    .lte("horario", endOfBusinessDay())
+    .gte("horario", start.toISOString())
+    .lte("horario", end.toISOString())
     .order("horario", { ascending: true });
   if (error) {
     reportError("panel.reservas.cargar", error, { branchId });

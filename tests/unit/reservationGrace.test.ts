@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   isWithinGrace,
   tablesHeldByReservation,
+  isReservationHolding,
+  tablesInFloorHold,
+  HOLD_BEFORE_MIN,
 } from "@/lib/reservations";
 import type { ReservationView } from "@/lib/types";
 
@@ -114,5 +117,29 @@ describe("tablesHeldByReservation", () => {
 
   it("sin reservas devuelve vacío", () => {
     expect(tablesHeldByReservation([], at(0)).size).toBe(0);
+  });
+});
+
+describe("isReservationHolding", () => {
+  it("arranca HOLD_BEFORE minutos antes del horario", () => {
+    expect(isReservationHolding(mkReserva(), at(-(HOLD_BEFORE_MIN + 1)))).toBe(
+      false,
+    );
+    expect(isReservationHolding(mkReserva(), at(-HOLD_BEFORE_MIN))).toBe(true);
+    expect(isReservationHolding(mkReserva(), at(-1))).toBe(true);
+  });
+
+  it("sigue durante la gracia y corta al vencer", () => {
+    expect(isReservationHolding(mkReserva(), at(0))).toBe(true);
+    expect(isReservationHolding(mkReserva(), at(15))).toBe(true);
+    expect(isReservationHolding(mkReserva(), at(16))).toBe(false);
+  });
+});
+
+describe("tablesInFloorHold", () => {
+  it("marca la mesa antes de la gracia, para el mapa", () => {
+    const held = tablesInFloorHold([mkReserva()], at(-20));
+    expect(held.get(3)?.id).toBe("r1");
+    expect(tablesHeldByReservation([mkReserva()], at(-20)).size).toBe(0);
   });
 });

@@ -49,9 +49,8 @@ export const AvisoReserva = ({
 };
 
 /* Hard block, unlike AvisoReserva which is only a heads-up. These tables have
- * a booking inside its grace period, so the database is going to refuse them
- * and the button stays disabled. Says who is coming and until when, otherwise
- * it just looks like the button broke. */
+ * a booking inside the floor hold window (before the time through grace), so
+ * the panel won't seat a walk-in on them. Says who is coming and until when. */
 export const AvisoBloqueoReserva = ({
   mesas,
   porMesa,

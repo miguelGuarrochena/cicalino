@@ -1,6 +1,11 @@
 import type { ReservationView } from "@/lib/types";
 
-export const SOON_THRESHOLD_MIN = 60;
+/* Cuánto antes del horario la mesa se pinta entera de ámbar en el mapa y el
+ * panel deja de ofrecerla para walk-in. La base sigue bloqueando solo dentro
+ * de la gracia (`isWithinGrace`); esto es la señal de piso para el staff. */
+export const HOLD_BEFORE_MIN = 30;
+
+export const SOON_THRESHOLD_MIN = HOLD_BEFORE_MIN;
 
 export const MIN_GAP_BETWEEN_RESERVATIONS = 90;
 
@@ -34,6 +39,22 @@ export const nextReservationByTable = (
 
 export const isReservationSoon = (r: ReservationView, now = Date.now()): boolean =>
   minutesUntil(r.scheduledAt, now) <= SOON_THRESHOLD_MIN;
+
+/* From HOLD_BEFORE before the booking until the grace ends: the floor treats
+ * the table as reserved. Wider than `isWithinGrace` on purpose — staff need to
+ * see it coming, not only once the clock hits. */
+export const isReservationHolding = (
+  r: ReservationView,
+  now = Date.now(),
+): boolean => {
+  if (r.status !== "activa") return false;
+  const start = new Date(r.scheduledAt).getTime();
+  if (Number.isNaN(start)) return false;
+  return (
+    now >= start - HOLD_BEFORE_MIN * 60_000 &&
+    now <= start + r.graceMinutes * 60_000
+  );
+};
 
 /* Is the booking inside its grace period right now?
  *
@@ -70,6 +91,25 @@ export const tablesHeldByReservation = (
     .filter((r) => isWithinGrace(r, now))
     .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
   for (const r of enVentana) {
+    for (const n of reservationTables(r)) {
+      if (!out.has(n)) out.set(n, r);
+    }
+  }
+  return out;
+};
+
+/* Same shape as `tablesHeldByReservation`, but with the wider floor window
+ * (HOLD_BEFORE → grace). Used by the map and the walk-in picker so a table
+ * lights up amber before the server hard-blocks it. */
+export const tablesInFloorHold = (
+  reservas: ReservationView[],
+  now = Date.now(),
+): Map<number, ReservationView> => {
+  const out = new Map<number, ReservationView>();
+  const enHold = reservas
+    .filter((r) => isReservationHolding(r, now))
+    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+  for (const r of enHold) {
     for (const n of reservationTables(r)) {
       if (!out.has(n)) out.set(n, r);
     }
@@ -119,4 +159,17 @@ export const timeUntilLabel = (
   const m = mins % 60;
   const resto = m ? ` ${m}` : "";
   return locale === "en" ? `in ${h} h${resto}` : `en ${h} h${resto}`;
+};
+
+export const reservationDateKey = (
+  iso: string,
+  timeZone = "America/Argentina/Buenos_Aires",
+): string => {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fmt.format(new Date(iso));
 };
