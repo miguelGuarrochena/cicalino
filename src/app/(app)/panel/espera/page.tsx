@@ -891,53 +891,6 @@ const EsperaPanelPage = () => {
       </section>
 
       <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-carbon/70">
-            {locale === "en" ? "Reservations" : "Reservas"}
-            {reservasActivas.length
-              ? ` · ${reservasActivas.length}`
-              : ""}
-          </h2>
-          {reservasAgenda.length > 0 && (
-            <p className="text-xs text-carbon/45">
-              {locale === "en"
-                ? "Unfulfilled bookings stay in the day log (claims)."
-                : "Si no llegan, quedan como «No cumplida» en el registro (reclamos)."}
-            </p>
-          )}
-        </div>
-        {reservasAgenda.length > 0 ? (
-          <ReservasAgenda
-            reservas={reservasAgenda}
-            locale={locale}
-            ahora={ahora}
-            onSentar={(id) => {
-              void sentarReserva(id).then(() => {
-                const r = reservasActivas.find((x) => x.id === id);
-                setHoldReservaId(null);
-                toast(
-                  locale === "en"
-                    ? `Seated at ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "en")}`
-                    : `Sentados en ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "es")}`,
-                  "success",
-                );
-              });
-            }}
-            onCancelar={(id) => {
-              setHoldReservaId(null);
-              setConfirmCancelReservaId(id);
-            }}
-          />
-        ) : (
-          <p className="text-sm text-carbon/45">
-            {locale === "en"
-              ? "None upcoming — use + Reservation when you need one."
-              : "Ninguna próxima, usá + Reserva cuando haga falta."}
-          </p>
-        )}
-      </section>
-
-      <section>
         <h2 className="mb-3 text-sm font-semibold text-carbon/70">
           {locale === "en" ? "Waiting list" : "Lista de espera"}
           {cola.length ? ` · ${cola.length}` : ""}
@@ -1062,6 +1015,53 @@ const EsperaPanelPage = () => {
           total={cola.length}
           onChange={setPage}
         />
+      </section>
+
+      <section>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-carbon/70">
+            {locale === "en" ? "Reservations" : "Reservas"}
+            {reservasActivas.length
+              ? ` · ${reservasActivas.length}`
+              : ""}
+          </h2>
+          {reservasAgenda.length > 0 && (
+            <p className="text-xs text-carbon/45">
+              {locale === "en"
+                ? "Unfulfilled bookings stay in the day log."
+                : "Si no llegan, quedan como «No cumplida» en el historial."}
+            </p>
+          )}
+        </div>
+        {reservasAgenda.length > 0 ? (
+          <ReservasAgenda
+            reservas={reservasAgenda}
+            locale={locale}
+            ahora={ahora}
+            onSentar={(id) => {
+              void sentarReserva(id).then(() => {
+                const r = reservasActivas.find((x) => x.id === id);
+                setHoldReservaId(null);
+                toast(
+                  locale === "en"
+                    ? `Seated at ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "en")}`
+                    : `Sentados en ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "es")}`,
+                  "success",
+                );
+              });
+            }}
+            onCancelar={(id) => {
+              setHoldReservaId(null);
+              setConfirmCancelReservaId(id);
+            }}
+          />
+        ) : (
+          <p className="text-sm text-carbon/45">
+            {locale === "en"
+              ? "None upcoming — use + Reservation when you need one."
+              : "Ninguna próxima, usá + Reserva cuando haga falta."}
+          </p>
+        )}
       </section>
 
       {canceladasHoy.length > 0 && (
