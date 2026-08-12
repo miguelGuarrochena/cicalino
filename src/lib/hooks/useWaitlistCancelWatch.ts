@@ -13,14 +13,12 @@ import {
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isRealBranchId } from "@/lib/data/orders";
-import {
-  fetchTodayWaitlist,
-  subscribeWaitlist,
-} from "@/lib/data/waitlist";
+import { fetchTodayWaitlist } from "@/lib/data/waitlist";
 import { dingCancelled } from "@/lib/sound";
+import { watchChannel } from "@/lib/realtime";
 import type { WaitlistStatus } from "@/lib/types";
 
-const POLL_MS = 15_000;
+const POLL_MS = 5_000;
 
 const announce = (args: {
   id: string;
@@ -46,6 +44,25 @@ const announce = (args: {
   }
 };
 
+const announceCancel = (args: {
+  id: string;
+  name: string;
+  toast: (msg: string, kind?: "info" | "success" | "error") => void;
+  locale: string;
+  seen: Set<string>;
+}) => {
+  const fromStaff = staffWaitlistCancelIds.has(args.id);
+  staffWaitlistCancelIds.delete(args.id);
+  announce({
+    id: args.id,
+    name: args.name,
+    fromGuest: !fromStaff,
+    toast: args.toast,
+    locale: args.locale,
+    seen: args.seen,
+  });
+};
+
 export const useWaitlistCancelWatch = () => {
   const { locale } = useApp();
   const toast = useToast();
@@ -67,20 +84,18 @@ export const useWaitlistCancelWatch = () => {
         const rows = useWaitlistStore.getState().esperas;
         const next = new Map(rows.map((e) => [e.id, e.status]));
         if (!ready.current) {
+          for (const e of rows) {
+            if (e.status === "cancelado") seen.current.add(e.id);
+          }
           prev.current = next;
           ready.current = true;
           return;
         }
         for (const e of rows) {
-          const before = prev.current.get(e.id);
-          if (!before || before === "cancelado" || e.status !== "cancelado")
-            continue;
-          const fromStaff = staffWaitlistCancelIds.has(e.id);
-          staffWaitlistCancelIds.delete(e.id);
-          announce({
+          if (e.status !== "cancelado" || seen.current.has(e.id)) continue;
+          announceCancel({
             id: e.id,
             name: e.name,
-            fromGuest: !fromStaff,
             toast,
             locale,
             seen: seen.current,
@@ -110,6 +125,7 @@ export const useWaitlistCancelWatch = () => {
     ready.current = false;
     let active = true;
     const supabase = createBrowserSupabase();
+    if (!supabase) return;
 
     const tick = async () => {
       const res = await fetchTodayWaitlist(branchId);
@@ -128,16 +144,13 @@ export const useWaitlistCancelWatch = () => {
         ready.current = true;
         return;
       }
+      /* Cualquier cancelado nuevo (no visto) cuenta, aunque no estuviera en
+       * `prev` — el filtro viejo con `before` se comía cancelaciones reales. */
       for (const e of rows) {
-        const before = prev.current.get(e.id);
-        if (!before || before === "cancelado" || e.status !== "cancelado")
-          continue;
-        const fromStaff = staffWaitlistCancelIds.has(e.id);
-        staffWaitlistCancelIds.delete(e.id);
-        announce({
+        if (e.status !== "cancelado" || seen.current.has(e.id)) continue;
+        announceCancel({
           id: e.id,
           name: e.name,
-          fromGuest: !fromStaff,
           toast,
           locale,
           seen: seen.current,
@@ -147,17 +160,51 @@ export const useWaitlistCancelWatch = () => {
     };
 
     void tick();
-    const iv = window.setInterval(() => void tick(), POLL_MS);
-    const unsubPg = subscribeWaitlist(
-      branchId,
-      () => {
-        void tick();
-      },
-      "-cancel-watch",
-    );
+    const iv = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void tick();
+    }, POLL_MS);
+
+    /* Camino rápido: el UPDATE de postgres trae nombre/estado sin esperar el fetch. */
+    let pgWatcher: { dispose: () => void } | null = null;
+    let pgChannel: ReturnType<typeof supabase.channel> | null = null;
+    const connectPg = () => {
+      if (!active) return;
+      if (pgChannel) void supabase.removeChannel(pgChannel);
+      pgWatcher?.dispose();
+      pgChannel = supabase
+        .channel(`espera-cancel-pg:${branchId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "esperas",
+            filter: `local_id=eq.${branchId}`,
+          },
+          (payload) => {
+            const row = payload.new as {
+              id?: string;
+              nombre?: string;
+              estado?: string;
+            };
+            if (!row?.id || !row.nombre || row.estado !== "cancelado") return;
+            announceCancel({
+              id: row.id,
+              name: row.nombre,
+              toast,
+              locale,
+              seen: seen.current,
+            });
+            void tick();
+          },
+        );
+      pgWatcher = watchChannel(pgChannel, connectPg);
+    };
+    connectPg();
 
     const broadcastCh = supabase
-      ?.channel(`espera-cancel:${branchId}`)
+      .channel(`espera-cancel:${branchId}`)
       .on(
         "broadcast",
         { event: "guest-cancel" },
@@ -165,10 +212,9 @@ export const useWaitlistCancelWatch = () => {
           const id = msg.payload?.id;
           const name = msg.payload?.name;
           if (!id || !name) return;
-          announce({
+          announceCancel({
             id,
             name,
-            fromGuest: true,
             toast,
             locale,
             seen: seen.current,
@@ -181,8 +227,9 @@ export const useWaitlistCancelWatch = () => {
     return () => {
       active = false;
       window.clearInterval(iv);
-      unsubPg.unsubscribe();
-      if (supabase && broadcastCh) void supabase.removeChannel(broadcastCh);
+      pgWatcher?.dispose();
+      if (pgChannel) void supabase.removeChannel(pgChannel);
+      void supabase.removeChannel(broadcastCh);
     };
   }, [moduloEspera, branchId, live, toast, locale]);
 };

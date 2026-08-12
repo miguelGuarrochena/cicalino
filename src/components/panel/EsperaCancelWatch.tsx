@@ -5,6 +5,7 @@ import { useWaitlistCancelWatch } from "@/lib/hooks/useWaitlistCancelWatch";
 import {
   dismissGuestCancelAlert,
   getGuestCancelAlertSnapshot,
+  getGuestCancelAlertVersion,
   peekGuestCancelAlert,
   subscribeGuestCancelAlerts,
 } from "@/lib/store/waitlist-alerts-store";
@@ -12,25 +13,18 @@ import { useApp } from "@/components/providers/Providers";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 
-const useGuestCancelAlert = () =>
-  useSyncExternalStore(
-    subscribeGuestCancelAlerts,
-    peekGuestCancelAlert,
-    () => null,
-  );
-
-const useGuestCancelQueueLen = () =>
-  useSyncExternalStore(
-    subscribeGuestCancelAlerts,
-    () => getGuestCancelAlertSnapshot().length,
-    () => 0,
-  );
-
 export const EsperaCancelWatch = () => {
   useWaitlistCancelWatch();
   const { locale } = useApp();
-  const alert = useGuestCancelAlert();
-  const pending = useGuestCancelQueueLen();
+  const version = useSyncExternalStore(
+    subscribeGuestCancelAlerts,
+    getGuestCancelAlertVersion,
+    () => 0,
+  );
+  /* `version` fuerza el re-render; el snapshot se lee fresco en el render. */
+  void version;
+  const alert = peekGuestCancelAlert();
+  const pending = getGuestCancelAlertSnapshot().length;
 
   if (!alert) return null;
 

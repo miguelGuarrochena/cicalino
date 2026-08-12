@@ -3,8 +3,45 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { sharedRateLimit } from "@/lib/security/rateLimitShared";
 import { clientIp } from "@/lib/security/ip";
 import { qrTokenSchema } from "@/lib/schemas";
+import { SUPABASE_URL } from "@/lib/supabase/config";
 
 export const dynamic = "force-dynamic";
+
+const broadcastGuestCancel = async (args: {
+  branchId: string;
+  id: string;
+  name: string;
+}) => {
+  const key =
+    process.env.SUPABASE_SECRET_KEY ??
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    "";
+  if (!SUPABASE_URL || !key) return;
+
+  /* HTTP broadcast: en serverless el subscribe+send del client a menudo
+   * timeoutéa y el mostrador nunca se entera. */
+  const res = await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+      apikey: key,
+    },
+    body: JSON.stringify({
+      messages: [
+        {
+          topic: `realtime:espera-cancel:${args.branchId}`,
+          event: "guest-cancel",
+          payload: { id: args.id, name: args.name },
+        },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error("e/cancelar broadcast http", res.status, body);
+  }
+};
 
 export const POST = async (
   req: Request,
@@ -66,28 +103,11 @@ export const POST = async (
   }
 
   try {
-    const channel = admin.channel(`espera-cancel:${data.local_id}`);
-    await new Promise<void>((resolve, reject) => {
-      const t = setTimeout(() => {
-        reject(new Error("broadcast subscribe timeout"));
-      }, 2500);
-      channel.subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          clearTimeout(t);
-          resolve();
-        }
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          clearTimeout(t);
-          reject(new Error(status));
-        }
-      });
+    await broadcastGuestCancel({
+      branchId: data.local_id,
+      id: data.id,
+      name: data.nombre,
     });
-    await channel.send({
-      type: "broadcast",
-      event: "guest-cancel",
-      payload: { id: data.id, name: data.nombre },
-    });
-    await admin.removeChannel(channel);
   } catch (e) {
     console.error("e/cancelar broadcast", e);
   }

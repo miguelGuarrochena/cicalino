@@ -4,9 +4,11 @@ export const staffWaitlistCancelIds = new Set<string>();
 export type GuestCancelAlert = { id: string; name: string };
 
 let queue: GuestCancelAlert[] = [];
+let version = 0;
 const listeners = new Set<() => void>();
 
 const emit = () => {
+  version += 1;
   for (const l of listeners) l();
 };
 
@@ -20,6 +22,8 @@ export const peekGuestCancelAlert = (): GuestCancelAlert | null =>
   queue[0] ?? null;
 
 export const getGuestCancelAlertSnapshot = (): GuestCancelAlert[] => queue;
+
+export const getGuestCancelAlertVersion = (): number => version;
 
 export const dismissGuestCancelAlert = (id: string) => {
   const next = queue.filter((q) => q.id !== id);
