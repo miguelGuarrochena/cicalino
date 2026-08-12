@@ -602,24 +602,46 @@ const EsperaPanelPage = () => {
       <ModuleSwitcher />
       <SyncErrorBanner error={syncError} />
 
-      <div>
-        <div className="flex items-center gap-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-espera">
-            {locale === "en" ? "Table wait" : "Espera de mesa"}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-espera">
+              {locale === "en" ? "Table wait" : "Espera de mesa"}
+            </p>
+            <HelpLink seccion="espera" accent="espera" />
+          </div>
+          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+            {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
+          </h1>
+          <p className="mt-1 text-sm text-carbon/55">
+            {cola.length}{" "}
+            {locale === "en" ? "parties waiting" : "grupos esperando"}
+            {personasEnCola
+              ? ` · ${personasEnCola} ${locale === "en" ? "guests" : "personas"}`
+              : ""}
+            {tableCount ? ` · ${tableCount} mesas` : ""}
           </p>
-          <HelpLink seccion="espera" accent="espera" />
         </div>
-        <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-          {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
-        </h1>
-        <p className="mt-1 text-sm text-carbon/55">
-          {cola.length}{" "}
-          {locale === "en" ? "parties waiting" : "grupos esperando"}
-          {personasEnCola
-            ? ` · ${personasEnCola} ${locale === "en" ? "guests" : "personas"}`
-            : ""}
-          {tableCount ? ` · ${tableCount} mesas` : ""}
-        </p>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <button
+            type="button"
+            onClick={() => {
+              setReservaMesas([]);
+              setReservaHorario(defaultHorarioInput(reservaHours));
+              setReservaOpen(true);
+            }}
+            className="w-full rounded-full border border-espera/40 bg-espera/10 px-5 py-3 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema sm:w-auto sm:py-2.5"
+          >
+            {locale === "en" ? "+ Reservation" : "+ Reserva"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="w-full rounded-full bg-espera px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte sm:w-auto sm:py-2.5"
+          >
+            {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
