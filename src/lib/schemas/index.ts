@@ -134,10 +134,31 @@ export const branchConfigSchema = z
       .int()
       .min(0, "La hora de corte va de 0 a 23.")
       .max(23, "La hora de corte va de 0 a 23."),
+    reservaAbreMin: z.coerce
+      .number()
+      .int()
+      .min(0, "El horario de apertura va de 0 a 1439.")
+      .max(1439, "El horario de apertura va de 0 a 1439."),
+    reservaCierraMin: z.coerce
+      .number()
+      .int()
+      .min(0, "El horario de cierre va de 0 a 1439.")
+      .max(1439, "El horario de cierre va de 0 a 1439."),
+    diasCerrados: z
+      .array(z.coerce.number().int().min(0).max(6))
+      .max(6, "No podés cerrar todos los días."),
   })
   .refine((v) => v.modo !== "mesa" || v.tableCount >= 1, {
     message: "Con modo 'mesa' necesitás definir la cantidad de mesas.",
     path: ["tableCount"],
+  })
+  .refine((v) => v.reservaAbreMin < v.reservaCierraMin, {
+    message: "La apertura tiene que ser antes del cierre.",
+    path: ["reservaCierraMin"],
+  })
+  .refine((v) => new Set(v.diasCerrados).size < 7, {
+    message: "Dejá al menos un día abierto para reservas.",
+    path: ["diasCerrados"],
   });
 export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 
@@ -154,10 +175,34 @@ export const branchOperacionSchema = z
       .int()
       .min(0, "La hora de corte va de 0 a 23.")
       .max(23, "La hora de corte va de 0 a 23."),
+    reservaAbreMin: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(1439)
+      .default(660),
+    reservaCierraMin: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(1439)
+      .default(1380),
+    diasCerrados: z
+      .array(z.coerce.number().int().min(0).max(6))
+      .max(6)
+      .default([]),
   })
   .refine((v) => v.modo !== "mesa" || v.tableCount >= 1, {
     message: "Con modo 'mesa' necesitás definir la cantidad de mesas.",
     path: ["tableCount"],
+  })
+  .refine((v) => v.reservaAbreMin < v.reservaCierraMin, {
+    message: "La apertura tiene que ser antes del cierre.",
+    path: ["reservaCierraMin"],
+  })
+  .refine((v) => new Set(v.diasCerrados).size < 7, {
+    message: "Dejá al menos un día abierto para reservas.",
+    path: ["diasCerrados"],
   });
 export type BranchOperacionInput = z.infer<typeof branchOperacionSchema>;
 

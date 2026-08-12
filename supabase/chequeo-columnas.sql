@@ -27,6 +27,9 @@ with esperado (tabla, columna, migracion) as (
     ('locales',        'activa',              'sucursales-activa.sql'),
     ('locales',        'baja_en',             'sucursales-activa.sql'),
     ('locales',        'responsable_id',      'usuarios-sucursales.sql'),
+    ('locales',        'reserva_abre_min',     'reservas-horario-local.sql'),
+    ('locales',        'reserva_cierra_min',   'reservas-horario-local.sql'),
+    ('locales',        'dias_cerrados',        'reservas-horario-local.sql'),
     ('empleados',      'usuario_id',          'empleados-acceso.sql'),
     ('pagos',          'detalle',             'pagos-detalle.sql')
 ),

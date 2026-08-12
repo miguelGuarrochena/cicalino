@@ -17,9 +17,24 @@ export interface BranchConfig {
   modo: IdentificationMode;
   tableCount: number;
   cutoffHour: number;
+  reservaAbreMin: number;
+  reservaCierraMin: number;
+  diasCerrados: number[];
   moduloPedidos: boolean;
   moduloEspera: boolean;
 }
+
+const normalizeDiasCerrados = (raw: unknown): number[] => {
+  if (!Array.isArray(raw)) return [];
+  const out = [
+    ...new Set(
+      raw
+        .map((n) => Number(n))
+        .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6),
+    ),
+  ];
+  return out.length >= 7 ? out.slice(0, 6) : out;
+};
 
 export const fetchBranchConfig = async (
   branchId: string,
@@ -29,7 +44,7 @@ export const fetchBranchConfig = async (
   const { data, error } = await supabase
     .from("locales")
     .select(
-      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas, hora_corte, modulo_pedidos, modulo_espera",
+      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera",
     )
     .eq("id", branchId)
     .single();
@@ -42,6 +57,9 @@ export const fetchBranchConfig = async (
     modo: (data.modo_identificacion as IdentificationMode) ?? "pedido",
     tableCount: data.cantidad_mesas ?? 10,
     cutoffHour: data.hora_corte ?? 6,
+    reservaAbreMin: data.reserva_abre_min ?? 660,
+    reservaCierraMin: data.reserva_cierra_min ?? 1380,
+    diasCerrados: normalizeDiasCerrados(data.dias_cerrados),
     moduloPedidos: data.modulo_pedidos !== false,
     moduloEspera: Boolean(data.modulo_espera),
   };
@@ -49,7 +67,15 @@ export const fetchBranchConfig = async (
 
 export const saveBranchConfig = async (
   branchId: string,
-  cfg: Pick<BranchConfig, "modo" | "tableCount" | "cutoffHour">,
+  cfg: Pick<
+    BranchConfig,
+    | "modo"
+    | "tableCount"
+    | "cutoffHour"
+    | "reservaAbreMin"
+    | "reservaCierraMin"
+    | "diasCerrados"
+  >,
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
@@ -57,6 +83,9 @@ export const saveBranchConfig = async (
     modo: cfg.modo,
     tableCount: cfg.tableCount,
     cutoffHour: cfg.cutoffHour,
+    reservaAbreMin: cfg.reservaAbreMin,
+    reservaCierraMin: cfg.reservaCierraMin,
+    diasCerrados: cfg.diasCerrados,
   });
   if (!v.ok) {
     console.error("saveBranchConfig", v.error);
@@ -68,6 +97,9 @@ export const saveBranchConfig = async (
       modo_identificacion: v.data.modo,
       cantidad_mesas: v.data.tableCount,
       hora_corte: v.data.cutoffHour,
+      reserva_abre_min: v.data.reservaAbreMin,
+      reserva_cierra_min: v.data.reservaCierraMin,
+      dias_cerrados: v.data.diasCerrados,
       updated_at: new Date().toISOString(),
     })
     .eq("id", branchId);

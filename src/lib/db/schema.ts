@@ -125,6 +125,10 @@ export const branches = pgTable("locales", {
     .default("pedido"),
   tableCount: integer("cantidad_mesas"),
   cutoffHour: integer("hora_corte").notNull().default(6),
+  /* Reservation picker window (minutes from midnight) + closed weekdays. */
+  reservaAbreMin: integer("reserva_abre_min").notNull().default(660),
+  reservaCierraMin: integer("reserva_cierra_min").notNull().default(1380),
+  diasCerrados: integer("dias_cerrados").array().notNull().default([]),
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
   activa: boolean("activa").notNull().default(true),

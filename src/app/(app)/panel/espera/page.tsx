@@ -75,6 +75,17 @@ const EsperaPanelPage = () => {
   const activeEmployee = useSessionStore((s) => s.empleadoActivo);
   const tableCount = useConfigStore((s) => s.tableCount);
   const cutoffHour = useConfigStore((s) => s.cutoffHour);
+  const reservaAbreMin = useConfigStore((s) => s.reservaAbreMin);
+  const reservaCierraMin = useConfigStore((s) => s.reservaCierraMin);
+  const diasCerrados = useConfigStore((s) => s.diasCerrados);
+  const reservaHours = useMemo(
+    () => ({
+      startMin: reservaAbreMin,
+      endMin: reservaCierraMin,
+      closedWeekdays: diasCerrados,
+    }),
+    [reservaAbreMin, reservaCierraMin, diasCerrados],
+  );
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
   const branchConfigReady = useConfigStore((s) => s.branchConfigReady);
@@ -121,7 +132,9 @@ const EsperaPanelPage = () => {
   const [reservaNombre, setReservaNombre] = useState("");
   const [reservaPersonas, setReservaPersonas] = useState(2);
   const [reservaMesas, setReservaMesas] = useState<number[]>([]);
-  const [reservaHorario, setReservaHorario] = useState(defaultHorarioInput);
+  const [reservaHorario, setReservaHorario] = useState(() =>
+    defaultHorarioInput(),
+  );
   const [reservaGracia, setReservaGracia] = useState<15 | 20>(15);
   const [creatingReserva, setCreatingReserva] = useState(false);
   const [sentarId, setSentarId] = useState<string | null>(null);
@@ -564,7 +577,7 @@ const EsperaPanelPage = () => {
         setReservaNombre("");
         setReservaPersonas(2);
         setReservaMesas([]);
-        setReservaHorario(defaultHorarioInput());
+        setReservaHorario(defaultHorarioInput(reservaHours));
         setReservaGracia(15);
         const label = tablesTitle(
           created.reserva.tableNumbers,
@@ -614,7 +627,7 @@ const EsperaPanelPage = () => {
             type="button"
             onClick={() => {
               setReservaMesas([]);
-              setReservaHorario(defaultHorarioInput());
+              setReservaHorario(defaultHorarioInput(reservaHours));
               setReservaOpen(true);
             }}
             className="w-full rounded-full border border-espera/40 bg-espera/10 px-5 py-3 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema sm:w-auto sm:py-2.5"
@@ -1292,6 +1305,7 @@ const EsperaPanelPage = () => {
                 value={reservaHorario}
                 onChange={setReservaHorario}
                 locale={locale}
+                hours={reservaHours}
               />
             </div>
             <fieldset>

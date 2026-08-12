@@ -244,7 +244,7 @@ const dict = {
         p4t: "Liberá cuando se van",
         p4d: "En el mapa, tocá la mesa ocupada y liberá. Si estaban juntas, podés liberar una sola o todo el grupo.",
         p5t: "Reservas",
-        p5d: "«+ Reserva»: nombre, personas, mesas, horario y minutos de gracia. La mesa NO se bloquea: la seguís usando hasta la hora. En el mapa se ve el horario de la reserva y, si sentás gente ahí, la app te avisa antes. Si no llegan, queda como «No llegó» del día (por si hay reclamo).",
+        p5d: "«+ Reserva»: nombre, personas, mesas, horario y minutos de gracia. La mesa NO se bloquea: la seguís usando hasta la hora. En Configuración definís el horario de reservas y los días cerrados (no aparecen en el picker). Si no llegan, queda como «No llegó» del día (por si hay reclamo).",
         p6t: "Walk-in / ocupar",
         p6d: "Si llegan sin cola, ocupá mesas libres directo (nombre y personas opcionales). No hace falta pasar por la lista de espera.",
         p7t: "Cancelados de hoy",
@@ -491,6 +491,15 @@ const dict = {
       modoNombreDet: "El cliente da su nombre. Cálido, típico en cafeterías.",
       modoMesaDet: "Número de mesa. Ayuda a organizar al personal.",
       tableCount: "Cantidad de mesas",
+      reservaHorario: "Horario de reservas",
+      reservaHorarioSub:
+        "Franjas que aparecen en + Reserva. Cada local define las suyas.",
+      reservaAbre: "Desde",
+      reservaCierra: "Hasta",
+      diasCerrados: "Días cerrados",
+      diasCerradosSub:
+        "Esos días no aparecen en el calendario de reservas (ej. lunes).",
+      errReservaHorario: "La apertura tiene que ser antes del cierre.",
       seccionEmp: "Empleados",
       seccionEmpSub:
         "El personal que atiende y prepara los pedidos. Se listan acá; para agregar usá el popup.",
@@ -830,7 +839,7 @@ const dict = {
         p4t: "Free when they leave",
         p4d: "On the map, tap the occupied table and free it. If tables were joined, you can free one or the whole group.",
         p5t: "Reservations",
-        p5d: "“+ Reservation”: name, party size, tables, time and grace minutes. The table is NOT blocked — you keep using it until then. The map shows the booking time, and you get a warning before seating anyone there. If they don’t show, it stays as “No-show” for the day (for claims).",
+        p5d: "“+ Reservation”: name, party size, tables, time and grace minutes. The table is NOT blocked — you keep using it until then. In Settings you set reservation hours and closed days (hidden from the picker). If they don’t show, it stays as “No-show” for the day (for claims).",
         p6t: "Walk-in / occupy",
         p6d: "If they arrive with no wait, occupy free tables directly (name and size optional). No need to use the waitlist.",
         p7t: "Cancelled today",
@@ -1076,6 +1085,15 @@ const dict = {
       modoNombreDet: "The customer gives their name. Warm, common in cafés.",
       modoMesaDet: "Table number. Helps organize the staff.",
       tableCount: "Number of tables",
+      reservaHorario: "Reservation hours",
+      reservaHorarioSub:
+        "Time slots shown in + Reservation. Each branch sets its own.",
+      reservaAbre: "From",
+      reservaCierra: "Until",
+      diasCerrados: "Closed days",
+      diasCerradosSub:
+        "Those days don’t appear in the reservation picker (e.g. Mondays).",
+      errReservaHorario: "Opening time must be before closing.",
       seccionEmp: "Staff",
       seccionEmpSub:
         "People who take and prepare orders. Listed here; add via the popup.",

@@ -10,28 +10,44 @@ import {
   dateKeyFromLocal,
   timeKeyFromLocal,
   todayDateKey,
+  type ReservationHours,
 } from "@/lib/espera/slots";
 
 export const ReservaHorarioPicker = ({
   value,
   onChange,
   locale,
+  hours,
 }: {
   value: string;
   onChange: (v: string) => void;
   locale: string;
+  hours?: ReservationHours;
 }) => {
-  const days = useMemo(() => buildDayOptions(locale), [locale]);
-  const dateKey = dateKeyFromLocal(value) || todayDateKey();
+  const days = useMemo(
+    () => buildDayOptions(locale, hours),
+    [locale, hours],
+  );
+  const dateKey = dateKeyFromLocal(value) || days[0]?.key || todayDateKey();
   const timeKey = timeKeyFromLocal(value) || "20:00";
-  const slots = useMemo(() => availableTimeSlots(dateKey), [dateKey]);
+  const slots = useMemo(
+    () => availableTimeSlots(dateKey, hours),
+    [dateKey, hours],
+  );
 
   useEffect(() => {
+    if (!days.length) return;
+    if (!days.some((d) => d.key === dateKey)) {
+      const next = days[0]!.key;
+      const nextSlots = availableTimeSlots(next, hours);
+      onChange(combineLocalHorario(next, nextSlots[0] ?? timeKey));
+      return;
+    }
     if (!slots.length) return;
     if (!slots.includes(timeKey)) {
-      onChange(combineLocalHorario(dateKey, slots[0]));
+      onChange(combineLocalHorario(dateKey, slots[0]!));
     }
-  }, [dateKey, timeKey, slots, onChange]);
+  }, [dateKey, timeKey, slots, days, hours, onChange]);
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-linea bg-crema/30 p-3">
@@ -39,31 +55,39 @@ export const ReservaHorarioPicker = ({
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-carbon/45">
           {locale === "en" ? "Day" : "Día"}
         </p>
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          {days.map((d) => {
-            const active = d.key === dateKey;
-            return (
-              <button
-                key={d.key}
-                type="button"
-                onClick={() => {
-                  const nextSlots = availableTimeSlots(d.key);
-                  const t = nextSlots.includes(timeKey)
-                    ? timeKey
-                    : (nextSlots[0] ?? timeKey);
-                  onChange(combineLocalHorario(d.key, t));
-                }}
-                className={`flex min-h-11 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold capitalize transition sm:min-h-0 sm:px-3.5 sm:py-2 ${
-                  active
-                    ? "bg-espera text-crema"
-                    : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
-                }`}
-              >
-                {d.label}
-              </button>
-            );
-          })}
-        </div>
+        {days.length ? (
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            {days.map((d) => {
+              const active = d.key === dateKey;
+              return (
+                <button
+                  key={d.key}
+                  type="button"
+                  onClick={() => {
+                    const nextSlots = availableTimeSlots(d.key, hours);
+                    const t = nextSlots.includes(timeKey)
+                      ? timeKey
+                      : (nextSlots[0] ?? timeKey);
+                    onChange(combineLocalHorario(d.key, t));
+                  }}
+                  className={`flex min-h-11 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold capitalize transition sm:min-h-0 sm:px-3.5 sm:py-2 ${
+                    active
+                      ? "bg-espera text-crema"
+                      : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded-xl border border-linea bg-surface px-3 py-3 text-sm text-carbon/55">
+            {locale === "en"
+              ? "No open days in the next weeks — check closed days in Settings."
+              : "No hay días abiertos en las próximas semanas — revisá los cierres en Configuración."}
+          </p>
+        )}
       </div>
       <div>
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-carbon/45">

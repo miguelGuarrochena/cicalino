@@ -4,7 +4,8 @@
  * y testeable, que es lo que más falta le hacía: son cuentas de fechas que se
  * rompen sin avisar y nadie mira hasta que alguien reserva mal.
  *
- * Movido tal cual: sin cambios de comportamiento. */
+ * La ventana (abre/cierra) y los días cerrados salen de la config del local.
+ * Los defaults coinciden con el producto histórico: 11:00–23:00, sin cierres. */
 
 export const minsAgo = (iso: string) =>
   Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -16,8 +17,45 @@ export const toLocalInput = (d: Date) =>
 
 export const SLOT_STEP_MIN = 15;
 export const SLOT_START_MIN = 11 * 60;
-/* Default dinner cutoff. Bars / late kitchens can go later later via config. */
 export const SLOT_END_MIN = 23 * 60;
+
+export type ReservationHours = {
+  startMin?: number;
+  endMin?: number;
+  /** 0 = Sunday … 6 = Saturday (`Date.getDay()`). */
+  closedWeekdays?: number[];
+};
+
+const clampWindow = (startMin: number, endMin: number) => {
+  const start = Math.max(0, Math.min(1439, startMin));
+  let end = Math.max(0, Math.min(1439, endMin));
+  if (end <= start) end = Math.min(1439, start + SLOT_STEP_MIN);
+  return { start, end };
+};
+
+export const minToTimeKey = (mins: number) =>
+  `${pad2(Math.floor(mins / 60))}:${pad2(mins % 60)}`;
+
+export const timeKeyToMin = (timeKey: string) => {
+  const [h, m] = timeKey.split(":").map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return NaN;
+  return h * 60 + m;
+};
+
+export const buildTimeSlots = (
+  startMin = SLOT_START_MIN,
+  endMin = SLOT_END_MIN,
+): string[] => {
+  const { start, end } = clampWindow(startMin, endMin);
+  const slots: string[] = [];
+  for (let m = start; m <= end; m += SLOT_STEP_MIN) {
+    slots.push(minToTimeKey(m));
+  }
+  return slots;
+};
+
+/** Default product window — kept for tests / callers without config. */
+export const allTimeSlots = buildTimeSlots();
 
 export const snapToSlot = (d: Date) => {
   const out = new Date(d);
@@ -28,9 +66,14 @@ export const snapToSlot = (d: Date) => {
   return out;
 };
 
-export const defaultHorarioInput = () => {
-  const d = snapToSlot(new Date(Date.now() + 60 * 60_000));
-  return toLocalInput(d);
+export const defaultHorarioInput = (hours?: ReservationHours) => {
+  const days = buildDayOptions("es", hours);
+  const firstDay = days[0]?.key ?? todayDateKey();
+  const slots = availableTimeSlots(firstDay, hours);
+  const t =
+    slots[0] ??
+    minToTimeKey(hours?.startMin ?? SLOT_START_MIN);
+  return combineLocalHorario(firstDay, t);
 };
 
 export const dateKeyFromLocal = (local: string) => local.slice(0, 10);
@@ -51,18 +94,33 @@ export const addDaysKey = (dateKey: string, days: number) => {
   return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
 };
 
-export const buildDayOptions = (locale: string) => {
+export const weekdayOfKey = (dateKey: string) => {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(y, m - 1, d).getDay();
+};
+
+export const buildDayOptions = (
+  locale: string,
+  hours?: ReservationHours,
+  count = 7,
+) => {
   const today = todayDateKey();
+  const tomorrow = addDaysKey(today, 1);
+  const closed = new Set(hours?.closedWeekdays ?? []);
   const loc = locale === "en" ? "en-US" : "es-AR";
-  return Array.from({ length: 7 }, (_, i) => {
+  const out: { key: string; label: string }[] = [];
+  /* Look ahead enough calendar days to fill `count` open days (all closed
+   * weekdays still shouldn't hang forever). */
+  for (let i = 0; out.length < count && i < 28; i++) {
     const key = addDaysKey(today, i);
+    if (closed.has(weekdayOfKey(key))) continue;
     const [y, m, d] = key.split("-").map(Number);
     const label =
-      i === 0
+      key === today
         ? locale === "en"
           ? "Today"
           : "Hoy"
-        : i === 1
+        : key === tomorrow
           ? locale === "en"
             ? "Tomorrow"
             : "Mañana"
@@ -70,32 +128,30 @@ export const buildDayOptions = (locale: string) => {
               weekday: "short",
               day: "numeric",
             });
-    return { key, label };
-  });
+    out.push({ key, label });
+  }
+  return out;
 };
 
-export const allTimeSlots = (() => {
-  const slots: string[] = [];
-  for (let m = SLOT_START_MIN; m <= SLOT_END_MIN; m += SLOT_STEP_MIN) {
-    slots.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
-  }
-  return slots;
-})();
-
-export const availableTimeSlots = (dateKey: string) => {
-  if (dateKey !== todayDateKey()) return allTimeSlots;
+export const availableTimeSlots = (
+  dateKey: string,
+  hours?: ReservationHours,
+) => {
+  const slots = buildTimeSlots(
+    hours?.startMin ?? SLOT_START_MIN,
+    hours?.endMin ?? SLOT_END_MIN,
+  );
+  if (dateKey !== todayDateKey()) return slots;
   const ahora = new Date();
   const proxima = snapToSlot(ahora);
 
-  /* snapToSlot redondea hacia arriba, así que después de las 23:45 cruza a
-   * mañana y la hora queda en 00:00. Sin esta guarda, `minKey` pasaba a ser
-   * "00:00" y el filtro dejaba pasar todas las franjas del día — incluidas
-   * las de las 11 de la mañana, ya vencidas. Si el redondeo cambió de día,
-   * hoy no queda ninguna. */
+  /* snapToSlot redondea hacia arriba, así que después del último slot del
+   * día cruza a mañana. Sin esta guarda, `minKey` pasaba a ser "00:00" y el
+   * filtro dejaba pasar franjas ya vencidas. */
   if (proxima.getDate() !== ahora.getDate()) return [];
 
   const minKey = `${pad2(proxima.getHours())}:${pad2(proxima.getMinutes())}`;
-  return allTimeSlots.filter((t) => t >= minKey);
+  return slots.filter((t) => t >= minKey);
 };
 
 export const formatHora = (iso: string, locale: string) =>

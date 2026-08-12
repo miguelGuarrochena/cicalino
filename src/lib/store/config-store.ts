@@ -31,6 +31,9 @@ interface ConfigState {
   modo: IdentificationMode;
   tableCount: number;
   cutoffHour: number;
+  reservaAbreMin: number;
+  reservaCierraMin: number;
+  diasCerrados: number[];
   moduloPedidos: boolean;
   moduloEspera: boolean;
   employees: EmployeeUI[];
@@ -42,6 +45,10 @@ interface ConfigState {
   setModo: (mode: IdentificationMode) => void;
   setCantidadMesas: (n: number) => void;
   setHoraCorte: (n: number) => void;
+  setReservaAbreMin: (n: number) => void;
+  setReservaCierraMin: (n: number) => void;
+  setDiasCerrados: (dias: number[]) => void;
+  toggleDiaCerrado: (dia: number) => void;
   hydrate: (
     partial: Partial<
       Pick<
@@ -53,6 +60,9 @@ interface ConfigState {
         | "modo"
         | "tableCount"
         | "cutoffHour"
+        | "reservaAbreMin"
+        | "reservaCierraMin"
+        | "diasCerrados"
         | "moduloPedidos"
         | "moduloEspera"
       >
@@ -72,6 +82,9 @@ interface ConfigState {
   setBranchConfigReady: (v: boolean) => void;
 }
 
+const clampMin = (n: number) =>
+  Math.min(1439, Math.max(0, Math.floor(Number.isFinite(n) ? n : 0)));
+
 const INICIAL = supabaseConfigured
   ? {
       name: "",
@@ -81,6 +94,9 @@ const INICIAL = supabaseConfigured
       modo: "pedido" as IdentificationMode,
       tableCount: 10,
       cutoffHour: 6,
+      reservaAbreMin: 660,
+      reservaCierraMin: 1380,
+      diasCerrados: [] as number[],
       moduloPedidos: true,
       moduloEspera: false,
       employees: [] as EmployeeUI[],
@@ -94,6 +110,9 @@ const INICIAL = supabaseConfigured
       modo: "pedido" as IdentificationMode,
       tableCount: 10,
       cutoffHour: 6,
+      reservaAbreMin: 660,
+      reservaCierraMin: 1380,
+      diasCerrados: [] as number[],
       moduloPedidos: true,
       moduloEspera: true,
       employees: [
@@ -113,6 +132,26 @@ export const useConfigStore = create<ConfigState>()(
       setCantidadMesas: (n) => set({ tableCount: Math.max(1, n || 1) }),
       setHoraCorte: (n) =>
         set({ cutoffHour: Math.min(23, Math.max(0, Math.floor(n) || 0)) }),
+      setReservaAbreMin: (n) => set({ reservaAbreMin: clampMin(n) }),
+      setReservaCierraMin: (n) => set({ reservaCierraMin: clampMin(n) }),
+      setDiasCerrados: (dias) =>
+        set({
+          diasCerrados: [
+            ...new Set(
+              dias.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6),
+            ),
+          ].slice(0, 6),
+        }),
+      toggleDiaCerrado: (dia) =>
+        set((s) => {
+          if (!Number.isInteger(dia) || dia < 0 || dia > 6) return s;
+          const has = s.diasCerrados.includes(dia);
+          if (!has && s.diasCerrados.length >= 6) return s;
+          const diasCerrados = has
+            ? s.diasCerrados.filter((d) => d !== dia)
+            : [...s.diasCerrados, dia].sort((a, b) => a - b);
+          return { diasCerrados };
+        }),
       hydrate: (partial) => set({ ...partial, branchConfigReady: true }),
       setBranchConfigReady: (v) => set({ branchConfigReady: v }),
       setEmpleados: (list) => set({ employees: list }),
@@ -155,6 +194,9 @@ export const useConfigStore = create<ConfigState>()(
           modo: s.modo,
           tableCount: s.tableCount,
           cutoffHour: s.cutoffHour,
+          reservaAbreMin: s.reservaAbreMin,
+          reservaCierraMin: s.reservaCierraMin,
+          diasCerrados: s.diasCerrados,
           moduloPedidos: s.moduloPedidos,
           moduloEspera: s.moduloEspera,
           employees: s.employees,

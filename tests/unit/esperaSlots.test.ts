@@ -9,6 +9,7 @@ import {
   combineLocalHorario,
   addDaysKey,
   buildDayOptions,
+  buildTimeSlots,
   allTimeSlots,
   availableTimeSlots,
   todayDateKey,
@@ -147,9 +148,42 @@ describe("buildDayOptions", () => {
     }
   });
 
+  it("omite los días cerrados del local", () => {
+    /* 2026-08-07 es viernes (5). Cerramos sábados y domingos. */
+    congelar("2026-08-07T12:00:00");
+    const dias = buildDayOptions("es", { closedWeekdays: [0, 6] });
+    expect(dias.map((d) => d.key)).toEqual([
+      "2026-08-07",
+      "2026-08-10",
+      "2026-08-11",
+      "2026-08-12",
+      "2026-08-13",
+      "2026-08-14",
+      "2026-08-17",
+    ]);
+  });
+
   it("cruza el fin de mes sin romperse", () => {
     congelar("2026-08-30T12:00:00");
     const dias = buildDayOptions("es");
     expect(dias.map((d) => d.key)).toContain("2026-09-01");
+  });
+});
+
+describe("buildTimeSlots / availableTimeSlots con ventana del local", () => {
+  it("respeta abre/cierra del local", () => {
+    const slots = buildTimeSlots(12 * 60, 15 * 60);
+    expect(slots[0]).toBe("12:00");
+    expect(slots.at(-1)).toBe("15:00");
+  });
+
+  it("filtra el día de hoy dentro de la ventana", () => {
+    congelar("2026-08-07T13:10:00");
+    const slots = availableTimeSlots(todayDateKey(), {
+      startMin: 12 * 60,
+      endMin: 15 * 60,
+    });
+    expect(slots[0]).toBe("13:15");
+    expect(slots.at(-1)).toBe("15:00");
   });
 });

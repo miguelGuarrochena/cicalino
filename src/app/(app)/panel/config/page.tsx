@@ -37,6 +37,30 @@ const HORAS_CORTE = Array.from({ length: 24 }).map((_, h) => ({
   label: `${String(h).padStart(2, "0")}:00`,
 }));
 
+/* Reservation window options every 30 min from 08:00 to 23:30. */
+const HORAS_RESERVA = (() => {
+  const out: { value: string; label: string }[] = [];
+  for (let m = 8 * 60; m <= 23 * 60 + 30; m += 30) {
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    out.push({
+      value: String(m),
+      label: `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`,
+    });
+  }
+  return out;
+})();
+
+const DIAS_SEMANA = [
+  { id: 1, es: "Lun", en: "Mon" },
+  { id: 2, es: "Mar", en: "Tue" },
+  { id: 3, es: "Mié", en: "Wed" },
+  { id: 4, es: "Jue", en: "Thu" },
+  { id: 5, es: "Vie", en: "Fri" },
+  { id: 6, es: "Sáb", en: "Sat" },
+  { id: 0, es: "Dom", en: "Sun" },
+] as const;
+
 const Campo = ({
   label,
   children,
@@ -57,10 +81,11 @@ const Campo = ({
 
 type FormErrors = {
   mesas?: string;
+  reservaHorario?: string;
 };
 
 const ConfigPage = () => {
-  const { t } = useApp();
+  const { t, locale } = useApp();
   const toast = useToast();
   const role = useSessionStore((s) => s.rol);
   const branchId = useSessionStore((s) => s.sucursalId);
@@ -93,6 +118,12 @@ const ConfigPage = () => {
     if (c.moduloEspera && (!c.tableCount || c.tableCount < 1)) {
       next.mesas = t("config.errMesas");
     }
+    if (
+      c.moduloEspera &&
+      c.reservaAbreMin >= c.reservaCierraMin
+    ) {
+      next.reservaHorario = t("config.errReservaHorario");
+    }
     return next;
   };
 
@@ -108,6 +139,9 @@ const ConfigPage = () => {
           modo: c.modo,
           tableCount: c.tableCount,
           cutoffHour: c.cutoffHour,
+          reservaAbreMin: c.reservaAbreMin,
+          reservaCierraMin: c.reservaCierraMin,
+          diasCerrados: c.diasCerrados,
         });
         if (!ok) {
           toast(t("toast.configError"), "error");
@@ -244,22 +278,108 @@ const ConfigPage = () => {
           </div>
         </div>
         {c.moduloEspera && (
-          <div className="mt-4 max-w-xs">
-            <Campo label={t("config.cantidadMesas")} error={errors.mesas}>
-              <input
-                type="number"
-                min={1}
-                className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
-                value={c.tableCount}
-                onChange={(e) => {
-                  c.setCantidadMesas(parseInt(e.target.value, 10));
-                  setErrors((er) => ({ ...er, mesas: undefined }));
-                }}
-              />
-            </Campo>
-            <p className="mt-1.5 text-xs text-carbon/50">
-              Tocá Guardar para aplicar el cambio en el mapa de mesas.
-            </p>
+          <div className="mt-4 flex flex-col gap-5">
+            <div className="max-w-xs">
+              <Campo label={t("config.tableCount")} error={errors.mesas}>
+                <input
+                  type="number"
+                  min={1}
+                  className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
+                  value={c.tableCount}
+                  onChange={(e) => {
+                    c.setCantidadMesas(parseInt(e.target.value, 10));
+                    setErrors((er) => ({ ...er, mesas: undefined }));
+                  }}
+                />
+              </Campo>
+              <p className="mt-1.5 text-xs text-carbon/50">
+                Tocá Guardar para aplicar el cambio en el mapa de mesas.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-carbon/70">
+                {t("config.reservaHorario")}
+              </p>
+              <p className="mt-1 text-xs text-carbon/50">
+                {t("config.reservaHorarioSub")}
+              </p>
+              <div className="mt-3 grid max-w-md grid-cols-2 gap-3">
+                <Campo label={t("config.reservaAbre")}>
+                  <Select
+                    value={String(c.reservaAbreMin)}
+                    onChange={(v) => {
+                      c.setReservaAbreMin(parseInt(v, 10));
+                      setErrors((er) => ({
+                        ...er,
+                        reservaHorario: undefined,
+                      }));
+                    }}
+                    options={HORAS_RESERVA}
+                    triggerClassName="px-4 py-3"
+                  />
+                </Campo>
+                <Campo
+                  label={t("config.reservaCierra")}
+                  error={errors.reservaHorario}
+                >
+                  <Select
+                    value={String(c.reservaCierraMin)}
+                    onChange={(v) => {
+                      c.setReservaCierraMin(parseInt(v, 10));
+                      setErrors((er) => ({
+                        ...er,
+                        reservaHorario: undefined,
+                      }));
+                    }}
+                    options={HORAS_RESERVA}
+                    triggerClassName="px-4 py-3"
+                  />
+                </Campo>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-carbon/70">
+                {t("config.diasCerrados")}
+              </p>
+              <p className="mt-1 text-xs text-carbon/50">
+                {t("config.diasCerradosSub")}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {DIAS_SEMANA.map((d) => {
+                  const cerrado = c.diasCerrados.includes(d.id);
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => c.toggleDiaCerrado(d.id)}
+                      className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+                        cerrado
+                          ? "bg-rose-500 text-white"
+                          : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
+                      }`}
+                      title={
+                        cerrado
+                          ? locale === "en"
+                            ? "Closed — tap to open"
+                            : "Cerrado — tocá para abrir"
+                          : locale === "en"
+                            ? "Open — tap to close"
+                            : "Abierto — tocá para cerrar"
+                      }
+                    >
+                      {locale === "en" ? d.en : d.es}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-carbon/45">
+                {locale === "en"
+                  ? "Red = closed (hidden in + Reservation)."
+                  : "Rojo = cerrado (no aparece en + Reserva)."}
+              </p>
+            </div>
           </div>
         )}
       </section>
@@ -335,7 +455,7 @@ const ConfigPage = () => {
         </div>
         {c.modo === "mesa" && !c.moduloEspera && (
           <div className="mt-4 max-w-xs">
-            <Campo label={t("config.cantidadMesas")} error={errors.mesas}>
+            <Campo label={t("config.tableCount")} error={errors.mesas}>
               <input
                 type="number"
                 min={1}
