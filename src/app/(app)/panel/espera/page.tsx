@@ -302,6 +302,15 @@ const EsperaPanelPage = () => {
     }
     return map;
   }, [mesas, reservas, reservaHorarioIso]);
+  /* Si cambió el horario y una mesa elegida ahora choca, la sacamos: si no,
+   * el botón queda disabled con la mesa "seleccionada" invisible y parece
+   * que no marca nada. */
+  useEffect(() => {
+    setReservaMesas((prev) => {
+      const next = prev.filter((n) => !reservaChoquePorMesa.has(n));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [reservaChoquePorMesa]);
   const mesasParaReserva = mesas.filter(
     (m) => !reservaChoquePorMesa.has(m.number),
   );

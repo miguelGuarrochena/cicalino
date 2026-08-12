@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   businessDayStart,
   businessDayEnd,
+  reservationFetchRange,
   TZ_NEGOCIO,
 } from "@/lib/businessDay";
 
@@ -117,6 +118,35 @@ describe("independencia del dispositivo", () => {
     const ahora = new Date("2026-08-07T17:00:00Z");
     expect(businessDayStart(6, ahora).toISOString()).toBe(
       "2026-08-07T09:00:00.000Z",
+    );
+  });
+});
+
+describe("reservationFetchRange", () => {
+  it("antes del corte incluye la mañana de hoy, que ya salió de la jornada", () => {
+    /* 05:25 en Buenos Aires: la jornada abierta cierra a las 06:00. Una
+     * reserva a las 06:15 queda fuera de businessDayEnd y el panel no la
+     * cargaba; crear_reserva igual la veía y devolvía choque. */
+    const ahora = new Date("2026-08-12T08:25:00Z");
+    const jornada = {
+      start: businessDayStart(6, ahora),
+      end: businessDayEnd(6, ahora),
+    };
+    const rango = reservationFetchRange(6, ahora);
+    const reservaManana = new Date("2026-08-12T09:15:00Z"); // 06:15 BsAs
+
+    expect(reservaManana.getTime()).toBeGreaterThan(jornada.end.getTime());
+    expect(reservaManana.getTime()).toBeGreaterThanOrEqual(rango.start.getTime());
+    expect(reservaManana.getTime()).toBeLessThanOrEqual(rango.end.getTime());
+  });
+
+  it("cubre los 7 días del picker aunque la jornada abierta sea la de ayer", () => {
+    const ahora = new Date("2026-08-12T08:25:00Z"); // antes del corte
+    const rango = reservationFetchRange(6, ahora);
+    // Día 7 del picker contando desde el arranque de jornada (ayer 06:00):
+    // alcanza a cubrir "hoy" + varios días más.
+    expect(rango.end.getTime() - rango.start.getTime()).toBeGreaterThanOrEqual(
+      7 * 86_400_000,
     );
   });
 });

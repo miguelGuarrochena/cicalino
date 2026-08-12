@@ -126,3 +126,28 @@ export const businessDayEnd = (
     tz,
   );
 };
+
+/* Cuántos días calendario ofrece el picker de reservas en espera.
+ * Tiene que coincidir con `buildDayOptions` en `lib/espera/slots.ts`. */
+export const RESERVATION_PICKER_DAYS = 7;
+
+/* Ventana de reservas que el panel tiene que bajar para que el mapa y el
+ * choque del picker coincidan con lo que `crear_reserva` mira en la base.
+ *
+ * La jornada sola no alcanza: el picker deja reservar hasta 7 días, y antes
+ * del corte una reserva de "hoy" a la mañana cae justo después del cierre de
+ * la jornada anterior. El panel no la veía, el servidor sí, y respondía
+ * `choque` contra una reserva invisible. */
+export const reservationFetchRange = (
+  hora: number = DEFAULT_CUTOFF_HOUR,
+  ahora: Date = new Date(),
+  tz: string = TZ_NEGOCIO,
+): { start: Date; end: Date } => {
+  const start = businessDayStart(hora, ahora, tz);
+  const end = businessDayEnd(
+    hora,
+    new Date(start.getTime() + RESERVATION_PICKER_DAYS * 86_400_000),
+    tz,
+  );
+  return { start, end };
+};
