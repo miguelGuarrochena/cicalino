@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   reservationDateKey,
   reservationTime,
@@ -109,6 +109,11 @@ export const ReservasAgenda = ({
     return { year: y, month: m };
   });
   const [selectedKey, setSelectedKey] = useState(todayKey);
+  const [registroFiltro, setRegistroFiltro] = useState<
+    "todas" | "cumplida" | "no_cumplida" | "cancelada"
+  >("todas");
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [calendarH, setCalendarH] = useState<number | null>(null);
 
   const byDay = useMemo(() => {
     const map = new Map<string, ReservationView[]>();
@@ -129,6 +134,16 @@ export const ReservasAgenda = ({
     [cursor.year, cursor.month],
   );
 
+  useEffect(() => {
+    const el = calendarRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const sync = () => setCalendarH(el.getBoundingClientRect().height);
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [cursor.year, cursor.month, cells.length]);
+
   const upcoming = useMemo(() => {
     const list = reservas
       .filter((r) => r.status === "activa")
@@ -142,29 +157,53 @@ export const ReservasAgenda = ({
     };
   }, [reservas, todayKey]);
 
-  /* Closed bookings for today — seated, no-show, cancelled. Keeps a day log
-   * after they leave “Próximas”. */
-  const registroHoy = useMemo(() => {
-    return reservas
-      .filter(
-        (r) => reservationDateKey(r.scheduledAt, TZ_NEGOCIO) === todayKey,
-      )
-      .filter((r) => reservationClosed(r.status))
-      .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt));
-  }, [reservas, todayKey]);
+  const delDia = byDay.get(selectedKey) ?? [];
+  const delDiaActivas = delDia.filter((r) => r.status === "activa");
+  const registroDia = delDia
+    .filter((r) => reservationClosed(r.status))
+    .slice()
+    .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt));
 
   const statusChip = (r: ReservationView) => {
     if (r.status === "expirada") {
-      return locale === "en" ? "No-show" : "No llegó";
+      return locale === "en" ? "Unfulfilled" : "No cumplida";
     }
     if (r.status === "sentada") {
-      return locale === "en" ? "Seated" : "Sentada";
+      return locale === "en" ? "Fulfilled" : "Cumplida";
     }
     if (r.status === "cancelada") {
       return locale === "en" ? "Cancelled" : "Cancelada";
     }
     return RESERVATION_STATUS_LABEL[r.status];
   };
+
+  const registroFiltrado = useMemo(() => {
+    if (registroFiltro === "todas") return registroDia;
+    if (registroFiltro === "cumplida") {
+      return registroDia.filter((r) => r.status === "sentada");
+    }
+    if (registroFiltro === "no_cumplida") {
+      return registroDia.filter((r) => r.status === "expirada");
+    }
+    return registroDia.filter((r) => r.status === "cancelada");
+  }, [registroDia, registroFiltro]);
+
+  const registroCounts = useMemo(() => {
+    let cumplida = 0;
+    let noCumplida = 0;
+    let cancelada = 0;
+    for (const r of registroDia) {
+      if (r.status === "sentada") cumplida += 1;
+      else if (r.status === "expirada") noCumplida += 1;
+      else if (r.status === "cancelada") cancelada += 1;
+    }
+    return { cumplida, noCumplida, cancelada };
+  }, [registroDia]);
+
+  /* Reset filter when changing day so you don’t land on an empty chip. */
+  useEffect(() => {
+    setRegistroFiltro("todas");
+  }, [selectedKey]);
 
   const selectDay = (key: string) => {
     setSelectedKey(key);
@@ -174,14 +213,10 @@ export const ReservasAgenda = ({
     }
   };
 
-  /* Month nav only browses the grid — keep the selected day (usually today)
-   * until the user explicitly picks another date. */
   const goMonth = (delta: number) => {
     setCursor((c) => shiftMonth(c.year, c.month, delta));
   };
 
-  const delDia = byDay.get(selectedKey) ?? [];
-  const delDiaNoShow = delDia.filter((r) => r.status === "expirada").length;
   const selectedLabel = (() => {
     const [y, m, d] = selectedKey.split("-").map(Number);
     return new Date(y, m - 1, d).toLocaleDateString(
@@ -190,13 +225,207 @@ export const ReservasAgenda = ({
     );
   })();
 
+  const esHoy = selectedKey === todayKey;
   const weekdays =
     locale === "en"
       ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
       : ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
+  /* Calendar day counts: active only — closed ones live in the log below. */
+  const activeCount = (key: string) =>
+    (byDay.get(key) ?? []).filter((r) => r.status === "activa").length;
+
   return (
     <div className="flex flex-col gap-4">
+      {/* 1) Calendar + pending for the selected day */}
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
+        <div
+          ref={calendarRef}
+          className="rounded-[20px] border border-amber-400/35 bg-amber-50/50 p-3 shadow-sm dark:bg-amber-400/10 sm:p-4"
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => goMonth(-1)}
+              className="rounded-full border border-linea bg-surface px-3 py-1.5 text-sm font-semibold text-carbon/70 hover:bg-carbon/5"
+              aria-label={locale === "en" ? "Previous month" : "Mes anterior"}
+            >
+              ‹
+            </button>
+            <p className="font-display text-lg uppercase tracking-tight text-carbon capitalize">
+              {monthLabel(cursor.year, cursor.month, locale)}
+            </p>
+            <button
+              type="button"
+              onClick={() => goMonth(1)}
+              className="rounded-full border border-linea bg-surface px-3 py-1.5 text-sm font-semibold text-carbon/70 hover:bg-carbon/5"
+              aria-label={locale === "en" ? "Next month" : "Mes siguiente"}
+            >
+              ›
+            </button>
+          </div>
+          <div className="mb-1.5 grid grid-cols-7 gap-1">
+            {weekdays.map((w) => (
+              <p
+                key={w}
+                className="text-center text-[10px] font-bold uppercase tracking-wide text-carbon/40"
+              >
+                {w}
+              </p>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {cells.map((cell) => {
+              const count = activeCount(cell.key);
+              const selected = cell.key === selectedKey;
+              const isToday = cell.key === todayKey;
+              const muted = !cell.inMonth;
+              return (
+                <button
+                  key={cell.key}
+                  type="button"
+                  onClick={() => selectDay(cell.key)}
+                  className={`relative flex aspect-square flex-col items-center justify-center rounded-xl text-sm font-semibold transition ${
+                    selected
+                      ? "bg-amber-500 text-amber-950 shadow-sm"
+                      : count
+                        ? muted
+                          ? "bg-amber-100/60 text-amber-900/55 hover:bg-amber-200/70 dark:bg-amber-400/15 dark:text-amber-100/55"
+                          : "bg-amber-200/70 text-amber-950 hover:bg-amber-300/80 dark:bg-amber-400/25 dark:text-amber-100"
+                        : muted
+                          ? "bg-transparent text-carbon/30 hover:bg-carbon/5"
+                          : "bg-surface text-carbon/70 hover:bg-carbon/5"
+                  } ${isToday && !selected ? "ring-2 ring-espera/50" : ""}`}
+                >
+                  {cell.day}
+                  {count > 0 && (
+                    <span
+                      className={`mt-0.5 text-[9px] font-bold leading-none ${
+                        selected
+                          ? "text-amber-950/80"
+                          : muted
+                            ? "text-amber-800/50 dark:text-amber-200/50"
+                            : "text-amber-800 dark:text-amber-200"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-xs text-carbon/50">
+            {locale === "en"
+              ? "Neighboring days are faded. Tap a day to see its pending list."
+              : "Los días del mes vecino se ven atenuados. Tocá un día para ver las pendientes."}
+          </p>
+        </div>
+
+        {/* Side panel: only active bookings for the selected day.
+            Height matches the calendar on lg+; scroll if longer. */}
+        <div
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:max-h-[var(--agenda-cal-h)]"
+          style={
+            calendarH != null
+              ? ({ "--agenda-cal-h": `${calendarH}px` } as CSSProperties)
+              : undefined
+          }
+        >
+          <div className="mb-3 shrink-0">
+            <h3 className="font-display text-xl uppercase tracking-tight text-carbon capitalize">
+              {selectedLabel}
+            </h3>
+            <p className="text-xs text-carbon/50">
+              {delDiaActivas.length
+                ? locale === "en"
+                  ? `${delDiaActivas.length} pending`
+                  : `${delDiaActivas.length} pendiente${delDiaActivas.length === 1 ? "" : "s"}`
+                : locale === "en"
+                  ? "No pending bookings this day"
+                  : "Sin pendientes este día"}
+              {registroDia.length
+                ? locale === "en"
+                  ? ` · ${registroDia.length} in the log below`
+                  : ` · ${registroDia.length} en el registro abajo`
+                : ""}
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+            {delDiaActivas.length ? (
+              <div className="flex flex-col gap-3">
+                {delDiaActivas.map((r) => (
+                  <article
+                    key={r.id}
+                    className="rounded-[20px] border border-amber-400/40 bg-amber-50/80 p-4 shadow-sm dark:bg-amber-400/10"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-display text-2xl tabular-nums tracking-tight text-amber-950 dark:text-amber-100">
+                            {reservationTime(r.scheduledAt)}
+                          </p>
+                          <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
+                            {r.name}
+                          </h3>
+                          <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 dark:bg-amber-400/30 dark:text-amber-100">
+                            {RESERVATION_STATUS_LABEL[r.status]}
+                          </span>
+                          <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
+                            {tablesTitle(
+                              r.tableNumbers ?? [r.tableNumber],
+                              locale === "en" ? "en" : "es",
+                            )}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-carbon/55">
+                          {r.partySize}{" "}
+                          {locale === "en" ? "guests" : "personas"} · +
+                          {r.graceMinutes} min ·{" "}
+                          {timeUntilLabel(
+                            r.scheduledAt,
+                            locale === "en" ? "en" : "es",
+                            ahora,
+                          )}
+                          {r.employee ? ` · ${r.employee}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => onSentar(r.id)}
+                          className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90`}
+                        >
+                          {locale === "en" ? "Seat" : "Sentar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onCancelar(r.id)}
+                          className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50`}
+                        >
+                          {locale === "en" ? "Cancel" : "Cancelar"}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-2xl border border-dashed border-linea bg-surface px-4 py-8 text-center text-sm text-carbon/45">
+                {locale === "en"
+                  ? registroDia.length
+                    ? "No pending left — see the log below."
+                    : "Nothing pending this day."
+                  : registroDia.length
+                    ? "No quedan pendientes — mirá el registro abajo."
+                    : "Sin pendientes este día."}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 2) Cross-day upcoming glance */}
       {upcoming.items.length > 0 && (
         <div className="rounded-[20px] border border-amber-400/35 bg-amber-50/40 p-3 shadow-sm dark:bg-amber-400/10 sm:p-4">
           <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2">
@@ -277,273 +506,147 @@ export const ReservasAgenda = ({
         </div>
       )}
 
-      {registroHoy.length > 0 && (
+      {/* 3) Log for the selected day (fulfilled / unfulfilled / cancelled) */}
+      {registroDia.length > 0 && (
         <div className="rounded-[20px] border border-linea bg-surface/80 p-3 shadow-sm sm:p-4">
           <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="font-display text-lg uppercase tracking-tight text-carbon">
-              {locale === "en" ? "Today’s log" : "Registro de hoy"}
+              {esHoy
+                ? locale === "en"
+                  ? "Today’s log"
+                  : "Registro de hoy"
+                : locale === "en"
+                  ? "Day log"
+                  : "Registro del día"}
             </h3>
             <p className="text-xs text-carbon/45">
               {locale === "en"
-                ? "Seated · no-show · cancelled"
-                : "Sentadas · no llegó · canceladas"}
+                ? "For claims and the day’s history"
+                : "Para reclamos e historial del día"}
             </p>
           </div>
-          <ul className="flex max-h-48 flex-col gap-1.5 overflow-y-auto pr-0.5">
-            {registroHoy.map((r) => {
-              const noShow = r.status === "expirada";
-              return (
-                <li
-                  key={r.id}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${
-                    noShow
-                      ? "bg-rose-50/90 dark:bg-rose-500/10"
-                      : "bg-crema/60 dark:bg-carbon/5"
-                  }`}
-                >
-                  <span
-                    className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                      noShow
-                        ? "bg-rose-200/80 text-rose-950 dark:bg-rose-400/25 dark:text-rose-100"
-                        : "bg-carbon/10 text-carbon/70"
+          <div
+            className="mb-3 flex flex-wrap gap-1.5"
+            role="tablist"
+            aria-label={
+              locale === "en" ? "Filter day log" : "Filtrar registro"
+            }
+          >
+            {(
+              [
+                {
+                  id: "todas" as const,
+                  es: "Todas",
+                  en: "All",
+                  n: registroDia.length,
+                  active:
+                    "bg-carbon text-crema",
+                  idle: "border border-linea bg-surface text-carbon/65 hover:bg-carbon/5",
+                },
+                {
+                  id: "cumplida" as const,
+                  es: "Cumplida",
+                  en: "Fulfilled",
+                  n: registroCounts.cumplida,
+                  active: "bg-espera text-crema",
+                  idle: "border border-espera/30 bg-espera/10 text-espera hover:bg-espera/15",
+                },
+                {
+                  id: "no_cumplida" as const,
+                  es: "No cumplida",
+                  en: "Unfulfilled",
+                  n: registroCounts.noCumplida,
+                  active: "bg-rose-500 text-white",
+                  idle: "border border-rose-300/60 bg-rose-50 text-rose-800 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-100",
+                },
+                {
+                  id: "cancelada" as const,
+                  es: "Cancelada",
+                  en: "Cancelled",
+                  n: registroCounts.cancelada,
+                  active: "bg-carbon/70 text-crema",
+                  idle: "border border-linea bg-crema/70 text-carbon/60 hover:bg-carbon/5",
+                },
+              ] as const
+            )
+              .filter((f) => f.id === "todas" || f.n > 0)
+              .map((f) => {
+                const on = registroFiltro === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => setRegistroFiltro(f.id)}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition ${
+                      on ? f.active : f.idle
                     }`}
                   >
-                    {statusChip(r)}
-                  </span>
-                  <span className="font-display text-lg tabular-nums tracking-tight text-carbon">
-                    {reservationTime(r.scheduledAt)}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate font-semibold text-carbon">
-                    {r.name}
-                  </span>
-                  <span className="hidden shrink-0 text-xs text-carbon/45 sm:inline">
-                    {tablesTitle(
-                      r.tableNumbers ?? [r.tableNumber],
-                      locale === "en" ? "en" : "es",
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
-        <div className="rounded-[20px] border border-amber-400/35 bg-amber-50/50 p-3 shadow-sm dark:bg-amber-400/10 sm:p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => goMonth(-1)}
-              className="rounded-full border border-linea bg-surface px-3 py-1.5 text-sm font-semibold text-carbon/70 hover:bg-carbon/5"
-              aria-label={locale === "en" ? "Previous month" : "Mes anterior"}
-            >
-              ‹
-            </button>
-            <p className="font-display text-lg uppercase tracking-tight text-carbon capitalize">
-              {monthLabel(cursor.year, cursor.month, locale)}
-            </p>
-            <button
-              type="button"
-              onClick={() => goMonth(1)}
-              className="rounded-full border border-linea bg-surface px-3 py-1.5 text-sm font-semibold text-carbon/70 hover:bg-carbon/5"
-              aria-label={locale === "en" ? "Next month" : "Mes siguiente"}
-            >
-              ›
-            </button>
-          </div>
-          <div className="mb-1.5 grid grid-cols-7 gap-1">
-            {weekdays.map((w) => (
-              <p
-                key={w}
-                className="text-center text-[10px] font-bold uppercase tracking-wide text-carbon/40"
-              >
-                {w}
-              </p>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((cell) => {
-              const count = byDay.get(cell.key)?.length ?? 0;
-              const selected = cell.key === selectedKey;
-              const isToday = cell.key === todayKey;
-              const muted = !cell.inMonth;
-              return (
-                <button
-                  key={cell.key}
-                  type="button"
-                  onClick={() => selectDay(cell.key)}
-                  className={`relative flex aspect-square flex-col items-center justify-center rounded-xl text-sm font-semibold transition ${
-                    selected
-                      ? "bg-amber-500 text-amber-950 shadow-sm"
-                      : count
-                        ? muted
-                          ? "bg-amber-100/60 text-amber-900/55 hover:bg-amber-200/70 dark:bg-amber-400/15 dark:text-amber-100/55"
-                          : "bg-amber-200/70 text-amber-950 hover:bg-amber-300/80 dark:bg-amber-400/25 dark:text-amber-100"
-                        : muted
-                          ? "bg-transparent text-carbon/30 hover:bg-carbon/5"
-                          : "bg-surface text-carbon/70 hover:bg-carbon/5"
-                  } ${isToday && !selected ? "ring-2 ring-espera/50" : ""}`}
-                >
-                  {cell.day}
-                  {count > 0 && (
+                    {locale === "en" ? f.en : f.es}
                     <span
-                      className={`mt-0.5 text-[9px] font-bold leading-none ${
-                        selected
-                          ? "text-amber-950/80"
-                          : muted
-                            ? "text-amber-800/50 dark:text-amber-200/50"
-                            : "text-amber-800 dark:text-amber-200"
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+                        on ? "bg-white/20" : "bg-carbon/10"
                       }`}
                     >
-                      {count}
+                      {f.n}
                     </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-xs text-carbon/50">
-            {locale === "en"
-              ? "Neighboring days are faded. Tap a day — or an upcoming row — to see the list."
-              : "Los días del mes vecino se ven atenuados. Tocá un día — o una próxima — para ver la lista."}
-          </p>
-        </div>
-
-        <div className="min-w-0">
-          <div className="mb-3">
-            <h3 className="font-display text-xl uppercase tracking-tight text-carbon capitalize">
-              {selectedLabel}
-            </h3>
-            <p className="text-xs text-carbon/50">
-              {delDia.length
-                ? locale === "en"
-                  ? `${delDia.length} booking${delDia.length === 1 ? "" : "s"}${
-                      delDiaNoShow
-                        ? ` · ${delDiaNoShow} no-show${delDiaNoShow === 1 ? "" : "s"}`
-                        : ""
-                    }`
-                  : `${delDia.length} reserva${delDia.length === 1 ? "" : "s"}${
-                      delDiaNoShow
-                        ? ` · ${delDiaNoShow} no llegó${delDiaNoShow === 1 ? "" : "ron"}`
-                        : ""
-                    }`
-                : locale === "en"
-                  ? "No bookings this day"
-                  : "Sin reservas este día"}
-            </p>
-          </div>
-          {delDia.length ? (
-            <div className="flex flex-col gap-3">
-              {delDia.map((r) => {
-                const closed = reservationClosed(r.status);
-                const noShow = r.status === "expirada";
-                return (
-                  <article
-                    key={r.id}
-                    className={`rounded-[20px] border p-4 shadow-sm ${
-                      noShow
-                        ? "border-rose-300/50 bg-rose-50/70 dark:bg-rose-500/10"
-                        : closed
-                          ? "border-linea bg-surface"
-                          : "border-amber-400/40 bg-amber-50/80 dark:bg-amber-400/10"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p
-                            className={`font-display text-2xl tabular-nums tracking-tight ${
-                              noShow
-                                ? "text-rose-900 dark:text-rose-100"
-                                : "text-amber-950 dark:text-amber-100"
-                            }`}
-                          >
-                            {reservationTime(r.scheduledAt)}
-                          </p>
-                          <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
-                            {r.name}
-                          </h3>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                              noShow
-                                ? "bg-rose-200/80 text-rose-950 dark:bg-rose-400/30 dark:text-rose-100"
-                                : "bg-amber-200/80 text-amber-950 dark:bg-amber-400/30 dark:text-amber-100"
-                            }`}
-                          >
-                            {locale === "en" && noShow
-                              ? "No-show"
-                              : RESERVATION_STATUS_LABEL[r.status]}
-                          </span>
-                          <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
-                            {tablesTitle(
-                              r.tableNumbers ?? [r.tableNumber],
-                              locale === "en" ? "en" : "es",
-                            )}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-sm text-carbon/55">
-                          {r.partySize}{" "}
-                          {locale === "en" ? "guests" : "personas"} · +
-                          {r.graceMinutes} min
-                          {!closed && (
-                            <>
-                              {" "}
-                              ·{" "}
-                              {timeUntilLabel(
-                                r.scheduledAt,
-                                locale === "en" ? "en" : "es",
-                                ahora,
-                              )}
-                            </>
-                          )}
-                          {noShow && r.expiredAt
-                            ? locale === "en"
-                              ? ` · marked ${reservationTime(r.expiredAt)}`
-                              : ` · marcado ${reservationTime(r.expiredAt)}`
-                            : null}
-                          {r.employee ? ` · ${r.employee}` : ""}
-                        </p>
-                        {noShow && (
-                          <p className="mt-1 text-xs text-rose-800/80 dark:text-rose-200/80">
-                            {locale === "en"
-                              ? "Kept for the day in case of a claim."
-                              : "Queda del día por si hay reclamo."}
-                          </p>
-                        )}
-                      </div>
-                      {!closed && (
-                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => onSentar(r.id)}
-                            className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90`}
-                          >
-                            {locale === "en" ? "Seat" : "Sentar"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onCancelar(r.id)}
-                            className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50`}
-                          >
-                            {locale === "en" ? "Cancel" : "Cancelar"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </article>
+                  </button>
                 );
               })}
-            </div>
+          </div>
+          {registroFiltrado.length ? (
+            <ul className="flex max-h-48 flex-col gap-1.5 overflow-y-auto pr-0.5">
+              {registroFiltrado.map((r) => {
+                const noCumplida = r.status === "expirada";
+                const cumplida = r.status === "sentada";
+                return (
+                  <li
+                    key={r.id}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${
+                      noCumplida
+                        ? "bg-rose-50/90 dark:bg-rose-500/10"
+                        : cumplida
+                          ? "bg-espera/10"
+                          : "bg-crema/60 dark:bg-carbon/5"
+                    }`}
+                  >
+                    <span
+                      className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                        noCumplida
+                          ? "bg-rose-200/80 text-rose-950 dark:bg-rose-400/25 dark:text-rose-100"
+                          : cumplida
+                            ? "bg-espera/25 text-espera"
+                            : "bg-carbon/10 text-carbon/70"
+                      }`}
+                    >
+                      {statusChip(r)}
+                    </span>
+                    <span className="font-display text-lg tabular-nums tracking-tight text-carbon">
+                      {reservationTime(r.scheduledAt)}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-semibold text-carbon">
+                      {r.name}
+                    </span>
+                    <span className="hidden shrink-0 text-xs text-carbon/45 sm:inline">
+                      {tablesTitle(
+                        r.tableNumbers ?? [r.tableNumber],
+                        locale === "en" ? "en" : "es",
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           ) : (
-            <p className="rounded-2xl border border-dashed border-linea bg-surface px-4 py-8 text-center text-sm text-carbon/45">
+            <p className="rounded-xl border border-dashed border-linea bg-surface px-3 py-4 text-center text-sm text-carbon/45">
               {locale === "en"
-                ? "Nothing booked this day."
-                : "No hay reservas este día."}
+                ? "No bookings with this filter."
+                : "Ninguna reserva con este filtro."}
             </p>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

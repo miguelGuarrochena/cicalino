@@ -127,9 +127,9 @@ export const WAITLIST_STATUS_LABEL: Record<WaitlistStatus, string> = {
 
 export const RESERVATION_STATUS_LABEL: Record<ReservationStatus, string> = {
   activa: "Reservada",
-  sentada: "Sentada",
+  sentada: "Cumplida",
   cancelada: "Cancelada",
-  expirada: "No llegó",
+  expirada: "No cumplida",
 };
 
 export const waitlistClosed = (status: WaitlistStatus): boolean =>

@@ -901,8 +901,8 @@ const EsperaPanelPage = () => {
           {reservasAgenda.length > 0 && (
             <p className="text-xs text-carbon/45">
               {locale === "en"
-                ? "No-shows stay as “No-show” for the day (claims)."
-                : "Si no llegan, quedan como «No llegó» del día (reclamos)."}
+                ? "Unfulfilled bookings stay in the day log (claims)."
+                : "Si no llegan, quedan como «No cumplida» en el registro (reclamos)."}
             </p>
           )}
         </div>
