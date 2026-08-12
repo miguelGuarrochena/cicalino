@@ -1337,6 +1337,7 @@ const EsperaPanelPage = () => {
                             : mesaTileClass("libre", {
                                 pickable: true,
                                 selected,
+                                selectedAmber: true,
                                 oversized,
                               })
                         }

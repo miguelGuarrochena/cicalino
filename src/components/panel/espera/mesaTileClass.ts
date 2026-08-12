@@ -7,6 +7,9 @@ export const mesaTileClass = (
   opts?: {
     pickable?: boolean;
     selected?: boolean;
+    /* En el modal de reserva el verde sobre verde casi no se ve: el borde
+     * ámbar marca la elección sin confundirse con el choque (relleno ámbar). */
+    selectedAmber?: boolean;
     tooSmall?: boolean;
     oversized?: boolean;
     reservaPronto?: boolean;
@@ -15,6 +18,9 @@ export const mesaTileClass = (
   const base =
     "relative flex aspect-square flex-col items-center justify-center rounded-2xl border-2 text-center transition";
   if (opts?.selected) {
+    if (opts.selectedAmber) {
+      return `${base} border-amber-500 bg-espera text-crema ring-2 ring-amber-400/70`;
+    }
     return `${base} border-espera bg-espera text-crema ring-2 ring-espera/40`;
   }
   if (opts?.tooSmall && status === "libre") {
