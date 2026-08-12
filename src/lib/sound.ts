@@ -116,7 +116,8 @@ export const notifyReady = () => {
 };
 
 export const dingCancelled = () => {
-  tone(392, 140);
-  tone(294, 180, 0.12);
-  vibrate([80, 40, 80]);
+  tone(392, 160);
+  tone(294, 200, 0.14);
+  tone(220, 240, 0.12);
+  vibrate([100, 50, 100, 50, 160]);
 };

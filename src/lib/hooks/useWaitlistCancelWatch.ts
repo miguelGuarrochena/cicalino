@@ -6,7 +6,10 @@ import { useToast } from "@/components/ui/Toast";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
-import { staffWaitlistCancelIds } from "@/lib/store/waitlist-alerts-store";
+import {
+  staffWaitlistCancelIds,
+  pushGuestCancelAlert,
+} from "@/lib/store/waitlist-alerts-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isRealBranchId } from "@/lib/data/orders";
@@ -30,13 +33,9 @@ const announce = (args: {
   if (args.seen.has(args.id)) return;
   args.seen.add(args.id);
   if (args.fromGuest) {
+    /* Popup que hay que cerrar + beep: el toast solo se pierde en el mostrador. */
     dingCancelled();
-    args.toast(
-      args.locale === "en"
-        ? `${args.name} cancelled their wait`
-        : `${args.name} canceló la espera`,
-      "error",
-    );
+    pushGuestCancelAlert({ id: args.id, name: args.name });
   } else {
     args.toast(
       args.locale === "en"
