@@ -602,46 +602,24 @@ const EsperaPanelPage = () => {
       <ModuleSwitcher />
       <SyncErrorBanner error={syncError} />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-espera">
-              {locale === "en" ? "Table wait" : "Espera de mesa"}
-            </p>
-            <HelpLink seccion="espera" accent="espera" />
-          </div>
-          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-            {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
-          </h1>
-          <p className="mt-1 text-sm text-carbon/55">
-            {cola.length}{" "}
-            {locale === "en" ? "parties waiting" : "grupos esperando"}
-            {personasEnCola
-              ? ` · ${personasEnCola} ${locale === "en" ? "guests" : "personas"}`
-              : ""}
-            {tableCount ? ` · ${tableCount} mesas` : ""}
+      <div>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-espera">
+            {locale === "en" ? "Table wait" : "Espera de mesa"}
           </p>
+          <HelpLink seccion="espera" accent="espera" />
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <button
-            type="button"
-            onClick={() => {
-              setReservaMesas([]);
-              setReservaHorario(defaultHorarioInput(reservaHours));
-              setReservaOpen(true);
-            }}
-            className="w-full rounded-full border border-espera/40 bg-espera/10 px-5 py-3 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema sm:w-auto sm:py-2.5"
-          >
-            {locale === "en" ? "+ Reservation" : "+ Reserva"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="w-full rounded-full bg-espera px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte sm:w-auto sm:py-2.5"
-          >
-            {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
-          </button>
-        </div>
+        <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+          {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
+        </h1>
+        <p className="mt-1 text-sm text-carbon/55">
+          {cola.length}{" "}
+          {locale === "en" ? "parties waiting" : "grupos esperando"}
+          {personasEnCola
+            ? ` · ${personasEnCola} ${locale === "en" ? "guests" : "personas"}`
+            : ""}
+          {tableCount ? ` · ${tableCount} mesas` : ""}
+        </p>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -891,10 +869,21 @@ const EsperaPanelPage = () => {
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-carbon/70">
-          {locale === "en" ? "Waiting list" : "Lista de espera"}
-          {cola.length ? ` · ${cola.length}` : ""}
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-carbon/70">
+            {locale === "en" ? "Waiting list" : "Lista de espera"}
+            {cola.length ? ` · ${cola.length}` : ""}
+          </h2>
+          {cola.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-espera px-4 text-sm font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte sm:min-h-0 sm:py-2"
+            >
+              {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
+            </button>
+          )}
+        </div>
         <div className="flex flex-col gap-3">
           {paginated.map((e, idx) => {
             const mins = minsAgo(e.createdAt);
@@ -1003,9 +992,16 @@ const EsperaPanelPage = () => {
               </p>
               <p className="mt-1 text-sm text-carbon/50">
                 {locale === "en"
-                  ? "Tap + Add party when guests arrive."
-                  : "Tocá + Agregar grupo cuando lleguen."}
+                  ? "Add a party when walk-ins arrive."
+                  : "Agregá un grupo cuando lleguen sin reserva."}
               </p>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                className="mt-5 inline-flex min-h-11 w-full max-w-xs items-center justify-center rounded-full bg-espera px-5 text-sm font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte sm:w-auto"
+              >
+                {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
+              </button>
             </div>
           )}
         </div>
@@ -1019,18 +1015,33 @@ const EsperaPanelPage = () => {
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-carbon/70">
-            {locale === "en" ? "Reservations" : "Reservas"}
-            {reservasActivas.length
-              ? ` · ${reservasActivas.length}`
-              : ""}
-          </h2>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-carbon/70">
+              {locale === "en" ? "Reservations" : "Reservas"}
+              {reservasActivas.length
+                ? ` · ${reservasActivas.length}`
+                : ""}
+            </h2>
+            {reservasAgenda.length > 0 && (
+              <p className="mt-0.5 text-xs text-carbon/45">
+                {locale === "en"
+                  ? "Unfulfilled bookings stay in the day log."
+                  : "Si no llegan, quedan como «No cumplida» en el historial."}
+              </p>
+            )}
+          </div>
           {reservasAgenda.length > 0 && (
-            <p className="text-xs text-carbon/45">
-              {locale === "en"
-                ? "Unfulfilled bookings stay in the day log."
-                : "Si no llegan, quedan como «No cumplida» en el historial."}
-            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setReservaMesas([]);
+                setReservaHorario(defaultHorarioInput(reservaHours));
+                setReservaOpen(true);
+              }}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-espera/40 bg-espera/10 px-4 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema sm:min-h-0 sm:py-2"
+            >
+              {locale === "en" ? "+ Reservation" : "+ Reserva"}
+            </button>
           )}
         </div>
         {reservasAgenda.length > 0 ? (
@@ -1056,11 +1067,27 @@ const EsperaPanelPage = () => {
             }}
           />
         ) : (
-          <p className="text-sm text-carbon/45">
-            {locale === "en"
-              ? "None upcoming — use + Reservation when you need one."
-              : "Ninguna próxima, usá + Reserva cuando haga falta."}
-          </p>
+          <div className="rounded-[24px] border border-dashed border-espera/30 bg-espera/5 px-6 py-10 text-center">
+            <p className="font-display text-lg uppercase text-espera">
+              {locale === "en" ? "No reservations yet" : "Sin reservas todavía"}
+            </p>
+            <p className="mt-1 text-sm text-carbon/50">
+              {locale === "en"
+                ? "Book a table for later from here."
+                : "Reservá una mesa para más tarde desde acá."}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setReservaMesas([]);
+                setReservaHorario(defaultHorarioInput(reservaHours));
+                setReservaOpen(true);
+              }}
+              className="mt-5 inline-flex min-h-11 w-full max-w-xs items-center justify-center rounded-full border border-espera/40 bg-espera/10 px-5 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema sm:w-auto"
+            >
+              {locale === "en" ? "+ Reservation" : "+ Reserva"}
+            </button>
+          </div>
         )}
       </section>
 
