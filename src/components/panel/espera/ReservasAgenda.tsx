@@ -177,28 +177,25 @@ export const ReservasAgenda = ({
     return RESERVATION_STATUS_LABEL[r.status];
   };
 
-  const registroFiltrado = useMemo(() => {
-    if (registroFiltro === "todas") return registroDia;
-    if (registroFiltro === "cumplida") {
-      return registroDia.filter((r) => r.status === "sentada");
-    }
-    if (registroFiltro === "no_cumplida") {
-      return registroDia.filter((r) => r.status === "expirada");
-    }
-    return registroDia.filter((r) => r.status === "cancelada");
-  }, [registroDia, registroFiltro]);
+  /* Sin useMemo a propósito. `registroDia` sale de los arrays que `byDay`
+   * arma mutando (push + sort), así que el React Compiler no puede preservar
+   * una memoización manual sobre él y se saltea la compilación del componente
+   * entero. Recorrer las reservas cerradas de un día es barato, y sin el
+   * useMemo el compiler memoiza esto solo. */
+  const registroFiltrado =
+    registroFiltro === "todas"
+      ? registroDia
+      : registroFiltro === "cumplida"
+        ? registroDia.filter((r) => r.status === "sentada")
+        : registroFiltro === "no_cumplida"
+          ? registroDia.filter((r) => r.status === "expirada")
+          : registroDia.filter((r) => r.status === "cancelada");
 
-  const registroCounts = useMemo(() => {
-    let cumplida = 0;
-    let noCumplida = 0;
-    let cancelada = 0;
-    for (const r of registroDia) {
-      if (r.status === "sentada") cumplida += 1;
-      else if (r.status === "expirada") noCumplida += 1;
-      else if (r.status === "cancelada") cancelada += 1;
-    }
-    return { cumplida, noCumplida, cancelada };
-  }, [registroDia]);
+  const registroCounts = {
+    cumplida: registroDia.filter((r) => r.status === "sentada").length,
+    noCumplida: registroDia.filter((r) => r.status === "expirada").length,
+    cancelada: registroDia.filter((r) => r.status === "cancelada").length,
+  };
 
   /* Reset filter when changing day so you don’t land on an empty chip. */
   useEffect(() => {

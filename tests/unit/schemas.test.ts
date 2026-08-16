@@ -145,6 +145,11 @@ describe("branchConfigSchema", () => {
     modo: "pedido",
     tableCount: 10,
     cutoffHour: 6,
+    /* Estos tres no tienen default en branchConfigSchema (sí en
+     * branchOperacionSchema): omitirlos hace fallar el parseo. */
+    reservaAbreMin: 660,
+    reservaCierraMin: 1380,
+    diasCerrados: [] as number[],
   };
 
   it("acepta config válida", () => {
@@ -158,6 +163,25 @@ describe("branchConfigSchema", () => {
 
   it("rechaza whatsapp con menos de 8 dígitos", () => {
     expect(parseInput(branchConfigSchema, { ...base, whatsapp: "123" }).ok).toBe(false);
+  });
+
+  it("rechaza la apertura después del cierre", () => {
+    expect(
+      parseInput(branchConfigSchema, {
+        ...base,
+        reservaAbreMin: 1380,
+        reservaCierraMin: 660,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rechaza cerrar los siete días", () => {
+    expect(
+      parseInput(branchConfigSchema, {
+        ...base,
+        diasCerrados: [0, 1, 2, 3, 4, 5, 6],
+      }).ok,
+    ).toBe(false);
   });
 });
 

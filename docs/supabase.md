@@ -170,6 +170,17 @@ Archivos: `src/lib/push/server.ts`, `src/app/api/push/{subscribe,notify}/route.t
 
 ## Pendiente (próximo)
 
+- **Correr `supabase/security-fixes-17.sql`.** El `revoke select (pin, pin_hash)`
+  de `security-fixes-03.sql` nunca hizo nada: en Postgres un REVOKE por columna
+  no puede restar del `grant all on all tables` que Supabase deja puesto, así
+  que `pin_hash` sigue legible y escribible por PostgREST. RLS lo contiene
+  (`anon` no ve ninguna fila), pero un admin/supervisor puede leer el hash de
+  los PINs de su sucursal y escribir `pin_hash` a mano salteándose
+  `set_empleado_pin`. El #17 saca el privilegio de tabla y lo re-otorga columna
+  por columna. Verificá con el bloque de chequeo del final del script.
+- `reservas-horario-local.sql` está en la base pero no en
+  `cicalino_schema_migrations` (se corrió a mano). `pnpm db:sql` lo registra;
+  el script es idempotente.
 - Upstash en Vercel (rate limit global); CSP_ENFORCE=1 cuando la consola esté limpia.
 - Aplicar fixes SQL: `pnpm db:security` (o `node scripts/db-apply-security.mjs --from=12`).
 - Migraciones ordenadas: `pnpm db:sql` (pendientes) / `pnpm db:sql:baseline` (DB ya alineada).
