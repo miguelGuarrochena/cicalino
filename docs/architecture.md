@@ -106,7 +106,8 @@ Ver `src/lib/db/schema.ts` y los scripts en `supabase/`:
 - RPCs admin (`purgar_push_viejas`, cron locks, `cola_de_espera`) solo
   `service_role`.
 - Contrato `/aceptar/[token]`: TTL 7 días + rate limit.
-- CSP: Report-Only por defecto; `CSP_ENFORCE=1` cuando la consola esté limpia.
+- CSP: Report-Only por defecto; `CSP_ENFORCE=1` la activa. Se arma por ruta
+  (nonce en las dinámicas, `'unsafe-inline'` en las estáticas) — ver Pendiente.
 
 ## Modelo: organización → sucursales
 
@@ -150,12 +151,14 @@ las policies se comportan igual que en producción.
   el flujo tipo Supabase CLI a largo plazo.
 - Faltan tests de integración de la API del QR y del cron end-to-end.
   (Aislamiento entre empresas y grants: ya cubiertos, ver abajo.)
-- `CSP_ENFORCE=1` **no se puede activar como está**: las páginas estáticas
-  (`/`, `/login`, `/pricing`, `/faq`, `/probar`, `/terms`) se generan en el
-  build, donde todavía no hay request y por lo tanto no hay nonce, así que sus
-  scripts inline de Next salen sin él y la CSP los bloquearía. Las dinámicas
-  (`/p/[token]`, `/aceptar/[token]`, panel) sí reciben el nonce y funcionan.
-  Para activarla hay que emitir una CSP distinta según la ruta desde el
-  middleware. Ojo: agregar `'unsafe-inline'` no sirve — el navegador lo ignora
-  cuando hay un nonce en `script-src`.
+- `CSP_ENFORCE=1` ya se puede activar: la CSP se arma distinta según la ruta
+  (`lib/security/csp.ts`). Las dinámicas (`/p`, `/e`, `/aceptar`, `/admin`)
+  llevan nonce y protegen contra scripts inyectados; las estáticas (`/`,
+  `/login`, `/pricing`, `/faq`, `/probar`, `/terms`, `/panel/*`) se generan en
+  el build —cuando todavía no hay request ni nonce— así que van con
+  `'unsafe-inline'`. El resto de las directivas (`frame-ancestors`,
+  `object-src`, `base-uri`, `form-action`, `connect-src`) aplica en todas.
+  Ojo: nonce y `'unsafe-inline'` no conviven — el navegador ignora el segundo
+  cuando hay nonce. Si una ruta cambia de ○ a ƒ en `next build`, hay que
+  actualizar `RUTAS_CON_NONCE`.
 - Mercado Pago automatizado si el volumen lo justifica.

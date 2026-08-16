@@ -17,7 +17,10 @@ export const middleware = async (req: NextRequest) => {
 
   const nonce = nuevoNonce();
   const enforce = cspEnforce();
-  const csp = buildCsp(nonce, enforce);
+  /* La política sale distinta según la ruta: con nonce donde Next lo puede
+   * estampar (páginas dinámicas) y sin él en las estáticas, que se generan en
+   * el build. Ver el comentario largo en lib/security/csp.ts. */
+  const csp = buildCsp(nonce, enforce, path);
   const cspHeader = enforce
     ? "Content-Security-Policy"
     : "Content-Security-Policy-Report-Only";
