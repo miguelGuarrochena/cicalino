@@ -126,12 +126,36 @@ Ver `src/lib/db/schema.ts` y los scripts en `supabase/`:
 Modo por local: `pedido` (turno atómico), `nombre` o `mesa`. Los pedidos no
 se borran; el QR expira al cierre de jornada.
 
+## Tests contra la base (`pnpm test:db`)
+
+Requiere `DATABASE_URL` en `.env.local`. Dos archivos:
+
+- `security-grants.test.ts` — grants, RLS activo, policies y privilegios de
+  columna. Solo lectura del catálogo.
+- `rls-aislamiento.test.ts` — que la empresa A no vea nada de la B, que un
+  supervisor no salga de su sucursal, que nadie se auto-ascienda de rol y que
+  una cuenta cortada pueda leer pero no escribir. **Cada test corre dentro de
+  una transacción que termina en `rollback`**, así que crea sus dos empresas de
+  prueba, comprueba y no deja una sola fila. Por eso puede correr contra la
+  base real sin un proyecto aparte.
+
+Los usuarios se simulan como lo hace PostgREST: `request.jwt.claims` con el
+`sub` + `set local role authenticated`. Con eso `auth.uid()`, `auth_rol()` y
+las policies se comportan igual que en producción.
+
 ## Pendiente
 
 - Migraciones deterministas: `supabase/orden.json` + `pnpm db:sql` /
   `pnpm db:sql:baseline` (tabla `cicalino_schema_migrations`). Queda formalizar
   el flujo tipo Supabase CLI a largo plazo.
-- Más tests de integración (RLS cross-tenant, API QR, cron end-to-end).
-  Smoke de grants: `pnpm test:db`.
-- `CSP_ENFORCE=1` en producción cuando no haya violaciones.
+- Faltan tests de integración de la API del QR y del cron end-to-end.
+  (Aislamiento entre empresas y grants: ya cubiertos, ver abajo.)
+- `CSP_ENFORCE=1` **no se puede activar como está**: las páginas estáticas
+  (`/`, `/login`, `/pricing`, `/faq`, `/probar`, `/terms`) se generan en el
+  build, donde todavía no hay request y por lo tanto no hay nonce, así que sus
+  scripts inline de Next salen sin él y la CSP los bloquearía. Las dinámicas
+  (`/p/[token]`, `/aceptar/[token]`, panel) sí reciben el nonce y funcionan.
+  Para activarla hay que emitir una CSP distinta según la ruta desde el
+  middleware. Ojo: agregar `'unsafe-inline'` no sirve — el navegador lo ignora
+  cuando hay un nonce en `script-src`.
 - Mercado Pago automatizado si el volumen lo justifica.
