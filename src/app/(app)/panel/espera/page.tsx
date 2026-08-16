@@ -134,7 +134,11 @@ const EsperaPanelPage = () => {
   const [creating, setCreating] = useState(false);
   const [reservaNombre, setReservaNombre] = useState("");
   const [reservaPersonas, setReservaPersonas] = useState(2);
-  const [reservaMesas, setReservaMesas] = useState<number[]>([]);
+  /* Lo que el usuario tocó. Lo que vale es `reservaMesas`, más abajo: la
+   * selección filtrada por lo que sigue estando disponible al horario
+   * elegido. Se guardan separadas para no tener que corregir el estado
+   * desde un efecto cada vez que cambia el horario. */
+  const [reservaMesasElegidas, setReservaMesas] = useState<number[]>([]);
   const [reservaHorario, setReservaHorario] = useState(() =>
     defaultHorarioInput(),
   );
@@ -363,16 +367,15 @@ const EsperaPanelPage = () => {
     [ahora],
   );
   /* Si cambió el horario y una mesa elegida ahora choca o está ocupada
-   * demasiado pronto, la sacamos: si no, el botón queda disabled con la mesa
-   * "seleccionada" invisible y parece que no marca nada. */
-  useEffect(() => {
-    setReservaMesas((prev) => {
-      const next = prev.filter(
-        (n) => !reservaChoquePorMesa.has(n) && !reservaOcupadaPronto.has(n),
-      );
-      return next.length === prev.length ? prev : next;
-    });
-  }, [reservaChoquePorMesa, reservaOcupadaPronto]);
+   * demasiado pronto, deja de contar: si no, el botón queda disabled con la
+   * mesa "seleccionada" invisible y parece que no marca nada.
+   *
+   * Se descarta acá, al derivar, en vez de corregir el estado desde un efecto.
+   * Hace lo mismo en un solo render en vez de dos, y no hay un instante en el
+   * que la pantalla muestre una selección que ya no vale. */
+  const reservaMesas = reservaMesasElegidas.filter(
+    (n) => !reservaChoquePorMesa.has(n) && !reservaOcupadaPronto.has(n),
+  );
   const mesasParaReserva = mesas.filter(
     (m) =>
       !reservaChoquePorMesa.has(m.number) &&
@@ -428,12 +431,15 @@ const EsperaPanelPage = () => {
   const confirmCancelReserva = reservas.find(
     (r) => r.id === confirmCancelReservaId,
   );
+  /* Si la reserva dejó de estar activa —la sentó otra caja, la canceló el
+   * cron— `holdReserva` queda undefined y el panel de abajo no se muestra.
+   *
+   * Antes había además un efecto que ponía el id en null. No hacía falta: el
+   * render ya dependía de encontrar la reserva, así que el efecto solo
+   * limpiaba un id que nadie miraba, a costa de un render extra. */
   const holdReserva = holdReservaId
     ? reservasActivas.find((r) => r.id === holdReservaId)
     : undefined;
-  useEffect(() => {
-    if (holdReservaId && !holdReserva) setHoldReservaId(null);
-  }, [holdReservaId, holdReserva]);
   const editCapacidadMesa = mesas.find((m) => m.number === editCapacidadNumero);
   const liberarMesaView = mesas.find((m) => m.number === liberarNumero);
   const liberarReserva =
@@ -1638,7 +1644,7 @@ const EsperaPanelPage = () => {
         </ModalShell>
       )}
 
-      {holdReservaId && holdReserva && (
+      {holdReserva && (
         <ModalShell
           onClose={() => setHoldReservaId(null)}
           labelledBy="hold-reserva-title"

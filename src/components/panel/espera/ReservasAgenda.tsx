@@ -197,13 +197,14 @@ export const ReservasAgenda = ({
     cancelada: registroDia.filter((r) => r.status === "cancelada").length,
   };
 
-  /* Reset filter when changing day so you don’t land on an empty chip. */
-  useEffect(() => {
-    setRegistroFiltro("todas");
-  }, [selectedKey]);
-
+  /* El filtro vuelve a "todas" al cambiar de día, para no caer en un chip
+   * vacío. Se hace acá, en el único lugar donde cambia el día, y no desde un
+   * efecto: así el día nuevo ya se dibuja sin filtro, en vez de dibujarse con
+   * el filtro viejo y corregirse en un segundo render. */
   const selectDay = (key: string) => {
+    if (key === selectedKey) return;
     setSelectedKey(key);
+    setRegistroFiltro("todas");
     const [y, m] = key.split("-").map(Number);
     if (y !== cursor.year || m !== cursor.month) {
       setCursor({ year: y, month: m });
