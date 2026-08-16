@@ -35,7 +35,6 @@ import {
   occupiedBlocksSoonBooking,
   OCCUPIED_BOOKING_LEAD_MIN,
   earliestBookingAfterOccupied,
-  timeUntilLabel,
   reservationDateKey,
 } from "@/lib/reservations";
 import {
@@ -44,7 +43,10 @@ import {
 } from "@/lib/modules";
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { NumberStepper } from "@/components/panel/espera/NumberStepper";
+import { CapacidadMesaModal } from "@/components/panel/espera/CapacidadMesaModal";
+import { ConfirmacionModal } from "@/components/panel/espera/ConfirmacionModal";
+import { HoldReservaModal } from "@/components/panel/espera/HoldReservaModal";
+import { CrearEsperaModal } from "@/components/panel/espera/CrearEsperaModal";
 import { PersonasChips } from "@/components/panel/espera/PersonasChips";
 import { ReservaHorarioPicker } from "@/components/panel/espera/ReservaHorarioPicker";
 import {
@@ -480,7 +482,6 @@ const EsperaPanelPage = () => {
     locale === "en" ? "en" : "es",
   );
   const liberarTieneGrupo = liberarGrupoMesas.length > 1;
-  const CAPACIDADES_RAPIDAS = [2, 4, 6, 8, 10] as const;
 
   const hayMesaPara = (personasGrupo: number) => {
     const libresCap = mesas
@@ -1222,75 +1223,17 @@ const EsperaPanelPage = () => {
       )}
 
       {createOpen && (
-        <ModalShell
-          onClose={() => {
-            if (!creating) setCreateOpen(false);
-          }}
-          labelledBy="espera-crear-title"
-          busy={creating}
-          busyLabel={locale === "en" ? "Creating…" : "Creando…"}
-          footer={
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                disabled={creating || !name.trim()}
-                onClick={() => void onCrear()}
-                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte disabled:opacity-60"
-              >
-                {creating
-                  ? "…"
-                  : locale === "en"
-                    ? "Create & show QR"
-                    : "Crear y mostrar QR"}
-              </button>
-              <button
-                type="button"
-                disabled={creating}
-                onClick={() => setCreateOpen(false)}
-                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema disabled:opacity-60"
-              >
-                {locale === "en" ? "Cancel" : "Cancelar"}
-              </button>
-            </div>
-          }
-        >
-          <div className="flex items-start justify-between gap-3">
-            <h2
-              id="espera-crear-title"
-              className="font-display text-xl uppercase tracking-tight text-carbon"
-            >
-              {locale === "en" ? "Add to waitlist" : "Agregar a la espera"}
-            </h2>
-            <ModalCloseBtn
-              disabled={creating}
-              onClick={() => setCreateOpen(false)}
-              label={locale === "en" ? "Close" : "Cerrar"}
-            />
-          </div>
-          <div className="mt-4 flex flex-col gap-3">
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-carbon/70">
-                {locale === "en" ? "Name" : "Nombre"}
-              </span>
-              <input
-                className={INPUT}
-                value={name}
-                onChange={(e) => setNombre(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void onCrear();
-                }}
-                placeholder="García"
-                autoFocus
-              />
-            </label>
-            <div className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-carbon/70">
-                {locale === "en" ? "Party size" : "Personas"}
-              </span>
-              <PersonasChips value={partySize} onChange={setPersonas} />
-            </div>
-          </div>
-        </ModalShell>
+        <CrearEsperaModal
+          nombre={name}
+          onNombre={setNombre}
+          personas={partySize}
+          onPersonas={setPersonas}
+          creando={creating}
+          onCrear={() => void onCrear()}
+          onClose={() => setCreateOpen(false)}
+          locale={locale}
+          inputClass={INPUT}
+        />
       )}
 
       {reservaOpen && (
@@ -1566,158 +1509,70 @@ const EsperaPanelPage = () => {
       )}
 
       {confirmCancelEsperaId && confirmCancelEspera && (
-        <ModalShell
-          onClose={() => setConfirmCancelEsperaId(null)}
+        <ConfirmacionModal
           labelledBy="cancel-espera-title"
-        >
-          <h2
-            id="cancel-espera-title"
-            className="font-display text-xl uppercase tracking-tight text-carbon"
-          >
-            {locale === "en" ? "Cancel this wait?" : "¿Cancelar esta espera?"}
-          </h2>
-          <p className="mt-2 text-sm text-carbon/60">
-            {locale === "en"
+          titulo={
+            locale === "en" ? "Cancel this wait?" : "¿Cancelar esta espera?"
+          }
+          detalle={
+            locale === "en"
               ? `${confirmCancelEspera.name} will leave the waitlist.`
-              : `${confirmCancelEspera.name} sale de la lista.`}
-          </p>
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => {
-                void cancelar(confirmCancelEsperaId);
-                setConfirmCancelEsperaId(null);
-              }}
-              className="w-full rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
-            >
-              {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmCancelEsperaId(null)}
-              className="w-full rounded-full border border-linea px-5 py-3 text-sm font-semibold text-carbon transition hover:bg-crema"
-            >
-              {locale === "en" ? "Keep waiting" : "Seguir esperando"}
-            </button>
-          </div>
-        </ModalShell>
+              : `${confirmCancelEspera.name} sale de la lista.`
+          }
+          confirmar={locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
+          cancelar={locale === "en" ? "Keep waiting" : "Seguir esperando"}
+          onConfirmar={() => {
+            void cancelar(confirmCancelEsperaId);
+            setConfirmCancelEsperaId(null);
+          }}
+          onClose={() => setConfirmCancelEsperaId(null)}
+        />
       )}
 
       {confirmCancelReservaId && confirmCancelReserva && (
-        <ModalShell
-          onClose={() => setConfirmCancelReservaId(null)}
+        <ConfirmacionModal
           labelledBy="cancel-reserva-title"
-        >
-          <h2
-            id="cancel-reserva-title"
-            className="font-display text-xl uppercase tracking-tight text-carbon"
-          >
-            {locale === "en"
+          titulo={
+            locale === "en"
               ? "Cancel this reservation?"
-              : "¿Cancelar esta reserva?"}
-          </h2>
-          <p className="mt-2 text-sm text-carbon/60">
-            {locale === "en"
+              : "¿Cancelar esta reserva?"
+          }
+          detalle={
+            locale === "en"
               ? `${tablesTitle(confirmCancelReserva.tableNumbers ?? [confirmCancelReserva.tableNumber], "en")} · ${confirmCancelReserva.name} will be freed.`
-              : `${tablesTitle(confirmCancelReserva.tableNumbers ?? [confirmCancelReserva.tableNumber], "es")} · ${confirmCancelReserva.name} se libera.`}
-          </p>
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => {
-                void cancelarReserva(confirmCancelReservaId);
-                setConfirmCancelReservaId(null);
-                setHoldReservaId(null);
-              }}
-              className="w-full rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
-            >
-              {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmCancelReservaId(null)}
-              className="w-full rounded-full border border-linea px-5 py-3 text-sm font-semibold text-carbon transition hover:bg-crema"
-            >
-              {locale === "en" ? "Keep it" : "Mantener"}
-            </button>
-          </div>
-        </ModalShell>
+              : `${tablesTitle(confirmCancelReserva.tableNumbers ?? [confirmCancelReserva.tableNumber], "es")} · ${confirmCancelReserva.name} se libera.`
+          }
+          confirmar={locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
+          cancelar={locale === "en" ? "Keep it" : "Mantener"}
+          onConfirmar={() => {
+            void cancelarReserva(confirmCancelReservaId);
+            setConfirmCancelReservaId(null);
+            setHoldReservaId(null);
+          }}
+          onClose={() => setConfirmCancelReservaId(null)}
+        />
       )}
 
       {holdReserva && (
-        <ModalShell
+        <HoldReservaModal
+          reserva={holdReserva}
+          ahora={ahora}
+          locale={locale}
+          btnClass={BTN_MOBILE}
+          onSentar={() => {
+            void sentarReserva(holdReserva.id).then(() => {
+              setHoldReservaId(null);
+              toast(
+                locale === "en"
+                  ? `Seated at ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "en")}`
+                  : `Sentados en ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "es")}`,
+                "success",
+              );
+            });
+          }}
+          onCancelar={() => setConfirmCancelReservaId(holdReserva.id)}
           onClose={() => setHoldReservaId(null)}
-          labelledBy="hold-reserva-title"
-        >
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-800/70">
-            {locale === "en" ? "Reserved now" : "Reservada ahora"}
-          </p>
-          <h2
-            id="hold-reserva-title"
-            className="mt-1 font-display text-2xl uppercase tracking-tight text-carbon"
-          >
-            {holdReserva.name}
-          </h2>
-          <p className="mt-2 text-sm text-carbon/60">
-            {tablesTitle(
-              holdReserva.tableNumbers ?? [holdReserva.tableNumber],
-              locale === "en" ? "en" : "es",
-            )}{" "}
-            · {holdReserva.partySize}{" "}
-            {locale === "en" ? "guests" : "personas"} ·{" "}
-            {reservationTime(holdReserva.scheduledAt)} · +
-            {holdReserva.graceMinutes} min ·{" "}
-            {timeUntilLabel(
-              holdReserva.scheduledAt,
-              locale === "en" ? "en" : "es",
-              ahora,
-            )}
-          </p>
-          <p className="mt-3 rounded-2xl border border-amber-400/50 bg-amber-50/80 px-3.5 py-3 text-sm text-amber-950 dark:bg-amber-400/10 dark:text-amber-100">
-            {locale === "en"
-              ? "Walk-ins can’t take this table while the hold is on. Seat the booking, cancel it, or wait for grace to end."
-              : "No se puede sentar walk-in mientras esté en hold. Sentá la reserva, cancelala, o esperá que venza la tolerancia."}
-          </p>
-          <p className="mt-2 text-xs text-carbon/45">
-            {locale === "en"
-              ? "To change time or table: cancel and create a new booking."
-              : "Para cambiar horario o mesa: cancelá y creá otra reserva."}
-          </p>
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <button
-              type="button"
-              onClick={() => {
-                const id = holdReserva.id;
-                void sentarReserva(id).then(() => {
-                  setHoldReservaId(null);
-                  toast(
-                    locale === "en"
-                      ? `Seated at ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "en")}`
-                      : `Sentados en ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "es")}`,
-                    "success",
-                  );
-                });
-              }}
-              className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90 sm:flex-1`}
-            >
-              {locale === "en" ? "Seat booking" : "Sentar reserva"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmCancelReservaId(holdReserva.id)}
-              className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50 sm:flex-1`}
-            >
-              {locale === "en" ? "Cancel booking" : "Cancelar reserva"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setHoldReservaId(null)}
-              className={`${BTN_MOBILE} border border-linea text-carbon/70 hover:bg-crema sm:w-full`}
-            >
-              {locale === "en" ? "Close" : "Cerrar"}
-            </button>
-          </div>
-        </ModalShell>
+        />
       )}
 
       {sentarId && (
@@ -2324,84 +2179,26 @@ const EsperaPanelPage = () => {
       )}
 
       {editCapacidadNumero != null && editCapacidadMesa && (
-        <ModalShell
+        <CapacidadMesaModal
+          numero={editCapacidadNumero}
+          value={editCapacidadValue}
+          onValue={setEditCapacidadValue}
           onClose={() => setEditCapacidadNumero(null)}
-          labelledBy="capacidad-title"
-          footer={
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  void setCapacidad(editCapacidadNumero, editCapacidadValue).then(
-                    () => {
-                      setEditCapacidadNumero(null);
-                      toast(
-                        locale === "en"
-                          ? `Table ${editCapacidadNumero}: ${editCapacidadValue} seats`
-                          : `Mesa ${editCapacidadNumero}: ${editCapacidadValue} plazas`,
-                        "success",
-                      );
-                    },
-                  );
-                }}
-                className="w-full rounded-full bg-espera px-5 py-3.5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
-              >
-                {locale === "en" ? "Save" : "Guardar"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditCapacidadNumero(null)}
-                className="w-full rounded-full border border-linea px-5 py-3.5 text-sm font-semibold text-carbon transition hover:bg-crema"
-              >
-                {locale === "en" ? "Cancel" : "Cancelar"}
-              </button>
-            </div>
-          }
-        >
-          <div className="flex items-start justify-between gap-3">
-            <h2
-              id="capacidad-title"
-              className="font-display text-xl uppercase tracking-tight text-carbon"
-            >
-              {locale === "en"
-                ? `Table ${editCapacidadNumero} seats`
-                : `Plazas mesa ${editCapacidadNumero}`}
-            </h2>
-            <ModalCloseBtn
-              onClick={() => setEditCapacidadNumero(null)}
-              label={locale === "en" ? "Close" : "Cerrar"}
-            />
-          </div>
-          <p className="mt-2 text-sm text-carbon/55">
-            {locale === "en"
-              ? "How many guests fit at this table?"
-              : "¿Cuántas personas entran en esta mesa?"}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {CAPACIDADES_RAPIDAS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setEditCapacidadValue(n)}
-                className={`rounded-full px-4 py-2.5 text-sm font-semibold transition ${
-                  editCapacidadValue === n
-                    ? "bg-espera text-crema"
-                    : "border border-linea text-carbon/70 hover:bg-crema"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-          <div className="mt-4">
-            <NumberStepper
-              value={editCapacidadValue}
-              onChange={setEditCapacidadValue}
-              min={1}
-              max={50}
-            />
-          </div>
-        </ModalShell>
+          onGuardar={() => {
+            void setCapacidad(editCapacidadNumero, editCapacidadValue).then(
+              () => {
+                setEditCapacidadNumero(null);
+                toast(
+                  locale === "en"
+                    ? `Table ${editCapacidadNumero}: ${editCapacidadValue} seats`
+                    : `Mesa ${editCapacidadNumero}: ${editCapacidadValue} plazas`,
+                  "success",
+                );
+              },
+            );
+          }}
+          locale={locale}
+        />
       )}
     </div>
   );
