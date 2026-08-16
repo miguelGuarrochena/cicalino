@@ -246,6 +246,7 @@ requisitos (archivo, necesita) as (
     ('security-fixes-15.sql', 'security-fixes-03.sql, security-fixes-10.sql'),
     ('security-fixes-16.sql', 'security-fixes-15.sql'),
     ('security-fixes-17.sql', 'security-fixes-03.sql'),
+    ('espera-constraints-validate.sql', 'espera-constraints.sql'),
     ('reservas-horario-local.sql', 'setup.sql, modulo-espera.sql'),
     ('realtime-organizaciones.sql', '—'),
     ('reservas-aviso.sql', 'modulo-espera.sql, reservas-mesa.sql'),

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   conflictingReservation,
+  reservationTime,
+  reservationDateKey,
   MIN_GAP_BETWEEN_RESERVATIONS,
   OCCUPIED_BOOKING_LEAD_MIN,
   occupiedBlocksSoonBooking,
@@ -155,5 +157,27 @@ describe("occupiedBlocksSoonBooking", () => {
     expect(
       occupiedBlocksSoonBooking(at(OCCUPIED_BOOKING_LEAD_MIN), "ocupada", now),
     ).toBe(false);
+  });
+});
+
+/* El reloj de la reserva es el del negocio, no el del dispositivo. Estos dos
+ * tienen que dar lo mismo corriendo en cualquier TZ: es lo que rompía en una
+ * tablet mal configurada, donde la reserva se mostraba a una hora y se
+ * agrupaba bajo otro día. */
+describe("reservationTime / reservationDateKey — ancladas a hora argentina", () => {
+  const iso = "2026-08-10T00:00:00.000Z"; // 21:00 del 9 en Buenos Aires
+
+  it("muestra la hora de Buenos Aires", () => {
+    expect(reservationTime(iso)).toBe("21:00");
+  });
+
+  it("agrupa bajo el día de Buenos Aires, no el de UTC", () => {
+    expect(reservationDateKey(iso)).toBe("2026-08-09");
+  });
+
+  it("hora y día concuerdan cerca de la medianoche", () => {
+    const casi = "2026-08-10T02:45:00.000Z"; // 23:45 del 9 en BsAs
+    expect(reservationTime(casi)).toBe("23:45");
+    expect(reservationDateKey(casi)).toBe("2026-08-09");
   });
 });

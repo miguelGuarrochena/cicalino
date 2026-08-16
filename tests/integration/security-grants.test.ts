@@ -242,4 +242,64 @@ describe.skipIf(!enabled)("Integration — security grants smoke", () => {
     /* service_role hereda o no según grants; el flujo legítimo no lo usa. */
     expect(typeof rows[0].service).toBe("boolean");
   });
+
+  /* El chequeo que faltaba. security-fixes-03 revocaba pin/pin_hash POR
+   * COLUMNA, y eso en Postgres no resta nada mientras exista el privilegio de
+   * TABLA que Supabase deja puesto: el script corría sin error y el hash
+   * seguía legible por PostgREST. Se cerró en security-fixes-17.
+   *
+   * Va contra la base y no contra el .sql a propósito: el bug era justamente
+   * que el archivo decía una cosa y la base tenía otra. */
+  it("pin / pin_hash sin privilegios de cliente", async () => {
+    const { rows } = await client.query(`
+      select
+        has_column_privilege('anon',          'public.empleados', 'pin_hash', 'SELECT') as hash_anon_select,
+        has_column_privilege('authenticated', 'public.empleados', 'pin_hash', 'SELECT') as hash_auth_select,
+        has_column_privilege('authenticated', 'public.empleados', 'pin_hash', 'UPDATE') as hash_auth_update,
+        has_column_privilege('authenticated', 'public.empleados', 'pin_hash', 'INSERT') as hash_auth_insert,
+        has_column_privilege('anon',          'public.empleados', 'pin',      'SELECT') as pin_anon_select,
+        has_column_privilege('authenticated', 'public.empleados', 'pin',      'SELECT') as pin_auth_select
+    `);
+    for (const [k, v] of Object.entries(rows[0])) {
+      expect(v, k).toBe(false);
+    }
+  });
+
+  it("el panel conserva las columnas de empleados que sí usa", async () => {
+    /* La contracara del test de arriba: el fix re-otorga columna por columna,
+     * así que una columna nueva sin sumar al grant rompe el panel en silencio.
+     * `tiene_pin` es GENERATED ALWAYS: se lee, no se escribe. */
+    const { rows } = await client.query(`
+      select
+        has_column_privilege('authenticated', 'public.empleados', 'id',         'SELECT') as id_sel,
+        has_column_privilege('authenticated', 'public.empleados', 'local_id',   'SELECT') as local_sel,
+        has_column_privilege('authenticated', 'public.empleados', 'nombre',     'SELECT') as nombre_sel,
+        has_column_privilege('authenticated', 'public.empleados', 'rol',        'SELECT') as rol_sel,
+        has_column_privilege('authenticated', 'public.empleados', 'activo',     'SELECT') as activo_sel,
+        has_column_privilege('authenticated', 'public.empleados', 'created_at', 'SELECT') as created_sel,
+        has_column_privilege('authenticated', 'public.empleados', 'tiene_pin',  'SELECT') as tiene_pin_sel,
+        has_column_privilege('authenticated', 'public.empleados', 'usuario_id', 'SELECT') as usuario_sel,
+        has_column_privilege('authenticated', 'public.empleados', 'local_id',   'INSERT') as local_ins,
+        has_column_privilege('authenticated', 'public.empleados', 'nombre',     'INSERT') as nombre_ins,
+        has_column_privilege('authenticated', 'public.empleados', 'nombre',     'UPDATE') as nombre_upd,
+        has_column_privilege('authenticated', 'public.empleados', 'rol',        'UPDATE') as rol_upd,
+        has_column_privilege('authenticated', 'public.empleados', 'usuario_id', 'UPDATE') as usuario_upd,
+        has_table_privilege ('authenticated', 'public.empleados',               'DELETE') as del
+    `);
+    for (const [k, v] of Object.entries(rows[0])) {
+      expect(v, k).toBe(true);
+    }
+  });
+
+  it("no queda ninguna columna de empleados sin SELECT salvo pin y pin_hash", async () => {
+    const { rows } = await client.query(`
+      select c.column_name
+        from information_schema.columns c
+       where c.table_schema = 'public'
+         and c.table_name = 'empleados'
+         and not has_column_privilege('authenticated', 'public.empleados', c.column_name, 'SELECT')
+       order by 1
+    `);
+    expect(rows.map((r) => r.column_name)).toEqual(["pin", "pin_hash"]);
+  });
 });

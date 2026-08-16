@@ -51,5 +51,6 @@
   "security-fixes-15.sql",
   "security-fixes-16.sql",
   "reservas-horario-local.sql",
-  "security-fixes-17.sql"
+  "security-fixes-17.sql",
+  "espera-constraints-validate.sql"
 ]

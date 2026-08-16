@@ -5,7 +5,15 @@
  * rompen sin avisar y nadie mira hasta que alguien reserva mal.
  *
  * La ventana (abre/cierra) y los días cerrados salen de la config del local.
- * Los defaults coinciden con el producto histórico: 11:00–23:00, sin cierres. */
+ * Los defaults coinciden con el producto histórico: 11:00–23:00, sin cierres.
+ *
+ * "Hoy" y "ahora" salen de la zona del negocio, no del reloj del dispositivo.
+ * Antes eran `new Date().getHours()`: una tablet con la zona mal puesta
+ * ofrecía franjas de otro momento del día, y la agenda —que siempre mostró en
+ * hora argentina— ubicaba la reserva en otra fila. Es el mismo criterio que
+ * `businessDay.ts`, que se reescribió por exactamente este motivo. */
+
+import { dateKeyInTz, minutesOfDayInTz, TZ_NEGOCIO } from "@/lib/businessDay";
 
 export const minsAgo = (iso: string) =>
   Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -57,14 +65,11 @@ export const buildTimeSlots = (
 /** Default product window — kept for tests / callers without config. */
 export const allTimeSlots = buildTimeSlots();
 
-export const snapToSlot = (d: Date) => {
-  const out = new Date(d);
-  out.setSeconds(0, 0);
-  const total = out.getHours() * 60 + out.getMinutes();
-  const snapped = Math.ceil(total / SLOT_STEP_MIN) * SLOT_STEP_MIN;
-  out.setHours(Math.floor(snapped / 60), snapped % 60, 0, 0);
-  return out;
-};
+/* Redondea hacia arriba al bloque de 15. Trabaja en minutos desde medianoche
+ * en vez de sobre un Date, porque el minuto ya viene medido en la zona del
+ * negocio y volver a pasarlo por un Date reintroduciría la zona local. */
+export const snapMinutesToSlot = (mins: number) =>
+  Math.ceil(mins / SLOT_STEP_MIN) * SLOT_STEP_MIN;
 
 export const defaultHorarioInput = (hours?: ReservationHours) => {
   const days = buildDayOptions("es", hours);
@@ -82,10 +87,7 @@ export const timeKeyFromLocal = (local: string) => local.slice(11, 16);
 export const combineLocalHorario = (dateKey: string, timeKey: string) =>
   `${dateKey}T${timeKey}`;
 
-export const todayDateKey = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-};
+export const todayDateKey = () => dateKeyInTz();
 
 export const addDaysKey = (dateKey: string, days: number) => {
   const [y, m, d] = dateKey.split("-").map(Number);
@@ -142,20 +144,22 @@ export const availableTimeSlots = (
     hours?.endMin ?? SLOT_END_MIN,
   );
   if (dateKey !== todayDateKey()) return slots;
-  const ahora = new Date();
-  const proxima = snapToSlot(ahora);
+  const proxima = snapMinutesToSlot(minutesOfDayInTz());
 
-  /* snapToSlot redondea hacia arriba, así que después del último slot del
-   * día cruza a mañana. Sin esta guarda, `minKey` pasaba a ser "00:00" y el
-   * filtro dejaba pasar franjas ya vencidas. */
-  if (proxima.getDate() !== ahora.getDate()) return [];
+  /* Redondea hacia arriba, así que después del último bloque del día cruza a
+   * mañana. Sin esta guarda, `minKey` pasaba a ser "00:00" y el filtro dejaba
+   * pasar franjas ya vencidas. */
+  if (proxima > 1439) return [];
 
-  const minKey = `${pad2(proxima.getHours())}:${pad2(proxima.getMinutes())}`;
+  const minKey = minToTimeKey(proxima);
   return slots.filter((t) => t >= minKey);
 };
 
+/* Mismo criterio que `reservationTime`: se guarda en hora del negocio, se
+ * muestra en hora del negocio. Sin `timeZone` salía en hora del dispositivo. */
 export const formatHora = (iso: string, locale: string) =>
   new Date(iso).toLocaleString(locale === "en" ? "en-US" : "es-AR", {
+    timeZone: TZ_NEGOCIO,
     hour: "2-digit",
     minute: "2-digit",
     day: "numeric",

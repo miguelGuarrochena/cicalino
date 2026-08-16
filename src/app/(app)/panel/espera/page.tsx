@@ -58,7 +58,10 @@ import {
   minsAgo,
   formatHora,
   defaultHorarioInput,
+  dateKeyFromLocal,
+  timeKeyFromLocal,
 } from "@/lib/espera/slots";
+import { instantFromBusinessWallClock } from "@/lib/businessDay";
 
 const PAGE_SIZE = 20;
 const INPUT =
@@ -557,8 +560,16 @@ const EsperaPanelPage = () => {
       toast(msg, "error");
       return;
     }
-    const scheduledAt = new Date(reservaHorario);
-    if (Number.isNaN(scheduledAt.getTime())) {
+    /* El picker devuelve "2026-08-09T21:00", sin offset. `new Date(...)` lo
+     * leía como hora local del dispositivo, mientras la agenda siempre mostró
+     * en hora argentina: en una tablet con la zona mal puesta la reserva se
+     * guardaba en un instante y aparecía en otro. Se arma en la zona del
+     * negocio, que es la que el local tiene en la cabeza. */
+    const scheduledAt = instantFromBusinessWallClock(
+      dateKeyFromLocal(reservaHorario),
+      timeKeyFromLocal(reservaHorario),
+    );
+    if (!scheduledAt) {
       toast(locale === "en" ? "Invalid time" : "Horario inválido", "error");
       return;
     }

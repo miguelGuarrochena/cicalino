@@ -3,6 +3,9 @@ import {
   businessDayStart,
   businessDayEnd,
   reservationFetchRange,
+  instantFromBusinessWallClock,
+  dateKeyInTz,
+  minutesOfDayInTz,
   TZ_NEGOCIO,
 } from "@/lib/businessDay";
 
@@ -148,5 +151,69 @@ describe("reservationFetchRange", () => {
     expect(rango.end.getTime() - rango.start.getTime()).toBeGreaterThanOrEqual(
       7 * 86_400_000,
     );
+  });
+});
+
+/* El horario de la reserva sale del reloj de pared del negocio, no del
+ * dispositivo. Era el último lugar donde seguía mandando la zona local: el
+ * picker devuelve "2026-08-09T21:00" sin offset y `new Date(...)` lo leía como
+ * hora del dispositivo, mientras la agenda siempre mostró en hora argentina.
+ * En una tablet mal configurada la reserva se guardaba en un instante y
+ * aparecía en otro. */
+describe("instantFromBusinessWallClock", () => {
+  it("las 21:00 del picker son las 21:00 en Buenos Aires", () => {
+    const d = instantFromBusinessWallClock("2026-08-09", "21:00");
+    expect(d).not.toBeNull();
+    expect(enBsAs(d!)).toBe("2026-08-09, 21:00");
+  });
+
+  it("da el mismo instante sea cual sea la zona del dispositivo", () => {
+    /* Este helper no lee la zona local en ningún momento: el instante es una
+     * función pura de (día, hora, zona del negocio). Si alguien reintroduce un
+     * `new Date("...")` sin offset, este UTC deja de dar. */
+    const d = instantFromBusinessWallClock("2026-08-09", "21:00");
+    expect(d!.toISOString()).toBe("2026-08-10T00:00:00.000Z");
+  });
+
+  it("respeta los minutos, no solo la hora", () => {
+    const d = instantFromBusinessWallClock("2026-08-09", "21:45");
+    expect(enBsAs(d!)).toBe("2026-08-09, 21:45");
+  });
+
+  it("cruza el fin de mes y el fin de año sin correrse", () => {
+    expect(enBsAs(instantFromBusinessWallClock("2026-08-31", "23:45")!)).toBe(
+      "2026-08-31, 23:45",
+    );
+    expect(enBsAs(instantFromBusinessWallClock("2026-12-31", "23:45")!)).toBe(
+      "2026-12-31, 23:45",
+    );
+  });
+
+  it("devuelve null ante claves mal formadas en vez de un Invalid Date", () => {
+    expect(instantFromBusinessWallClock("", "21:00")).toBeNull();
+    expect(instantFromBusinessWallClock("2026-08-09", "")).toBeNull();
+    expect(instantFromBusinessWallClock("2026-8-9", "21:00")).toBeNull();
+    expect(instantFromBusinessWallClock("2026-08-09", "9:00")).toBeNull();
+    expect(instantFromBusinessWallClock("2026-13-09", "21:00")).toBeNull();
+    expect(instantFromBusinessWallClock("2026-08-09", "24:00")).toBeNull();
+    expect(instantFromBusinessWallClock("2026-08-09", "21:60")).toBeNull();
+  });
+});
+
+describe("dateKeyInTz / minutesOfDayInTz", () => {
+  it("a las 23:30 de Buenos Aires todavía es el mismo día, aunque en UTC ya sea el siguiente", () => {
+    const ahora = new Date("2026-08-10T02:30:00Z"); // 23:30 del 9 en BsAs
+    expect(dateKeyInTz(ahora)).toBe("2026-08-09");
+    expect(minutesOfDayInTz(ahora)).toBe(23 * 60 + 30);
+  });
+
+  it("a las 00:30 de Buenos Aires ya es el día nuevo", () => {
+    const ahora = new Date("2026-08-10T03:30:00Z"); // 00:30 del 10 en BsAs
+    expect(dateKeyInTz(ahora)).toBe("2026-08-10");
+    expect(minutesOfDayInTz(ahora)).toBe(30);
+  });
+
+  it("la clave siempre queda con dos dígitos en mes y día", () => {
+    expect(dateKeyInTz(new Date("2026-01-05T15:00:00Z"))).toBe("2026-01-05");
   });
 });

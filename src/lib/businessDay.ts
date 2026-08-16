@@ -78,11 +78,65 @@ const instanteEnZona = (
   day: number,
   hour: number,
   tz: string,
+  minute = 0,
 ): Date => {
-  const pared = Date.UTC(year, month - 1, day, hour);
+  const pared = Date.UTC(year, month - 1, day, hour, minute);
   let ms = pared;
   for (let i = 0; i < 2; i++) ms = pared - offsetMs(new Date(ms), tz);
   return new Date(ms);
+};
+
+/* Qué día es, en la zona del negocio. Formato "YYYY-MM-DD".
+ *
+ * Ojo con el nombre: esto es el día del CALENDARIO, no la jornada. La jornada
+ * (con `hora_corte`) es `businessDayStart`. El picker de reservas quiere el
+ * calendario: una reserva es "el martes a las 21", no "la jornada del martes". */
+export const dateKeyInTz = (
+  ahora: Date = new Date(),
+  tz: string = TZ_NEGOCIO,
+): string => {
+  const p = partesEnZona(ahora, tz);
+  const dosDigitos = (n: number) => String(n).padStart(2, "0");
+  return `${p.year}-${dosDigitos(p.month)}-${dosDigitos(p.day)}`;
+};
+
+/* Minutos transcurridos desde la medianoche, en la zona del negocio. */
+export const minutesOfDayInTz = (
+  ahora: Date = new Date(),
+  tz: string = TZ_NEGOCIO,
+): number => {
+  const p = partesEnZona(ahora, tz);
+  return p.hour * 60 + p.minute;
+};
+
+/* El instante en que el reloj de pared del negocio marca ese día y esa hora.
+ *
+ * Es lo que faltaba para las reservas. El picker produce "2026-08-09T21:00",
+ * un string sin offset, y `new Date(...)` lo interpreta como hora local DEL
+ * DISPOSITIVO. La agenda, en cambio, siempre mostró en hora argentina. Con una
+ * tablet mal configurada la reserva se guardaba en un instante y aparecía en
+ * otra fila —o directamente en otro día— sin que nadie entendiera por qué.
+ *
+ * Devuelve null si las claves no tienen el formato esperado, para que el
+ * llamador pueda avisar en vez de guardar un Invalid Date. */
+export const instantFromBusinessWallClock = (
+  dateKey: string,
+  timeKey: string,
+  tz: string = TZ_NEGOCIO,
+): Date | null => {
+  const fecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  const hora = /^(\d{2}):(\d{2})$/.exec(timeKey);
+  if (!fecha || !hora) return null;
+
+  const year = Number(fecha[1]);
+  const month = Number(fecha[2]);
+  const day = Number(fecha[3]);
+  const h = Number(hora[1]);
+  const m = Number(hora[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  if (h > 23 || m > 59) return null;
+
+  return instanteEnZona(year, month, day, h, tz, m);
 };
 
 /* Arranque de la jornada: hoy a la hora de corte, o ayer si todavía no

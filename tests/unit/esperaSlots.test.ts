@@ -3,7 +3,7 @@ import {
   minsAgo,
   pad2,
   toLocalInput,
-  snapToSlot,
+  snapMinutesToSlot,
   dateKeyFromLocal,
   timeKeyFromLocal,
   combineLocalHorario,
@@ -23,9 +23,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const congelar = (iso: string) => {
+/* Se congela con offset explícito de Argentina (-03:00).
+ *
+ * Antes iba sin offset, así que el instante congelado dependía de la zona de
+ * la máquina — y como el picker también leía la hora local, los tests pasaban
+ * en cualquier lado por casualidad. Ahora el picker razona en hora argentina,
+ * así que el instante tiene que ser inequívoco: si no, este archivo pasa en
+ * una laptop en Buenos Aires y falla en el runner de CI, que corre en UTC. */
+const congelar = (horaArgentina: string) => {
   vi.useFakeTimers();
-  vi.setSystemTime(new Date(iso));
+  vi.setSystemTime(new Date(`${horaArgentina}-03:00`));
 };
 
 describe("pad2 / toLocalInput", () => {
@@ -42,32 +49,34 @@ describe("pad2 / toLocalInput", () => {
 describe("minsAgo", () => {
   it("cuenta los minutos desde una fecha pasada", () => {
     congelar("2026-08-07T21:30:00");
-    expect(minsAgo(new Date("2026-08-07T21:00:00").toISOString())).toBe(30);
+    expect(minsAgo("2026-08-07T21:00:00-03:00")).toBe(30);
   });
 
   it("una fecha futura da cero, no negativo", () => {
     congelar("2026-08-07T21:00:00");
-    expect(minsAgo(new Date("2026-08-07T21:30:00").toISOString())).toBe(0);
+    expect(minsAgo("2026-08-07T21:30:00-03:00")).toBe(0);
   });
 });
 
-describe("snapToSlot", () => {
+describe("snapMinutesToSlot", () => {
+  const min = (h: number, m: number) => h * 60 + m;
+
   it("redondea hacia arriba al bloque de 15", () => {
-    expect(snapToSlot(new Date(2026, 7, 7, 20, 1)).getMinutes()).toBe(15);
-    expect(snapToSlot(new Date(2026, 7, 7, 20, 16)).getMinutes()).toBe(30);
-    expect(snapToSlot(new Date(2026, 7, 7, 20, 44)).getMinutes()).toBe(45);
+    expect(snapMinutesToSlot(min(20, 1))).toBe(min(20, 15));
+    expect(snapMinutesToSlot(min(20, 16))).toBe(min(20, 30));
+    expect(snapMinutesToSlot(min(20, 44))).toBe(min(20, 45));
   });
 
   it("una hora ya en punto no se mueve", () => {
-    const d = snapToSlot(new Date(2026, 7, 7, 20, 0));
-    expect(d.getMinutes()).toBe(0);
-    expect(d.getHours()).toBe(20);
+    expect(snapMinutesToSlot(min(20, 0))).toBe(min(20, 0));
   });
 
   it("pasadas las y 45 salta a la hora siguiente", () => {
-    const d = snapToSlot(new Date(2026, 7, 7, 20, 46));
-    expect(d.getHours()).toBe(21);
-    expect(d.getMinutes()).toBe(0);
+    expect(snapMinutesToSlot(min(20, 46))).toBe(min(21, 0));
+  });
+
+  it("después del último bloque del día se pasa de 1439", () => {
+    expect(snapMinutesToSlot(min(23, 50))).toBeGreaterThan(1439);
   });
 });
 

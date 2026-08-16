@@ -1,4 +1,5 @@
 import type { ReservationView } from "@/lib/types";
+import { TZ_NEGOCIO } from "@/lib/businessDay";
 
 /* Cuánto antes del horario la mesa se pinta entera de ámbar en el mapa y el
  * panel deja de ofrecerla para walk-in. La base sigue bloqueando solo dentro
@@ -157,8 +158,19 @@ export const conflictingReservation = (
   return null;
 };
 
-export const reservationTime = (iso: string): string =>
+/* La hora de la reserva, en la zona del negocio.
+ *
+ * Sin `timeZone` esto salía en hora del dispositivo, mientras que el agrupado
+ * por día (`reservationDateKey`) siempre fue en hora argentina. En una tablet
+ * con la zona mal puesta la misma reserva se leía a una hora y se listaba bajo
+ * otro día. Se guarda en hora argentina (`instantFromBusinessWallClock`), así
+ * que también se muestra en hora argentina. */
+export const reservationTime = (
+  iso: string,
+  timeZone = TZ_NEGOCIO,
+): string =>
   new Date(iso).toLocaleTimeString([], {
+    timeZone,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -184,7 +196,7 @@ export const timeUntilLabel = (
 
 export const reservationDateKey = (
   iso: string,
-  timeZone = "America/Argentina/Buenos_Aires",
+  timeZone = TZ_NEGOCIO,
 ): string => {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone,
