@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOrders } from "@/lib/hooks/useOrders";
@@ -113,6 +119,9 @@ const PanelOrdersPage = () => {
   const [createOpen, setCrearOpen] = useState(false);
   const [refDraft, setRefDraft] = useState("");
   const [creating, setCreando] = useState(false);
+  /* El state `creating` llega tarde al segundo tap: React no re-renderiza
+   * antes. El ref sí, en el mismo click. */
+  const creatingRef = useRef(false);
   const [refError, setRefError] = useState(false);
 
   /* Volver a la página 1 cuando cambia el filtro o la búsqueda.
@@ -213,13 +222,14 @@ const PanelOrdersPage = () => {
 
   const abrirNuevo = () => {
     if (mode === "pedido") {
-      void (async () => {
-        if (creating) return;
-        setCreando(true);
-        /* null → RPC asigna el número bajo lock (evita race entre cajas). */
-        await handleCreate(null);
+      if (creatingRef.current) return;
+      creatingRef.current = true;
+      setCreando(true);
+      /* null → RPC asigna el número bajo lock (evita race entre cajas). */
+      void handleCreate(null).finally(() => {
+        creatingRef.current = false;
         setCreando(false);
-      })();
+      });
       return;
     }
     setRefDraft("");
@@ -241,7 +251,7 @@ const PanelOrdersPage = () => {
   };
 
   const confirmarCrear = async () => {
-    if (creating) return;
+    if (creatingRef.current) return;
     const valor = refDraft.trim();
     if (!valor) {
       setRefError(true);
@@ -256,10 +266,15 @@ const PanelOrdersPage = () => {
       }
       ref = String(n);
     }
+    creatingRef.current = true;
     setCreando(true);
-    const ok = await handleCreate(ref);
-    setCreando(false);
-    if (ok) setCrearOpen(false);
+    try {
+      const ok = await handleCreate(ref);
+      if (ok) setCrearOpen(false);
+    } finally {
+      creatingRef.current = false;
+      setCreando(false);
+    }
   };
 
   const cerrarCrear = () => {
@@ -303,9 +318,10 @@ const PanelOrdersPage = () => {
         <button
           type="button"
           onClick={abrirNuevo}
-          className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 sm:w-auto"
+          disabled={creating}
+          className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-50 sm:w-auto"
         >
-          + {t("panel.nuevo")}
+          {creating ? "…" : `+ ${t("panel.nuevo")}`}
         </button>
       </div>
 

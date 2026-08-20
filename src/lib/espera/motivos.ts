@@ -1,14 +1,11 @@
 /* Extraído de app/(app)/panel/espera/page.tsx. Movido tal cual. */
 
-import type {
-  SeatWalkInReason,
-  NewReservationReason,
-} from "@/lib/data/waitlist";
+import type { SeatPartyReason, NewReservationReason } from "@/lib/data/waitlist";
 
 /* Why the seat attempt was rejected. It used to be one generic "table taken?"
  * for every failure, which was wrong half the time: the usual case now is a
  * table held by a booking that is still inside its grace period. */
-export const motivoOcupar = (reason: SeatWalkInReason, locale: string): string => {
+export const motivoOcupar = (reason: SeatPartyReason, locale: string): string => {
   const es = locale !== "en";
   if (reason === "suscripcion-vencida") {
     return es
@@ -27,6 +24,16 @@ export const motivoOcupar = (reason: SeatWalkInReason, locale: string): string =
   }
   if (reason === "sin-mesas") {
     return es ? "Elegí al menos una mesa." : "Pick at least one table.";
+  }
+  if (reason === "espera-cerrada") {
+    return es
+      ? "Ese grupo ya no está en la cola."
+      : "That party is no longer on the waitlist.";
+  }
+  if (reason === "reserva-cerrada") {
+    return es
+      ? "Esa reserva ya no está activa."
+      : "That reservation is no longer active.";
   }
   return es
     ? "No se pudo ocupar. Revisá la conexión y probá de nuevo."

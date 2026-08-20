@@ -360,6 +360,15 @@ export type SeatWalkInResult =
   | { ok: true; espera: WaitlistView }
   | { ok: false; reason: SeatWalkInReason };
 
+export type SeatPartyReason =
+  | SeatWalkInReason
+  | "espera-cerrada"
+  | "reserva-cerrada";
+
+export type SeatPartyResult =
+  | { ok: true }
+  | { ok: false; reason: SeatPartyReason };
+
 /* Seat a walk-in.
  *
  * One call to a Postgres function, which is a single transaction over there:
@@ -408,6 +417,62 @@ export const seatWalkIn = async (args: {
 
   if (!res?.ok) return { ok: false, reason: res?.reason ?? "error" };
   return { ok: true, espera: mapWaitlistEntry(res.espera) };
+};
+
+/* Cola y reserva: una transacción, igual que sentar_walkin. El panel ya no
+ * puede marcar la espera y después ir mesa por mesa: si el segundo update
+ * falla, el grupo quedaba sentado y la mesa libre (o al revés, dos grupos
+ * en la misma mesa). */
+export const seatWaitlist = async (args: {
+  branchId: string;
+  waitlistId: string;
+  tableNumbers: number[];
+  forzar?: boolean;
+}): Promise<SeatPartyResult> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return { ok: false, reason: "error" };
+  const nums = [...new Set(args.tableNumbers)]
+    .filter((n) => n >= 1)
+    .sort((a, b) => a - b);
+  if (!nums.length) return { ok: false, reason: "sin-mesas" };
+
+  const { data, error } = await supabase.rpc("sentar_espera", {
+    p_local: args.branchId,
+    p_espera: args.waitlistId,
+    p_mesas: nums,
+    p_forzar: args.forzar ?? false,
+  });
+
+  if (error) {
+    console.error("seatWaitlist", error.message);
+    return { ok: false, reason: "error" };
+  }
+
+  const res = data as { ok: boolean; reason?: SeatPartyReason } | null;
+  if (!res?.ok) return { ok: false, reason: res?.reason ?? "error" };
+  return { ok: true };
+};
+
+export const seatReservation = async (args: {
+  branchId: string;
+  reservationId: string;
+}): Promise<SeatPartyResult> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return { ok: false, reason: "error" };
+
+  const { data, error } = await supabase.rpc("sentar_reserva", {
+    p_local: args.branchId,
+    p_reserva: args.reservationId,
+  });
+
+  if (error) {
+    console.error("seatReservation", error.message);
+    return { ok: false, reason: "error" };
+  }
+
+  const res = data as { ok: boolean; reason?: SeatPartyReason } | null;
+  if (!res?.ok) return { ok: false, reason: res?.reason ?? "error" };
+  return { ok: true };
 };
 
 /* El update solo prende si la fila todavía está en un estado desde el que la

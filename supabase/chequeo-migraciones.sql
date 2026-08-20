@@ -2,9 +2,9 @@
 -- Cicalino — ¿Están aplicadas todas las migraciones, y en qué orden correr las que faltan?
 -- Correr en: Supabase Dashboard → SQL Editor. SOLO LECTURA, no cambia nada.
 --
--- Los 39 scripts de esta carpeta se corren a mano, así que desde afuera no hay
+-- Los scripts de esta carpeta se corren a mano, así que desde afuera no hay
 -- forma de saber cuáles se aplicaron. Esto lo resuelve al revés: lista los
--- 169 objetos que deberían existir y pregunta cuáles están.
+-- objetos que deberían existir y pregunta cuáles están.
 --
 -- La columna `orden` importa tanto como `estado`: varios scripts dependen de
 -- otros. reservas-sin-solape.sql usa reservas_gap_minutos(), que crea
@@ -138,6 +138,8 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('push-indices.sql', 'function', 'purgar_push_viejas', 29),
     ('reservas-atomicas.sql', 'function', 'reservas_gap_minutos', 14),
     ('sentar-walkin.sql', 'function', 'sentar_walkin', 15),
+    ('sentar-espera-reserva.sql', 'function', 'sentar_espera', 54),
+    ('sentar-espera-reserva.sql', 'function', 'sentar_reserva', 54),
     ('security-fixes-03.sql', 'function', 'set_empleado_pin', 4),
     ('reservas-atomicas.sql', 'function', 'sincronizar_mesas', 14),
     ('cron-lock.sql', 'function', 'soltar_cron_lock', 17),
@@ -247,6 +249,7 @@ requisitos (archivo, necesita) as (
     ('security-fixes-16.sql', 'security-fixes-15.sql'),
     ('security-fixes-17.sql', 'security-fixes-03.sql'),
     ('espera-constraints-validate.sql', 'espera-constraints.sql'),
+    ('sentar-espera-reserva.sql', 'sentar-walkin.sql, corte-por-impago.sql, espera-constraints.sql'),
     ('reservas-horario-local.sql', 'setup.sql, modulo-espera.sql'),
     ('realtime-organizaciones.sql', '—'),
     ('reservas-aviso.sql', 'modulo-espera.sql, reservas-mesa.sql'),

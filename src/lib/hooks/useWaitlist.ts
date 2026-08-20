@@ -15,6 +15,8 @@ import {
   insertWaitlistEntry,
   insertReservation,
   seatWalkIn,
+  seatWaitlist,
+  seatReservation,
   updateWaitlistStatus,
   updateReservationStatus,
   deleteWaitlistEntry,
@@ -25,11 +27,11 @@ import {
 } from "@/lib/data/waitlist";
 import type {
   SeatWalkInResult,
+  SeatPartyResult,
   NewReservationResult,
 } from "@/lib/data/waitlist";
 import type { DataError } from "@/lib/data/result";
 import type { WaitlistView, TableView, ReservationView } from "@/lib/types";
-import { reservationTables } from "@/lib/reservations";
 import { staffWaitlistCancelIds } from "@/lib/store/waitlist-alerts-store";
 
 type EmployeeRef = { id: string; name: string } | null;
@@ -58,10 +60,14 @@ export interface UseWaitlist {
   }) => Promise<NewReservationResult>;
   avisar: (id: string) => Promise<NotifyResult | null>;
   reavisar: (id: string) => Promise<NotifyResult>;
-  sentar: (id: string, tableNumbers: number[]) => Promise<void>;
+  sentar: (
+    id: string,
+    tableNumbers: number[],
+    opts?: { forzar?: boolean },
+  ) => Promise<SeatPartyResult>;
   cancelar: (id: string) => Promise<void>;
   borrarEspera: (id: string) => Promise<void>;
-  sentarReserva: (id: string) => Promise<void>;
+  sentarReserva: (id: string) => Promise<SeatPartyResult>;
   cancelarReserva: (id: string) => Promise<void>;
   liberarMesa: (
     number: number,
@@ -261,32 +267,29 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     return r;
   };
 
-  const sentar = async (id: string, tableNumbers: number[]) => {
+  const sentar = async (
+    id: string,
+    tableNumbers: number[],
+    opts?: { forzar?: boolean },
+  ): Promise<SeatPartyResult> => {
     const nums = [...new Set(tableNumbers)].filter((n) => n >= 1).sort((a, b) => a - b);
-    if (!nums.length) return;
+    if (!nums.length) return { ok: false, reason: "sin-mesas" };
     const primaria = nums[0];
     const antes = (live ? liveEsperas : demoEsperas).find((e) => e.id === id);
     const veniaEsperando = antes?.status === "esperando";
     if (!live || !branchId) {
       demoChange(id, "sentado", primaria, nums);
-      return;
+      return { ok: true };
     }
-    /* Si el update no prendió, alguien se adelantó desde otro dispositivo: ya
-     * sentaron o cancelaron a este grupo. Ocupar las mesas igual dejaría mesas
-     * marcadas para una espera que no está esperando. */
-    const ok = await updateWaitlistStatus(id, "sentado", primaria);
-    if (!ok) {
-      await reload();
-      return;
-    }
-    for (const n of nums) {
-      await setTableState(branchId, n, "ocupada", {
-        waitlistId: id,
-        reservationId: null,
-      });
-    }
-    if (veniaEsperando) void notifyCustomer({ waitlistId: id });
+    const res = await seatWaitlist({
+      branchId,
+      waitlistId: id,
+      tableNumbers: nums,
+      forzar: opts?.forzar,
+    });
+    if (res.ok && veniaEsperando) void notifyCustomer({ waitlistId: id });
     await reload();
+    return res;
   };
 
   const cancelar = async (id: string) => {
@@ -309,27 +312,14 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     await reload();
   };
 
-  const sentarReserva = async (id: string) => {
+  const sentarReserva = async (id: string): Promise<SeatPartyResult> => {
     if (!live || !branchId) {
       demoSentarReserva(id);
-      return;
+      return { ok: true };
     }
-    const reserva = liveReservas.find((r) => r.id === id);
-    if (!reserva) return;
-    /* Igual que en sentar: si el cron ya la expiró o alguien la canceló, no
-     * hay que ocupar las mesas. */
-    const ok = await updateReservationStatus(id, "sentada");
-    if (!ok) {
-      await reload();
-      return;
-    }
-    for (const n of reservationTables(reserva)) {
-      await setTableState(branchId, n, "ocupada", {
-        reservationId: id,
-        waitlistId: null,
-      });
-    }
+    const res = await seatReservation({ branchId, reservationId: id });
     await reload();
+    return res;
   };
 
   const cancelarReserva = async (id: string) => {

@@ -42,8 +42,15 @@ describe("Medium — crear_pedido atómico (referencia)", () => {
   });
 
   it("modo pedido no manda el número desde el cliente", () => {
-    expect(panel).toContain("await handleCreate(null)");
+    expect(panel).toContain("handleCreate(null)");
     expect(panel).not.toMatch(/handleCreate\(String\(nextNumero\)\)/);
+  });
+
+  it("doble tap en modo pedido no dispara dos altas", () => {
+    expect(panel).toContain("creatingRef");
+    expect(panel).toMatch(/if \(creatingRef\.current\) return/);
+    expect(panel).toMatch(/creatingRef\.current = true/);
+    expect(panel).toMatch(/disabled=\{creating\}/);
   });
 
   it("chequeo-migraciones registra security-fixes-10", () => {

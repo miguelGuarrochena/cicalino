@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NotifyResult } from "@/lib/notify";
 import Link from "next/link";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
@@ -161,6 +161,7 @@ const EsperaPanelPage = () => {
   const [ocuparPersonas, setOcuparPersonas] = useState(2);
   const [holdReservaId, setHoldReservaId] = useState<string | null>(null);
   const [ocupando, setOcupando] = useState(false);
+  const sentandoRef = useRef(false);
   const [filtroMesa, setFiltroMesa] = useState<
     "todas" | "libre" | "conReserva" | "ocupada"
   >("todas");
@@ -1085,16 +1086,26 @@ const EsperaPanelPage = () => {
             locale={locale}
             ahora={ahora}
             onSentar={(id) => {
-              void sentarReserva(id).then(() => {
-                const r = reservasActivas.find((x) => x.id === id);
-                setHoldReservaId(null);
-                toast(
-                  locale === "en"
-                    ? `Seated at ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "en")}`
-                    : `Sentados en ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "es")}`,
-                  "success",
-                );
-              });
+              if (sentandoRef.current) return;
+              sentandoRef.current = true;
+              const r = reservasActivas.find((x) => x.id === id);
+              void sentarReserva(id)
+                .then((res) => {
+                  if (!res.ok) {
+                    toast(motivoOcupar(res.reason, locale), "error");
+                    return;
+                  }
+                  setHoldReservaId(null);
+                  toast(
+                    locale === "en"
+                      ? `Seated at ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "en")}`
+                      : `Sentados en ${tablesTitle(r?.tableNumbers ?? [r?.tableNumber ?? 0], "es")}`,
+                    "success",
+                  );
+                })
+                .finally(() => {
+                  sentandoRef.current = false;
+                });
             }}
             onCancelar={(id) => {
               setHoldReservaId(null);
@@ -1315,15 +1326,25 @@ const EsperaPanelPage = () => {
           locale={locale}
           btnClass={BTN_MOBILE}
           onSentar={() => {
-            void sentarReserva(holdReserva.id).then(() => {
-              setHoldReservaId(null);
-              toast(
-                locale === "en"
-                  ? `Seated at ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "en")}`
-                  : `Sentados en ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "es")}`,
-                "success",
-              );
-            });
+            if (sentandoRef.current) return;
+            sentandoRef.current = true;
+            void sentarReserva(holdReserva.id)
+              .then((res) => {
+                if (!res.ok) {
+                  toast(motivoOcupar(res.reason, locale), "error");
+                  return;
+                }
+                setHoldReservaId(null);
+                toast(
+                  locale === "en"
+                    ? `Seated at ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "en")}`
+                    : `Sentados en ${tablesTitle(holdReserva.tableNumbers ?? [holdReserva.tableNumber], "es")}`,
+                  "success",
+                );
+              })
+              .finally(() => {
+                sentandoRef.current = false;
+              });
           }}
           onCancelar={() => setConfirmCancelReservaId(holdReserva.id)}
           onClose={() => setHoldReservaId(null)}
@@ -1342,20 +1363,32 @@ const EsperaPanelPage = () => {
           locale={locale}
           onSentar={() => {
             if (!sentarId || !sentarMesas.length) return;
-            void sentar(sentarId, sentarMesas).then(() => {
-              const titulo = tablesTitle(
-                sentarMesas,
-                locale === "en" ? "en" : "es",
-              );
-              setSentarId(null);
-              setSentarMesas([]);
-              toast(
-                locale === "en"
-                  ? `Seated at ${titulo}`
-                  : `Sentados en ${titulo}`,
-                "success",
-              );
-            });
+            if (sentandoRef.current) return;
+            sentandoRef.current = true;
+            const mesas = sentarMesas;
+            const forzar = sentarAvisos.length > 0;
+            void sentar(sentarId, mesas, { forzar })
+              .then((res) => {
+                if (!res.ok) {
+                  toast(motivoOcupar(res.reason, locale), "error");
+                  return;
+                }
+                const titulo = tablesTitle(
+                  mesas,
+                  locale === "en" ? "en" : "es",
+                );
+                setSentarId(null);
+                setSentarMesas([]);
+                toast(
+                  locale === "en"
+                    ? `Seated at ${titulo}`
+                    : `Sentados en ${titulo}`,
+                  "success",
+                );
+              })
+              .finally(() => {
+                sentandoRef.current = false;
+              });
           }}
           onClose={() => {
             setSentarId(null);
