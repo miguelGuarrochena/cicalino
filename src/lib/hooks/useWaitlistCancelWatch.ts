@@ -199,7 +199,7 @@ export const useWaitlistCancelWatch = () => {
             void tick();
           },
         );
-      pgWatcher = watchChannel(pgChannel, connectPg);
+      pgWatcher = watchChannel(pgChannel, connectPg, () => void tick());
     };
     connectPg();
 

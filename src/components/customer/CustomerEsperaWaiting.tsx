@@ -124,7 +124,9 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   useEffect(() => {
     if (!espera) return;
     if (espera.status !== "avisado" && espera.status !== "sentado") return;
-    const key = espera.notifiedAt ?? espera.status;
+    /* Igual que pedidos: avisado_en puede cambiar en el notify sin
+     * cambiar el estado. La señal es por status, una vez. */
+    const key = espera.status;
 
     if (ultimoAviso.current === null) {
       ultimoAviso.current = key;

@@ -3,6 +3,7 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 const DEBOUNCE_MS = 120;
+const RETRY_MS = 2_000;
 
 export const debounced = (fn: () => void, ms = DEBOUNCE_MS): (() => void) => {
   let id: number | undefined;
@@ -25,18 +26,45 @@ export const throttled = (
   };
 };
 
+export const realtimeIsHealthy = (status: string): boolean =>
+  status === "SUBSCRIBED";
+
+export const realtimeNeedsResubscribe = (status: string): boolean =>
+  status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED";
+
 type ChannelState = { healthy: boolean };
 
 export const watchChannel = (
   channel: RealtimeChannel,
   resubscribe: () => void,
+  onSubscribed?: () => void,
 ): { state: ChannelState; dispose: () => void } => {
   const state: ChannelState = { healthy: false };
+  let retry: number | undefined;
+  let disposed = false;
+
+  const clearRetry = () => {
+    if (retry === undefined) return;
+    window.clearTimeout(retry);
+    retry = undefined;
+  };
+
+  const scheduleRetry = () => {
+    if (disposed || retry !== undefined) return;
+    retry = window.setTimeout(() => {
+      retry = undefined;
+      if (!disposed) resubscribe();
+    }, RETRY_MS);
+  };
 
   channel.subscribe((status) => {
-    state.healthy = status === "SUBSCRIBED";
-    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-      window.setTimeout(resubscribe, 2_000);
+    if (disposed) return;
+    state.healthy = realtimeIsHealthy(status);
+    if (status === "SUBSCRIBED") {
+      clearRetry();
+      onSubscribed?.();
+    } else if (realtimeNeedsResubscribe(status)) {
+      scheduleRetry();
     }
   });
 
@@ -50,6 +78,8 @@ export const watchChannel = (
   return {
     state,
     dispose: () => {
+      disposed = true;
+      clearRetry();
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("online", onWake);
     },

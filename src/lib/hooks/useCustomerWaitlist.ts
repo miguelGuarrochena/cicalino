@@ -7,7 +7,9 @@ import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import type { WaitlistStatus } from "@/lib/types";
 import {
   attachCustomerWake,
+  createCustomerPollAbort,
   tabVisible,
+  type CustomerPollAbort,
 } from "@/lib/hooks/customerPollWake";
 
 export interface CustomerWaitlistQueue {
@@ -67,6 +69,66 @@ const normalizeCola = (
   ...emptyCola(),
   ...raw,
 });
+
+const WAITLIST_STATUS: readonly WaitlistStatus[] = [
+  "esperando",
+  "avisado",
+  "sentado",
+  "cancelado",
+];
+
+const isWaitlistStatus = (v: unknown): v is WaitlistStatus =>
+  typeof v === "string" &&
+  (WAITLIST_STATUS as readonly string[]).includes(v);
+
+export type WaitlistPollDecision =
+  | { kind: "ok"; espera: CustomerWaitlist }
+  | { kind: "gone" }
+  | { kind: "transient" };
+
+/**
+ * Semántica de GET /api/e/{token}:
+ *  - 200 + ok → snapshot (esperando / avisado / sentado / cancelado)
+ *  - reason not-found | expired → la espera ya no existe; sí se puede vaciar
+ *  - 429, 5xx, rate-limited, not-configured, JSON raro → transitorio; no vaciar
+ */
+export const interpretWaitlistPollResponse = (
+  httpStatus: number,
+  body: unknown,
+): WaitlistPollDecision => {
+  if (httpStatus === 429 || httpStatus >= 500) return { kind: "transient" };
+
+  if (body === null || typeof body !== "object") return { kind: "transient" };
+  const data = body as Record<string, unknown>;
+
+  if (data.ok === true) {
+    if (!isWaitlistStatus(data.status)) return { kind: "transient" };
+    return {
+      kind: "ok",
+      espera: {
+        name: typeof data.name === "string" ? data.name : "",
+        partySize:
+          typeof data.partySize === "number" && Number.isFinite(data.partySize)
+            ? data.partySize
+            : 0,
+        status: data.status,
+        tableNumber:
+          typeof data.tableNumber === "number" ? data.tableNumber : null,
+        branchName: typeof data.branchName === "string" ? data.branchName : "",
+        notifiedAt: typeof data.notifiedAt === "string" ? data.notifiedAt : null,
+        cola: normalizeCola(
+          data.cola as Partial<CustomerWaitlistQueue> | null | undefined,
+        ),
+      },
+    };
+  }
+
+  if (data.reason === "not-found" || data.reason === "expired") {
+    return { kind: "gone" };
+  }
+
+  return { kind: "transient" };
+};
 
 const colaFromDemo = (
   token: string,
@@ -146,6 +208,7 @@ export const useCustomerWaitlist = (token: string): Result => {
     let fallos = 0;
     let estado: WaitlistStatus = "esperando";
     let timer: number | undefined;
+    let pollAbort: CustomerPollAbort | null = null;
 
     const limpiarTimer = () => {
       if (timer !== undefined) {
@@ -178,44 +241,42 @@ export const useCustomerWaitlist = (token: string): Result => {
       }
       inFlight = true;
       pendingWake = false;
+      pollAbort = createCustomerPollAbort();
       try {
-        const res = await fetch(`/api/e/${token}`, { cache: "no-store" });
-        if (res.status === 429 || res.status >= 500) {
-          fallos++;
-          return;
-        }
-        const data = await res.json();
+        const res = await fetch(`/api/e/${token}`, {
+          cache: "no-store",
+          signal: pollAbort.signal,
+        });
+        const data: unknown = await res.json();
         if (!active) return;
-        if (data.ok) {
+
+        const decision = interpretWaitlistPollResponse(res.status, data);
+        if (decision.kind === "ok") {
           fallos = 0;
-          estado = data.status as WaitlistStatus;
-          setRemote({
-            name: data.name,
-            partySize: data.partySize,
-            status: estado,
-            tableNumber: data.tableNumber,
-            branchName: data.branchName,
-            notifiedAt: data.notifiedAt,
-            cola: normalizeCola(data.cola),
-          });
+          estado = decision.espera.status;
+          setRemote(decision.espera);
           setRemoteFound(true);
+          setReady(true);
           if (estado === "sentado" || estado === "cancelado") detenido = true;
-        } else if (data.reason === "not-found" || data.reason === "expired") {
+        } else if (decision.kind === "gone") {
           fallos = 0;
           setRemote(null);
           setRemoteFound(false);
+          setReady(true);
           detenido = true;
         } else {
+          /* 429 / 5xx / JSON inesperado / not-configured: el snapshot se queda. */
           fallos++;
-          setRemote(null);
-          setRemoteFound(false);
         }
       } catch {
+        /* Timeout, red, JSON inválido o unmount: fallo transitorio. */
+        if (!active) return;
         fallos++;
       } finally {
+        pollAbort?.abort();
+        pollAbort = null;
         inFlight = false;
         if (active) {
-          setReady(true);
           if (pendingWake) {
             pendingWake = false;
             void load();
@@ -242,6 +303,8 @@ export const useCustomerWaitlist = (token: string): Result => {
 
     return () => {
       active = false;
+      pollAbort?.abort();
+      pollAbort = null;
       limpiarTimer();
       document.removeEventListener("visibilitychange", onHide);
       detachWake();

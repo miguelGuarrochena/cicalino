@@ -260,7 +260,7 @@ export const subscribeOrders = (
       },
       fire,
     );
-    watcher = watchChannel(channel, connect);
+    watcher = watchChannel(channel, connect, fire);
   };
 
   connect();

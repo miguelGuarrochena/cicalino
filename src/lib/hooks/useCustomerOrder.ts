@@ -8,7 +8,9 @@ import type { IdentificationMode } from "@/lib/store/config-store";
 import type { OrderStatus } from "@/lib/types";
 import {
   attachCustomerWake,
+  createCustomerPollAbort,
   tabVisible,
+  type CustomerPollAbort,
 } from "@/lib/hooks/customerPollWake";
 
 export interface CustomerOrder {
@@ -117,6 +119,7 @@ export const useCustomerOrder = (
     let estado: OrderStatus =
       arranque.kind === "ok" ? arranque.order.status : "creado";
     let timer: number | undefined;
+    let pollAbort: CustomerPollAbort | null = null;
 
     const limpiarTimer = () => {
       if (timer !== undefined) {
@@ -150,8 +153,12 @@ export const useCustomerOrder = (
       }
       inFlight = true;
       pendingWake = false;
+      pollAbort = createCustomerPollAbort();
       try {
-        const res = await fetch(`/api/p/${token}`, { cache: "no-store" });
+        const res = await fetch(`/api/p/${token}`, {
+          cache: "no-store",
+          signal: pollAbort.signal,
+        });
 
         if (res.status === 429 || res.status >= 500) {
           fallos++;
@@ -183,8 +190,12 @@ export const useCustomerOrder = (
           fallos++;
         }
       } catch {
+        /* Timeout / red: fallo transitorio. El snapshot anterior se queda. */
+        if (!active) return;
         fallos++;
       } finally {
+        pollAbort?.abort();
+        pollAbort = null;
         inFlight = false;
         if (active) {
           setReady(true);
@@ -225,6 +236,8 @@ export const useCustomerOrder = (
 
     return () => {
       active = false;
+      pollAbort?.abort();
+      pollAbort = null;
       limpiarTimer();
       document.removeEventListener("visibilitychange", onHide);
       detachWake();

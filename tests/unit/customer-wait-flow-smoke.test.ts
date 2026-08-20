@@ -51,11 +51,17 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
       expect(src).toContain("attachCustomerWake");
       expect(src).toContain("pendingWake");
       expect(src).toContain("tabVisible");
-      expect(src).toMatch(/status === 429/);
+      expect(src).toMatch(/status === 429|httpStatus === 429/);
     }
     expect(wake).toContain("pageshow");
     expect(wake).toContain("visibilitychange");
     expect(wake).toContain("cicalino-refresh");
+    expect(wake).toContain("createCustomerPollAbort");
+    expect(wake).toContain("AbortSignal.timeout");
+    for (const src of [orderHook, waitHook]) {
+      expect(src).toContain("createCustomerPollAbort");
+      expect(src).toContain("signal: pollAbort.signal");
+    }
     expect(CUSTOMER_SW_REFRESH).toBe("cicalino-refresh");
     expect(sw).toContain('type: "cicalino-refresh"');
     expect(sw).toContain("avisarClientes");
@@ -102,6 +108,7 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     expect(waiting).toContain("notifRetirado");
     expect(waiting).toContain('order.status === "retirado"');
     expect(waiting).toContain("senalPedido");
+    expect(waiting).toContain("const clave = order.status");
   });
 
   it("Android: con push activo no queda el botón; dice notificaciones activadas", () => {

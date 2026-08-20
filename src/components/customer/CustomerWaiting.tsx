@@ -128,10 +128,10 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   useEffect(() => {
     if (!order) return;
     if (order.status !== "listo" && order.status !== "retirado") return;
-    const clave =
-      order.status === "retirado"
-        ? "retirado"
-        : (order.notifiedAt ?? "listo");
+    /* Estado, no avisado_en: el panel escribe avisado_en al marcar listo y
+     * /api/push/notify lo vuelve a pisar. Con notifiedAt un poll entre las
+     * dos escrituras dispararía beep/confetti otra vez. */
+    const clave = order.status;
 
     if (ultimoAviso.current === null) {
       ultimoAviso.current = clave;
