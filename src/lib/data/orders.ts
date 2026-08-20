@@ -3,10 +3,10 @@
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { businessDayStart, businessDayEnd } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
-import { newOrderSchema, parseInput, isValidTransition } from "@/lib/schemas";
+import { newOrderSchema, parseInput, orderTransitionSources } from "@/lib/schemas";
 import { debounced, watchChannel } from "@/lib/realtime";
 import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
-import { reportError } from "@/lib/observability";
+import { reportError, reportWarning } from "@/lib/observability";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
@@ -99,6 +99,8 @@ export const fetchOrdersPage = async (
 
   const { data, error } = await supabase.rpc("pedidos_pagina", {
     p_local: branchId,
+    /* Ignorado en el servidor: la jornada sale de locales.hora_corte.
+     * Se manda igual porque la firma de PostgREST no cambió. */
     p_desde: startOfBusinessDay(),
     p_filtro: opts.filtro,
     p_busqueda: opts.busqueda,
@@ -154,7 +156,7 @@ export const insertOrder = async (args: {
     reference: args.reference?.trim() ? args.reference.trim() : null,
   });
   if (!v.ok) {
-    console.error("insertOrder", v.error);
+    reportError("panel.pedidos.crear", v.error, { branchId: args.branchId });
     return null;
   }
   const { data, error } = await supabase.rpc("crear_pedido", {
@@ -165,7 +167,7 @@ export const insertOrder = async (args: {
     p_expira: endOfBusinessDay(),
   });
   if (error) {
-    console.error("insertOrder", error.message);
+    reportError("panel.pedidos.crear", error, { branchId: args.branchId });
     return null;
   }
   const res = data as {
@@ -174,7 +176,9 @@ export const insertOrder = async (args: {
     pedido?: Row & { empleado_nombre?: string | null };
   };
   if (!res?.ok || !res.pedido) {
-    console.error("insertOrder", res?.reason ?? "crear_pedido falló");
+    reportError("panel.pedidos.crear", res?.reason ?? "crear_pedido falló", {
+      branchId: args.branchId,
+    });
     return null;
   }
   return mapRow({
@@ -206,12 +210,14 @@ export const fetchOrderSeen = async (id: string): Promise<boolean> => {
 export const updateOrderStatus = async (
   id: string,
   estado: OrderStatus,
-  desde?: OrderStatus,
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
-  if (desde && !isValidTransition(desde, estado)) {
-    console.error("updateOrderStatus: transición inválida", desde, "→", estado);
+  const desde = orderTransitionSources(estado);
+  if (!desde.length) {
+    reportWarning("panel.pedidos.estado", `sin origen válido hacia ${estado}`, {
+      orderId: id,
+    });
     return false;
   }
   const now = new Date().toISOString();
@@ -223,14 +229,25 @@ export const updateOrderStatus = async (
   } else if (estado === "retirado") patch.retirado_en = now;
   else if (estado === "cancelado") patch.cancelado_en = now;
 
-  let q = supabase.from("pedidos").update(patch).eq("id", id);
-  if (desde) q = q.eq("estado", desde);
-  const { data, error } = await q.select("id");
+  const { data, error } = await supabase
+    .from("pedidos")
+    .update(patch)
+    .eq("id", id)
+    .in("estado", desde)
+    .select("id");
   if (error) {
-    console.error("updateOrderStatus", error.message);
+    reportError("panel.pedidos.estado", error, { orderId: id });
     return false;
   }
-  return (data?.length ?? 0) > 0;
+  if (!data?.length) {
+    reportWarning(
+      "panel.pedidos.estado",
+      `el pedido ${id} ya no estaba en ${desde.join("|")}, no se pasó a ${estado}`,
+      { orderId: id },
+    );
+    return false;
+  }
+  return true;
 };
 
 export const subscribeOrders = (

@@ -280,6 +280,9 @@ export const waitlistTransitionSources = (hacia: string): string[] =>
 export const reservationTransitionSources = (hacia: string): string[] =>
   origenes(TRANSICIONES_RESERVA, hacia);
 
+export const orderTransitionSources = (hacia: string): string[] =>
+  origenes(TRANSICIONES, hacia);
+
 export const statusChangeSchema = z
   .object({
     id: uuid,

@@ -279,7 +279,7 @@ export const insertWaitlistEntry = async (args: {
     .select(SELECT_WAITLIST)
     .single();
   if (error) {
-    console.error("insertWaitlistEntry", error.message);
+    reportError("panel.espera.insertar", error, { branchId: args.branchId });
     return null;
   }
   return mapWaitlistEntry(data as unknown as WaitlistRow);
@@ -336,7 +336,7 @@ export const insertReservation = async (args: {
   });
 
   if (error) {
-    console.error("insertReservation", error.message);
+    reportError("panel.espera.reservar", error, { branchId: args.branchId });
     return { ok: false, reason: "error" };
   }
 
@@ -406,7 +406,7 @@ export const seatWalkIn = async (args: {
   });
 
   if (error) {
-    console.error("seatWalkIn", error.message);
+    reportError("panel.espera.walkin", error, { branchId: args.branchId });
     return { ok: false, reason: "error" };
   }
 
@@ -444,7 +444,10 @@ export const seatWaitlist = async (args: {
   });
 
   if (error) {
-    console.error("seatWaitlist", error.message);
+    reportError("panel.espera.sentar", error, {
+      branchId: args.branchId,
+      waitlistId: args.waitlistId,
+    });
     return { ok: false, reason: "error" };
   }
 
@@ -466,7 +469,9 @@ export const seatReservation = async (args: {
   });
 
   if (error) {
-    console.error("seatReservation", error.message);
+    reportError("panel.espera.sentarReserva", error, {
+      branchId: args.branchId,
+    });
     return { ok: false, reason: "error" };
   }
 
@@ -500,7 +505,9 @@ export const updateWaitlistStatus = async (
 
   const desde = waitlistTransitionSources(estado);
   if (!desde.length) {
-    console.error("updateWaitlistStatus: estado sin origen válido", estado);
+    reportWarning("panel.espera.estado", `sin origen válido hacia ${estado}`, {
+      waitlistId: id,
+    });
     return false;
   }
 
@@ -511,12 +518,14 @@ export const updateWaitlistStatus = async (
     .in("estado", desde)
     .select("id");
   if (error) {
-    console.error("updateWaitlistStatus", error.message);
+    reportError("panel.espera.estado", error, { waitlistId: id });
     return false;
   }
   if (!data?.length) {
-    console.warn(
-      `updateWaitlistStatus: la espera ${id} ya no estaba en ${desde.join("|")}, no se pasó a ${estado}`,
+    reportWarning(
+      "panel.espera.estado",
+      `la espera ${id} ya no estaba en ${desde.join("|")}, no se pasó a ${estado}`,
+      { waitlistId: id },
     );
     return false;
   }
@@ -537,7 +546,7 @@ export const deleteWaitlistEntry = async (id: string): Promise<boolean> => {
     .eq("espera_id", id);
   const { error } = await supabase.from("esperas").delete().eq("id", id);
   if (error) {
-    console.error("deleteWaitlistEntry", error.message);
+    reportError("panel.espera.borrar", error, { waitlistId: id });
     return false;
   }
   return true;
@@ -559,7 +568,7 @@ export const updateReservationStatus = async (
 
   const desde = reservationTransitionSources(estado);
   if (!desde.length) {
-    console.error("updateReservationStatus: estado sin origen válido", estado);
+    reportWarning("panel.espera.reserva", `sin origen válido hacia ${estado}`);
     return false;
   }
 
@@ -570,12 +579,13 @@ export const updateReservationStatus = async (
     .in("estado", desde)
     .select("id");
   if (error) {
-    console.error("updateReservationStatus", error.message);
+    reportError("panel.espera.reserva", error);
     return false;
   }
   if (!data?.length) {
-    console.warn(
-      `updateReservationStatus: la reserva ${id} ya no estaba activa, no se pasó a ${estado}`,
+    reportWarning(
+      "panel.espera.reserva",
+      `la reserva ${id} ya no estaba activa, no se pasó a ${estado}`,
     );
     return false;
   }
@@ -629,7 +639,7 @@ export const setTableState = async (
     .eq("local_id", branchId)
     .eq("numero", numero);
   if (error) {
-    console.error("setTableState", error.message);
+    reportError("panel.espera.mesa", error, { branchId });
     return false;
   }
   return true;

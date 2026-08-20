@@ -9,6 +9,7 @@ import {
   qrTokenSchema,
   leadSchema,
   isValidTransition,
+  orderTransitionSources,
 } from "@/lib/schemas";
 
 const UUID = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
@@ -241,6 +242,23 @@ describe("transicionValida", () => {
     expect(isValidTransition("retirado", "listo")).toBe(false);
     expect(isValidTransition("cancelado", "listo")).toBe(false);
     expect(isValidTransition("retirado", "cancelado")).toBe(false);
+  });
+
+  it("a listo se llega desde creado o en_preparacion", () => {
+    expect(orderTransitionSources("listo").sort()).toEqual([
+      "creado",
+      "en_preparacion",
+    ]);
+  });
+
+  it("retirado y cancelado no tienen orígenes hacia atrás", () => {
+    expect(orderTransitionSources("creado")).toEqual([]);
+    expect(orderTransitionSources("retirado").sort()).toEqual(["listo"]);
+    expect(orderTransitionSources("cancelado").sort()).toEqual([
+      "creado",
+      "en_preparacion",
+      "listo",
+    ]);
   });
 });
 

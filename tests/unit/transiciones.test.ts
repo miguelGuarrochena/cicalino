@@ -4,6 +4,8 @@ import {
   isValidReservationTransition,
   waitlistTransitionSources,
   reservationTransitionSources,
+  orderTransitionSources,
+  isValidTransition,
 } from "@/lib/schemas";
 
 /* Estas tablas son el espejo de los triggers de espera-constraints.sql. Si
@@ -93,6 +95,32 @@ describe("orígenes para el compare-and-swap", () => {
       for (const desde of estados) {
         expect(waitlistTransitionSources(hacia).includes(desde)).toBe(
           isValidWaitlistTransition(desde, hacia),
+        );
+      }
+    }
+  });
+});
+
+describe("orígenes de pedido", () => {
+  it("el CAS no adivina un único estado previo", () => {
+    expect(orderTransitionSources("listo").sort()).toEqual([
+      "creado",
+      "en_preparacion",
+    ]);
+  });
+
+  it("coinciden con isValidTransition", () => {
+    const estados = [
+      "creado",
+      "en_preparacion",
+      "listo",
+      "retirado",
+      "cancelado",
+    ];
+    for (const hacia of estados) {
+      for (const desde of estados) {
+        expect(orderTransitionSources(hacia).includes(desde)).toBe(
+          isValidTransition(desde, hacia),
         );
       }
     }

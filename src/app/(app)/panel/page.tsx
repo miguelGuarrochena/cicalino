@@ -238,10 +238,19 @@ const PanelOrdersPage = () => {
   };
 
   const changeStatusUX = async (id: string, status: OrderStatus) => {
-    const notified = await changeStatus(id, status);
+    const res = await changeStatus(id, status);
+    if (!res.ok) {
+      toast(
+        locale === "en"
+          ? "Couldn’t update the order. Reload and try again."
+          : "No se pudo actualizar el pedido. Recargá y probá de nuevo.",
+        "error",
+      );
+      return;
+    }
     if (status === "listo") {
       notifyReady();
-      if (live) toastAviso(notified);
+      if (live) toastAviso(res.notify);
       else toast(t("toast.listo"), "success");
     } else if (status === "retirado") {
       toast(t("toast.retirado"), "info");

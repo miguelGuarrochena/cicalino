@@ -29,7 +29,7 @@ const horaLocal = (iso: string, locale: string): string => {
 interface Props {
   pedido: OrderView;
   index?: number;
-  onCambiarEstado: (id: string, status: OrderStatus) => void;
+  onCambiarEstado: (id: string, status: OrderStatus) => void | Promise<void>;
   onMostrarQr?: (order: OrderView) => void;
   onReavisar?: (id: string) => void;
 }
@@ -45,6 +45,7 @@ export const OrderCard = ({
   const mode = useConfigStore((s) => s.modo);
   const [now, setNow] = useState(() => Date.now());
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (orderClosed(order.status)) return;
@@ -58,6 +59,14 @@ export const OrderCard = ({
   const listo = order.status === "listo";
   const cerrado = orderClosed(order.status);
   const urgente = wait !== null && wait >= 15 && !cerrado;
+
+  const cambiar = (status: OrderStatus) => {
+    if (busy) return;
+    setBusy(true);
+    void Promise.resolve(onCambiarEstado(order.id, status)).finally(() => {
+      setBusy(false);
+    });
+  };
 
   return (
     <article
@@ -134,17 +143,19 @@ export const OrderCard = ({
       {enCurso && (
         <button
           type="button"
-          onClick={() => onCambiarEstado(order.id, "listo")}
-          className="w-full rounded-full bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.97] sm:py-3"
+          disabled={busy}
+          onClick={() => cambiar("listo")}
+          className="w-full rounded-full bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.97] disabled:opacity-50 sm:py-3"
         >
-          {t("card.marcarListo")}
+          {busy ? "…" : t("card.marcarListo")}
         </button>
       )}
       {listo && onReavisar && (
         <button
           type="button"
+          disabled={busy}
           onClick={() => onReavisar(order.id)}
-          className="w-full rounded-full border border-marca/40 bg-marca/5 px-4 py-2.5 text-sm font-semibold text-marca transition hover:bg-marca/10 active:scale-[0.97]"
+          className="w-full rounded-full border border-marca/40 bg-marca/5 px-4 py-2.5 text-sm font-semibold text-marca transition hover:bg-marca/10 active:scale-[0.97] disabled:opacity-50"
         >
           {locale === "en" ? "Notify again 🔔" : "Volver a avisar 🔔"}
         </button>
@@ -152,10 +163,11 @@ export const OrderCard = ({
       {listo && (
         <button
           type="button"
-          onClick={() => onCambiarEstado(order.id, "retirado")}
-          className="w-full rounded-full border border-linea px-4 py-3.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 active:scale-[0.97] sm:py-3"
+          disabled={busy}
+          onClick={() => cambiar("retirado")}
+          className="w-full rounded-full border border-linea px-4 py-3.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 active:scale-[0.97] disabled:opacity-50 sm:py-3"
         >
-          {t("card.marcarRetirado")}
+          {busy ? "…" : t("card.marcarRetirado")}
         </button>
       )}
 
@@ -168,11 +180,12 @@ export const OrderCard = ({
             <div className="flex gap-2">
               <button
                 type="button"
+                disabled={busy}
                 onClick={() => {
-                  onCambiarEstado(order.id, "cancelado");
+                  cambiar("cancelado");
                   setConfirmCancel(false);
                 }}
-                className="flex-1 rounded-full bg-red-500 text-white transition hover:bg-red-600 active:scale-[0.97] flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
+                className="flex-1 rounded-full bg-red-500 text-white transition hover:bg-red-600 active:scale-[0.97] flex min-h-11 items-center justify-center px-4 text-sm font-semibold disabled:opacity-50 sm:min-h-0 sm:py-2 sm:text-xs"
               >
                 {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
               </button>

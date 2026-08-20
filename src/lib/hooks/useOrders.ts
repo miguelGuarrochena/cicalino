@@ -46,7 +46,7 @@ export interface UseOrders {
   changeStatus: (
     id: string,
     status: OrderStatus,
-  ) => Promise<NotifyResult | null>;
+  ) => Promise<{ ok: boolean; notify: NotifyResult | null }>;
 }
 
 const CONTEOS_VACIOS: OrdersPage["conteos"] = {
@@ -170,24 +170,22 @@ export const useOrders = (
     async (id, status) => {
       if (!live) {
         demoChange(id, status);
-        return null;
+        return { ok: true, notify: null };
       }
-      let desde: OrderStatus | undefined;
-      setLiveOrders((cur) => {
-        desde = cur.find((o) => o.id === id)?.status;
-        return cur.map((o) => (o.id === id ? { ...o, status: status } : o));
-      });
-      const ok = await updateOrderStatus(id, status, desde);
-      if (!ok && desde) {
-        setLiveOrders((cur) =>
-          cur.map((o) => (o.id === id ? { ...o, status: desde! } : o)),
-        );
-        return null;
+      setLiveOrders((cur) =>
+        cur.map((o) => (o.id === id ? { ...o, status: status } : o)),
+      );
+      const applied = await updateOrderStatus(id, status);
+      /* Recargar siempre: el CAS usa orígenes de DB, no el snapshot de la UI.
+       * Si otra caja ganó, rollback a `desde` mentiría. */
+      await reload();
+      if (!applied) return { ok: false, notify: null };
+      if (status !== "listo" && status !== "retirado") {
+        return { ok: true, notify: null };
       }
-      if (status !== "listo" && status !== "retirado") return null;
-      return notifyCustomer({ orderId: id });
+      return { ok: true, notify: await notifyCustomer({ orderId: id }) };
     },
-    [live, demoChange],
+    [live, demoChange, reload],
   );
 
   return {
