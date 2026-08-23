@@ -90,3 +90,17 @@ export const attachCustomerWake = (onWake: () => void): (() => void) => {
     navigator.serviceWorker?.removeEventListener("message", onMessage);
   };
 };
+
+/**
+ * Diálogo nativo al cerrar/recargar. Los browsers ignoran el texto custom y
+ * en iPhone al matar la pestaña a menudo no aparece: el aviso en pantalla
+ * es la red de verdad.
+ */
+export const attachLeaveGuard = (): (() => void) => {
+  const onBeforeUnload = (e: BeforeUnloadEvent) => {
+    e.preventDefault();
+    e.returnValue = "";
+  };
+  window.addEventListener("beforeunload", onBeforeUnload);
+  return () => window.removeEventListener("beforeunload", onBeforeUnload);
+};

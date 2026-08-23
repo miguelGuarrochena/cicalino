@@ -18,6 +18,7 @@ export const isRealBranchId = (id: string | null): id is string =>
 type Row = {
   id: string;
   referencia: string;
+  alias_cliente?: string | null;
   estado: OrderStatus;
   creado_en: string;
   en_preparacion_en: string | null;
@@ -32,6 +33,7 @@ type Row = {
 const mapRow = (r: Row): OrderView => ({
   id: r.id,
   reference: r.referencia,
+  alias: r.alias_cliente ?? null,
   status: r.estado,
   createdAt: r.creado_en,
   preparingAt: r.en_preparacion_en,

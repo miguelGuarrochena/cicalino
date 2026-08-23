@@ -221,6 +221,21 @@ export const newOrderSchema = z.object({
 });
 export type NewOrderInput = z.infer<typeof newOrderSchema>;
 
+/* Nombre opcional del cliente en /p/{token}. Vacío = borrar. */
+export const customerAliasSchema = z
+  .string({ invalid_type_error: "Nombre inválido." })
+  .transform((s) => s.trim().replace(/\s+/g, " "))
+  .refine(
+    (s) => s === "" || (s.length >= 2 && s.length <= 24),
+    "El nombre tiene que tener entre 2 y 24 caracteres.",
+  )
+  .refine(
+    (s) => s === "" || /^[\p{L}\p{N} .'\-]+$/u.test(s),
+    "Usá solo letras, números y espacios.",
+  )
+  .transform((s) => (s === "" ? null : s));
+export type CustomerAlias = z.infer<typeof customerAliasSchema>;
+
 const TRANSICIONES: Record<string, readonly string[]> = {
   creado: ["en_preparacion", "listo", "cancelado"],
   en_preparacion: ["listo", "cancelado"],

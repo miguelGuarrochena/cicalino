@@ -9,6 +9,13 @@ import {
   useCustomerOrder,
   type InitialCustomerOrder,
 } from "@/lib/hooks/useCustomerOrder";
+import { attachLeaveGuard } from "@/lib/hooks/customerPollWake";
+import {
+  saveLastVisit,
+  clearLastVisitIfToken,
+  readLastVisit,
+} from "@/lib/customerLastVisit";
+import { CustomerAliasForm } from "@/components/customer/CustomerAliasForm";
 import {
   showReadyNotice,
   requestNotificationPermission,
@@ -67,6 +74,13 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
   const [flash, setFlash] = useState(false);
+  const [aliasLocal, setAliasLocal] = useState<string | null | undefined>(
+    undefined,
+  );
+  const [otroPedido, setOtroPedido] = useState<{
+    href: string;
+    label: string;
+  } | null>(null);
   const ultimoAviso = useRef<string | null>(null);
   const vioEsperando = useRef(false);
 
@@ -107,6 +121,31 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   const esOk = esListo || esRetirado;
   const cerrado = esOk || esCancelado;
   const waiting = hydrated && !!order && !cerrado;
+  const alias = aliasLocal !== undefined ? aliasLocal : (order?.alias ?? null);
+  const puedeAlias = !!order && !esRetirado && !esCancelado && order.modo !== "nombre";
+
+  useEffect(() => {
+    if (!order || esRetirado || esCancelado) {
+      if (hydrated) clearLastVisitIfToken(token);
+      return;
+    }
+    saveLastVisit({
+      kind: "p",
+      token,
+      label: order.reference,
+      alias,
+    });
+  }, [order, esRetirado, esCancelado, token, alias, hydrated]);
+
+  useEffect(() => {
+    if (order) return;
+    const v = readLastVisit();
+    if (!v || v.token === token) return;
+    setOtroPedido({
+      href: v.kind === "p" ? `/p/${v.token}` : `/e/${v.token}`,
+      label: v.alias ? `${v.label} · ${v.alias}` : v.label,
+    });
+  }, [order, token]);
 
   useEffect(() => {
     if (!order) return;
@@ -117,12 +156,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
 
   useEffect(() => {
     if (!waiting) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    return attachLeaveGuard();
   }, [waiting]);
 
   useEffect(() => {
@@ -198,6 +232,16 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
         <p className="mt-2 max-w-sm text-carbon/60">
           {t("cliente.noEncontradoSub")}
         </p>
+        {otroPedido && (
+          <a
+            href={otroPedido.href}
+            className="mt-6 rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema"
+          >
+            {otroPedido.href.startsWith("/e/")
+              ? t("seguimiento.mesa", { n: otroPedido.label })
+              : t("seguimiento.pedido", { n: otroPedido.label })}
+          </a>
+        )}
       </main>
     );
   }
@@ -211,15 +255,25 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
       <Controls className="absolute right-4 top-4 z-20" />
 
       {waiting && (
-        <p className="u-in mb-6 w-full rounded-2xl border border-amber-300/80 bg-amber-100 px-3 py-2.5 text-xs font-medium leading-snug text-amber-950 sm:max-w-sm">
-          {pushDisponible && pushActivo
-            ? t("cliente.noCerrarPush")
-            : t("cliente.noCerrar")}
-        </p>
+        <div className="u-in mb-6 w-full rounded-2xl border border-amber-300/80 bg-amber-100 px-3 py-2.5 text-amber-950 sm:max-w-sm">
+          <p className="text-sm font-semibold">
+            {t("cliente.noCerrarTitulo")}
+          </p>
+          <p className="mt-1 text-sm font-medium leading-snug">
+            {alias
+              ? t("cliente.siCerrasAlias", { n: order.reference, alias })
+              : t("cliente.siCerras", { n: order.reference })}
+          </p>
+          <p className="mt-1.5 text-xs font-medium leading-snug text-amber-950/80">
+            {pushDisponible && pushActivo
+              ? t("cliente.noCerrarPush")
+              : t("cliente.noCerrar")}
+          </p>
+        </div>
       )}
 
       <div className="u-in flex flex-1 flex-col items-center justify-center">
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex w-full max-w-sm flex-col items-center gap-1">
           {order.branchName && (
             <span className="mb-1 max-w-[16rem] truncate font-display text-lg uppercase tracking-tight text-carbon/70 sm:max-w-xs sm:text-xl">
               {order.branchName}
@@ -228,9 +282,16 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
           <span className="text-xs uppercase tracking-widest text-carbon/40">
             {t(`modo.${order.modo}`)}
           </span>
-          <span className="font-display text-6xl leading-none text-marca">
+          <span className="font-display text-7xl leading-none text-marca sm:text-8xl">
             {order.reference}
           </span>
+          {puedeAlias && (
+            <CustomerAliasForm
+              token={token}
+              alias={alias}
+              onSaved={setAliasLocal}
+            />
+          )}
         </div>
 
         <div className="relative my-8 flex size-60 max-w-full items-center justify-center sm:size-64">

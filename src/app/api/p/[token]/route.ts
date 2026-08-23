@@ -38,7 +38,7 @@ export const GET = async (
   const { data, error } = await supabase
     .from("pedidos")
     .select(
-      "id, referencia, estado, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
+      "id, referencia, alias_cliente, estado, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
     )
     .eq("qr_token", token)
     .single();
@@ -64,6 +64,7 @@ export const GET = async (
   return NextResponse.json({
     ok: true,
     reference: data.referencia,
+    alias: data.alias_cliente ?? null,
     status: data.estado,
     listo: data.estado === "listo" || data.estado === "retirado",
     notifiedAt: data.avisado_en ?? null,

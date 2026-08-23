@@ -7,6 +7,12 @@ import { Controls } from "@/components/ui/Controls";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { useApp } from "@/components/providers/Providers";
 import { useCustomerWaitlist } from "@/lib/hooks/useCustomerWaitlist";
+import { attachLeaveGuard } from "@/lib/hooks/customerPollWake";
+import {
+  saveLastVisit,
+  clearLastVisitIfToken,
+  readLastVisit,
+} from "@/lib/customerLastVisit";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
@@ -66,6 +72,10 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const [flash, setFlash] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelando, setCancelando] = useState(false);
+  const [otraEspera, setOtraEspera] = useState<{
+    href: string;
+    label: string;
+  } | null>(null);
   const ultimoAviso = useRef<string | null>(null);
   const vioEsperando = useRef(false);
 
@@ -112,13 +122,30 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     (espera.status === "esperando" || espera.status === "avisado");
 
   useEffect(() => {
+    if (!espera || cerrado) {
+      if (ready) clearLastVisitIfToken(token);
+      return;
+    }
+    saveLastVisit({
+      kind: "e",
+      token,
+      label: espera.name,
+    });
+  }, [espera, cerrado, token, ready]);
+
+  useEffect(() => {
+    if (espera) return;
+    const v = readLastVisit();
+    if (!v || v.token === token) return;
+    setOtraEspera({
+      href: v.kind === "p" ? `/p/${v.token}` : `/e/${v.token}`,
+      label: v.alias ? `${v.label} · ${v.alias}` : v.label,
+    });
+  }, [espera, token]);
+
+  useEffect(() => {
     if (!waiting) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    return attachLeaveGuard();
   }, [waiting]);
 
   useEffect(() => {
@@ -207,6 +234,16 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
         <p className="mt-2 max-w-sm text-carbon/60">
           {t("clienteMesa.noEncontradoSub")}
         </p>
+        {otraEspera && (
+          <a
+            href={otraEspera.href}
+            className="mt-6 rounded-full bg-espera px-5 py-3 text-sm font-semibold text-crema"
+          >
+            {otraEspera.href.startsWith("/e/")
+              ? t("seguimiento.mesa", { n: otraEspera.label })
+              : t("seguimiento.pedido", { n: otraEspera.label })}
+          </a>
+        )}
       </main>
     );
   }
@@ -222,11 +259,19 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
       <Controls className="absolute right-4 top-4 z-20" />
 
       {waiting && (
-        <p className="u-in mb-6 w-full rounded-2xl border border-espera/40 bg-espera/10 px-3 py-2.5 text-xs font-medium leading-snug text-espera sm:max-w-sm">
-          {pushDisponible && pushActivo
-            ? t("clienteMesa.noCerrarPush")
-            : t("clienteMesa.noCerrar")}
-        </p>
+        <div className="u-in mb-6 w-full rounded-2xl border border-espera/40 bg-espera/10 px-3 py-2.5 text-espera sm:max-w-sm">
+          <p className="text-sm font-semibold">
+            {t("clienteMesa.noCerrarTitulo")}
+          </p>
+          <p className="mt-1 text-sm font-medium leading-snug">
+            {t("clienteMesa.siCerras", { n: espera.name })}
+          </p>
+          <p className="mt-1.5 text-xs font-medium leading-snug text-espera/80">
+            {pushDisponible && pushActivo
+              ? t("clienteMesa.noCerrarPush")
+              : t("clienteMesa.noCerrar")}
+          </p>
+        </div>
       )}
 
       <div className="u-in flex flex-1 flex-col items-center justify-center">
@@ -239,7 +284,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
           <span className="text-xs uppercase tracking-widest text-espera/70">
             {t("clienteMesa.titulo")}
           </span>
-          <span className="font-display text-5xl leading-none text-espera sm:text-6xl">
+          <span className="font-display text-6xl leading-none text-espera sm:text-7xl">
             {espera.name}
           </span>
           <span className="mt-1 text-sm text-carbon/50">

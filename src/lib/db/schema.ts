@@ -201,6 +201,8 @@ export const orders = pgTable(
       .references(() => branches.id, { onDelete: "cascade" }),
 
     referencia: text("referencia").notNull(),
+    /* Apodo opcional que carga el cliente en /p/{token}. */
+    aliasCliente: text("alias_cliente"),
 
     estado: orderStatusEnum("estado").notNull().default("creado"),
 

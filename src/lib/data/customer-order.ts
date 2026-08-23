@@ -19,6 +19,7 @@ import type { OrderStatus } from "@/lib/types";
 
 export interface CustomerOrderSnapshot {
   reference: string;
+  alias: string | null;
   status: OrderStatus;
   branchName: string;
   modo: IdentificationMode;
@@ -27,6 +28,7 @@ export interface CustomerOrderSnapshot {
 
 export interface CustomerOrderStatus {
   reference: string;
+  alias: string | null;
   status: OrderStatus;
   notifiedAt: string | null;
 }
@@ -53,7 +55,7 @@ export const fetchCustomerOrderFull = async (
   const { data, error } = await supabase
     .from("pedidos")
     .select(
-      "id, referencia, estado, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
+      "id, referencia, alias_cliente, estado, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
     )
     .eq("qr_token", token)
     .single();
@@ -69,6 +71,7 @@ export const fetchCustomerOrderFull = async (
     seen: Boolean(data.visto_en),
     order: {
       reference: data.referencia,
+      alias: (data.alias_cliente as string | null) ?? null,
       status: data.estado as OrderStatus,
       branchName: local?.nombre ?? "",
       modo: (local?.modo_identificacion ?? "pedido") as IdentificationMode,
@@ -85,7 +88,7 @@ export const fetchCustomerOrderStatus = async (
 
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id, referencia, estado, qr_expira_en, visto_en, avisado_en")
+    .select("id, referencia, alias_cliente, estado, qr_expira_en, visto_en, avisado_en")
     .eq("qr_token", token)
     .single();
 
@@ -98,6 +101,7 @@ export const fetchCustomerOrderStatus = async (
     seen: Boolean(data.visto_en),
     order: {
       reference: data.referencia,
+      alias: (data.alias_cliente as string | null) ?? null,
       status: data.estado as OrderStatus,
       notifiedAt: data.avisado_en ?? null,
     },
@@ -115,4 +119,48 @@ export const markCustomerOrderSeen = async (id: string): Promise<void> => {
     .update({ visto_en: new Date().toISOString() })
     .eq("id", id)
     .is("visto_en", null);
+};
+
+export const updateCustomerOrderAlias = async (
+  token: string,
+  alias: string | null,
+): Promise<
+  | { ok: true; alias: string | null }
+  | {
+      ok: false;
+      reason: "not-found" | "expired" | "closed" | "not-configured" | "db-error";
+    }
+> => {
+  const supabase = createAdminSupabase();
+  if (!supabase) return { ok: false, reason: "not-configured" };
+
+  const { data, error } = await supabase
+    .from("pedidos")
+    .select("id, estado, qr_expira_en")
+    .eq("qr_token", token)
+    .maybeSingle();
+
+  if (error || !data) return { ok: false, reason: "not-found" };
+  if (expirado(data.qr_expira_en)) return { ok: false, reason: "expired" };
+  if (data.estado === "retirado" || data.estado === "cancelado") {
+    return { ok: false, reason: "closed" };
+  }
+
+  const { data: updated, error: updErr } = await supabase
+    .from("pedidos")
+    .update({ alias_cliente: alias })
+    .eq("id", data.id)
+    .in("estado", ["creado", "en_preparacion", "listo"])
+    .select("alias_cliente");
+
+  if (updErr) {
+    console.error("p/alias", updErr.message);
+    return { ok: false, reason: "db-error" };
+  }
+  if (!updated?.length) return { ok: false, reason: "closed" };
+
+  return {
+    ok: true,
+    alias: (updated[0]?.alias_cliente as string | null) ?? null,
+  };
 };

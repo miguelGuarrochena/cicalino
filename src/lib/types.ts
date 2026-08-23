@@ -34,6 +34,7 @@ export const BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_LABEL) as BusinessType[]
 export interface OrderView {
   id: string;
   reference: string;
+  alias?: string | null;
   status: OrderStatus;
   createdAt: string;
   preparingAt: string | null;

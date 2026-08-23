@@ -9,6 +9,7 @@ import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 
 interface Props {
   reference: string;
+  alias?: string | null;
   token: string;
   etiqueta: string;
   onClose: () => void;
@@ -19,6 +20,7 @@ interface Props {
 
 export const QrModal = ({
   reference: reference,
+  alias,
   token,
   etiqueta,
   onClose,
@@ -101,6 +103,9 @@ export const QrModal = ({
             <p id="qr-modal-title" className="font-display text-3xl leading-none text-carbon">
               {reference}
             </p>
+            {alias ? (
+              <p className="mt-1 text-sm font-semibold text-marca">{alias}</p>
+            ) : null}
           </div>
           <ModalCloseBtn onClick={onClose} label={t("qr.cerrar")} />
         </div>

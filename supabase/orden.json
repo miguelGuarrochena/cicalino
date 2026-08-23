@@ -54,5 +54,6 @@
   "security-fixes-17.sql",
   "espera-constraints-validate.sql",
   "sentar-espera-reserva.sql",
-  "pedidos-pagina-jornada.sql"
+  "pedidos-pagina-jornada.sql",
+  "alias-cliente.sql"
 ]

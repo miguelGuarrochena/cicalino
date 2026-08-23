@@ -11,6 +11,7 @@ interface OrdersState {
   seedSiVacio: () => void;
   agregarPedido: (order: OrderView) => void;
   cambiarEstado: (id: string, status: OrderStatus) => void;
+  setAlias: (id: string, alias: string | null) => void;
   setCargando: (cargando: boolean) => void;
 }
 
@@ -49,6 +50,11 @@ export const useOrdersStore = create<OrdersState>()(
           pedidos: s.pedidos.map((p) =>
             p.id === id ? conTimestamp(p, status) : p,
           ),
+        })),
+
+      setAlias: (id, alias) =>
+        set((s) => ({
+          pedidos: s.pedidos.map((p) => (p.id === id ? { ...p, alias } : p)),
         })),
 
       setCargando: (cargando) => set({ cargando }),

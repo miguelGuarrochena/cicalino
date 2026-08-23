@@ -75,6 +75,8 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     }
     /* Cupo por token: 40 / 10s — alcanza para poll adaptativo (~3–8s). */
     expect(pRoute).toMatch(/sharedRateLimit\(`p:\$\{token\}`,\s*40,\s*10_000\)/);
+    expect(pRoute).toContain("alias_cliente");
+    expect(pRoute).toContain("alias:");
     expect(eRoute).toMatch(/sharedRateLimit\(`e:\$\{token\}`,\s*40,\s*10_000\)/);
   });
 
@@ -151,10 +153,17 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     for (const src of [waiting, espera]) {
       expect(src).toContain("mantenerPestana");
       expect(src).toContain("canOfferWebPush");
+      expect(src).toContain("attachLeaveGuard");
+      expect(src).toContain("siCerras");
     }
+    expect(waiting).toContain("CustomerAliasForm");
     expect(translate("es", "cliente.mantenerPestana").length).toBeGreaterThan(20);
     expect(translate("es", "clienteMesa.mantenerPestana").length).toBeGreaterThan(
       20,
+    );
+    expect(translate("es", "cliente.siCerras", { n: "42" })).toContain("42");
+    expect(translate("es", "clienteMesa.siCerras", { n: "García" })).toContain(
+      "García",
     );
   });
 

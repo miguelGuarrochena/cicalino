@@ -15,6 +15,7 @@ import {
 
 export interface CustomerOrder {
   reference: string;
+  alias: string | null;
   status: OrderStatus;
   branchName: string;
   modo: IdentificationMode;
@@ -177,6 +178,12 @@ export const useCustomerOrder = (
             branchName: data.branchName ?? prev?.branchName ?? "",
             modo: (data.modo ?? prev?.modo ?? "pedido") as IdentificationMode,
             reference: data.reference,
+            alias:
+              typeof data.alias === "string"
+                ? data.alias
+                : data.alias === null
+                  ? null
+                  : (prev?.alias ?? null),
             status: estado,
             notifiedAt: data.notifiedAt ?? null,
           }));
@@ -255,6 +262,7 @@ export const useCustomerOrder = (
     order: o
       ? {
           reference: o.reference,
+          alias: o.alias ?? null,
           status: o.status,
           branchName: cfg.name,
           modo: cfg.modo,

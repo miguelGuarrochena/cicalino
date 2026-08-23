@@ -553,6 +553,7 @@ const PanelOrdersPage = () => {
       {qrOrder && !(qrAutoClose && qrVisto) && (
         <QrModal
           reference={qrOrder.reference}
+          alias={qrOrder.alias}
           token={qrOrder.qrToken}
           etiqueta={t(`modo.${mode}`)}
           onClose={() => setQrOrder(null)}

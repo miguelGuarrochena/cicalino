@@ -6,6 +6,7 @@ import { ThemedImg } from "@/components/ui/ThemedImg";
 import { Logo } from "@/components/ui/Logo";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { LandingHeader } from "@/components/landing/LandingHeader";
+import { LastVisitBanner } from "@/components/customer/LastVisitBanner";
 import { PricingTeaser } from "@/components/landing/PricingTeaser";
 import { CustomerWalkthrough } from "@/components/landing/CustomerWalkthrough";
 import { FaqContent } from "@/components/faq/FaqContent";
@@ -56,6 +57,7 @@ const Home = () => {
 
   return (
     <div className="flex min-h-dvh flex-col bg-crema">
+      <LastVisitBanner />
       <LandingHeader onFaqClick={irAlFaq} />
 
       <main className="flex flex-1 flex-col">

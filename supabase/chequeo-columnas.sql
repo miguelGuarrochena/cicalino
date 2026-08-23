@@ -31,7 +31,8 @@ with esperado (tabla, columna, migracion) as (
     ('locales',        'reserva_cierra_min',   'reservas-horario-local.sql'),
     ('locales',        'dias_cerrados',        'reservas-horario-local.sql'),
     ('empleados',      'usuario_id',          'empleados-acceso.sql'),
-    ('pagos',          'detalle',             'pagos-detalle.sql')
+    ('pagos',          'detalle',             'pagos-detalle.sql'),
+    ('pedidos',        'alias_cliente',       'alias-cliente.sql')
 ),
 tablas (nombre, migracion) as (
   values

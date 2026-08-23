@@ -149,6 +149,7 @@ export const useOrders = (
           pickedUpAt: null,
           cancelledAt: null,
           qrToken: crypto.randomUUID(),
+          alias: null,
           employee: employee?.name ?? null,
         };
         demoAdd(o);

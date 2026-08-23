@@ -186,8 +186,8 @@ const dict = {
       vacioFiltroSub: "Probá otro filtro o borrá la búsqueda.",
       retirados: "Retirados hoy · {n}",
       filtroTodos: "Todos",
-      buscarPedido: "Buscar por N° de pedido…",
-      buscarMesa: "Buscar por mesa…",
+      buscarPedido: "Buscar por N° o nombre…",
+      buscarMesa: "Buscar por mesa o nombre…",
       buscarNombre: "Buscar por nombre…",
       pedirMesa: "¿Qué mesa es?",
       pedirNombre: "¿Nombre del cliente?",
@@ -358,10 +358,18 @@ const dict = {
       pushRateLimited:
         "No se pudo activar ahora. Esperá un momento y tocá de nuevo.",
       espera: "Actualiza solo",
+      noCerrarTitulo: "No cierres esta pestaña",
       noCerrar:
-        "No cierres esta pestaña. Para enterarte cuando el pedido esté listo, tenela abierta en primer plano. Si vas a otra app, volvé acá: se actualiza sola.",
+        "Para enterarte cuando el pedido esté listo, tenela abierta. Si vas a otra app, volvé acá: se actualiza sola.",
       noCerrarPush:
         "Notificaciones activadas: podés cambiar de app y te avisamos cuando esté listo.",
+      siCerras: "Si la cerrás, en el mostrador pedí el pedido {n}.",
+      siCerrasAlias: "Si la cerrás, en el mostrador pedí el {n} o {alias}.",
+      aliasPh: "Tu nombre (opcional)",
+      aliasHint: "Así te encuentran si volvés al mostrador.",
+      aliasGuardar: "Listo",
+      aliasCambiar: "Cambiar",
+      aliasError: "No se pudo guardar. Probá de nuevo.",
       mantenerPestana:
         "En este teléfono no usamos notificaciones. Dejá esta pestaña abierta en primer plano para ver cuándo está listo el pedido. Si vas a otra app y volvés, se actualiza sola.",
       noEncontradoTitulo: "Pedido no encontrado",
@@ -395,10 +403,12 @@ const dict = {
       pushRateLimited:
         "No se pudo activar ahora. Esperá un momento y tocá de nuevo.",
       espera: "Actualiza solo",
+      noCerrarTitulo: "No cierres esta pestaña",
       noCerrar:
-        "No cierres esta pestaña. Para enterarte cuando tu mesa esté lista, tenela abierta en primer plano. Si vas a otra app, volvé acá: se actualiza sola.",
+        "Para enterarte cuando tu mesa esté lista, tenela abierta. Si vas a otra app, volvé acá: se actualiza sola.",
       noCerrarPush:
         "Notificaciones activadas: podés cambiar de app y te avisamos cuando tu mesa esté lista.",
+      siCerras: "Si la cerrás, en recepción pedí por {n}.",
       mantenerPestana:
         "En este teléfono no usamos notificaciones. Dejá esta pestaña abierta en primer plano para ver cuándo está lista tu mesa. Si vas a otra app y volvés, se actualiza sola.",
       noEncontradoTitulo: "Link vencido",
@@ -418,6 +428,12 @@ const dict = {
       colaPersona: "persona",
       colaPersonas: "personas",
       colaTotal: "En cola: {g} {gLabel} · {p} {pLabel}",
+    },
+    seguimiento: {
+      pedido: "Seguí tu pedido {n}",
+      mesa: "Seguí tu espera · {n}",
+      sub: "Lo abriste en este teléfono.",
+      cerrar: "Ahora no",
     },
     modo: { pedido: "Pedido", nombre: "Cliente", mesa: "Mesa" },
     toast: {
@@ -781,8 +797,8 @@ const dict = {
       vacioFiltroSub: "Try another filter or clear the search.",
       retirados: "Picked up today · {n}",
       filtroTodos: "All",
-      buscarPedido: "Search by order #…",
-      buscarMesa: "Search by table…",
+      buscarPedido: "Search by # or name…",
+      buscarMesa: "Search by table or name…",
       buscarNombre: "Search by name…",
       pedirMesa: "Which table?",
       pedirNombre: "Customer's name?",
@@ -952,10 +968,18 @@ const dict = {
       pushRateLimited:
         "Couldn't enable just now. Wait a moment and try again.",
       espera: "Updates on its own",
+      noCerrarTitulo: "Don't close this tab",
       noCerrar:
-        "Don't close this tab. Keep it in the foreground to see when your order is ready. If you switch apps, come back here — it updates on its own.",
+        "Keep it open to see when your order is ready. If you switch apps, come back here — it updates on its own.",
       noCerrarPush:
         "Notifications activated: you can switch apps and we'll ping you when it's ready.",
+      siCerras: "If you close it, ask at the counter for order {n}.",
+      siCerrasAlias: "If you close it, ask at the counter for {n} or {alias}.",
+      aliasPh: "Your name (optional)",
+      aliasHint: "So they can find you if you come back to the counter.",
+      aliasGuardar: "Save",
+      aliasCambiar: "Change",
+      aliasError: "Couldn't save. Try again.",
       mantenerPestana:
         "This phone doesn't use notifications. Keep this tab open in the foreground to see when your order is ready. If you switch apps and come back, it updates on its own.",
       noEncontradoTitulo: "Order not found",
@@ -989,10 +1013,12 @@ const dict = {
       pushRateLimited:
         "Couldn't enable just now. Wait a moment and try again.",
       espera: "Updates on its own",
+      noCerrarTitulo: "Don't close this tab",
       noCerrar:
-        "Don't close this tab. Keep it in the foreground to see when your table is ready. If you switch apps, come back here — it updates on its own.",
+        "Keep it open to see when your table is ready. If you switch apps, come back here — it updates on its own.",
       noCerrarPush:
         "Notifications activated: you can switch apps and we'll ping you when your table is ready.",
+      siCerras: "If you close it, ask at the host stand for {n}.",
       mantenerPestana:
         "This phone doesn't use notifications. Keep this tab open in the foreground to see when your table is ready. If you switch apps and come back, it updates on its own.",
       noEncontradoTitulo: "Link expired",
@@ -1012,6 +1038,12 @@ const dict = {
       colaPersona: "person",
       colaPersonas: "people",
       colaTotal: "In line: {g} {gLabel} · {p} {pLabel}",
+    },
+    seguimiento: {
+      pedido: "Continue order {n}",
+      mesa: "Continue your wait · {n}",
+      sub: "You opened this on this phone.",
+      cerrar: "Not now",
     },
     modo: { pedido: "Order", nombre: "Customer", mesa: "Table" },
     toast: {
