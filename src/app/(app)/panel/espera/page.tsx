@@ -11,6 +11,7 @@ import { HelpLink } from "@/components/panel/HelpLink";
 import { useApp } from "@/components/providers/Providers";
 import { useWaitlist } from "@/lib/hooks/useWaitlist";
 import { fetchEsperaSeenAt } from "@/lib/data/waitlist";
+import { seenAtNewer } from "@/lib/qrSeen";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
@@ -122,9 +123,10 @@ const EsperaPanelPage = () => {
   } = useWaitlist(branchId);
 
   const [qr, setQr] = useState<WaitlistView | null>(null);
-  /* `visto_en` al abrir el modal. Cierra al escanear de nuevo, no solo
-   * en el alta. */
+  /* Alta: primed, cierra al primer visto. Ver QR: primero lee el servidor. */
   const [qrOpenedSeenAt, setQrOpenedSeenAt] = useState<string | null>(null);
+  const qrOpenedSeenAtRef = useRef<string | null>(null);
+  const qrPrimedRef = useRef(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [reservaOpen, setReservaOpen] = useState(false);
   const [name, setNombre] = useState("");
@@ -187,15 +189,23 @@ const EsperaPanelPage = () => {
 
   useEffect(() => {
     if (!qr) return;
-    if (liveSeenAt && liveSeenAt !== qrOpenedSeenAt) {
+    if (qrPrimedRef.current && seenAtNewer(liveSeenAt, qrOpenedSeenAtRef.current)) {
       setQr(null);
       return;
     }
     let vivo = true;
+    const consider = (seenAt: string | null) => {
+      if (!vivo || !seenAt) return;
+      if (!qrPrimedRef.current) {
+        qrPrimedRef.current = true;
+        qrOpenedSeenAtRef.current = seenAt;
+        setQrOpenedSeenAt(seenAt);
+        return;
+      }
+      if (seenAtNewer(seenAt, qrOpenedSeenAtRef.current)) setQr(null);
+    };
     const check = () => {
-      void fetchEsperaSeenAt(qr.id).then((seenAt) => {
-        if (vivo && seenAt && seenAt !== qrOpenedSeenAt) setQr(null);
-      });
+      void fetchEsperaSeenAt(qr.id).then(consider);
     };
     check();
     const iv = window.setInterval(check, 1_200);
@@ -510,6 +520,8 @@ const EsperaPanelPage = () => {
     try {
       const created = await crearEspera(name, partySize, employeeRef);
       if (created) {
+        qrPrimedRef.current = true;
+        qrOpenedSeenAtRef.current = created.seenAt ?? null;
         setQrOpenedSeenAt(created.seenAt ?? null);
         setQr(created);
         setCreateOpen(false);
@@ -1001,6 +1013,8 @@ const EsperaPanelPage = () => {
                     <button
                       type="button"
                       onClick={() => {
+                        qrPrimedRef.current = false;
+                        qrOpenedSeenAtRef.current = e.seenAt ?? null;
                         setQrOpenedSeenAt(e.seenAt ?? null);
                         setQr(e);
                       }}
@@ -1215,7 +1229,7 @@ const EsperaPanelPage = () => {
         </Link>
       </p>
 
-      {qr && !(liveSeenAt && liveSeenAt !== qrOpenedSeenAt) && (
+      {qr && (
         <QrModal
           reference={qr.name}
           token={qr.qrToken}

@@ -8,10 +8,12 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { useApp } from "@/components/providers/Providers";
 import { useCustomerWaitlist } from "@/lib/hooks/useCustomerWaitlist";
 import { attachLeaveGuard } from "@/lib/hooks/customerPollWake";
+import { useCustomerTabLock } from "@/lib/customerTabLock";
 import {
   saveLastVisit,
   clearLastVisitIfToken,
 } from "@/lib/customerLastVisit";
+import { CustomerOtherTab } from "@/components/customer/CustomerOtherTab";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
@@ -59,6 +61,7 @@ const senalMesa = (opts?: {
 export const CustomerEsperaWaiting = ({ token }: Props) => {
   const { t, locale } = useApp();
   const { ready, found, espera } = useCustomerWaitlist(token);
+  const duplicate = useCustomerTabLock(`e:${token}`);
   const demoCancelar = useWaitlistStore((s) => s.cambiarEstado);
   const pushDisponible = useSyncExternalStore(
     subscribeNoop,
@@ -129,11 +132,12 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   }, [espera, cerrado, token, ready]);
 
   useEffect(() => {
-    if (!waiting) return;
+    if (!waiting || duplicate) return;
     return attachLeaveGuard();
-  }, [waiting]);
+  }, [waiting, duplicate]);
 
   useEffect(() => {
+    if (duplicate) return;
     if (!espera) return;
     if (espera.status !== "avisado" && espera.status !== "sentado") return;
     /* Igual que pedidos: avisado_en puede cambiar en el notify sin
@@ -157,7 +161,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
       token,
       body: t("clienteMesa.notifListo", { n: espera.name }),
     });
-  }, [espera, pushActivo, token, t]);
+  }, [espera, pushActivo, token, t, duplicate]);
 
   const activarAvisos = async () => {
     if (!canOfferWebPush() || pushCargando) return;
@@ -220,6 +224,15 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
           {t("clienteMesa.noEncontradoSub")}
         </p>
       </main>
+    );
+  }
+
+  if (duplicate && waiting) {
+    return (
+      <CustomerOtherTab
+        title={t("clienteMesa.otraPestanaTitulo")}
+        body={t("clienteMesa.otraPestanaSub")}
+      />
     );
   }
 

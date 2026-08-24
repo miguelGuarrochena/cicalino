@@ -59,12 +59,29 @@ export const createCustomerPollAbort = (
 export const tabVisible = (): boolean =>
   typeof document !== "undefined" && document.visibilityState === "visible";
 
-/** El poll periódico no marca visita; al volver a la pestaña (reescaneo) sí.
- * El gap evita un UPDATE por cada focus/pageshow seguido. */
+/** El poll periódico no marca visita. Solo carga real o volver de otra app
+ * (cámara → Safari: reescaneo en el mismo teléfono). */
 export const VISIT_POLL_GAP_MS = 2_500;
 
 export const customerPollUrl = (path: string, visit: boolean): string =>
   visit ? `${path}?visit=1` : path;
+
+/**
+ * Visita = el cliente *entró* de nuevo: pageshow (carga / bfcache) o la
+ * pestaña pasó a visible (volvió de la cámara). No usa focus/online: si no,
+ * Ver QR en el mostrador se cierra mientras el cliente sigue mirando.
+ */
+export const attachCustomerVisit = (onVisit: () => void): (() => void) => {
+  const fire = () => {
+    if (tabVisible()) onVisit();
+  };
+  window.addEventListener("pageshow", fire);
+  document.addEventListener("visibilitychange", fire);
+  return () => {
+    window.removeEventListener("pageshow", fire);
+    document.removeEventListener("visibilitychange", fire);
+  };
+};
 
 /**
  * Adjunta wake handlers (visibility/focus/online/pageshow + mensaje del SW)

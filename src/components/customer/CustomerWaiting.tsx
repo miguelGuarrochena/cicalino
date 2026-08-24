@@ -10,11 +10,13 @@ import {
   type InitialCustomerOrder,
 } from "@/lib/hooks/useCustomerOrder";
 import { attachLeaveGuard } from "@/lib/hooks/customerPollWake";
+import { useCustomerTabLock } from "@/lib/customerTabLock";
 import {
   saveLastVisit,
   clearLastVisitIfToken,
 } from "@/lib/customerLastVisit";
 import { CustomerAliasForm } from "@/components/customer/CustomerAliasForm";
+import { CustomerOtherTab } from "@/components/customer/CustomerOtherTab";
 import {
   showReadyNotice,
   requestNotificationPermission,
@@ -64,6 +66,7 @@ const senalPedido = (opts?: {
 export const CustomerWaiting = ({ token, initial }: Props) => {
   const { t } = useApp();
   const { ready: hydrated, order } = useCustomerOrder(token, initial);
+  const duplicate = useCustomerTabLock(`p:${token}`);
   const pushDisponible = useSyncExternalStore(
     subscribeNoop,
     canOfferWebPush,
@@ -140,11 +143,12 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   }, [order]);
 
   useEffect(() => {
-    if (!waiting) return;
+    if (!waiting || duplicate) return;
     return attachLeaveGuard();
-  }, [waiting]);
+  }, [waiting, duplicate]);
 
   useEffect(() => {
+    if (duplicate) return;
     if (!order) return;
     if (order.status !== "listo" && order.status !== "retirado") return;
     /* Estado, no avisado_en: el panel escribe avisado_en al marcar listo y
@@ -173,7 +177,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
           ? t("cliente.notifRetirado", { n: order.reference })
           : t("cliente.notifListo", { n: order.reference }),
     });
-  }, [order, pushActivo, t, token]);
+  }, [order, pushActivo, t, token, duplicate]);
 
   const activarAvisos = async () => {
     if (!canOfferWebPush() || pushCargando) return;
@@ -218,6 +222,15 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
           {t("cliente.noEncontradoSub")}
         </p>
       </main>
+    );
+  }
+
+  if (duplicate && waiting) {
+    return (
+      <CustomerOtherTab
+        title={t("cliente.otraPestanaTitulo")}
+        body={t("cliente.otraPestanaSub")}
+      />
     );
   }
 

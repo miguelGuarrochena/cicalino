@@ -7,6 +7,7 @@ import { orderByToken, useOrdersStore } from "@/lib/store/orders-store";
 import type { IdentificationMode } from "@/lib/store/config-store";
 import type { OrderStatus } from "@/lib/types";
 import {
+  attachCustomerVisit,
   attachCustomerWake,
   createCustomerPollAbort,
   customerPollUrl,
@@ -231,6 +232,12 @@ export const useCustomerOrder = (
     const onWake = () => {
       if (!tabVisible()) return;
       limpiarTimer();
+      void load();
+    };
+
+    const onVisit = () => {
+      if (!tabVisible()) return;
+      limpiarTimer();
       void load({ visit: true });
     };
 
@@ -252,6 +259,7 @@ export const useCustomerOrder = (
 
     document.addEventListener("visibilitychange", onHide);
     const detachWake = attachCustomerWake(onWake);
+    const detachVisit = attachCustomerVisit(onVisit);
 
     return () => {
       active = false;
@@ -260,6 +268,7 @@ export const useCustomerOrder = (
       limpiarTimer();
       document.removeEventListener("visibilitychange", onHide);
       detachWake();
+      detachVisit();
     };
   }, [live, token]);
 

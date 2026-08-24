@@ -375,6 +375,9 @@ const dict = {
       noEncontradoTitulo: "Pedido no encontrado",
       noEncontradoSub:
         "Este QR ya no es válido o expiró. Pedí uno nuevo en el mostrador.",
+      otraPestanaTitulo: "Este pedido quedó en otra pestaña",
+      otraPestanaSub:
+        "Quedate con la que se abrió al escanear y cerrá esta.",
       notifListo: "Pedido {n} listo para retirar.",
       notifRetirado: "Pedido {n} retirado. Ya podés cerrar esta pestaña.",
     },
@@ -414,6 +417,9 @@ const dict = {
       noEncontradoTitulo: "Link vencido",
       noEncontradoSub:
         "Este QR ya no es válido o expiró. Pedí uno nuevo en la recepción.",
+      otraPestanaTitulo: "Esta espera quedó en otra pestaña",
+      otraPestanaSub:
+        "Quedate con la que se abrió al escanear y cerrá esta.",
       notifListo: "¡{n}, tu mesa está lista!",
       cancelarBtn: "Cancelar espera",
       confirmarCancelTitulo: "¿Cancelar la espera?",
@@ -985,6 +991,9 @@ const dict = {
       noEncontradoTitulo: "Order not found",
       noEncontradoSub:
         "This QR is no longer valid or expired. Ask for a new one at the counter.",
+      otraPestanaTitulo: "This order is open in another tab",
+      otraPestanaSub:
+        "Keep the one that opened when you scanned, and close this one.",
       notifListo: "Order {n} is ready for pickup.",
       notifRetirado: "Order {n} picked up. You can close this tab now.",
     },
@@ -1024,6 +1033,9 @@ const dict = {
       noEncontradoTitulo: "Link expired",
       noEncontradoSub:
         "This QR is no longer valid or expired. Ask for a new one at the host stand.",
+      otraPestanaTitulo: "This wait is open in another tab",
+      otraPestanaSub:
+        "Keep the one that opened when you scanned, and close this one.",
       notifListo: "{n}, your table is ready!",
       cancelarBtn: "Cancel wait",
       confirmarCancelTitulo: "Cancel your wait?",

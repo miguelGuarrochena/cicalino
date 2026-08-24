@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { fetchOrderSeenAt } from "@/lib/data/orders";
+import { seenAtNewer } from "@/lib/qrSeen";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
@@ -113,9 +114,12 @@ const PanelOrdersPage = () => {
   }, [branchConfigReady, visibles, router]);
 
   const [qrOrder, setQrOrder] = useState<OrderView | null>(null);
-  /* `visto_en` al abrir el modal. Cerramos cuando el cliente carga `/p`
-   * de nuevo y el timestamp cambia — alta nueva o reescaneo de “Ver QR”. */
+  /* `visto_en` al abrir. En el alta ya está “primed” (cierra al primer visto).
+   * En Ver QR hay que leer el servidor primero: si el cliente sigue en la
+   * pestaña, el timestamp ya avanzó y no hay que cerrar. */
   const [qrOpenedSeenAt, setQrOpenedSeenAt] = useState<string | null>(null);
+  const qrOpenedSeenAtRef = useRef<string | null>(null);
+  const qrPrimedRef = useRef(true);
   const [createOpen, setCrearOpen] = useState(false);
   const [refDraft, setRefDraft] = useState("");
   const [creating, setCreando] = useState(false);
@@ -147,15 +151,26 @@ const PanelOrdersPage = () => {
 
   useEffect(() => {
     if (!qrOrder) return;
-    if (liveSeenAt && liveSeenAt !== qrOpenedSeenAt) {
+    if (
+      qrPrimedRef.current &&
+      seenAtNewer(liveSeenAt, qrOpenedSeenAtRef.current)
+    ) {
       setQrOrder(null);
       return;
     }
     let vivo = true;
+    const consider = (seenAt: string | null) => {
+      if (!vivo || !seenAt) return;
+      if (!qrPrimedRef.current) {
+        qrPrimedRef.current = true;
+        qrOpenedSeenAtRef.current = seenAt;
+        setQrOpenedSeenAt(seenAt);
+        return;
+      }
+      if (seenAtNewer(seenAt, qrOpenedSeenAtRef.current)) setQrOrder(null);
+    };
     const check = () => {
-      void fetchOrderSeenAt(qrOrder.id).then((seenAt) => {
-        if (vivo && seenAt && seenAt !== qrOpenedSeenAt) setQrOrder(null);
-      });
+      void fetchOrderSeenAt(qrOrder.id).then(consider);
     };
     check();
     const iv = window.setInterval(check, 1_200);
@@ -216,6 +231,8 @@ const PanelOrdersPage = () => {
       toast("No se pudo crear el pedido", "error");
       return false;
     }
+    qrPrimedRef.current = true;
+    qrOpenedSeenAtRef.current = created.seenAt ?? null;
     setQrOpenedSeenAt(created.seenAt ?? null);
     setQrOrder(created);
     setFiltro("todos");
@@ -456,6 +473,8 @@ const PanelOrdersPage = () => {
                 index={i}
                 onCambiarEstado={changeStatusUX}
                 onMostrarQr={(order) => {
+                  qrPrimedRef.current = false;
+                  qrOpenedSeenAtRef.current = order.seenAt ?? null;
                   setQrOpenedSeenAt(order.seenAt ?? null);
                   setQrOrder(order);
                 }}
@@ -555,7 +574,7 @@ const PanelOrdersPage = () => {
         </ModalShell>
       )}
 
-      {qrLive && !(liveSeenAt && liveSeenAt !== qrOpenedSeenAt) && (
+      {qrLive && (
         <QrModal
           reference={qrLive.reference}
           alias={qrLive.alias}

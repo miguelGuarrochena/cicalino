@@ -6,6 +6,7 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import type { WaitlistStatus } from "@/lib/types";
 import {
+  attachCustomerVisit,
   attachCustomerWake,
   createCustomerPollAbort,
   customerPollUrl,
@@ -302,6 +303,12 @@ export const useCustomerWaitlist = (token: string): Result => {
     const onWake = () => {
       if (!tabVisible()) return;
       limpiarTimer();
+      void load();
+    };
+
+    const onVisit = () => {
+      if (!tabVisible()) return;
+      limpiarTimer();
       void load({ visit: true });
     };
 
@@ -311,6 +318,7 @@ export const useCustomerWaitlist = (token: string): Result => {
 
     document.addEventListener("visibilitychange", onHide);
     const detachWake = attachCustomerWake(onWake);
+    const detachVisit = attachCustomerVisit(onVisit);
     void load();
 
     return () => {
@@ -320,6 +328,7 @@ export const useCustomerWaitlist = (token: string): Result => {
       limpiarTimer();
       document.removeEventListener("visibilitychange", onHide);
       detachWake();
+      detachVisit();
     };
   }, [live, token]);
 

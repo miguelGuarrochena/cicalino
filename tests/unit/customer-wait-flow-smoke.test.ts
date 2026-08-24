@@ -58,6 +58,7 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     expect(wake).toContain("cicalino-refresh");
     expect(wake).toContain("createCustomerPollAbort");
     expect(wake).toContain("AbortSignal.timeout");
+    expect(wake).toContain("attachCustomerVisit");
     for (const src of [orderHook, waitHook]) {
       expect(src).toContain("createCustomerPollAbort");
       expect(src).toContain("signal: pollAbort.signal");
@@ -157,6 +158,10 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
       expect(src).toContain("siCerras");
     }
     expect(waiting).toContain("CustomerAliasForm");
+    expect(waiting).toContain("CustomerOtherTab");
+    expect(waiting).toContain("useCustomerTabLock");
+    expect(espera).toContain("CustomerOtherTab");
+    expect(espera).toContain("useCustomerTabLock");
     expect(waiting).not.toContain("otroPedido");
     expect(espera).not.toContain("otraEspera");
     expect(translate("es", "cliente.mantenerPestana").length).toBeGreaterThan(20);
@@ -216,16 +221,20 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     expect(esperaPanel).toContain("fetchEsperaSeenAt");
     expect(esperaPanel).toMatch(/setInterval\(check,\s*1_200\)/);
     expect(panel).toContain("qrOpenedSeenAt");
-    expect(panel).toMatch(/seenAt !== qrOpenedSeenAt/);
+    expect(panel).toContain("seenAtNewer");
+    expect(panel).toContain("qrPrimedRef");
     expect(esperaPanel).toContain("qrOpenedSeenAt");
-    expect(esperaPanel).toMatch(/seenAt !== qrOpenedSeenAt/);
+    expect(esperaPanel).toContain("seenAtNewer");
+    expect(esperaPanel).toContain("qrPrimedRef");
     expect(panel).not.toContain("qrAutoClose");
     expect(esperaPanel).not.toContain("qrAutoClose");
-    /* Poll periódico no reescribe visto_en; la visita SSR o al volver sí. */
+    /* Poll periódico no reescribe visto_en; carga SSR o volver de otra app sí. */
     expect(customerOrder).toContain('mode: "first" | "visit"');
     expect(customerEspera).toContain('mode: "first" | "visit"');
     expect(pPage).toContain('markCustomerOrderSeen(res.id, "visit")');
     expect(ePage).toContain('markCustomerEsperaSeen(res.id, "visit")');
+    expect(orderHook).toContain("attachCustomerVisit");
+    expect(waitHook).toContain("attachCustomerVisit");
     expect(orderHook).toContain("load({ visit: true })");
     expect(waitHook).toContain("load({ visit: true })");
     expect(pRoute).toContain('searchParams.get("visit")');
