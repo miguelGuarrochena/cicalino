@@ -1,30 +1,13 @@
 -- ===========================================================================
--- Cicalino — Nombre opcional que el cliente pone en su pantalla de pedido
+-- Cicalino — Buscar por alias solo pedidos abiertos
 -- Correr en: Supabase Dashboard → SQL Editor / pnpm db:sql. Idempotente.
--- Requiere: pedidos-pagina-jornada.sql
--- Orden: al final de orden.json
+-- Requiere: alias-cliente.sql
 --
--- El número (o mesa) sigue siendo la referencia. alias_cliente es un apodo
--- extra para que el mostrador busque "Miguel" si la persona cerró la pestaña.
--- No aplica a espera de mesa: ahí el nombre ya lo carga el local.
+-- Un segundo pedido del mismo cliente es un alta nueva, no reabrir el QR
+-- de la mañana. El alias ("Miguel") solo matchea creado/en_preparacion/listo.
+-- Por N° de pedido se sigue encontrando lo retirado.
 -- ===========================================================================
 
-alter table public.pedidos
-  add column if not exists alias_cliente text;
-
-alter table public.pedidos
-  drop constraint if exists pedidos_alias_cliente_len,
-  add constraint pedidos_alias_cliente_len
-    check (
-      alias_cliente is null
-      or char_length(alias_cliente) between 2 and 24
-    );
-
-comment on column public.pedidos.alias_cliente is
-  'Apodo opcional que el cliente carga en /p/{token}. El mostrador lo busca.';
-
--- Misma jornada que pedidos-pagina-jornada.sql, más alias en el JSON y
--- en el buscador.
 create or replace function public.pedidos_pagina(
   p_local    uuid,
   p_desde    timestamptz,
@@ -49,8 +32,6 @@ begin
     raise exception 'No autorizado';
   end if;
 
-  /* p_desde se ignora a propósito: la jornada sale de hora_corte.
-   * Se mantiene en la firma para no romper el cliente PostgREST. */
   select coalesce(l.hora_corte, 6)
     into v_corte
     from public.locales l
@@ -99,8 +80,6 @@ begin
        and (
              v_busqueda = ''
           or position(lower(v_busqueda) in lower(referencia)) > 0
-          /* El alias solo recupera el pedido que sigue abierto. Si ya se
-           * retiró, el mostrador crea uno nuevo: no reabre el de la mañana. */
           or (
                position(lower(v_busqueda) in lower(coalesce(alias_cliente, ''))) > 0
                and estado in ('creado', 'en_preparacion', 'listo')

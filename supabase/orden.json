@@ -55,5 +55,6 @@
   "espera-constraints-validate.sql",
   "sentar-espera-reserva.sql",
   "pedidos-pagina-jornada.sql",
-  "alias-cliente.sql"
+  "alias-cliente.sql",
+  "alias-busca-activos.sql"
 ]

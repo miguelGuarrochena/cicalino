@@ -99,3 +99,34 @@ export const clearLastVisitIfToken = (token: string): void => {
   const actual = readLastVisit();
   if (actual?.token === token) clearLastVisit();
 };
+
+/** El seguimiento guardado solo vale mientras ese pedido/espera sigue abierto.
+ * Si ya lo retiraron o es un QR nuevo, no hay que reabrir el viejo. */
+export const lastVisitStillOpen = (
+  kind: LastVisit["kind"],
+  status: string | undefined,
+): boolean => {
+  if (!status) return false;
+  if (kind === "p") {
+    return (
+      status === "creado" ||
+      status === "en_preparacion" ||
+      status === "listo"
+    );
+  }
+  return status === "esperando" || status === "avisado";
+};
+
+export const shouldShowLastVisit = (args: {
+  kind: LastVisit["kind"];
+  ok: boolean;
+  reason?: string;
+  status?: string;
+}): boolean => {
+  /* Demo local / rate limit: no sabemos; no borramos el atajo. */
+  if (args.reason === "not-configured" || args.reason === "rate-limited") {
+    return true;
+  }
+  if (!args.ok) return false;
+  return lastVisitStillOpen(args.kind, args.status);
+};

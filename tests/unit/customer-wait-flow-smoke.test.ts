@@ -157,6 +157,8 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
       expect(src).toContain("siCerras");
     }
     expect(waiting).toContain("CustomerAliasForm");
+    expect(waiting).not.toContain("otroPedido");
+    expect(espera).not.toContain("otraEspera");
     expect(translate("es", "cliente.mantenerPestana").length).toBeGreaterThan(20);
     expect(translate("es", "clienteMesa.mantenerPestana").length).toBeGreaterThan(
       20,

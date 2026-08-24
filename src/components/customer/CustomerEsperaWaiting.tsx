@@ -11,7 +11,6 @@ import { attachLeaveGuard } from "@/lib/hooks/customerPollWake";
 import {
   saveLastVisit,
   clearLastVisitIfToken,
-  readLastVisit,
 } from "@/lib/customerLastVisit";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
@@ -72,10 +71,6 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const [flash, setFlash] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelando, setCancelando] = useState(false);
-  const [otraEspera, setOtraEspera] = useState<{
-    href: string;
-    label: string;
-  } | null>(null);
   const ultimoAviso = useRef<string | null>(null);
   const vioEsperando = useRef(false);
 
@@ -132,16 +127,6 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
       label: espera.name,
     });
   }, [espera, cerrado, token, ready]);
-
-  useEffect(() => {
-    if (espera) return;
-    const v = readLastVisit();
-    if (!v || v.token === token) return;
-    setOtraEspera({
-      href: v.kind === "p" ? `/p/${v.token}` : `/e/${v.token}`,
-      label: v.alias ? `${v.label} · ${v.alias}` : v.label,
-    });
-  }, [espera, token]);
 
   useEffect(() => {
     if (!waiting) return;
@@ -234,16 +219,6 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
         <p className="mt-2 max-w-sm text-carbon/60">
           {t("clienteMesa.noEncontradoSub")}
         </p>
-        {otraEspera && (
-          <a
-            href={otraEspera.href}
-            className="mt-6 rounded-full bg-espera px-5 py-3 text-sm font-semibold text-crema"
-          >
-            {otraEspera.href.startsWith("/e/")
-              ? t("seguimiento.mesa", { n: otraEspera.label })
-              : t("seguimiento.pedido", { n: otraEspera.label })}
-          </a>
-        )}
       </main>
     );
   }

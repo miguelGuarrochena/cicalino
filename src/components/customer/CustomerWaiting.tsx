@@ -13,7 +13,6 @@ import { attachLeaveGuard } from "@/lib/hooks/customerPollWake";
 import {
   saveLastVisit,
   clearLastVisitIfToken,
-  readLastVisit,
 } from "@/lib/customerLastVisit";
 import { CustomerAliasForm } from "@/components/customer/CustomerAliasForm";
 import {
@@ -77,10 +76,6 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   const [aliasLocal, setAliasLocal] = useState<string | null | undefined>(
     undefined,
   );
-  const [otroPedido, setOtroPedido] = useState<{
-    href: string;
-    label: string;
-  } | null>(null);
   const ultimoAviso = useRef<string | null>(null);
   const vioEsperando = useRef(false);
 
@@ -136,16 +131,6 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
       alias,
     });
   }, [order, esRetirado, esCancelado, token, alias, hydrated]);
-
-  useEffect(() => {
-    if (order) return;
-    const v = readLastVisit();
-    if (!v || v.token === token) return;
-    setOtroPedido({
-      href: v.kind === "p" ? `/p/${v.token}` : `/e/${v.token}`,
-      label: v.alias ? `${v.label} · ${v.alias}` : v.label,
-    });
-  }, [order, token]);
 
   useEffect(() => {
     if (!order) return;
@@ -232,16 +217,6 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
         <p className="mt-2 max-w-sm text-carbon/60">
           {t("cliente.noEncontradoSub")}
         </p>
-        {otroPedido && (
-          <a
-            href={otroPedido.href}
-            className="mt-6 rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema"
-          >
-            {otroPedido.href.startsWith("/e/")
-              ? t("seguimiento.mesa", { n: otroPedido.label })
-              : t("seguimiento.pedido", { n: otroPedido.label })}
-          </a>
-        )}
       </main>
     );
   }

@@ -6,10 +6,32 @@ import { useApp } from "@/components/providers/Providers";
 import {
   clearLastVisit,
   readLastVisit,
+  shouldShowLastVisit,
   type LastVisit,
 } from "@/lib/customerLastVisit";
 
 const HIDE_KEY = "cicalino-ocultar-seguimiento";
+
+const leerEstado = async (
+  visit: LastVisit,
+): Promise<{ ok: boolean; reason?: string; status?: string }> => {
+  const path = visit.kind === "p" ? `/api/p/${visit.token}` : `/api/e/${visit.token}`;
+  try {
+    const res = await fetch(path, { cache: "no-store" });
+    const data = (await res.json().catch(() => null)) as {
+      ok?: boolean;
+      reason?: string;
+      status?: string;
+    } | null;
+    return {
+      ok: Boolean(data?.ok),
+      reason: data?.reason,
+      status: data?.status,
+    };
+  } catch {
+    return { ok: false, reason: "not-configured" };
+  }
+};
 
 export const LastVisitBanner = () => {
   const { t } = useApp();
@@ -24,8 +46,30 @@ export const LastVisitBanner = () => {
     const actual = readLastVisit();
     if (!actual) return;
     const path = window.location.pathname;
-    if (path === `/p/${actual.token}` || path === `/e/${actual.token}`) return;
-    setVisit(actual);
+    /* Un QR nuevo es otro pedido: no reabrir el anterior desde /p o /e. */
+    if (path.startsWith("/p/") || path.startsWith("/e/")) return;
+
+    let alive = true;
+    void (async () => {
+      const estado = await leerEstado(actual);
+      if (!alive) return;
+      if (
+        !shouldShowLastVisit({
+          kind: actual.kind,
+          ok: estado.ok,
+          reason: estado.reason,
+          status: estado.status,
+        })
+      ) {
+        clearLastVisit();
+        return;
+      }
+      setVisit(actual);
+    })();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   if (!visit) return null;

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   LAST_VISIT_MAX_MS,
   parseLastVisit,
+  lastVisitStillOpen,
+  shouldShowLastVisit,
 } from "@/lib/customerLastVisit";
 import { customerAliasSchema } from "@/lib/schemas";
 import { readFileSync } from "node:fs";
@@ -78,9 +80,58 @@ describe("alias-cliente.sql", () => {
     expect(sql).toContain("pedidos_alias_cliente_len");
     expect(sql).toContain("lower(coalesce(alias_cliente, ''))");
     expect(sql).toContain("'alias_cliente', p.alias_cliente");
+    expect(sql).toContain("estado in ('creado', 'en_preparacion', 'listo')");
   });
 
-  it("está al final de orden.json", () => {
-    expect(orden.at(-1)).toBe("alias-cliente.sql");
+  it("está en orden.json", () => {
+    expect(orden).toContain("alias-cliente.sql");
+    expect(orden.at(-1)).toBe("alias-busca-activos.sql");
+  });
+});
+
+describe("lastVisitStillOpen", () => {
+  it("un pedido retirado no se reabre: hay que crear otro", () => {
+    expect(lastVisitStillOpen("p", "creado")).toBe(true);
+    expect(lastVisitStillOpen("p", "listo")).toBe(true);
+    expect(lastVisitStillOpen("p", "retirado")).toBe(false);
+    expect(lastVisitStillOpen("p", "cancelado")).toBe(false);
+  });
+
+  it("una espera sentada no se reabre", () => {
+    expect(lastVisitStillOpen("e", "esperando")).toBe(true);
+    expect(lastVisitStillOpen("e", "avisado")).toBe(true);
+    expect(lastVisitStillOpen("e", "sentado")).toBe(false);
+  });
+
+  it("shouldShowLastVisit no resucita un QR muerto", () => {
+    expect(
+      shouldShowLastVisit({ kind: "p", ok: false, reason: "not-found" }),
+    ).toBe(false);
+    expect(
+      shouldShowLastVisit({ kind: "p", ok: true, status: "retirado" }),
+    ).toBe(false);
+    expect(
+      shouldShowLastVisit({ kind: "p", ok: true, status: "creado" }),
+    ).toBe(true);
+    expect(
+      shouldShowLastVisit({
+        kind: "p",
+        ok: false,
+        reason: "not-configured",
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("alias-busca-activos.sql", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "supabase/alias-busca-activos.sql"),
+    "utf8",
+  );
+
+  it("el alias no matchea pedidos ya retirados", () => {
+    expect(sql).toMatch(
+      /alias_cliente[\s\S]*estado in \('creado', 'en_preparacion', 'listo'\)/,
+    );
   });
 });
