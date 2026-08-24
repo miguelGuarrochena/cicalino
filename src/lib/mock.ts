@@ -9,6 +9,7 @@ export const ordersDemo = (): OrderView[] => {
     {
       id: "1",
       reference: "42",
+      alias: "Miguel",
       status: "creado",
       createdAt: iso(1 * min),
       preparingAt: null,

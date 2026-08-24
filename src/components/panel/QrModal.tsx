@@ -100,12 +100,19 @@ export const QrModal = ({
             <p className="text-xs uppercase tracking-widest text-carbon/40">
               {etiqueta}
             </p>
-            <p id="qr-modal-title" className="font-display text-3xl leading-none text-carbon">
-              {reference}
+            <p
+              id="qr-modal-title"
+              className="flex min-w-0 items-baseline gap-x-2.5"
+            >
+              <span className="font-display text-3xl leading-none text-carbon">
+                {reference}
+              </span>
+              {alias ? (
+                <span className="truncate font-display text-xl leading-none text-marca">
+                  {alias}
+                </span>
+              ) : null}
             </p>
-            {alias ? (
-              <p className="mt-1 text-sm font-semibold text-marca">{alias}</p>
-            ) : null}
           </div>
           <ModalCloseBtn onClick={onClose} label={t("qr.cerrar")} />
         </div>

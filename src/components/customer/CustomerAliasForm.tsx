@@ -69,9 +69,10 @@ export const CustomerAliasForm = ({ token, alias, onSaved }: Props) => {
 
   if (!editing && alias) {
     return (
-      <p className="mt-3 text-sm text-carbon/55">
-        <span className="font-semibold text-carbon">{alias}</span>
-        {" · "}
+      <div className="mt-4 text-center">
+        <p className="font-display text-3xl leading-tight text-marca sm:text-4xl">
+          {alias}
+        </p>
         <button
           type="button"
           onClick={() => {
@@ -79,11 +80,11 @@ export const CustomerAliasForm = ({ token, alias, onSaved }: Props) => {
             setValue(alias);
             setError(null);
           }}
-          className="font-semibold text-marca underline-offset-2 hover:underline"
+          className="mt-1.5 text-sm font-semibold text-carbon/45 underline-offset-2 hover:text-marca hover:underline"
         >
           {t("cliente.aliasCambiar")}
         </button>
-      </p>
+      </div>
     );
   }
 
