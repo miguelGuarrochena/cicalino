@@ -86,16 +86,16 @@ export const OrderCard = ({
           <p className="text-[11px] font-semibold uppercase tracking-wide text-carbon/40">
             {t(`modo.${mode}`)}
           </p>
-          <p className="flex min-w-0 items-baseline gap-x-2.5">
+          <div className="grid min-h-8 min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
             <span className="font-display text-3xl leading-none text-carbon">
               {order.reference}
             </span>
             {order.alias ? (
-              <span className="truncate font-display text-xl leading-none text-marca">
+              <span className="truncate font-display text-lg leading-none text-marca">
                 {order.alias}
               </span>
             ) : null}
-          </p>
+          </div>
         </div>
         <span
           className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${PILL[order.status]}`}
