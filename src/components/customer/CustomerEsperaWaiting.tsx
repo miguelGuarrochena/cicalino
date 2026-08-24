@@ -365,7 +365,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
         {waiting && espera.cola && (
           <div className="u-in mt-6 w-full rounded-2xl border border-espera/25 bg-espera/10 px-4 py-3 text-sm text-espera sm:max-w-sm">
             <p className="font-semibold">
-              {espera.cola.gruposDelante === 0
+              {espera.cola.gruposDelante <= 0
                 ? t("clienteMesa.colaPrimero")
                 : t("clienteMesa.colaDelante", {
                     g: String(espera.cola.gruposDelante),
@@ -373,26 +373,9 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
                       espera.cola.gruposDelante === 1
                         ? t("clienteMesa.colaGrupo")
                         : t("clienteMesa.colaGrupos"),
-                    p: String(espera.cola.personasDelante),
-                    pLabel:
-                      espera.cola.personasDelante === 1
-                        ? t("clienteMesa.colaPersona")
-                        : t("clienteMesa.colaPersonas"),
+                    be:
+                      espera.cola.gruposDelante === 1 ? "is" : "are",
                   })}
-            </p>
-            <p className="mt-1 text-xs opacity-80">
-              {t("clienteMesa.colaTotal", {
-                g: String(espera.cola.gruposEnCola),
-                gLabel:
-                  espera.cola.gruposEnCola === 1
-                    ? t("clienteMesa.colaGrupo")
-                    : t("clienteMesa.colaGrupos"),
-                p: String(espera.cola.personasEnCola),
-                pLabel:
-                  espera.cola.personasEnCola === 1
-                    ? t("clienteMesa.colaPersona")
-                    : t("clienteMesa.colaPersonas"),
-              })}
             </p>
           </div>
         )}

@@ -174,6 +174,27 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     );
   });
 
+  it("cola de espera: el primero es el próximo; el resto ve quién hay antes", () => {
+    expect(espera).toContain("colaPrimero");
+    expect(espera).toContain("colaDelante");
+    expect(espera).not.toContain("colaTotal");
+    expect(translate("es", "clienteMesa.colaPrimero")).toMatch(/próximo/i);
+    expect(
+      translate("es", "clienteMesa.colaDelante", {
+        g: "1",
+        gLabel: "grupo",
+        be: "is",
+      }),
+    ).toContain("antes");
+    expect(
+      translate("es", "clienteMesa.colaDelante", {
+        g: "2",
+        gLabel: "grupos",
+        be: "are",
+      }),
+    ).toContain("2");
+  });
+
   it("al pasar a listo/avisado hay señal local si no hay push activo", () => {
     expect(waiting).toContain("senalPedido");
     expect(waiting).toContain("notifLocal: !pushActivo");
