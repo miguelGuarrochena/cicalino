@@ -22,8 +22,8 @@ const CustomerEsperaPage = async ({
 
   if (qrTokenSchema.safeParse(token).success) {
     const res = await fetchCustomerEsperaSeen(token);
-    if (res.ok && !res.seen) {
-      after(() => markCustomerEsperaSeen(res.id));
+    if (res.ok) {
+      after(() => markCustomerEsperaSeen(res.id, "visit"));
     }
   }
 

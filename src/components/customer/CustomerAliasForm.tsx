@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { customerAliasSchema } from "@/lib/schemas";
@@ -18,6 +18,11 @@ export const CustomerAliasForm = ({ token, alias, onSaved }: Props) => {
   const [value, setValue] = useState(alias ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (editing) return;
+    setValue(alias ?? "");
+  }, [alias, editing]);
 
   const guardar = async () => {
     if (busy) return;

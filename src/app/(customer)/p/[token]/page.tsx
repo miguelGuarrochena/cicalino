@@ -44,10 +44,9 @@ const CustomerPage = async ({
   let initial: InitialCustomerOrder;
   if (res.ok) {
     initial = { kind: "ok", order: res.order };
-    if (!res.seen) {
-      // Fuera del camino crítico: el cliente no espera este UPDATE.
-      after(() => markCustomerOrderSeen(res.id));
-    }
+    // Fuera del camino crítico: el cliente no espera este UPDATE.
+    // `visit`: también al reescanear, para que el mostrador cierre el QR.
+    after(() => markCustomerOrderSeen(res.id, "visit"));
   } else if (res.reason === "not-configured") {
     // Sin Supabase (demo local): que resuelva el cliente contra su store.
     initial = { kind: "unknown" };

@@ -200,23 +200,38 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     expect(orderHook).toMatch(/listo:\s*2_000/);
   });
 
-  it("panel cierra el QR al detectar visto_en (poll de respaldo)", () => {
+  it("panel cierra el QR cuando visto_en cambia (reescaneo incluido)", () => {
     const panel = read("src/app/(app)/panel/page.tsx");
     const esperaPanel = read("src/app/(app)/panel/espera/page.tsx");
     const ordersData = read("src/lib/data/orders.ts");
     const waitData = read("src/lib/data/waitlist.ts");
-    expect(ordersData).toContain("fetchOrderSeen");
-    expect(waitData).toContain("fetchEsperaSeen");
-    expect(panel).toContain("fetchOrderSeen");
+    const customerOrder = read("src/lib/data/customer-order.ts");
+    const customerEspera = read("src/lib/data/customer-espera.ts");
+    const pPage = read("src/app/(customer)/p/[token]/page.tsx");
+    const ePage = read("src/app/(customer)/e/[token]/page.tsx");
+    expect(ordersData).toContain("fetchOrderSeenAt");
+    expect(waitData).toContain("fetchEsperaSeenAt");
+    expect(panel).toContain("fetchOrderSeenAt");
     expect(panel).toMatch(/setInterval\(check,\s*1_200\)/);
-    expect(esperaPanel).toContain("fetchEsperaSeen");
+    expect(esperaPanel).toContain("fetchEsperaSeenAt");
     expect(esperaPanel).toMatch(/setInterval\(check,\s*1_200\)/);
-    /* Auto-cierre solo en alta nueva; "Ver QR" fuerza mostrar. */
-    expect(panel).toContain("qrAutoClose");
-    expect(panel).toMatch(/!\(qrAutoClose && qrVisto\)/);
-    expect(panel).toContain("setQrAutoClose(false)");
-    expect(esperaPanel).toContain("qrAutoClose");
-    expect(esperaPanel).toMatch(/!\(qrAutoClose && qrVisto\)/);
+    expect(panel).toContain("qrOpenedSeenAt");
+    expect(panel).toMatch(/seenAt !== qrOpenedSeenAt/);
+    expect(esperaPanel).toContain("qrOpenedSeenAt");
+    expect(esperaPanel).toMatch(/seenAt !== qrOpenedSeenAt/);
+    expect(panel).not.toContain("qrAutoClose");
+    expect(esperaPanel).not.toContain("qrAutoClose");
+    /* Poll periódico no reescribe visto_en; la visita SSR o al volver sí. */
+    expect(customerOrder).toContain('mode: "first" | "visit"');
+    expect(customerEspera).toContain('mode: "first" | "visit"');
+    expect(pPage).toContain('markCustomerOrderSeen(res.id, "visit")');
+    expect(ePage).toContain('markCustomerEsperaSeen(res.id, "visit")');
+    expect(orderHook).toContain("load({ visit: true })");
+    expect(waitHook).toContain("load({ visit: true })");
+    expect(pRoute).toContain('searchParams.get("visit")');
+    expect(eRoute).toContain('searchParams.get("visit")');
+    /* Alias del QR abierto sale de la lista viva, no del snapshot. */
+    expect(panel).toContain("qrLive.alias");
   });
 
   it("cliente vibra y suena al pasar a listo", () => {

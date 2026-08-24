@@ -189,14 +189,17 @@ export const insertOrder = async (args: {
   });
 };
 
-/* ¿El cliente ya abrió el QR de este pedido?
+/* ¿El cliente abrió el QR de este pedido, y cuándo?
  *
- * El panel cierra el modal cuando aparece `visto_en`. Realtime a veces llega
- * tarde o el pedido no está en la página visible (paginación), así que con el
- * QR abierto consultamos esto en un intervalo corto. */
-export const fetchOrderSeen = async (id: string): Promise<boolean> => {
+ * El panel cierra el modal cuando `visto_en` cambia respecto de cuando se
+ * abrió el QR (alta nueva o “Ver QR”). Realtime a veces llega tarde o el
+ * pedido no está en la página visible, así que con el modal abierto lo
+ * consultamos en un intervalo corto. */
+export const fetchOrderSeenAt = async (
+  id: string,
+): Promise<string | null> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return false;
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from("pedidos")
     .select("visto_en")
@@ -204,10 +207,13 @@ export const fetchOrderSeen = async (id: string): Promise<boolean> => {
     .maybeSingle();
   if (error) {
     reportError("panel.pedidos.visto", error, { orderId: id });
-    return false;
+    return null;
   }
-  return Boolean((data as { visto_en: string | null } | null)?.visto_en);
+  return (data as { visto_en: string | null } | null)?.visto_en ?? null;
 };
+
+export const fetchOrderSeen = async (id: string): Promise<boolean> =>
+  Boolean(await fetchOrderSeenAt(id));
 
 export const updateOrderStatus = async (
   id: string,

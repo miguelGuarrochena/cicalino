@@ -108,17 +108,28 @@ export const fetchCustomerOrderStatus = async (
   };
 };
 
-/* Marca que el cliente abrió el QR. Solo escribe la primera vez: sin esta
- * guarda, cada poll haría un UPDATE y el panel recibiría un evento de realtime
- * por segundo y por pedido. */
-export const markCustomerOrderSeen = async (id: string): Promise<void> => {
+/* Marca que el cliente abrió el QR.
+ *
+ *  - `first`: solo si todavía no había visto_en. Lo usa el poll: si escribiera
+ *    en cada GET, una pestaña en segundo plano cerraría el modal de “Ver QR”
+ *    sin que nadie escanee de nuevo.
+ *  - `visit`: cada carga real de `/p/{token}` (el cliente escaneó o recargó).
+ *    Así el mostrador puede cerrar el QR también al recuperarlo. */
+export const markCustomerOrderSeen = async (
+  id: string,
+  mode: "first" | "visit" = "first",
+): Promise<void> => {
   const supabase = createAdminSupabase();
   if (!supabase) return;
-  await supabase
+  const q = supabase
     .from("pedidos")
     .update({ visto_en: new Date().toISOString() })
-    .eq("id", id)
-    .is("visto_en", null);
+    .eq("id", id);
+  if (mode === "first") {
+    await q.is("visto_en", null);
+    return;
+  }
+  await q;
 };
 
 export const updateCustomerOrderAlias = async (

@@ -10,7 +10,7 @@ import { Pagination, slicePage } from "@/components/ui/Pagination";
 import { HelpLink } from "@/components/panel/HelpLink";
 import { useApp } from "@/components/providers/Providers";
 import { useWaitlist } from "@/lib/hooks/useWaitlist";
-import { fetchEsperaSeen } from "@/lib/data/waitlist";
+import { fetchEsperaSeenAt } from "@/lib/data/waitlist";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
@@ -122,8 +122,9 @@ const EsperaPanelPage = () => {
   } = useWaitlist(branchId);
 
   const [qr, setQr] = useState<WaitlistView | null>(null);
-  /* true = alta nueva (cerrar al escanear). false = botón QR manual. */
-  const [qrAutoClose, setQrAutoClose] = useState(true);
+  /* `visto_en` al abrir el modal. Cierra al escanear de nuevo, no solo
+   * en el alta. */
+  const [qrOpenedSeenAt, setQrOpenedSeenAt] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [reservaOpen, setReservaOpen] = useState(false);
   const [name, setNombre] = useState("");
@@ -180,19 +181,20 @@ const EsperaPanelPage = () => {
     if (!visibles.espera && !visibles.pedidos) router.replace("/panel");
   }, [branchConfigReady, visibles, router]);
 
-  /* Cerrar el QR al escanear solo en el alta (`qrAutoClose`).
-   * El botón "QR" reabre el código aunque ya lo hayan visto; cerrar el
-   * modal no cancela la espera. */
-  const qrVisto = qr
-    ? Boolean(esperas.find((e) => e.id === qr.id)?.seenAt)
-    : false;
+  const liveSeenAt = qr
+    ? (esperas.find((e) => e.id === qr.id)?.seenAt ?? null)
+    : null;
 
   useEffect(() => {
-    if (!qr || !qrAutoClose || qrVisto) return;
+    if (!qr) return;
+    if (liveSeenAt && liveSeenAt !== qrOpenedSeenAt) {
+      setQr(null);
+      return;
+    }
     let vivo = true;
     const check = () => {
-      void fetchEsperaSeen(qr.id).then((visto) => {
-        if (vivo && visto) setQr(null);
+      void fetchEsperaSeenAt(qr.id).then((seenAt) => {
+        if (vivo && seenAt && seenAt !== qrOpenedSeenAt) setQr(null);
       });
     };
     check();
@@ -201,7 +203,7 @@ const EsperaPanelPage = () => {
       vivo = false;
       window.clearInterval(iv);
     };
-  }, [qr, qrAutoClose, qrVisto]);
+  }, [qr, qrOpenedSeenAt, liveSeenAt]);
 
   const toastAviso = useCallback(
     (r: NotifyResult | null) => {
@@ -508,7 +510,7 @@ const EsperaPanelPage = () => {
     try {
       const created = await crearEspera(name, partySize, employeeRef);
       if (created) {
-        setQrAutoClose(true);
+        setQrOpenedSeenAt(created.seenAt ?? null);
         setQr(created);
         setCreateOpen(false);
         setNombre("");
@@ -999,7 +1001,7 @@ const EsperaPanelPage = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        setQrAutoClose(false);
+                        setQrOpenedSeenAt(e.seenAt ?? null);
                         setQr(e);
                       }}
                       className={`${BTN_MOBILE} flex-1 border border-linea text-carbon/70 hover:bg-crema`}
@@ -1213,7 +1215,7 @@ const EsperaPanelPage = () => {
         </Link>
       </p>
 
-      {qr && !(qrAutoClose && qrVisto) && (
+      {qr && !(liveSeenAt && liveSeenAt !== qrOpenedSeenAt) && (
         <QrModal
           reference={qr.name}
           token={qr.qrToken}

@@ -645,11 +645,12 @@ export const setTableState = async (
   return true;
 };
 
-/* ¿El cliente ya abrió el QR de esta espera? Mismo criterio que pedidos:
- * con el modal abierto el panel lo consulta en un intervalo corto. */
-export const fetchEsperaSeen = async (id: string): Promise<boolean> => {
+/* ¿El cliente abrió el QR de esta espera, y cuándo? Mismo criterio que pedidos. */
+export const fetchEsperaSeenAt = async (
+  id: string,
+): Promise<string | null> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return false;
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from("esperas")
     .select("visto_en")
@@ -657,10 +658,13 @@ export const fetchEsperaSeen = async (id: string): Promise<boolean> => {
     .maybeSingle();
   if (error) {
     reportError("panel.esperas.visto", error, { waitlistId: id });
-    return false;
+    return null;
   }
-  return Boolean((data as { visto_en: string | null } | null)?.visto_en);
+  return (data as { visto_en: string | null } | null)?.visto_en ?? null;
 };
+
+export const fetchEsperaSeen = async (id: string): Promise<boolean> =>
+  Boolean(await fetchEsperaSeenAt(id));
 
 export const subscribeWaitlist = (
   branchId: string,

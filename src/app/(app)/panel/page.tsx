@@ -10,7 +10,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { fetchOrderSeen } from "@/lib/data/orders";
+import { fetchOrderSeenAt } from "@/lib/data/orders";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
@@ -113,9 +113,9 @@ const PanelOrdersPage = () => {
   }, [branchConfigReady, visibles, router]);
 
   const [qrOrder, setQrOrder] = useState<OrderView | null>(null);
-  /* true = cerrar solo cuando el cliente abre el link (alta nueva).
-   * false = "Ver QR" manual: no auto-cerrar aunque ya tenga visto_en. */
-  const [qrAutoClose, setQrAutoClose] = useState(true);
+  /* `visto_en` al abrir el modal. Cerramos cuando el cliente carga `/p`
+   * de nuevo y el timestamp cambia — alta nueva o reescaneo de “Ver QR”. */
+  const [qrOpenedSeenAt, setQrOpenedSeenAt] = useState<string | null>(null);
   const [createOpen, setCrearOpen] = useState(false);
   const [refDraft, setRefDraft] = useState("");
   const [creating, setCreando] = useState(false);
@@ -137,19 +137,24 @@ const PanelOrdersPage = () => {
     setPage(1);
   }
 
-  /* Cerrar el QR al escanear solo en el alta nueva (`qrAutoClose`).
-   * "Ver QR" deja el modal abierto aunque el cliente ya lo haya visto:
-   * el pedido sigue pendiente; cerrar el modal no cancela nada. */
-  const qrVisto = qrOrder
-    ? Boolean(orders.find((o) => o.id === qrOrder.id)?.seenAt)
-    : false;
+  /* Pedido vivo: el alias puede cambiar mientras el QR sigue abierto. */
+  const qrLive = qrOrder
+    ? (orders.find((o) => o.id === qrOrder.id) ?? qrOrder)
+    : null;
+  const liveSeenAt = qrOrder
+    ? (orders.find((o) => o.id === qrOrder.id)?.seenAt ?? null)
+    : null;
 
   useEffect(() => {
-    if (!qrOrder || !qrAutoClose || qrVisto) return;
+    if (!qrOrder) return;
+    if (liveSeenAt && liveSeenAt !== qrOpenedSeenAt) {
+      setQrOrder(null);
+      return;
+    }
     let vivo = true;
     const check = () => {
-      void fetchOrderSeen(qrOrder.id).then((visto) => {
-        if (vivo && visto) setQrOrder(null);
+      void fetchOrderSeenAt(qrOrder.id).then((seenAt) => {
+        if (vivo && seenAt && seenAt !== qrOpenedSeenAt) setQrOrder(null);
       });
     };
     check();
@@ -158,7 +163,7 @@ const PanelOrdersPage = () => {
       vivo = false;
       window.clearInterval(iv);
     };
-  }, [qrOrder, qrAutoClose, qrVisto]);
+  }, [qrOrder, qrOpenedSeenAt, liveSeenAt]);
 
   /* `orders` ya viene filtrado, ordenado y recortado a la página. Los
    * contadores vienen aparte porque son sobre la jornada entera, no sobre lo
@@ -211,8 +216,8 @@ const PanelOrdersPage = () => {
       toast("No se pudo crear el pedido", "error");
       return false;
     }
+    setQrOpenedSeenAt(created.seenAt ?? null);
     setQrOrder(created);
-    setQrAutoClose(true);
     setFiltro("todos");
     setQ("");
     dingNew();
@@ -451,7 +456,7 @@ const PanelOrdersPage = () => {
                 index={i}
                 onCambiarEstado={changeStatusUX}
                 onMostrarQr={(order) => {
-                  setQrAutoClose(false);
+                  setQrOpenedSeenAt(order.seenAt ?? null);
                   setQrOrder(order);
                 }}
                 onReavisar={live ? reavisar : undefined}
@@ -550,15 +555,15 @@ const PanelOrdersPage = () => {
         </ModalShell>
       )}
 
-      {qrOrder && !(qrAutoClose && qrVisto) && (
+      {qrLive && !(liveSeenAt && liveSeenAt !== qrOpenedSeenAt) && (
         <QrModal
-          reference={qrOrder.reference}
-          alias={qrOrder.alias}
-          token={qrOrder.qrToken}
+          reference={qrLive.reference}
+          alias={qrLive.alias}
+          token={qrLive.qrToken}
           etiqueta={t(`modo.${mode}`)}
           onClose={() => setQrOrder(null)}
           onCancelar={() => {
-            void changeStatusUX(qrOrder.id, "cancelado");
+            void changeStatusUX(qrLive.id, "cancelado");
             setQrOrder(null);
           }}
         />

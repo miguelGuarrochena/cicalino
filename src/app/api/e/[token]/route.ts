@@ -3,6 +3,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { sharedRateLimit } from "@/lib/security/rateLimitShared";
 import { clientIp } from "@/lib/security/ip";
 import { qrTokenSchema } from "@/lib/schemas";
+import { markCustomerEsperaSeen } from "@/lib/data/customer-espera";
 
 export const dynamic = "force-dynamic";
 
@@ -46,14 +47,11 @@ export const GET = async (
     return NextResponse.json({ ok: false, reason: "expired" });
   }
 
-  /* Solo la primera vez: sin la guarda, cada poll haría un UPDATE y el panel
-   * recibiría un evento de realtime por segundo y por espera. */
-  if (!data.visto_en) {
-    await supabase
-      .from("esperas")
-      .update({ visto_en: new Date().toISOString() })
-      .eq("id", data.id)
-      .is("visto_en", null);
+  const visit = new URL(req.url).searchParams.get("visit") === "1";
+  if (visit) {
+    await markCustomerEsperaSeen(data.id, "visit");
+  } else if (!data.visto_en) {
+    await markCustomerEsperaSeen(data.id, "first");
   }
 
   const local = Array.isArray(data.locales) ? data.locales[0] : data.locales;

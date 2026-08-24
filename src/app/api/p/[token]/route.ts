@@ -3,6 +3,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { sharedRateLimit } from "@/lib/security/rateLimitShared";
 import { clientIp } from "@/lib/security/ip";
 import { qrTokenSchema } from "@/lib/schemas";
+import { markCustomerOrderSeen } from "@/lib/data/customer-order";
 
 export const dynamic = "force-dynamic";
 
@@ -51,12 +52,14 @@ export const GET = async (
     return NextResponse.json({ ok: false, reason: "expired" });
   }
 
-  if (!data.visto_en) {
-    await supabase
-      .from("pedidos")
-      .update({ visto_en: new Date().toISOString() })
-      .eq("id", data.id)
-      .is("visto_en", null);
+  /* `visit=1`: el cliente volvió a la pestaña (reescaneo). El poll normal
+   * no reescribe visto_en: si lo hiciera, una pestaña en segundo plano
+   * cerraría el QR de “Ver QR” sin que nadie escanee. */
+  const visit = new URL(req.url).searchParams.get("visit") === "1";
+  if (visit) {
+    await markCustomerOrderSeen(data.id, "visit");
+  } else if (!data.visto_en) {
+    await markCustomerOrderSeen(data.id, "first");
   }
 
   const local = Array.isArray(data.locales) ? data.locales[0] : data.locales;

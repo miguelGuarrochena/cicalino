@@ -59,6 +59,13 @@ export const createCustomerPollAbort = (
 export const tabVisible = (): boolean =>
   typeof document !== "undefined" && document.visibilityState === "visible";
 
+/** El poll periódico no marca visita; al volver a la pestaña (reescaneo) sí.
+ * El gap evita un UPDATE por cada focus/pageshow seguido. */
+export const VISIT_POLL_GAP_MS = 2_500;
+
+export const customerPollUrl = (path: string, visit: boolean): string =>
+  visit ? `${path}?visit=1` : path;
+
 /**
  * Adjunta wake handlers (visibility/focus/online/pageshow + mensaje del SW)
  * para retomar el poll cuando el cliente vuelve a la app.

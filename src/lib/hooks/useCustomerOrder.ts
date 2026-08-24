@@ -9,7 +9,9 @@ import type { OrderStatus } from "@/lib/types";
 import {
   attachCustomerWake,
   createCustomerPollAbort,
+  customerPollUrl,
   tabVisible,
+  VISIT_POLL_GAP_MS,
   type CustomerPollAbort,
 } from "@/lib/hooks/customerPollWake";
 
@@ -115,6 +117,8 @@ export const useCustomerOrder = (
     let active = true;
     let inFlight = false;
     let pendingWake = false;
+    let pendingVisit = false;
+    let lastVisitAt = 0;
     let detenido = false;
     let fallos = 0;
     let estado: OrderStatus =
@@ -146,17 +150,23 @@ export const useCustomerOrder = (
       timer = window.setTimeout(() => void load(), delay);
     };
 
-    const load = async () => {
+    const load = async (opts?: { visit?: boolean }) => {
       if (!active || detenido) return;
       if (inFlight) {
         pendingWake = true;
+        if (opts?.visit) pendingVisit = true;
         return;
       }
-      inFlight = true;
+      const wantVisit = Boolean(opts?.visit) || pendingVisit;
+      pendingVisit = false;
       pendingWake = false;
+      inFlight = true;
+      const now = Date.now();
+      const visit = wantVisit && now - lastVisitAt >= VISIT_POLL_GAP_MS;
+      if (visit) lastVisitAt = now;
       pollAbort = createCustomerPollAbort();
       try {
-        const res = await fetch(`/api/p/${token}`, {
+        const res = await fetch(customerPollUrl(`/api/p/${token}`, visit), {
           cache: "no-store",
           signal: pollAbort.signal,
         });
@@ -207,8 +217,10 @@ export const useCustomerOrder = (
         if (active) {
           setReady(true);
           if (pendingWake) {
+            const v = pendingVisit;
             pendingWake = false;
-            void load();
+            pendingVisit = false;
+            void load(v ? { visit: true } : undefined);
           } else {
             programar();
           }
@@ -219,7 +231,7 @@ export const useCustomerOrder = (
     const onWake = () => {
       if (!tabVisible()) return;
       limpiarTimer();
-      void load();
+      void load({ visit: true });
     };
 
     const onHide = () => {

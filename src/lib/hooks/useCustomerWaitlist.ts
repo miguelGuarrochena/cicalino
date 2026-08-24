@@ -8,7 +8,9 @@ import type { WaitlistStatus } from "@/lib/types";
 import {
   attachCustomerWake,
   createCustomerPollAbort,
+  customerPollUrl,
   tabVisible,
+  VISIT_POLL_GAP_MS,
   type CustomerPollAbort,
 } from "@/lib/hooks/customerPollWake";
 
@@ -204,6 +206,8 @@ export const useCustomerWaitlist = (token: string): Result => {
     let active = true;
     let inFlight = false;
     let pendingWake = false;
+    let pendingVisit = false;
+    let lastVisitAt = 0;
     let detenido = false;
     let fallos = 0;
     let estado: WaitlistStatus = "esperando";
@@ -233,17 +237,23 @@ export const useCustomerWaitlist = (token: string): Result => {
       timer = window.setTimeout(() => void load(), delay);
     };
 
-    const load = async () => {
+    const load = async (opts?: { visit?: boolean }) => {
       if (!active || detenido) return;
       if (inFlight) {
         pendingWake = true;
+        if (opts?.visit) pendingVisit = true;
         return;
       }
-      inFlight = true;
+      const wantVisit = Boolean(opts?.visit) || pendingVisit;
+      pendingVisit = false;
       pendingWake = false;
+      inFlight = true;
+      const now = Date.now();
+      const visit = wantVisit && now - lastVisitAt >= VISIT_POLL_GAP_MS;
+      if (visit) lastVisitAt = now;
       pollAbort = createCustomerPollAbort();
       try {
-        const res = await fetch(`/api/e/${token}`, {
+        const res = await fetch(customerPollUrl(`/api/e/${token}`, visit), {
           cache: "no-store",
           signal: pollAbort.signal,
         });
@@ -278,8 +288,10 @@ export const useCustomerWaitlist = (token: string): Result => {
         inFlight = false;
         if (active) {
           if (pendingWake) {
+            const v = pendingVisit;
             pendingWake = false;
-            void load();
+            pendingVisit = false;
+            void load(v ? { visit: true } : undefined);
           } else {
             programar();
           }
@@ -290,7 +302,7 @@ export const useCustomerWaitlist = (token: string): Result => {
     const onWake = () => {
       if (!tabVisible()) return;
       limpiarTimer();
-      void load();
+      void load({ visit: true });
     };
 
     const onHide = () => {

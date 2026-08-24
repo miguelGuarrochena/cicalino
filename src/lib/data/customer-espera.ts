@@ -32,14 +32,20 @@ export const fetchCustomerEsperaSeen = async (
   };
 };
 
-/* Primera apertura del QR de espera: mismo criterio que pedidos — una sola
- * escritura para que el panel cierre el modal sin esperar al poll del cliente. */
-export const markCustomerEsperaSeen = async (id: string): Promise<void> => {
+/* Primera apertura o reescaneo: el poll no debe llamar esto en cada GET. */
+export const markCustomerEsperaSeen = async (
+  id: string,
+  mode: "first" | "visit" = "first",
+): Promise<void> => {
   const supabase = createAdminSupabase();
   if (!supabase) return;
-  await supabase
+  const q = supabase
     .from("esperas")
     .update({ visto_en: new Date().toISOString() })
-    .eq("id", id)
-    .is("visto_en", null);
+    .eq("id", id);
+  if (mode === "first") {
+    await q.is("visto_en", null);
+    return;
+  }
+  await q;
 };
