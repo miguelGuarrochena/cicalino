@@ -14,7 +14,7 @@ import { fetchEsperaSeenAt } from "@/lib/data/waitlist";
 import { seenAtNewer } from "@/lib/qrSeen";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
-import { useToast } from "@/components/ui/Toast";
+import { TOAST_AVISO_MS, useToast } from "@/components/ui/Toast";
 import { businessDayStart, TZ_NEGOCIO } from "@/lib/businessDay";
 import {
   WAITLIST_STATUS_LABEL,
@@ -236,6 +236,7 @@ const EsperaPanelPage = () => {
           ? "Marked as notified, but their phone has no alerts on — call them out."
           : "Marcado como avisado, pero el celular no tiene avisos activos: llamalo vos.",
         "info",
+        TOAST_AVISO_MS,
       );
     },
     [locale, toast],

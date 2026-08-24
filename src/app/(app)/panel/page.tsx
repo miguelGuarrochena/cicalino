@@ -30,7 +30,7 @@ import {
 } from "@/lib/store/superadmin-store";
 import { Pagination } from "@/components/ui/Pagination";
 import { useDebounced } from "@/lib/hooks/useDebounced";
-import { useToast } from "@/components/ui/Toast";
+import { TOAST_AVISO_MS, useToast } from "@/components/ui/Toast";
 import { dingNew, notifyReady } from "@/lib/sound";
 import {
   readDeviceMode,
@@ -216,6 +216,7 @@ const PanelOrdersPage = () => {
           ? "Marked as ready, but their phone has no alerts on — call them out."
           : "Marcado como listo, pero el celular no tiene avisos activos: llamalo vos.",
         "info",
+        TOAST_AVISO_MS,
       );
     },
     [locale, toast],

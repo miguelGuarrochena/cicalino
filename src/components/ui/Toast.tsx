@@ -9,7 +9,7 @@ interface ToastItem {
   kind: ToastKind;
 }
 interface ToastCtx {
-  toast: (msg: string, kind?: ToastKind) => void;
+  toast: (msg: string, kind?: ToastKind, ms?: number) => void;
 }
 
 const Ctx = createContext<ToastCtx | null>(null);
@@ -21,15 +21,25 @@ const DOT: Record<ToastKind, string> = {
 };
 
 let seq = 0;
+const TOAST_MS = 3200;
+/* El aviso de “llamalo vos” es más largo: si se va al toque, en el
+ * mostrador no se llega a leer. */
+export const TOAST_AVISO_MS = 5_200;
 
 export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<ToastItem[]>([]);
 
-  const toast = useCallback((msg: string, kind: ToastKind = "info") => {
-    const id = ++seq;
-    setItems((v) => [...v, { id, msg, kind }]);
-    setTimeout(() => setItems((v) => v.filter((t) => t.id !== id)), 3200);
-  }, []);
+  const toast = useCallback(
+    (msg: string, kind: ToastKind = "info", ms: number = TOAST_MS) => {
+      const id = ++seq;
+      setItems((v) => [...v, { id, msg, kind }]);
+      window.setTimeout(
+        () => setItems((v) => v.filter((t) => t.id !== id)),
+        ms,
+      );
+    },
+    [],
+  );
 
   return (
     <Ctx.Provider value={{ toast }}>
