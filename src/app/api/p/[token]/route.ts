@@ -39,7 +39,7 @@ export const GET = async (
   const { data, error } = await supabase
     .from("pedidos")
     .select(
-      "id, referencia, alias_cliente, estado, creado_en, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
+      "id, referencia, alias_cliente, estado, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
     )
     .eq("qr_token", token)
     .single();
@@ -71,7 +71,6 @@ export const GET = async (
     status: data.estado,
     listo: data.estado === "listo" || data.estado === "retirado",
     notifiedAt: data.avisado_en ?? null,
-    createdAt: data.creado_en,
     branchName: local?.nombre ?? "",
     modo: local?.modo_identificacion ?? "pedido",
   });

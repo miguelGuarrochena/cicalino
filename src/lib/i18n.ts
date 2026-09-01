@@ -397,7 +397,6 @@ const dict = {
         "Te avisamos apenas esté listo. Dejá esta pestaña abierta.",
       /* Solo el tiempo que ya pasó. A propósito no dice cuánto falta: eso
          sería una promesa que el local no hizo. */
-      transcurrido: "Llevás {n} min esperando",
       listoTitulo: "¡Tu pedido está listo!",
       listoSub: "Podés pasar a retirarlo.",
       retiradoTitulo: "Pedido retirado",
@@ -1122,7 +1121,6 @@ const dict = {
       pedido: "Order",
       preparandoTitulo: "We're preparing your order",
       preparandoSub: "We'll let you know when it's ready. Keep this tab open.",
-      transcurrido: "You've been waiting {n} min",
       listoTitulo: "Your order is ready!",
       listoSub: "Come on over to pick it up.",
       retiradoTitulo: "Order picked up",
