@@ -36,30 +36,29 @@ export const useCustomerReadyAlert = ({
   const sawWaiting = useRef(false);
   const flashTimer = useRef<number | undefined>(undefined);
   const onAlertRef = useRef(onAlert);
-  onAlertRef.current = onAlert;
   const activeRef = useRef(active);
-  activeRef.current = active;
   const statusRef = useRef(status);
-  statusRef.current = status;
-
-  if (isWaiting) sawWaiting.current = true;
-
   const fireRef = useRef<() => void>(() => {});
-  fireRef.current = () => {
-    lastFiredAt.current = Date.now();
-    pending.current = false;
-    setTick((n) => n + 1);
-    setFlash(true);
-    if (flashTimer.current !== undefined) {
-      window.clearTimeout(flashTimer.current);
-    }
-    flashTimer.current = window.setTimeout(() => setFlash(false), 900);
-    onAlertRef.current();
-  };
 
-  const tooSoon = (): boolean =>
-    lastFiredAt.current != null &&
-    Date.now() - lastFiredAt.current < CUSTOMER_REAVISO_MIN_MS;
+  /* Mutar refs en el render rompe concurrent rendering (react-hooks/refs).
+   * El sync corre antes que los effects que disparan, en el mismo commit. */
+  useEffect(() => {
+    onAlertRef.current = onAlert;
+    activeRef.current = active;
+    statusRef.current = status;
+    if (isWaiting) sawWaiting.current = true;
+    fireRef.current = () => {
+      lastFiredAt.current = Date.now();
+      pending.current = false;
+      setTick((n) => n + 1);
+      setFlash(true);
+      if (flashTimer.current !== undefined) {
+        window.clearTimeout(flashTimer.current);
+      }
+      flashTimer.current = window.setTimeout(() => setFlash(false), 900);
+      onAlertRef.current();
+    };
+  }, [onAlert, active, status, isWaiting]);
 
   useEffect(() => {
     if (!active || !status) return;
@@ -71,7 +70,13 @@ export const useCustomerReadyAlert = ({
     const isFirst = ultimoAviso.current === null;
     ultimoAviso.current = key;
     if (isFirst && !sawWaiting.current) return;
-    if (!should || tooSoon()) return;
+    if (
+      !should ||
+      (lastFiredAt.current != null &&
+        Date.now() - lastFiredAt.current < CUSTOMER_REAVISO_MIN_MS)
+    ) {
+      return;
+    }
     fireRef.current();
   }, [active, status, notifiedAt]);
 
