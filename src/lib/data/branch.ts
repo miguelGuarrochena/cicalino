@@ -9,8 +9,13 @@ import type {
   BusinessType,
 } from "@/lib/store/config-store";
 
+/* Los nombres son los del store, no los de la tabla: esto es lo que
+ * useBranchConfigSync le pasa tal cual a hydrate(). El campo del nombre venía
+ * como `nombre`, que el store no conoce, así que se guardaba una clave suelta
+ * y `name` quedaba vacío para siempre: Configuración mostraba "—" donde va el
+ * nombre del local. */
 export interface BranchConfig {
-  nombre: string;
+  name: string;
   tipo: BusinessType;
   whatsapp: string;
   direccion: string;
@@ -50,7 +55,7 @@ export const fetchBranchConfig = async (
     .single();
   if (error || !data) return null;
   return {
-    nombre: data.nombre ?? "",
+    name: data.nombre ?? "",
     tipo: (data.tipo_negocio as BusinessType) ?? "otro",
     whatsapp: data.whatsapp ?? "",
     direccion: data.direccion ?? "",

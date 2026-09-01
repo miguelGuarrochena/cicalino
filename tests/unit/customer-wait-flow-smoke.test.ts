@@ -235,20 +235,26 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     const customerEspera = read("src/lib/data/customer-espera.ts");
     const pPage = read("src/app/(customer)/p/[token]/page.tsx");
     const ePage = read("src/app/(customer)/e/[token]/page.tsx");
+    /* El mecanismo era el mismo copiado en las dos pantallas y ahora vive en
+     * useQrSeenClose; cada panel sigue aportando su lector de visto_en. */
+    const qrHook = read("src/lib/hooks/useQrSeenClose.ts");
     expect(ordersData).toContain("fetchOrderSeenAt");
     expect(waitData).toContain("fetchEsperaSeenAt");
     expect(panel).toContain("fetchOrderSeenAt");
-    expect(panel).toMatch(/setInterval\(check,\s*1_200\)/);
     expect(esperaPanel).toContain("fetchEsperaSeenAt");
-    expect(esperaPanel).toMatch(/setInterval\(check,\s*1_200\)/);
-    expect(panel).toContain("qrOpenedSeenAt");
-    expect(panel).toContain("seenAtNewer");
-    expect(panel).toContain("qrPrimedRef");
-    expect(esperaPanel).toContain("qrOpenedSeenAt");
-    expect(esperaPanel).toContain("seenAtNewer");
-    expect(esperaPanel).toContain("qrPrimedRef");
-    expect(panel).not.toContain("qrAutoClose");
-    expect(esperaPanel).not.toContain("qrAutoClose");
+    expect(panel).toContain("useQrSeenClose");
+    expect(esperaPanel).toContain("useQrSeenClose");
+    expect(qrHook).toMatch(/setInterval\(check,\s*1_200\)/);
+    expect(qrHook).toContain("seenAtNewer");
+    /* Las dos formas de abrir siguen distinguiéndose: el alta cierra al primer
+     * visto, "Ver QR" primero fija la referencia contra el servidor. */
+    expect(qrHook).toContain("primedRef");
+    expect(qrHook).toContain("abrirNuevo");
+    expect(qrHook).toContain("abrirVerQr");
+    expect(panel).toContain("qr.abrirNuevo");
+    expect(panel).toContain("qr.abrirVerQr");
+    expect(esperaPanel).toContain("qr.abrirNuevo");
+    expect(esperaPanel).toContain("qr.abrirVerQr");
     /* Poll periódico no reescribe visto_en; carga SSR o volver de otra app sí. */
     expect(customerOrder).toContain('mode: "first" | "visit"');
     expect(customerEspera).toContain('mode: "first" | "visit"');

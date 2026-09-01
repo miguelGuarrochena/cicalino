@@ -389,7 +389,7 @@ const AccessModal = ({
   const dar = async () => {
     if (saving) return;
     if (!isEmail(email)) {
-      setError("Poné un email válido.");
+      setError(t("config.empEmailInvalido"));
       return;
     }
     setSaving(true);
@@ -426,12 +426,12 @@ const AccessModal = ({
             id="emp-acceso-title"
             className="font-display text-2xl uppercase tracking-tight text-carbon"
           >
-            Acceso a la app
+            {t("config.empAccesoTitulo")}
           </h3>
           <p className="mt-1 text-sm text-carbon/55">
             {tieneAcceso
-              ? `${emp.name} entra a esta sucursal con su email.`
-              : `${emp.name} solo ficha con PIN. Si le das acceso, va a poder abrir el panel de esta sucursal desde su celular.`}
+              ? t("config.empAccesoCon", { n: emp.name })
+              : t("config.empAccesoSin", { n: emp.name })}
           </p>
         </div>
         <ModalCloseBtn
@@ -462,7 +462,7 @@ const AccessModal = ({
             disabled={saving}
             className="w-full rounded-full border border-red-300 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-500/10 disabled:opacity-60"
           >
-            {saving ? "…" : "Quitar el acceso"}
+            {saving ? "…" : t("config.empQuitarAcceso")}
           </button>
         </div>
       ) : (
@@ -656,8 +656,8 @@ export const EmployeeList = () => {
                       <button
                         type="button"
                         onClick={() => setAccesoEmp(e)}
-                        aria-label="Acceso a la app"
-                        title="Acceso a la app"
+                        aria-label={t("config.empAccesoTitulo")}
+                        title={t("config.empAccesoTitulo")}
                         className={`flex size-10 shrink-0 items-center justify-center rounded-xl border transition ${
                           e.usuarioId
                             ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"

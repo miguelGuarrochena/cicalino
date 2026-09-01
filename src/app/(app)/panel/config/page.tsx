@@ -20,7 +20,7 @@ import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { HelpLink } from "@/components/panel/HelpLink";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
-import { BUSINESS_TYPE_LABEL } from "@/lib/types";
+import { businessTypeLabel } from "@/lib/types";
 import {
   saveDeviceMode,
   readDeviceMode,
@@ -84,6 +84,48 @@ type FormErrors = {
   reservaHorario?: string;
 };
 
+/* Lo que edita esta pantalla y viaja a la base al tocar Guardar. */
+interface Operacion {
+  modo: IdentificationMode;
+  tableCount: number;
+  cutoffHour: number;
+  reservaAbreMin: number;
+  reservaCierraMin: number;
+  diasCerrados: number[];
+}
+
+/* Borrador: solamente los campos que el usuario tocó en esta pantalla.
+ *
+ * Antes cada tecla escribía directo al store, que está persistido. Como
+ * useWaitlist sincroniza las mesas contra `tableCount` cuando se monta, un
+ * número tipeado y no guardado creaba —o borraba— mesas en la base con solo
+ * navegar a Sala. Acá el store no se toca hasta que la base aceptó el cambio.
+ *
+ * Lo que no está en el borrador sigue al store, así que si la sucursal
+ * termina de hidratarse mientras alguien edita, los campos sin tocar se
+ * actualizan solos y los tocados conservan lo que se escribió. Es el mismo
+ * patrón que ya usaba `dispositivo` más abajo.
+ *
+ * `tableCount: null` es el input vacío mientras se tipea. */
+type Draft = Partial<Omit<Operacion, "tableCount">> & {
+  tableCount?: number | null;
+};
+
+/* El campo vacío se guarda como null en vez de saltar a 1: el store clampeaba
+ * el NaN y el input se corregía solo mientras alguien tipeaba. */
+const parseMesas = (raw: string): number | null => {
+  if (raw.trim() === "") return null;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? Math.max(1, Math.min(500, n)) : null;
+};
+
+const mismosDias = (a: number[], b: number[]): boolean => {
+  if (a.length !== b.length) return false;
+  const x = [...a].sort((m, n) => m - n);
+  const y = [...b].sort((m, n) => m - n);
+  return x.every((v, i) => v === y[i]);
+};
+
 const ConfigPage = () => {
   const { t, locale } = useApp();
   const toast = useToast();
@@ -93,6 +135,30 @@ const ConfigPage = () => {
   const [guardado, setGuardado] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [draft, setDraft] = useState<Draft>({});
+
+  const editar = <K extends keyof Draft>(campo: K, valor: Draft[K]) => {
+    setDraft((d) => ({ ...d, [campo]: valor }));
+  };
+
+  const modo = draft.modo ?? c.modo;
+  const cutoffHour = draft.cutoffHour ?? c.cutoffHour;
+  const reservaAbreMin = draft.reservaAbreMin ?? c.reservaAbreMin;
+  const reservaCierraMin = draft.reservaCierraMin ?? c.reservaCierraMin;
+  const diasCerrados = draft.diasCerrados ?? c.diasCerrados;
+  const tableCount =
+    draft.tableCount === undefined ? c.tableCount : draft.tableCount;
+
+  /* Por valor y no por "hay algo en el borrador": volver un campo a como
+   * estaba tiene que apagar el aviso de cambios sin guardar. */
+  const dirty =
+    modo !== c.modo ||
+    tableCount !== c.tableCount ||
+    cutoffHour !== c.cutoffHour ||
+    reservaAbreMin !== c.reservaAbreMin ||
+    reservaCierraMin !== c.reservaCierraMin ||
+    !mismosDias(diasCerrados, c.diasCerrados);
+
   /* Lo guardado en el dispositivo, más lo que el usuario haya cambiado en esta
    * sesión. Se lee con useSyncExternalStore porque en el servidor no existe. */
   const dispositivoGuardado = useBrowserValue<DeviceMode>(readDeviceMode, "ambos");
@@ -112,16 +178,10 @@ const ConfigPage = () => {
 
   const validar = (): FormErrors => {
     const next: FormErrors = {};
-    if (c.modo === "mesa" && (!c.tableCount || c.tableCount < 1)) {
+    if ((modo === "mesa" || c.moduloEspera) && (!tableCount || tableCount < 1)) {
       next.mesas = t("config.errMesas");
     }
-    if (c.moduloEspera && (!c.tableCount || c.tableCount < 1)) {
-      next.mesas = t("config.errMesas");
-    }
-    if (
-      c.moduloEspera &&
-      c.reservaAbreMin >= c.reservaCierraMin
-    ) {
+    if (c.moduloEspera && reservaAbreMin >= reservaCierraMin) {
       next.reservaHorario = t("config.errReservaHorario");
     }
     return next;
@@ -132,24 +192,37 @@ const ConfigPage = () => {
     const next = validar();
     setErrors(next);
     if (Object.keys(next).length) return;
+
+    const id = branchId;
+    /* validar() ya descartó el input vacío cuando la cantidad importa; si el
+     * módulo no la usa, se guarda lo que había. */
+    const cfg: Operacion = {
+      modo,
+      tableCount: tableCount ?? c.tableCount,
+      cutoffHour,
+      reservaAbreMin,
+      reservaCierraMin,
+      diasCerrados,
+    };
+
     setSaving(true);
     try {
-      if (supabaseConfigured && isRealBranchId(branchId)) {
-        const ok = await saveBranchConfig(branchId, {
-          modo: c.modo,
-          tableCount: c.tableCount,
-          cutoffHour: c.cutoffHour,
-          reservaAbreMin: c.reservaAbreMin,
-          reservaCierraMin: c.reservaCierraMin,
-          diasCerrados: c.diasCerrados,
-        });
+      if (supabaseConfigured && isRealBranchId(id)) {
+        const ok = await saveBranchConfig(id, cfg);
         if (!ok) {
           toast(t("toast.configError"), "error");
           return;
         }
-        if (c.moduloEspera || c.modo === "mesa") {
-          await syncTables(branchId, c.tableCount);
+        /* El store recién se toca con la base conforme: si el guardado falla,
+         * el borrador queda como estaba y las mesas no se mueven. */
+        c.hydrate(cfg);
+        setDraft({});
+        if (c.moduloEspera || cfg.modo === "mesa") {
+          await syncTables(id, cfg.tableCount);
         }
+      } else {
+        c.hydrate(cfg);
+        setDraft({});
       }
       setGuardado(true);
       toast(t("toast.configGuardada"), "success");
@@ -175,18 +248,29 @@ const ConfigPage = () => {
           </h1>
           <HelpLink seccion="config" />
         </div>
-        <button
-          type="button"
-          onClick={() => void guardar()}
-          disabled={saving}
-          className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60 sm:w-auto"
-        >
-          {saving
-            ? "…"
-            : guardado
-              ? `✓ ${t("config.guardado")}`
-              : t("config.guardar")}
-        </button>
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+          {dirty && !saving && (
+            <span
+              role="status"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-amber-400/60 bg-amber-50/80 px-3 py-1.5 text-xs font-semibold text-amber-900 dark:bg-amber-400/10 dark:text-amber-200"
+            >
+              <span className="size-1.5 rounded-full bg-amber-500" />
+              {t("config.sinGuardar")}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => void guardar()}
+            disabled={saving}
+            className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60 sm:w-auto"
+          >
+            {saving
+              ? "…"
+              : guardado
+                ? `✓ ${t("config.guardado")}`
+                : t("config.guardar")}
+          </button>
+        </div>
       </div>
 
       {role === "admin" && (
@@ -195,8 +279,7 @@ const ConfigPage = () => {
             {t("config.seccionLocal")}
           </h2>
           <p className="mb-4 text-sm text-carbon/55">
-            Datos del local (solo el administrador de Cicalino los puede
-            cambiar).
+{t("config.datosLocalSub")}
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
@@ -212,7 +295,7 @@ const ConfigPage = () => {
                 {t("config.tipo")}
               </span>
               <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
-                {BUSINESS_TYPE_LABEL[c.tipo] ?? c.tipo}
+                {businessTypeLabel(c.tipo, locale === "en" ? "en" : "es")}
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -241,11 +324,10 @@ const ConfigPage = () => {
 
       <section className={CARD}>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-          Módulos de esta sucursal
+          {t("config.seccionModulos")}
         </h2>
         <p className="mb-4 mt-1 text-sm text-carbon/55">
-          Lo contratado para este local. Si necesitás sumar o quitar un módulo,
-          pedilo al administrador.
+          {t("config.seccionModulosSub")}
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div
@@ -255,11 +337,11 @@ const ConfigPage = () => {
                 : "border-linea bg-crema/30 opacity-55"
             }`}
           >
-            <span className="font-semibold text-carbon">Pedidos listos</span>
+            <span className="font-semibold text-carbon">{t("config.moduloPedidos")}</span>
             <span className="mt-1 block text-xs text-carbon/55">
               {c.moduloPedidos
-                ? "Incluido en esta sucursal"
-                : "No contratado acá"}
+                ? t("config.moduloIncluido")
+                : t("config.moduloNo")}
             </span>
           </div>
           <div
@@ -269,11 +351,11 @@ const ConfigPage = () => {
                 : "border-linea bg-crema/30 opacity-55"
             }`}
           >
-            <span className="font-semibold text-carbon">Espera de mesa</span>
+            <span className="font-semibold text-carbon">{t("config.moduloEspera")}</span>
             <span className="mt-1 block text-xs text-carbon/55">
               {c.moduloEspera
-                ? "Incluido en esta sucursal"
-                : "No contratado acá"}
+                ? t("config.moduloIncluido")
+                : t("config.moduloNo")}
             </span>
           </div>
         </div>
@@ -285,15 +367,15 @@ const ConfigPage = () => {
                   type="number"
                   min={1}
                   className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
-                  value={c.tableCount}
+                  value={tableCount ?? ""}
                   onChange={(e) => {
-                    c.setCantidadMesas(parseInt(e.target.value, 10));
+                    editar("tableCount", parseMesas(e.target.value));
                     setErrors((er) => ({ ...er, mesas: undefined }));
                   }}
                 />
               </Campo>
               <p className="mt-1.5 text-xs text-carbon/50">
-                Tocá Guardar para aplicar el cambio en el mapa de mesas.
+                {t("config.mesasAplicar")}
               </p>
             </div>
 
@@ -307,9 +389,9 @@ const ConfigPage = () => {
               <div className="mt-3 grid max-w-md grid-cols-2 gap-3">
                 <Campo label={t("config.reservaAbre")}>
                   <Select
-                    value={String(c.reservaAbreMin)}
+                    value={String(reservaAbreMin)}
                     onChange={(v) => {
-                      c.setReservaAbreMin(parseInt(v, 10));
+                      editar("reservaAbreMin", parseInt(v, 10));
                       setErrors((er) => ({
                         ...er,
                         reservaHorario: undefined,
@@ -324,9 +406,9 @@ const ConfigPage = () => {
                   error={errors.reservaHorario}
                 >
                   <Select
-                    value={String(c.reservaCierraMin)}
+                    value={String(reservaCierraMin)}
                     onChange={(v) => {
-                      c.setReservaCierraMin(parseInt(v, 10));
+                      editar("reservaCierraMin", parseInt(v, 10));
                       setErrors((er) => ({
                         ...er,
                         reservaHorario: undefined,
@@ -348,12 +430,19 @@ const ConfigPage = () => {
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {DIAS_SEMANA.map((d) => {
-                  const cerrado = c.diasCerrados.includes(d.id);
+                  const cerrado = diasCerrados.includes(d.id);
                   return (
                     <button
                       key={d.id}
                       type="button"
-                      onClick={() => c.toggleDiaCerrado(d.id)}
+                      onClick={() =>
+                        editar(
+                          "diasCerrados",
+                          cerrado
+                            ? diasCerrados.filter((x) => x !== d.id)
+                            : [...diasCerrados, d.id],
+                        )
+                      }
                       className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
                         cerrado
                           ? "bg-rose-500 text-white"
@@ -387,19 +476,17 @@ const ConfigPage = () => {
       {c.moduloPedidos && c.moduloEspera && (
         <section className={CARD}>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-            Este dispositivo
+            {t("config.seccionDispositivo")}
           </h2>
           <p className="mb-4 mt-1 text-sm text-carbon/55">
-            Ideal si tenés una tablet en recepción y otra en el mostrador. Se
-            guarda solo en este aparato, no limita cuántos dispositivos usan
-            la sucursal.
+            {t("config.seccionDispositivoSub")}
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {(
               [
-                ["ambos", "Ambos módulos"],
-                ["pedidos", "Solo pedidos"],
-                ["espera", "Solo espera"],
+                ["ambos", t("config.dispAmbos")],
+                ["pedidos", t("config.dispPedidos")],
+                ["espera", t("config.dispEspera")],
               ] as const
             ).map(([id, label]) => (
               <button
@@ -433,12 +520,12 @@ const ConfigPage = () => {
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {modes.map((m) => {
-            const active = c.modo === m.id;
+            const active = modo === m.id;
             return (
               <button
                 key={m.id}
                 type="button"
-                onClick={() => c.setModo(m.id)}
+                onClick={() => editar("modo", m.id)}
                 className={`flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 text-left transition hover:opacity-90 ${
                   active
                     ? "border-marca bg-marca/10 ring-2 ring-marca/30"
@@ -453,16 +540,16 @@ const ConfigPage = () => {
             );
           })}
         </div>
-        {c.modo === "mesa" && !c.moduloEspera && (
+        {modo === "mesa" && !c.moduloEspera && (
           <div className="mt-4 max-w-xs">
             <Campo label={t("config.tableCount")} error={errors.mesas}>
               <input
                 type="number"
                 min={1}
                 className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
-                value={c.tableCount}
+                value={tableCount ?? ""}
                 onChange={(e) => {
-                  c.setCantidadMesas(parseInt(e.target.value, 10));
+                  editar("tableCount", parseMesas(e.target.value));
                   setErrors((er) => ({ ...er, mesas: undefined }));
                 }}
               />
@@ -471,17 +558,16 @@ const ConfigPage = () => {
         )}
 
         <div className="mt-4 max-w-xs border-t border-linea pt-4">
-          <Campo label="Corte del día">
+          <Campo label={t("config.corte")}>
             <Select
-              value={String(c.cutoffHour)}
-              onChange={(v) => c.setHoraCorte(parseInt(v, 10))}
+              value={String(cutoffHour)}
+              onChange={(v) => editar("cutoffHour", parseInt(v, 10))}
               options={HORAS_CORTE}
               triggerClassName="px-4 py-3"
             />
           </Campo>
           <p className="mt-1.5 text-xs text-carbon/50">
-            La jornada arranca a esta hora. Los pedidos de después de medianoche
-            cuentan para el mismo día hasta acá. Útil para bares (default 06:00).
+            {t("config.corteSub")}
           </p>
         </div>
       </section>

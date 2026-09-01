@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSessionStore } from "@/lib/store/session-store";
+import { useApp } from "@/components/providers/Providers";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   fetchMySubscription,
@@ -19,30 +20,35 @@ const fecha = (iso: string | null): string => {
   return `${d}/${m}/${y}`;
 };
 
-const ESTADO: Record<SubscriptionStatus, { label: string; clase: string }> = {
+/* La etiqueta es una clave del diccionario, no la frase: esta tarjeta la ve
+ * el dueño y el panel puede estar en inglés. */
+const ESTADO: Record<SubscriptionStatus, { clave: string; clase: string }> = {
   trial: {
-    label: "Prueba gratuita",
+    clave: "suscripcion.estadoTrial",
     clase: "border-marca/40 bg-marca/10 text-marca",
   },
   active: {
-    label: "Activo",
-    clase: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
+    clave: "suscripcion.estadoActivo",
+    clase: "border-ok-borde bg-ok-fondo text-ok",
   },
   pending_payment: {
-    label: "Pendiente de pago",
-    clase: "border-amber-500/50 bg-amber-400/15 text-amber-800",
+    clave: "suscripcion.estadoPendiente",
+    clase: "border-curso-borde bg-curso-fondo text-curso",
   },
   expired: {
-    label: "Vencido",
-    clase: "border-red-500/40 bg-red-500/10 text-red-700",
+    clave: "suscripcion.estadoVencido",
+    clase: "border-alerta-borde bg-alerta-fondo text-alerta",
   },
-  paused: { label: "Pausado", clase: "border-linea bg-carbon/5 text-carbon/60" },
+  paused: {
+    clave: "suscripcion.estadoPausado",
+    clase: "border-linea bg-carbon/5 text-carbon/60",
+  },
 };
 
-const PLAN_LABEL: Record<string, string> = {
-  mensual: "Mensual",
-  anual: "Anual",
-  gratis: "Sin cargo",
+const PLAN_CLAVE: Record<string, string> = {
+  mensual: "suscripcion.planMensual",
+  anual: "suscripcion.planAnual",
+  gratis: "suscripcion.planGratis",
 };
 
 const Dato = ({ label, value }: { label: string; value: string }) => (
@@ -53,6 +59,7 @@ const Dato = ({ label, value }: { label: string; value: string }) => (
 );
 
 export const SubscriptionCard = () => {
+  const { t } = useApp();
   const orgId = useSessionStore((s) => s.organizationId);
   const rol = useSessionStore((s) => s.rol);
   const [sub, setSub] = useState<MySubscription | null>(null);
@@ -93,23 +100,27 @@ export const SubscriptionCard = () => {
     <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg uppercase tracking-tight text-carbon">
-          Suscripción
+          {t("suscripcion.titulo")}
         </h2>
         <span
           className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${estado.clase}`}
         >
-          {estado.label}
+          {t(estado.clave)}
         </span>
       </div>
 
       {enPrueba && sub.pruebaFin && (
         <p className="mb-3 text-sm text-carbon/70">
-          Podés usar todas las funciones hasta el{" "}
+          {t("suscripcion.pruebaHasta")}{" "}
           <b>{fecha(sub.pruebaFin)}</b>
           {faltan != null && faltan >= 0 && (
             <>
               {" "}
-              ({faltan === 0 ? "último día" : `quedan ${faltan} días`})
+              (
+              {faltan === 0
+                ? t("suscripcion.ultimoDia")
+                : t("suscripcion.quedanDias", { n: faltan })}
+              )
             </>
           )}
           .
@@ -118,29 +129,39 @@ export const SubscriptionCard = () => {
 
       {sub.status === "pending_payment" && (
         <p className="mb-3 text-sm text-carbon/70">
-          Nos figura pendiente el pago que vencía el{" "}
-          <b>{fecha(sub.proximaFactura)}</b>. Si ya lo hiciste, avisanos y lo
-          registramos.
+          {t("suscripcion.pendienteVencia")}{" "}
+          <b>{fecha(sub.proximaFactura)}</b>. {t("suscripcion.pendienteSub")}
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Dato label="Plan" value={PLAN_LABEL[sub.plan] ?? sub.plan} />
-        <Dato label="Alta" value={fecha(sub.altaEn)} />
+        <Dato
+          label={t("suscripcion.plan")}
+          value={PLAN_CLAVE[sub.plan] ? t(PLAN_CLAVE[sub.plan]) : sub.plan}
+        />
+        <Dato label={t("suscripcion.alta")} value={fecha(sub.altaEn)} />
         {enPrueba ? (
           <>
-            <Dato label="Fin de prueba" value={fecha(sub.pruebaFin)} />
+            <Dato label={t("suscripcion.finPrueba")} value={fecha(sub.pruebaFin)} />
             <Dato
-              label="Primera factura"
+              label={t("suscripcion.primeraFactura")}
               value={fecha(sub.proximaFactura)}
             />
           </>
         ) : (
           <>
-            <Dato label="Último pago" value={fecha(sub.ultimoPagoEn)} />
+            <Dato label={t("suscripcion.ultimoPago")} value={fecha(sub.ultimoPagoEn)} />
             <Dato
-              label={sub.plan === "gratis" ? "Próximo cobro" : "Próxima factura"}
-              value={sub.plan === "gratis" ? "Sin cargo" : fecha(sub.proximaFactura)}
+              label={t(
+                sub.plan === "gratis"
+                  ? "suscripcion.proximoCobro"
+                  : "suscripcion.proximaFactura",
+              )}
+              value={
+                sub.plan === "gratis"
+                  ? t("suscripcion.sinCargo")
+                  : fecha(sub.proximaFactura)
+              }
             />
           </>
         )}

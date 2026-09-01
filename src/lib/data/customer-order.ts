@@ -24,6 +24,9 @@ export interface CustomerOrderSnapshot {
   branchName: string;
   modo: IdentificationMode;
   notifiedAt: string | null;
+  /* Para mostrarle al cliente cuánto lleva esperando. Es una columna de
+   * `pedidos`, no suma join. */
+  createdAt: string;
 }
 
 export interface CustomerOrderStatus {
@@ -55,7 +58,7 @@ export const fetchCustomerOrderFull = async (
   const { data, error } = await supabase
     .from("pedidos")
     .select(
-      "id, referencia, alias_cliente, estado, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
+      "id, referencia, alias_cliente, estado, creado_en, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
     )
     .eq("qr_token", token)
     .single();
@@ -76,6 +79,7 @@ export const fetchCustomerOrderFull = async (
       branchName: local?.nombre ?? "",
       modo: (local?.modo_identificacion ?? "pedido") as IdentificationMode,
       notifiedAt: data.avisado_en ?? null,
+      createdAt: data.creado_en as string,
     },
   };
 };

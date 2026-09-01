@@ -166,6 +166,14 @@ const EntrarPage = () => {
             {serverError && (
               <p className="text-center text-xs text-red-500">{serverError}</p>
             )}
+            <p className="mt-1 text-center">
+              <Link
+                href="/recuperar"
+                className="text-xs font-medium text-carbon/55 underline-offset-2 transition hover:text-marca hover:underline"
+              >
+                {t("recuperar.link")}
+              </Link>
+            </p>
           </form>
 
           <p className="mt-8 text-center text-xs text-carbon/40">

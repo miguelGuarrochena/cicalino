@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { throttled } from "@/lib/realtime";
+import { attachLiveRefresh, coalesced, throttled } from "@/lib/realtime";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { useConfigStore } from "@/lib/store/config-store";
@@ -20,7 +20,7 @@ import {
   updateWaitlistStatus,
   updateReservationStatus,
   deleteWaitlistEntry,
-  setTableState,
+  releaseTables,
   setTableCapacity,
   expireOverdueReservations,
   subscribeWaitlist,
@@ -121,7 +121,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     [branchId],
   );
 
-  const reload = useCallback(async () => {
+  const recargar = useCallback(async () => {
     if (!live || !branchId) return;
     expire();
     const [e, m, r] = await Promise.all([
@@ -139,6 +139,18 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     setCargado(true);
   }, [live, branchId, expire]);
 
+  /* Las recargas que se pisan se unen en una.
+   *
+   * Cada acción de la sala recargaba dos veces: la de la propia acción y la
+   * que rebota por realtime avisando del cambio que esa acción hizo. Con tres
+   * consultas por recarga eran seis para un solo cambio.
+   *
+   * No se pierde ningún refresco: lo que llega durante una recarga en vuelo
+   * deja marcado que hay que volver a mirar, y se corre una pasada más al
+   * terminar. Importa para el caso multiusuario — si mientras yo recargo otro
+   * mozo sienta un grupo, ese cambio entra en la pasada siguiente. */
+  const reload = useMemo(() => coalesced(recargar), [recargar]);
+
   useEffect(() => {
     if (!live || !branchId) {
       if (!supabaseConfigured) {
@@ -153,28 +165,11 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       await syncTables(branchId, tableCount);
       await reload();
     })();
-    const sub = subscribeWaitlist(branchId, reload);
-    const onWake = () => {
-      if (document.visibilityState === "visible") void reload();
-    };
-    document.addEventListener("visibilitychange", onWake);
-    window.addEventListener("focus", onWake);
-    window.addEventListener("online", onWake);
-
-    let ticks = 0;
-    const iv = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      ticks++;
-      if (ticks % (sub.isHealthy() ? 4 : 1) === 0) void reload();
-    }, 5_000);
-
-    return () => {
-      sub.unsubscribe();
-      document.removeEventListener("visibilitychange", onWake);
-      window.removeEventListener("focus", onWake);
-      window.removeEventListener("online", onWake);
-      window.clearInterval(iv);
-    };
+    return attachLiveRefresh({
+      subscribe: (onChange) => subscribeWaitlist(branchId, onChange),
+      reload: () => void reload(),
+      ticksSano: 4,
+    });
     /* eslint-disable-next-line react-hooks/exhaustive-deps -- `tableCount`
        queda afuera a propósito. Se usa para sincronizar las mesas al entrar a
        la sucursal; agregarlo haría que cambiar la cantidad en Configuración
@@ -331,6 +326,9 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     await reload();
   };
 
+  /* Una sola llamada: la RPC resuelve la unión y la libera en una
+   * transacción. Antes esto era un UPDATE por mesa desde el cliente, y una
+   * caída a mitad de camino dejaba media unión liberada. */
   const liberarMesa = async (
     number: number,
     opts?: { soloEsta?: boolean },
@@ -339,33 +337,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
       demoLiberar(number, opts);
       return;
     }
-    const mesa = liveMesas.find((m) => m.number === number);
-    if (opts?.soloEsta) {
-      await setTableState(branchId, number, "libre");
-      await reload();
-      return;
-    }
-    if (mesa?.waitlistId && mesa.status === "ocupada") {
-      const mismas = liveMesas.filter(
-        (m) => m.waitlistId === mesa.waitlistId && m.status === "ocupada",
-      );
-      for (const m of mismas) {
-        await setTableState(branchId, m.number, "libre");
-      }
-      await reload();
-      return;
-    }
-    if (mesa?.reservationId && mesa.status === "ocupada") {
-      const mismas = liveMesas.filter(
-        (m) => m.reservationId === mesa.reservationId && m.status === "ocupada",
-      );
-      for (const m of mismas) {
-        await setTableState(branchId, m.number, "libre");
-      }
-      await reload();
-      return;
-    }
-    await setTableState(branchId, number, "libre");
+    await releaseTables(branchId, number, { soloEsta: opts?.soloEsta });
     await reload();
   };
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
+import { useActiveEmployee } from "@/lib/hooks/useActiveEmployee";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Pagination, slicePage } from "@/components/ui/Pagination";
@@ -19,8 +20,11 @@ const PAGE_SIZE = 8;
 export const Fichaje = () => {
   const { t } = useApp();
   const employees = useConfigStore((s) => s.employees);
-  const { empleadoActivo: activeEmployee, fichar, salir: leave } =
-    useSessionStore();
+  /* El vigente, no el guardado: un fichaje de ayer ya no cuenta y el botón
+   * tiene que volver a decir "Fichar". */
+  const activeEmployee = useActiveEmployee();
+  const fichar = useSessionStore((s) => s.fichar);
+  const leave = useSessionStore((s) => s.salir);
 
   const [open, setOpen] = useState(false);
   const [pendiente, setPendiente] = useState<string | null>(null);

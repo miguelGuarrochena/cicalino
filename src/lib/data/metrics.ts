@@ -8,11 +8,20 @@ import {
   minutos,
   pico,
   porcentaje,
+  tramos,
   type Bucket,
+  type ChartLocale,
   type Periodo,
+  type Tramo,
 } from "@/lib/metricsChart";
 
-export type { Periodo };
+export type { ChartLocale, Periodo, Tramo };
+
+/* Sucursal sola, o todas las de la organización que el usuario puede ver.
+ * Global lo resuelve Postgres en metricas_pedidos_org: acá no se suma nada. */
+export type MetricsScope =
+  | { alcance: "sucursal"; branchId: string }
+  | { alcance: "global"; organizationId: string };
 
 export interface MetricsData {
   pedidos: string;
@@ -23,6 +32,8 @@ export interface MetricsData {
   avisos: string;
   labels: string[];
   valores: number[];
+  /* Distribución de tiempos. Vacía cuando todavía no hay nada terminado. */
+  tramos: Tramo[];
 }
 
 const VACIO: MetricsData = {
@@ -34,6 +45,7 @@ const VACIO: MetricsData = {
   avisos: "—",
   labels: [],
   valores: [],
+  tramos: [],
 };
 
 /* Lo que devuelve la RPC. La agregación entera la hace Postgres. */
@@ -46,6 +58,7 @@ interface Resumen {
   mesasTotal?: number;
   mesasOcupadas?: number;
   buckets: Bucket[];
+  tramos: Bucket[];
 }
 
 const desde = (period: Periodo): Date => {
@@ -60,8 +73,8 @@ const desde = (period: Periodo): Date => {
 };
 
 const llamar = async (
-  fn: "metricas_pedidos" | "metricas_espera",
-  branchId: string,
+  fn: "metricas_pedidos" | "metricas_pedidos_org" | "metricas_espera",
+  args: Record<string, string>,
   period: Periodo,
 ): Promise<{ resumen: Resumen; inicio: Date } | null> => {
   const supabase = createBrowserSupabase();
@@ -69,7 +82,7 @@ const llamar = async (
   const inicio = desde(period);
 
   const { data, error } = await supabase.rpc(fn, {
-    p_local: branchId,
+    ...args,
     p_desde: inicio.toISOString(),
     p_periodo: period,
     p_tz: TZ_NEGOCIO,
@@ -80,17 +93,32 @@ const llamar = async (
     return null;
   }
   const resumen = data as unknown as Resumen;
-  return { resumen: { ...resumen, buckets: resumen.buckets ?? [] }, inicio };
+  return {
+    resumen: {
+      ...resumen,
+      buckets: resumen.buckets ?? [],
+      tramos: resumen.tramos ?? [],
+    },
+    inicio,
+  };
 };
 
 export const fetchMetrics = async (
-  branchId: string,
+  scope: MetricsScope,
   period: Periodo,
+  locale: ChartLocale = "es",
 ): Promise<MetricsData> => {
-  const res = await llamar("metricas_pedidos", branchId, period);
+  const res =
+    scope.alcance === "global"
+      ? await llamar(
+          "metricas_pedidos_org",
+          { p_organizacion: scope.organizationId },
+          period,
+        )
+      : await llamar("metricas_pedidos", { p_local: scope.branchId }, period);
   if (!res) return VACIO;
   const { resumen, inicio } = res;
-  const { labels, valores } = ejes(resumen.buckets, period, inicio);
+  const { labels, valores } = ejes(resumen.buckets, period, inicio, locale);
 
   return {
     pedidos: resumen.total.toLocaleString("es-AR"),
@@ -101,17 +129,19 @@ export const fetchMetrics = async (
     avisos: porcentaje(resumen.avisados, resumen.total),
     labels,
     valores,
+    tramos: tramos(resumen.tramos),
   };
 };
 
 export const fetchWaitlistMetrics = async (
   branchId: string,
   period: Periodo,
+  locale: ChartLocale = "es",
 ): Promise<MetricsData> => {
-  const res = await llamar("metricas_espera", branchId, period);
+  const res = await llamar("metricas_espera", { p_local: branchId }, period);
   if (!res) return VACIO;
   const { resumen, inicio } = res;
-  const { labels, valores } = ejes(resumen.buckets, period, inicio);
+  const { labels, valores } = ejes(resumen.buckets, period, inicio, locale);
 
   const mesasTotal = resumen.mesasTotal ?? 0;
   const ocupacion =
@@ -128,5 +158,6 @@ export const fetchWaitlistMetrics = async (
     avisos: porcentaje(resumen.avisados, resumen.total),
     labels,
     valores,
+    tramos: tramos(resumen.tramos),
   };
 };

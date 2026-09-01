@@ -7,11 +7,38 @@ import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 
 const PILL: Record<OrderStatus, string> = {
-  creado: "bg-amber-100 text-amber-700",
-  en_preparacion: "bg-amber-100 text-amber-700",
-  listo: "bg-emerald-100 text-emerald-700",
+  creado: "bg-curso-fondo text-curso",
+  en_preparacion: "bg-curso-fondo text-curso",
+  listo: "bg-ok-fondo text-ok",
   retirado: "bg-carbon/5 text-carbon/40",
-  cancelado: "bg-red-100 text-red-700",
+  cancelado: "bg-alerta-fondo text-alerta",
+};
+
+/* ¿Este pedido se avisa solo, o hay que cantarlo?
+ *
+ *  ok       escaneó el QR y dejó los avisos activos → le llega el push.
+ *  pantalla escaneó, sin avisos → se entera solo si dejó la pestaña abierta.
+ *  no       nunca abrió el QR → no hay por dónde avisarle.
+ *
+ * Sale de dos datos que ya existían y que el mostrador no veía hasta después
+ * de tocar "Listo", cuando el toast le avisaba que llamara al cliente. */
+type Aviso = "ok" | "pantalla" | "no";
+
+const avisoDe = (order: OrderView): Aviso => {
+  if (!order.seenAt) return "no";
+  return order.hasPush ? "ok" : "pantalla";
+};
+
+const AVISO_CLASS: Record<Aviso, string> = {
+  ok: "border-ok-borde bg-ok-fondo text-ok",
+  pantalla: "border-carbon/15 bg-carbon/[0.04] text-carbon/60",
+  no: "border-alerta-borde bg-alerta-fondo text-alerta",
+};
+
+const AVISO_KEY: Record<Aviso, string> = {
+  ok: "card.avisoOk",
+  pantalla: "card.avisoPantalla",
+  no: "card.avisoNo",
 };
 
 const minutosDesde = (iso: string | null, now: number): number | null => {
@@ -59,6 +86,7 @@ export const OrderCard = ({
   const listo = order.status === "listo";
   const cerrado = orderClosed(order.status);
   const urgente = wait !== null && wait >= 15 && !cerrado;
+  const aviso = avisoDe(order);
 
   const cambiar = (status: OrderStatus) => {
     if (busy) return;
@@ -72,11 +100,11 @@ export const OrderCard = ({
     <article
       className={`flex flex-col gap-4 rounded-[28px] border bg-surface p-5 shadow-sm transition duration-200 ${
         listo
-          ? "border-emerald-300 ring-2 ring-emerald-300/60"
+          ? "border-ok-borde ring-2 ring-ok-borde"
           : order.status === "cancelado"
             ? "border-linea opacity-70"
             : urgente
-              ? "border-amber-300/80"
+              ? "border-curso-borde"
               : "border-linea"
       }`}
       style={{ animationDelay: `${0.05 + index * 0.04}s` }}
@@ -97,16 +125,29 @@ export const OrderCard = ({
             ) : null}
           </div>
         </div>
-        <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${PILL[order.status]}`}
-        >
-          {listo && (
-            <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <span
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${PILL[order.status]}`}
+          >
+            {listo && (
+              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+            )}
+            {enCurso
+              ? t("estado.creado")
+              : t(`estado.${order.status}`)}
+          </span>
+          {/* En un pedido cerrado ya no hay nada que decidir, así que no se
+              muestra: es información para antes de tocar "Listo". */}
+          {!cerrado && (
+            <span
+              title={t(`${AVISO_KEY[aviso]}Det`)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${AVISO_CLASS[aviso]}`}
+            >
+              <span className="size-1.5 shrink-0 rounded-full bg-current opacity-70" />
+              {t(AVISO_KEY[aviso])}
+            </span>
           )}
-          {enCurso
-            ? t("estado.creado")
-            : t(`estado.${order.status}`)}
-        </span>
+        </div>
       </div>
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:grid-cols-3">
@@ -121,7 +162,7 @@ export const OrderCard = ({
             <dt className="text-carbon/40">{t("card.espera")}</dt>
             <dd
               className={`mt-0.5 font-semibold tabular-nums ${
-                urgente ? "text-amber-700" : "text-carbon/75"
+                urgente ? "text-curso" : "text-carbon/75"
               }`}
             >
               {t("card.hace", { n: wait })}
@@ -180,8 +221,8 @@ export const OrderCard = ({
 
       {(enCurso || listo) &&
         (confirmCancel ? (
-          <div className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50 p-2">
-            <p className="px-1 text-center text-xs font-medium text-red-800">
+          <div className="flex flex-col gap-2 rounded-2xl border border-alerta-borde bg-alerta-fondo p-2">
+            <p className="px-1 text-center text-xs font-medium text-alerta">
               {t("card.confirmarCancel")}
             </p>
             <div className="flex gap-2">
@@ -209,7 +250,7 @@ export const OrderCard = ({
           <button
             type="button"
             onClick={() => setConfirmCancel(true)}
-            className="w-full rounded-full text-red-600/80 transition hover:bg-red-50 hover:text-red-700 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
+            className="w-full rounded-full text-alerta transition hover:bg-alerta-fondo flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
           >
             {t("card.marcarCancelado")}
           </button>
