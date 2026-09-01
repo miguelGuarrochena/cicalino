@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
@@ -27,6 +27,7 @@ import {
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
 import { alertCustomerReady, unlockAudio } from "@/lib/sound";
+import { useCustomerReadyAlert } from "@/lib/hooks/useCustomerReadyAlert";
 
 const subscribeNoop = () => () => {};
 
@@ -71,11 +72,8 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
-  const [flash, setFlash] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelando, setCancelando] = useState(false);
-  const ultimoAviso = useRef<string | null>(null);
-  const vioEsperando = useRef(false);
 
   useEffect(() => {
     if (!pushDisponible) return;
@@ -104,11 +102,6 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     return () => document.removeEventListener("pointerdown", unlock);
   }, []);
 
-  useEffect(() => {
-    if (!espera) return;
-    if (espera.status === "esperando") vioEsperando.current = true;
-  }, [espera]);
-
   const avisado =
     espera?.status === "avisado" || espera?.status === "sentado";
   const sentado = espera?.status === "sentado";
@@ -118,6 +111,24 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const puedeCancelar =
     !!espera &&
     (espera.status === "esperando" || espera.status === "avisado");
+  const { flash, tick } = useCustomerReadyAlert({
+    active:
+      !duplicate &&
+      !!espera &&
+      (espera.status === "avisado" || espera.status === "sentado"),
+    status: espera?.status ?? null,
+    notifiedAt: espera?.notifiedAt ?? null,
+    isWaiting: espera?.status === "esperando",
+    onAlert: () => {
+      if (!espera) return;
+      senalMesa({
+        notifLocal: !pushActivo,
+        name: espera.name,
+        token,
+        body: t("clienteMesa.notifListo", { n: espera.name }),
+      });
+    },
+  });
 
   useEffect(() => {
     if (!espera || cerrado) {
@@ -135,33 +146,6 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
     if (!waiting || duplicate) return;
     return attachLeaveGuard();
   }, [waiting, duplicate]);
-
-  useEffect(() => {
-    if (duplicate) return;
-    if (!espera) return;
-    if (espera.status !== "avisado" && espera.status !== "sentado") return;
-    /* Igual que pedidos: avisado_en puede cambiar en el notify sin
-     * cambiar el estado. La señal es por status, una vez. */
-    const key = espera.status;
-
-    if (ultimoAviso.current === null) {
-      ultimoAviso.current = key;
-      if (!vioEsperando.current) return;
-    } else if (ultimoAviso.current === key) {
-      return;
-    } else {
-      ultimoAviso.current = key;
-    }
-
-    setFlash(true);
-    window.setTimeout(() => setFlash(false), 900);
-    senalMesa({
-      notifLocal: !pushActivo,
-      name: espera.name,
-      token,
-      body: t("clienteMesa.notifListo", { n: espera.name }),
-    });
-  }, [espera, pushActivo, token, t, duplicate]);
 
   const activarAvisos = async () => {
     if (!canOfferWebPush() || pushCargando) return;
@@ -301,7 +285,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
             <span className="pointer-events-none absolute inset-0 m-auto size-52 animate-ping rounded-full bg-espera/15 sm:size-56" />
           )}
           <div
-            key={
+            key={`${
               cancelado
                 ? "cancel"
                 : sentado
@@ -309,7 +293,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
                   : avisado
                     ? "ok"
                     : "bell"
-            }
+            }-${tick}`}
             className={`relative z-10 flex size-full items-center justify-center ${
               cerrado || avisado ? "u-pop" : "u-float"
             }`}
