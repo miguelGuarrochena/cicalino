@@ -5,6 +5,7 @@ import {
   realtimeIsHealthy,
   realtimeNeedsResubscribe,
 } from "@/lib/realtime";
+import { shouldFireCustomerAlert } from "@/lib/customerAlert";
 
 const root = process.cwd();
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
@@ -46,29 +47,45 @@ describe("Realtime del mostrador", () => {
 });
 
 describe("Señal idempotente del cliente", () => {
-  it("pedido y espera usan el status como clave, no avisado_en", () => {
+  it("pedido y espera reavisan con avisado_en, no solo con el status", () => {
     const waiting = read("src/components/customer/CustomerWaiting.tsx");
     const espera = read("src/components/customer/CustomerEsperaWaiting.tsx");
-    expect(waiting).toContain("const clave = order.status");
-    expect(waiting).not.toContain('notifiedAt ?? "listo"');
-    expect(espera).toContain("const key = espera.status");
-    expect(espera).not.toContain("notifiedAt ?? espera.status");
+    const hook = read("src/lib/hooks/useCustomerReadyAlert.ts");
+    const logic = read("src/lib/customerAlert.ts");
+    expect(waiting).toContain("useCustomerReadyAlert");
+    expect(espera).toContain("useCustomerReadyAlert");
+    expect(hook).toContain("shouldFireCustomerAlert");
+    expect(logic).toContain("CUSTOMER_REAVISO_MIN_MS");
+    expect(logic).toContain("notifiedAt");
   });
 
-  it("mismo status con avisado_en distinto no vuelve a disparar", () => {
-    const next = (prev: string | null, status: string) => {
-      const clave = status;
-      if (prev === null) return { prev: clave, fire: true };
-      if (prev === clave) return { prev, fire: false };
-      return { prev: clave, fire: true };
-    };
-    let prev: string | null = null;
-    let r = next(prev, "listo");
-    expect(r.fire).toBe(true);
-    prev = r.prev;
-    r = next(prev, "listo");
-    expect(r.fire).toBe(false);
-    r = next(r.prev, "retirado");
-    expect(r.fire).toBe(true);
+  it("mismo status con avisado_en distinto a los pocos segundos no dispara", () => {
+    const t0 = "2026-09-01T12:00:00.000Z";
+    const t2 = "2026-09-01T12:00:02.000Z";
+    const tLater = "2026-09-01T12:03:00.000Z";
+    const first = shouldFireCustomerAlert({
+      prevKey: null,
+      status: "listo",
+      notifiedAt: t0,
+    });
+    expect(first.fire).toBe(true);
+    const race = shouldFireCustomerAlert({
+      prevKey: first.key,
+      status: "listo",
+      notifiedAt: t2,
+    });
+    expect(race.fire).toBe(false);
+    const replay = shouldFireCustomerAlert({
+      prevKey: race.key,
+      status: "listo",
+      notifiedAt: tLater,
+    });
+    expect(replay.fire).toBe(true);
+    const same = shouldFireCustomerAlert({
+      prevKey: first.key,
+      status: "listo",
+      notifiedAt: t0,
+    });
+    expect(same.fire).toBe(false);
   });
 });

@@ -111,7 +111,7 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     expect(waiting).toContain("notifRetirado");
     expect(waiting).toContain('order.status === "retirado"');
     expect(waiting).toContain("senalPedido");
-    expect(waiting).toContain("const clave = order.status");
+    expect(waiting).toContain("useCustomerReadyAlert");
   });
 
   it("Android: con push activo no queda el botón; dice notificaciones activadas", () => {

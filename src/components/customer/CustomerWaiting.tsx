@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { Controls } from "@/components/ui/Controls";
@@ -28,6 +28,7 @@ import {
 } from "@/lib/notifications";
 import { fireReadyConfetti } from "@/lib/confetti";
 import { alertCustomerReady, unlockAudio } from "@/lib/sound";
+import { useCustomerReadyAlert } from "@/lib/hooks/useCustomerReadyAlert";
 
 const subscribeNoop = () => () => {};
 
@@ -75,12 +76,9 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   const [pushActivo, setPushActivo] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushCargando, setPushCargando] = useState(false);
-  const [flash, setFlash] = useState(false);
   const [aliasLocal, setAliasLocal] = useState<string | null | undefined>(
     undefined,
   );
-  const ultimoAviso = useRef<string | null>(null);
-  const vioEsperando = useRef(false);
 
   useEffect(() => {
     if (!pushDisponible) return;
@@ -121,6 +119,29 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   const waiting = hydrated && !!order && !cerrado;
   const alias = aliasLocal !== undefined ? aliasLocal : (order?.alias ?? null);
   const puedeAlias = !!order && !esRetirado && !esCancelado && order.modo !== "nombre";
+  const { flash, tick } = useCustomerReadyAlert({
+    active:
+      !duplicate &&
+      !!order &&
+      (order.status === "listo" || order.status === "retirado"),
+    status: order?.status ?? null,
+    notifiedAt: order?.notifiedAt ?? null,
+    isWaiting:
+      order?.status === "creado" || order?.status === "en_preparacion",
+    onAlert: () => {
+      if (!order) return;
+      senalPedido({
+        notifLocal: !pushActivo,
+        reference: order.reference,
+        token,
+        confetti: order.status === "listo",
+        body:
+          order.status === "retirado"
+            ? t("cliente.notifRetirado", { n: order.reference })
+            : t("cliente.notifListo", { n: order.reference }),
+      });
+    },
+  });
   useEffect(() => {
     if (!order || esRetirado || esCancelado) {
       if (hydrated) clearLastVisitIfToken(token);
@@ -135,48 +156,9 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   }, [order, esRetirado, esCancelado, token, alias, hydrated]);
 
   useEffect(() => {
-    if (!order) return;
-    if (order.status === "creado" || order.status === "en_preparacion") {
-      vioEsperando.current = true;
-    }
-  }, [order]);
-
-  useEffect(() => {
     if (!waiting || duplicate) return;
     return attachLeaveGuard();
   }, [waiting, duplicate]);
-
-  useEffect(() => {
-    if (duplicate) return;
-    if (!order) return;
-    if (order.status !== "listo" && order.status !== "retirado") return;
-    /* Estado, no avisado_en: el panel escribe avisado_en al marcar listo y
-     * /api/push/notify lo vuelve a pisar. Con notifiedAt un poll entre las
-     * dos escrituras dispararía beep/confetti otra vez. */
-    const clave = order.status;
-
-    if (ultimoAviso.current === null) {
-      ultimoAviso.current = clave;
-      if (!vioEsperando.current) return;
-    } else if (ultimoAviso.current === clave) {
-      return;
-    } else {
-      ultimoAviso.current = clave;
-    }
-
-    setFlash(true);
-    window.setTimeout(() => setFlash(false), 900);
-    senalPedido({
-      notifLocal: !pushActivo,
-      reference: order.reference,
-      token,
-      confetti: order.status === "listo",
-      body:
-        order.status === "retirado"
-          ? t("cliente.notifRetirado", { n: order.reference })
-          : t("cliente.notifListo", { n: order.reference }),
-    });
-  }, [order, pushActivo, t, token, duplicate]);
 
   const activarAvisos = async () => {
     if (!canOfferWebPush() || pushCargando) return;
@@ -295,7 +277,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
             <span className="pointer-events-none absolute inset-0 m-auto size-52 animate-ping rounded-full bg-amber-400/10 sm:size-56" />
           )}
           <div
-            key={esCancelado ? "cancel" : esRetirado ? "done" : esListo ? "ok" : "chef"}
+            key={`${esCancelado ? "cancel" : esRetirado ? "done" : esListo ? "ok" : "chef"}-${tick}`}
             className={`relative z-10 flex size-full items-center justify-center ${
               cerrado ? "u-pop" : "u-float"
             }`}
