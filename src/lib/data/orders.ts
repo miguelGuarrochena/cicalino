@@ -27,6 +27,7 @@ type Row = {
   cancelado_en: string | null;
   visto_en: string | null;
   qr_token: string;
+  avisos_activos?: boolean | null;
   empleados?: { nombre: string | null } | null;
 };
 
@@ -42,6 +43,7 @@ const mapRow = (r: Row): OrderView => ({
   cancelledAt: r.cancelado_en,
   seenAt: r.visto_en,
   qrToken: r.qr_token,
+  hasPush: Boolean(r.avisos_activos),
   employee: r.empleados?.nombre ?? null,
 });
 
@@ -130,6 +132,23 @@ export const fetchOrdersPage = async (
     conteos: res.conteos,
     proximoNumero: res.proximoNumero ?? 1,
   });
+};
+
+/* Pasa a `en_preparacion` los pedidos de la sucursal que ya cumplieron el
+ * minuto. La regla vive en la base (ver pedidos-en-preparacion.sql); acá solo
+ * se la dispara.
+ *
+ * No devuelve nada útil para la UI: el cambio de estado llega igual por el
+ * realtime de `pedidos` y por el propio refresco. Si falla, se ignora — es
+ * mantenimiento, no una acción del usuario, y el barrido del cron lo alcanza
+ * igual más tarde. */
+export const markInPreparation = async (branchId: string): Promise<void> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return;
+  const { error } = await supabase.rpc("marcar_en_preparacion_local", {
+    p_local: branchId,
+  });
+  if (error) console.error("markInPreparation", error.message);
 };
 
 export const fetchBranchName = async (

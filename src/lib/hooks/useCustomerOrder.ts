@@ -23,6 +23,9 @@ export interface CustomerOrder {
   branchName: string;
   modo: IdentificationMode;
   notifiedAt: string | null;
+  /* Cuándo se creó el pedido. No cambia mientras el cliente espera, así que
+   * el poll conserva el valor anterior si no viene. */
+  createdAt: string | null;
 }
 
 /* Estado que llega desde el render en el servidor. "unknown" significa que el
@@ -197,6 +200,7 @@ export const useCustomerOrder = (
                   : (prev?.alias ?? null),
             status: estado,
             notifiedAt: data.notifiedAt ?? null,
+            createdAt: data.createdAt ?? prev?.createdAt ?? null,
           }));
           setRemoteFound(true);
           if (estado === "retirado" || estado === "cancelado") detenido = true;
@@ -288,6 +292,7 @@ export const useCustomerOrder = (
           branchName: cfg.name,
           modo: cfg.modo,
           notifiedAt: o.readyAt,
+          createdAt: o.createdAt,
         }
       : null,
   };

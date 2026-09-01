@@ -40,7 +40,7 @@ export const HoldReservaModal = ({
 
   return (
     <ModalShell onClose={onClose} labelledBy="hold-reserva-title">
-      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-800/70">
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-curso/80">
         {es ? "Reservada ahora" : "Reserved now"}
       </p>
       <h2
@@ -75,7 +75,7 @@ export const HoldReservaModal = ({
         <button
           type="button"
           onClick={onCancelar}
-          className={`${btnClass} text-red-600/80 hover:bg-red-50 sm:flex-1`}
+          className={`${btnClass} text-alerta hover:bg-alerta-fondo sm:flex-1`}
         >
           {es ? "Cancelar reserva" : "Cancel booking"}
         </button>

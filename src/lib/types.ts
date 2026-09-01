@@ -31,6 +31,27 @@ export const BUSINESS_TYPE_LABEL: Record<BusinessType, string> = {
 
 export const BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_LABEL) as BusinessType[];
 
+/* Los mapas de arriba quedan en castellano porque la consola de Superadmin es
+ * interna y no tiene selector de idioma. Lo que ve el local pasa por estos
+ * helpers, que siguen la misma forma que `tablesTitle` más abajo. */
+const BUSINESS_TYPE_EN: Record<BusinessType, string> = {
+  cafeteria: "Coffee shop",
+  panaderia: "Bakery",
+  rotiseria: "Deli",
+  heladeria: "Ice cream shop",
+  bar: "Bar",
+  restaurante: "Restaurant",
+  pasteleria: "Pastry shop",
+  food_truck: "Food truck",
+  otro: "Other",
+};
+
+export const businessTypeLabel = (
+  tipo: BusinessType,
+  locale: "es" | "en" = "es",
+): string =>
+  (locale === "en" ? BUSINESS_TYPE_EN[tipo] : BUSINESS_TYPE_LABEL[tipo]) ?? tipo;
+
 export interface OrderView {
   id: string;
   reference: string;
@@ -43,7 +64,12 @@ export interface OrderView {
   cancelledAt: string | null;
   qrToken: string;
   employee?: string | null;
+  /* Cuándo el cliente abrió el QR por primera vez. null = nunca lo escaneó. */
   seenAt?: string | null;
+  /* Si dejó los avisos activos en el celular. Junto con `seenAt` es lo que
+   * le dice al mostrador si este pedido se va a avisar solo o hay que
+   * cantarlo. Lo cuenta `pedidos_pagina`; un alta nueva arranca en false. */
+  hasPush?: boolean;
 }
 
 export interface CustomerStatusView {
@@ -132,6 +158,36 @@ export const RESERVATION_STATUS_LABEL: Record<ReservationStatus, string> = {
   cancelada: "Cancelada",
   expirada: "No cumplida",
 };
+
+const WAITLIST_STATUS_EN: Record<WaitlistStatus, string> = {
+  esperando: "Waiting",
+  avisado: "Notified",
+  sentado: "Seated",
+  cancelado: "Cancelled",
+};
+
+const RESERVATION_STATUS_EN: Record<ReservationStatus, string> = {
+  activa: "Booked",
+  sentada: "Honoured",
+  cancelada: "Cancelled",
+  expirada: "No-show",
+};
+
+export const waitlistStatusLabel = (
+  status: WaitlistStatus,
+  locale: "es" | "en" = "es",
+): string =>
+  locale === "en"
+    ? WAITLIST_STATUS_EN[status]
+    : WAITLIST_STATUS_LABEL[status];
+
+export const reservationStatusLabel = (
+  status: ReservationStatus,
+  locale: "es" | "en" = "es",
+): string =>
+  locale === "en"
+    ? RESERVATION_STATUS_EN[status]
+    : RESERVATION_STATUS_LABEL[status];
 
 export const waitlistClosed = (status: WaitlistStatus): boolean =>
   status === "sentado" || status === "cancelado";

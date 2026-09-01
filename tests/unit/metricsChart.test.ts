@@ -4,6 +4,8 @@ import {
   minutos,
   pico,
   porcentaje,
+  tramos,
+  TRAMOS,
   type Bucket,
 } from "@/lib/metricsChart";
 
@@ -45,6 +47,32 @@ describe("pico", () => {
   it("si no hubo movimiento no inventa un pico", () => {
     expect(pico(["8h", "9h"], [0, 0])).toBe("—");
     expect(pico([], [])).toBe("—");
+  });
+});
+
+describe("tramos", () => {
+  it("son los cuatro tramos, en orden, con el porcentaje sobre el total", () => {
+    const r = tramos([b(0, 5), b(1, 3), b(2, 1), b(3, 1)]);
+    expect(r.map((x) => x.rango)).toEqual(TRAMOS);
+    expect(r.map((x) => x.n)).toEqual([5, 3, 1, 1]);
+    expect(r.map((x) => x.pct)).toEqual([50, 30, 10, 10]);
+  });
+
+  it("un tramo que la base no devolvió cuenta cero, no se saltea", () => {
+    const r = tramos([b(0, 1), b(3, 1)]);
+    expect(r).toHaveLength(4);
+    expect(r[1]).toEqual({ rango: "5-10", n: 0, pct: 0 });
+  });
+
+  it("sin nada terminado devuelve vacío, no cuatro ceros", () => {
+    expect(tramos([])).toEqual([]);
+    expect(tramos([b(0, 0), b(1, 0), b(2, 0), b(3, 0)])).toEqual([]);
+  });
+
+  it("ignora índices que no son tramos", () => {
+    const r = tramos([b(0, 2), b(9, 100)]);
+    expect(r.map((x) => x.n)).toEqual([2, 0, 0, 0]);
+    expect(r[0].pct).toBe(100);
   });
 });
 

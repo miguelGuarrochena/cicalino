@@ -56,5 +56,10 @@
   "sentar-espera-reserva.sql",
   "pedidos-pagina-jornada.sql",
   "alias-cliente.sql",
-  "alias-busca-activos.sql"
+  "alias-busca-activos.sql",
+  "metricas-tramos-global.sql",
+  "pedidos-en-preparacion.sql",
+  "pedidos-avisos-activos.sql",
+  "liberar-mesas-atomico.sql",
+  "en-preparacion-revoke.sql"
 ]

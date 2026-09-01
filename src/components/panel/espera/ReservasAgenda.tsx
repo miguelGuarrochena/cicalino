@@ -9,7 +9,7 @@ import {
 import { TZ_NEGOCIO } from "@/lib/businessDay";
 import { addDaysKey, pad2 } from "@/lib/espera/slots";
 import {
-  RESERVATION_STATUS_LABEL,
+  reservationStatusLabel,
   reservationClosed,
   tablesTitle,
   type ReservationView,
@@ -174,7 +174,7 @@ export const ReservasAgenda = ({
     if (r.status === "cancelada") {
       return locale === "en" ? "Cancelled" : "Cancelada";
     }
-    return RESERVATION_STATUS_LABEL[r.status];
+    return reservationStatusLabel(r.status, locale === "en" ? "en" : "es");
   };
 
   /* Sin useMemo a propósito. `registroDia` sale de los arrays que `byDay`
@@ -367,7 +367,7 @@ export const ReservasAgenda = ({
                             {r.name}
                           </h3>
                           <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 dark:bg-amber-400/30 dark:text-amber-100">
-                            {RESERVATION_STATUS_LABEL[r.status]}
+                            {reservationStatusLabel(r.status, locale === "en" ? "en" : "es")}
                           </span>
                           <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-carbon/70">
                             {tablesTitle(
@@ -399,7 +399,7 @@ export const ReservasAgenda = ({
                         <button
                           type="button"
                           onClick={() => onCancelar(r.id)}
-                          className={`${BTN_MOBILE} text-red-600/80 hover:bg-red-50`}
+                          className={`${BTN_MOBILE} text-alerta hover:bg-alerta-fondo`}
                         >
                           {locale === "en" ? "Cancel" : "Cancelar"}
                         </button>

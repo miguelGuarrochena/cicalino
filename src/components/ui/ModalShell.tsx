@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Spinner } from "@/components/ui/Spinner";
+import { enfocablesDe, siguienteFoco } from "@/lib/ui/focusTrap";
 
 export const ModalShell = ({
   children,
@@ -19,23 +20,80 @@ export const ModalShell = ({
   busy?: boolean;
   busyLabel?: string;
 }) => {
+  const capaRef = useRef<HTMLDivElement>(null);
+  const volverA = useRef<HTMLElement | null | undefined>(undefined);
+
+  /* Quién tenía el foco antes de que existiera el modal.
+   *
+   * Se lee en el primer render y no en el efecto de montaje: para cuando corre
+   * el efecto, React ya aplicó el `autoFocus` de los modales que traen un
+   * input, así que ahí `document.activeElement` es un elemento de adentro del
+   * modal y al cerrar no habría a dónde volver. Es una lectura, no un cambio:
+   * el DOM del modal todavía no se montó. */
+  if (volverA.current === undefined) {
+    volverA.current =
+      typeof document !== "undefined" &&
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+  }
+
+  /* Montaje y desmontaje: scroll, foco inicial y devolución del foco.
+   *
+   * Va en su propio efecto, sin dependencias, porque si se mezclara con el del
+   * teclado —que sí depende de `busy` y `onClose`— cada cambio de esos
+   * devolvería el foco al disparador en medio del modal abierto. */
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
-    };
-    window.addEventListener("keydown", onKey);
+
+    /* Solo si nadie se adelantó: seis de los modales traen un input con
+     * autoFocus, que React ya aplicó cuando corre este efecto. Pisarlo
+     * mandaría el foco al botón de cerrar en vez de al campo. */
+    const capa = capaRef.current;
+    if (capa && !capa.contains(document.activeElement)) {
+      const [primero] = enfocablesDe(capa);
+      (primero ?? capa).focus();
+    }
+
     return () => {
       document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
+      const destino = volverA.current;
+      /* Si el disparador se fue del DOM mientras el modal estaba abierto no
+       * hay a dónde volver, y enfocar un nodo suelto no hace nada. */
+      if (destino && document.contains(destino)) destino.focus();
     };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const capa = capaRef.current;
+      if (!capa) return;
+      const lista = enfocablesDe(capa);
+      const actual =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      const destino = siguienteFoco(lista, actual, e.shiftKey);
+      /* null = el foco está en el medio: lo mueve el navegador. */
+      if (!destino) return;
+      e.preventDefault();
+      destino.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose, busy]);
 
   if (typeof document === "undefined") return null;
 
   return createPortal(
     <div
+      ref={capaRef}
       className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4"
       role="presentation"
     >
@@ -51,6 +109,9 @@ export const ModalShell = ({
       <div
         role="dialog"
         aria-modal="true"
+        /* Para que el contenedor pueda recibir el foco cuando el modal no
+           tiene ningún control enfocable adentro. */
+        tabIndex={-1}
         aria-labelledby={labelledBy}
         aria-busy={busy || undefined}
         className="u-pop relative z-10 flex max-h-[min(92dvh,760px)] w-full max-w-none flex-col overflow-hidden rounded-t-[24px] border border-linea border-b-0 bg-surface shadow-2xl sm:max-w-lg sm:rounded-[28px] sm:border-b"

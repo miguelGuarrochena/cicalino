@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOrdersStore } from "@/lib/store/orders-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
+import { attachLiveRefresh, throttled } from "@/lib/realtime";
 import {
   isRealBranchId,
   fetchOrdersPage,
   fetchBranchName,
   insertOrder,
+  markInPreparation,
   updateOrderStatus,
   subscribeOrders,
 } from "@/lib/data/orders";
@@ -81,8 +83,23 @@ export const useOrders = (
 
   const { filtro, busqueda, pagina, tam } = query;
 
+  /* El paso automático a `en_preparacion` se dispara desde acá, con el mismo
+   * criterio que el vencimiento de reservas en useWaitlist: el panel ya
+   * consulta cada pocos segundos, así que aprovecha ese ciclo, y el throttle
+   * evita mandar el UPDATE en cada refresco. El barrido del cron cubre las
+   * sucursales que en ese momento no tengan el panel abierto. */
+  const sweepInPreparation = useMemo(
+    () =>
+      throttled(
+        () => (branchId ? markInPreparation(branchId) : undefined),
+        60_000,
+      ),
+    [branchId],
+  );
+
   const reload = useCallback(async () => {
     if (!live || !branchId) return;
+    sweepInPreparation();
     const res = await fetchOrdersPage(branchId, {
       filtro,
       busqueda,
@@ -101,7 +118,7 @@ export const useOrders = (
       setSyncError(res.error);
     }
     setCargado(true);
-  }, [live, branchId, filtro, busqueda, pagina, tam]);
+  }, [live, branchId, filtro, busqueda, pagina, tam, sweepInPreparation]);
 
   useEffect(() => {
     if (!live || !branchId) {
@@ -112,28 +129,11 @@ export const useOrders = (
        hace el setState después de un await, no en el cuerpo del efecto. */
     void reload();
     void fetchBranchName(branchId).then((n) => setBranchName(n));
-    const sub = subscribeOrders(branchId, reload);
-    const onWake = () => {
-      if (document.visibilityState === "visible") void reload();
-    };
-    document.addEventListener("visibilitychange", onWake);
-    window.addEventListener("focus", onWake);
-    window.addEventListener("online", onWake);
-
-    let ticks = 0;
-    const iv = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      ticks++;
-      if (ticks % (sub.isHealthy() ? 6 : 1) === 0) void reload();
-    }, 5_000);
-
-    return () => {
-      sub.unsubscribe();
-      document.removeEventListener("visibilitychange", onWake);
-      window.removeEventListener("focus", onWake);
-      window.removeEventListener("online", onWake);
-      window.clearInterval(iv);
-    };
+    return attachLiveRefresh({
+      subscribe: (onChange) => subscribeOrders(branchId, onChange),
+      reload: () => void reload(),
+      ticksSano: 6,
+    });
   }, [live, branchId, seed, reload]);
 
   const createOrder = useCallback<UseOrders["createOrder"]>(

@@ -1,24 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { NotifyResult } from "@/lib/notify";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { QrModal } from "@/components/panel/QrModal";
-import { Pagination, slicePage } from "@/components/ui/Pagination";
+import { slicePage } from "@/components/ui/Pagination";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { HelpLink } from "@/components/panel/HelpLink";
 import { useApp } from "@/components/providers/Providers";
 import { useWaitlist } from "@/lib/hooks/useWaitlist";
 import { fetchEsperaSeenAt } from "@/lib/data/waitlist";
-import { seenAtNewer } from "@/lib/qrSeen";
+import { useQrSeenClose } from "@/lib/hooks/useQrSeenClose";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
-import { TOAST_AVISO_MS, useToast } from "@/components/ui/Toast";
+import { useActiveEmployee } from "@/lib/hooks/useActiveEmployee";
+import { useToast } from "@/components/ui/Toast";
+import { useAvisoToast } from "@/lib/hooks/useAvisoToast";
 import { businessDayStart, TZ_NEGOCIO } from "@/lib/businessDay";
 import {
-  WAITLIST_STATUS_LABEL,
-  waitlistClosed,
   tableNumbersLabel,
   tablesTitle,
   type WaitlistView,
@@ -26,7 +26,6 @@ import {
 } from "@/lib/types";
 import {
   HOLD_BEFORE_MIN,
-  isReservationHolding,
   reservationTime,
   conflictingReservation,
   nextReservationByTable,
@@ -50,11 +49,11 @@ import { SentarEsperaModal } from "@/components/panel/espera/SentarEsperaModal";
 import { OcuparMesasModal } from "@/components/panel/espera/OcuparMesasModal";
 import { CrearReservaModal } from "@/components/panel/espera/CrearReservaModal";
 import { ReservasAgenda } from "@/components/panel/espera/ReservasAgenda";
-import { mesaTileClass } from "@/components/panel/espera/mesaTileClass";
+import { MapaMesas } from "@/components/panel/espera/MapaMesas";
+import { ColaEspera } from "@/components/panel/espera/ColaEspera";
+import { CanceladosHoy } from "@/components/panel/espera/CanceladosHoy";
 import { motivoOcupar, motivoReserva } from "@/lib/espera/motivos";
 import {
-  minsAgo,
-  formatHora,
   defaultHorarioInput,
   dateKeyFromLocal,
   timeKeyFromLocal,
@@ -68,12 +67,17 @@ const INPUT =
 const BTN_MOBILE =
   "w-full rounded-full px-4 py-3.5 text-sm font-semibold transition active:scale-[0.98] sm:w-auto sm:px-4 sm:py-2.5";
 
+const AVISO_ESPERA = {
+  es: "Marcado como avisado, pero el celular no tiene avisos activos: llamalo vos.",
+  en: "Marked as notified, but their phone has no alerts on — call them out.",
+};
+
 const EsperaPanelPage = () => {
   const { locale } = useApp();
   const toast = useToast();
   const router = useRouter();
   const branchId = useSessionStore((s) => s.sucursalId);
-  const activeEmployee = useSessionStore((s) => s.empleadoActivo);
+  const activeEmployee = useActiveEmployee();
   const tableCount = useConfigStore((s) => s.tableCount);
   const cutoffHour = useConfigStore((s) => s.cutoffHour);
   const reservaAbreMin = useConfigStore((s) => s.reservaAbreMin);
@@ -119,14 +123,11 @@ const EsperaPanelPage = () => {
     liberarMesa,
     ocuparMesas,
     setCapacidad,
+    ready,
     syncError,
   } = useWaitlist(branchId);
 
-  const [qr, setQr] = useState<WaitlistView | null>(null);
-  /* Alta: primed, cierra al primer visto. Ver QR: primero lee el servidor. */
-  const [qrOpenedSeenAt, setQrOpenedSeenAt] = useState<string | null>(null);
-  const qrOpenedSeenAtRef = useRef<string | null>(null);
-  const qrPrimedRef = useRef(true);
+  const qr = useQrSeenClose<WaitlistView>(fetchEsperaSeenAt, esperas);
   const [createOpen, setCreateOpen] = useState(false);
   const [reservaOpen, setReservaOpen] = useState(false);
   const [name, setNombre] = useState("");
@@ -183,64 +184,7 @@ const EsperaPanelPage = () => {
     if (!visibles.espera && !visibles.pedidos) router.replace("/panel");
   }, [branchConfigReady, visibles, router]);
 
-  const liveSeenAt = qr
-    ? (esperas.find((e) => e.id === qr.id)?.seenAt ?? null)
-    : null;
-
-  useEffect(() => {
-    if (!qr) return;
-    if (qrPrimedRef.current && seenAtNewer(liveSeenAt, qrOpenedSeenAtRef.current)) {
-      setQr(null);
-      return;
-    }
-    let vivo = true;
-    const consider = (seenAt: string | null) => {
-      if (!vivo || !seenAt) return;
-      if (!qrPrimedRef.current) {
-        qrPrimedRef.current = true;
-        qrOpenedSeenAtRef.current = seenAt;
-        setQrOpenedSeenAt(seenAt);
-        return;
-      }
-      if (seenAtNewer(seenAt, qrOpenedSeenAtRef.current)) setQr(null);
-    };
-    const check = () => {
-      void fetchEsperaSeenAt(qr.id).then(consider);
-    };
-    check();
-    const iv = window.setInterval(check, 1_200);
-    return () => {
-      vivo = false;
-      window.clearInterval(iv);
-    };
-  }, [qr, qrOpenedSeenAt, liveSeenAt]);
-
-  const toastAviso = useCallback(
-    (r: NotifyResult | null) => {
-      if (!r) return;
-      if (!r.ok) {
-        toast(
-          locale === "en"
-            ? "Couldn’t notify. Check the connection and try again."
-            : "No se pudo avisar. Revisá la conexión y probá de nuevo.",
-          "error",
-        );
-        return;
-      }
-      if (r.delivered > 0) {
-        toast(locale === "en" ? "Notified 🔔" : "Avisado 🔔", "success");
-        return;
-      }
-      toast(
-        locale === "en"
-          ? "Marked as notified, but their phone has no alerts on — call them out."
-          : "Marcado como avisado, pero el celular no tiene avisos activos: llamalo vos.",
-        "info",
-        TOAST_AVISO_MS,
-      );
-    },
-    [locale, toast],
-  );
+  const toastAviso = useAvisoToast(AVISO_ESPERA);
 
   const cola = useMemo(
     () =>
@@ -521,10 +465,7 @@ const EsperaPanelPage = () => {
     try {
       const created = await crearEspera(name, partySize, employeeRef);
       if (created) {
-        qrPrimedRef.current = true;
-        qrOpenedSeenAtRef.current = created.seenAt ?? null;
-        setQrOpenedSeenAt(created.seenAt ?? null);
-        setQr(created);
+        qr.abrirNuevo(created);
         setCreateOpen(false);
         setNombre("");
         setPersonas(2);
@@ -642,14 +583,20 @@ const EsperaPanelPage = () => {
           <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
             {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
           </h1>
-          <p className="mt-1 text-sm text-carbon/55">
-            {cola.length}{" "}
-            {locale === "en" ? "parties waiting" : "grupos esperando"}
-            {personasEnCola
-              ? ` · ${personasEnCola} ${locale === "en" ? "guests" : "personas"}`
-              : ""}
-            {tableCount ? ` · ${tableCount} mesas` : ""}
-          </p>
+          {ready ? (
+            <p className="mt-1 text-sm text-carbon/55">
+              {cola.length}{" "}
+              {locale === "en" ? "parties waiting" : "grupos esperando"}
+              {personasEnCola
+                ? ` · ${personasEnCola} ${locale === "en" ? "guests" : "personas"}`
+                : ""}
+              {tableCount
+                ? ` · ${tableCount} ${locale === "en" ? "tables" : "mesas"}`
+                : ""}
+            </p>
+          ) : (
+            <Skeleton className="mt-1.5 h-4 w-44" />
+          )}
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
@@ -697,14 +644,14 @@ const EsperaPanelPage = () => {
           }
           className={`rounded-2xl border px-3 py-3 text-left transition ${
             filtroMesa === "conReserva"
-              ? "border-amber-500 bg-amber-100"
+              ? "border-curso-borde bg-curso-fondo"
               : "border-linea bg-surface hover:bg-carbon/5"
           }`}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-curso">
             {locale === "en" ? "With booking" : "Con reserva"}
           </p>
-          <p className="mt-0.5 font-display text-2xl text-amber-900">
+          <p className="mt-0.5 font-display text-2xl text-curso">
             {conReserva}
           </p>
         </button>
@@ -715,14 +662,14 @@ const EsperaPanelPage = () => {
           }
           className={`rounded-2xl border px-3 py-3 text-left transition ${
             filtroMesa === "ocupada"
-              ? "border-rose-500 bg-rose-100"
+              ? "border-alerta-borde bg-alerta-fondo"
               : "border-linea bg-surface hover:bg-carbon/5"
           }`}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-800">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-alerta">
             {locale === "en" ? "Busy" : "Ocupadas"}
           </p>
-          <p className="mt-0.5 font-display text-2xl text-rose-800">{ocupadas}</p>
+          <p className="mt-0.5 font-display text-2xl text-alerta">{ocupadas}</p>
         </button>
       </div>
 
@@ -778,293 +725,45 @@ const EsperaPanelPage = () => {
         </p>
       </div>
 
-      <section className="rounded-[24px] border border-espera/20 bg-surface p-4 shadow-sm sm:p-5">
-        <div className="mb-3 flex flex-wrap gap-3 text-[10px] font-semibold uppercase tracking-wide text-carbon/50">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-sm bg-espera" />
-            {locale === "en" ? "Free" : "Libre"}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-sm border-2 border-amber-500 bg-espera" />
-            {locale === "en" ? "Free · booked later" : "Libre · con reserva"}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-sm bg-amber-400" />
-            {locale === "en" ? "Reserved now" : "Reservada ahora"}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-sm bg-rose-600" />
-            {locale === "en" ? "Busy" : "Ocupada"}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-sm border-2 border-amber-500 bg-rose-600" />
-            {locale === "en" ? "Busy · booked later" : "Ocup. · con reserva"}
-          </span>
-        </div>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
-          {mesasFiltradas.map((m) => {
-            const espera =
-              m.waitlistId != null ? esperaById.get(m.waitlistId) : undefined;
-            const reservaSentada =
-              m.reservationId != null ? reservaById.get(m.reservationId) : undefined;
-            const libre = m.status === "libre";
-            const reservaProx = reservaPorMesa.get(m.number);
-            const holding = reservaProx
-              ? isReservationHolding(reservaProx, ahora)
-              : false;
-            const conReserva = !!reservaProx && !holding;
-            const etiquetaGrupo = libre
-              ? reservaProx?.name
-              : (espera?.name ?? reservaSentada?.name);
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => {
-                  if (libre && holding && reservaProx) {
-                    setHoldReservaId(reservaProx.id);
-                    return;
-                  }
-                  if (libre) {
-                    setOcuparPrimaria(m.number);
-                    setOcuparMesasSel([m.number]);
-                    setOcuparNombre("");
-                    setOcuparPersonas(Math.min(m.capacity ?? 4, 4));
-                    setOcuparOpen(true);
-                    return;
-                  }
-                  setLiberarNumero(m.number);
-                }}
-                title={
-                  reservaProx
-                    ? libre
-                      ? holding
-                        ? locale === "en"
-                          ? `Reserved ${reservationTime(reservaProx.scheduledAt)} — ${reservaProx.name} · tap to manage`
-                          : `Reservada ${reservationTime(reservaProx.scheduledAt)} — ${reservaProx.name} · tocar para gestionar`
-                        : locale === "en"
-                          ? `Free now · booking ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
-                          : `Libre ahora · reserva ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name})`
-                      : locale === "en"
-                        ? `Busy · booking ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name}) — tap to free`
-                        : `Ocupada · reserva ${reservationTime(reservaProx.scheduledAt)} (${reservaProx.name}) — tocar para liberar`
-                    : libre
-                      ? locale === "en"
-                        ? "Tap to seat now"
-                        : "Tocar para sentar"
-                      : locale === "en"
-                        ? "Tap to free"
-                        : "Tocar para liberar"
-                }
-                className={mesaTileClass(m.status, {
-                  pickable: true,
-                  conReserva,
-                  reservaHold: holding,
-                })}
-              >
-                {reservaProx && (
-                  <span
-                    className={`absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none shadow-sm ${
-                      holding
-                        ? "bg-amber-950 text-amber-100"
-                        : "bg-amber-400 text-amber-950"
-                    }`}
-                  >
-                    {reservationTime(reservaProx.scheduledAt)}
-                  </span>
-                )}
-                <span className="font-display text-lg leading-none">
-                  {m.number}
-                </span>
-                <span className="mt-1 text-[10px] font-bold uppercase tracking-wide opacity-90">
-                  {holding
-                    ? locale === "en"
-                      ? "Booked"
-                      : "Reserva"
-                    : libre
-                      ? locale === "en"
-                        ? "Free"
-                        : "Libre"
-                      : locale === "en"
-                        ? "Busy"
-                        : "Ocup."}
-                </span>
-                <span className="mt-0.5 text-[9px] font-semibold opacity-80">
-                  {m.capacity ?? 4}p
-                </span>
-                {(etiquetaGrupo || (reservaProx && !libre)) && (
-                  <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-80">
-                    {!libre && reservaProx
-                      ? `${etiquetaGrupo ? `${etiquetaGrupo} · ` : ""}${reservationTime(reservaProx.scheduledAt)}`
-                      : etiquetaGrupo}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-          {!mesas.length && (
-            <p className="col-span-full text-sm text-carbon/50">
-              {locale === "en"
-                ? "Set table count in Settings."
-                : "Definí la cantidad de mesas en Configuración."}
-            </p>
-          )}
-          {!!mesas.length && !mesasFiltradas.length && (
-            <p className="col-span-full py-6 text-center text-sm text-carbon/50">
-              {locale === "en"
-                ? "No tables match this filter."
-                : "Ninguna mesa con este filtro."}
-            </p>
-          )}
-        </div>
-      </section>
+      <MapaMesas
+        mesas={mesas}
+        mesasFiltradas={mesasFiltradas}
+        reservaPorMesa={reservaPorMesa}
+        esperaById={esperaById}
+        reservaById={reservaById}
+        ahora={ahora}
+        ready={ready}
+        locale={locale}
+        onHold={setHoldReservaId}
+        onOcupar={(m) => {
+          setOcuparPrimaria(m.number);
+          setOcuparMesasSel([m.number]);
+          setOcuparNombre("");
+          setOcuparPersonas(Math.min(m.capacity ?? 4, 4));
+          setOcuparOpen(true);
+        }}
+        onLiberar={setLiberarNumero}
+      />
 
-      <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-carbon/70">
-            {locale === "en" ? "Waiting list" : "Lista de espera"}
-            {cola.length ? ` · ${cola.length}` : ""}
-          </h2>
-          {cola.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-espera px-4 text-sm font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte sm:min-h-0 sm:py-2"
-            >
-              {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
-            </button>
-          )}
-        </div>
-        <div className="flex flex-col gap-3">
-          {paginated.map((e, idx) => {
-            const mins = minsAgo(e.createdAt);
-            const urgencia =
-              mins >= 20 ? "text-rose-600" : mins >= 10 ? "text-amber-700" : "";
-            const pos = (page - 1) * PAGE_SIZE + idx + 1;
-            const puedeSentar = hayMesaPara(e.partySize);
-            return (
-            <article
-              key={e.id}
-              className={`rounded-[20px] border bg-surface p-4 shadow-sm ${
-                e.status === "avisado"
-                  ? "border-espera/50 bg-espera/5 ring-1 ring-espera/25"
-                  : "border-linea"
-              }`}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-carbon/10 text-xs font-bold text-carbon/60">
-                      {pos}
-                    </span>
-                    <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
-                      {e.name}
-                    </h3>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                        e.status === "avisado"
-                          ? "bg-espera text-crema"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {WAITLIST_STATUS_LABEL[e.status]}
-                    </span>
-                  </div>
-                  <p className={`mt-1 text-sm text-carbon/55 ${urgencia}`}>
-                    {e.partySize} {locale === "en" ? "guests" : "personas"} ·{" "}
-                    <span className="font-semibold">{mins} min</span>
-                    {e.employee ? ` · ${e.employee}` : ""}
-                  </p>
-                </div>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[9.5rem] sm:flex-row sm:flex-wrap">
-                  {e.status === "esperando" && (
-                    <button
-                      type="button"
-                      onClick={() => void avisar(e.id).then(toastAviso)}
-                      className={`${BTN_MOBILE} bg-espera text-crema hover:bg-espera-fuerte sm:flex-1`}
-                    >
-                      {locale === "en" ? "Notify" : "Avisar"}
-                    </button>
-                  )}
-                  {e.status === "avisado" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void reavisar(e.id).then((r) => toastAviso(r));
-                      }}
-                      className={`${BTN_MOBILE} border border-espera/40 bg-espera/10 text-espera hover:bg-espera hover:text-crema sm:flex-1`}
-                    >
-                      {locale === "en" ? "Notify again 🔔" : "Volver a avisar 🔔"}
-                    </button>
-                  )}
-                  {(e.status === "esperando" || e.status === "avisado") && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSentarMesas([]);
-                        setSentarId(e.id);
-                      }}
-                      disabled={!puedeSentar}
-                      className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90 disabled:opacity-40 sm:flex-1`}
-                    >
-                      {locale === "en" ? "Seat" : "Sentar"}
-                    </button>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        qrPrimedRef.current = false;
-                        qrOpenedSeenAtRef.current = e.seenAt ?? null;
-                        setQrOpenedSeenAt(e.seenAt ?? null);
-                        setQr(e);
-                      }}
-                      className={`${BTN_MOBILE} flex-1 border border-linea text-carbon/70 hover:bg-crema`}
-                    >
-                      QR
-                    </button>
-                    {!waitlistClosed(e.status) && (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmCancelEsperaId(e.id)}
-                        className={`${BTN_MOBILE} flex-1 text-red-600/80 hover:bg-red-50`}
-                      >
-                        {locale === "en" ? "Cancel" : "Cancelar"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </article>
-            );
-          })}
-          {!cola.length && (
-            <div className="rounded-[24px] border border-dashed border-espera/30 bg-espera/5 px-6 py-10 text-center">
-              <p className="font-display text-lg uppercase text-espera">
-                {locale === "en" ? "No one waiting" : "Nadie en espera"}
-              </p>
-              <p className="mt-1 text-sm text-carbon/50">
-                {locale === "en"
-                  ? "Add a party when walk-ins arrive."
-                  : "Agregá un grupo cuando lleguen sin reserva."}
-              </p>
-              <button
-                type="button"
-                onClick={() => setCreateOpen(true)}
-                className="mt-5 inline-flex min-h-11 w-full max-w-xs items-center justify-center rounded-full bg-espera px-5 text-sm font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte sm:w-auto"
-              >
-                {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
-              </button>
-            </div>
-          )}
-        </div>
-        <Pagination
-          page={page}
-          pageSize={PAGE_SIZE}
-          total={cola.length}
-          onChange={setPage}
-        />
-      </section>
+      <ColaEspera
+        cola={cola}
+        paginated={paginated}
+        page={page}
+        pageSize={PAGE_SIZE}
+        ready={ready}
+        locale={locale}
+        puedeSentar={hayMesaPara}
+        onPage={setPage}
+        onAgregar={() => setCreateOpen(true)}
+        onAvisar={(id) => void avisar(id).then(toastAviso)}
+        onReavisar={(id) => void reavisar(id).then(toastAviso)}
+        onSentar={(id) => {
+          setSentarMesas([]);
+          setSentarId(id);
+        }}
+        onVerQr={qr.abrirVerQr}
+        onCancelar={setConfirmCancelEsperaId}
+      />
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -1097,7 +796,9 @@ const EsperaPanelPage = () => {
             </button>
           )}
         </div>
-        {reservasAgenda.length > 0 ? (
+        {!ready ? (
+          <Skeleton className="h-40 rounded-[24px]" />
+        ) : reservasAgenda.length > 0 ? (
           <ReservasAgenda
             reservas={reservasAgenda}
             locale={locale}
@@ -1154,69 +855,14 @@ const EsperaPanelPage = () => {
         )}
       </section>
 
-      {canceladasHoy.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-carbon/70">
-            {locale === "en" ? "Cancelled today" : "Cancelados hoy"}
-            {` · ${canceladasHoy.length}`}
-          </h2>
-          <div className="flex flex-col gap-2">
-            {canceladasHoy.slice(0, 8).map((e) => (
-              <div
-                key={e.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-linea bg-surface/70 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-carbon/70">
-                    {e.name}
-                  </p>
-                  <p className="text-xs text-carbon/45">
-                    {e.partySize}{" "}
-                    {locale === "en" ? "guests" : "personas"}
-                    {e.cancelledAt
-                      ? ` · ${formatHora(e.cancelledAt, locale)}`
-                      : ""}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700">
-                    {WAITLIST_STATUS_LABEL.cancelado}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={locale === "en" ? "Delete" : "Borrar"}
-                    title={locale === "en" ? "Delete" : "Borrar"}
-                    onClick={() => {
-                      void borrarEspera(e.id);
-                      toast(
-                        locale === "en" ? "Removed" : "Eliminado",
-                        "success",
-                      );
-                    }}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-linea text-carbon/40 transition hover:border-red-300 hover:text-red-500"
-                  >
-                    <svg
-                      width="15"
-                      height="15"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4h8v2" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v6M14 11v6" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <CanceladosHoy
+        canceladas={canceladasHoy}
+        locale={locale}
+        onBorrar={(id) => {
+          void borrarEspera(id);
+          toast(locale === "en" ? "Removed" : "Eliminado", "success");
+        }}
+      />
 
       <p className="text-center text-xs text-carbon/45">
         {locale === "en"
@@ -1230,17 +876,17 @@ const EsperaPanelPage = () => {
         </Link>
       </p>
 
-      {qr && (
+      {qr.item && (
         <QrModal
-          reference={qr.name}
-          token={qr.qrToken}
+          reference={qr.item.name}
+          token={qr.item.qrToken}
           etiqueta={locale === "en" ? "Party" : "Grupo"}
-          onClose={() => setQr(null)}
+          onClose={qr.cerrar}
           pathPrefix="/e"
           accent="espera"
           onCancelar={() => {
-            void cancelar(qr.id);
-            setQr(null);
+            void cancelar(qr.item!.id);
+            qr.cerrar();
           }}
         />
       )}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import {
   readDeviceMode,
@@ -18,6 +19,7 @@ const getSnapshot = () => readDeviceMode();
 const getServer = () => "ambos" as const;
 
 export const ModuleSwitcher = () => {
+  const { t } = useApp();
   const path = usePathname();
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
@@ -35,7 +37,7 @@ export const ModuleSwitcher = () => {
     <div
       className="mb-5 flex w-full rounded-2xl border border-linea bg-surface p-1 shadow-sm"
       role="tablist"
-      aria-label="Módulo"
+      aria-label={t("modulos.aria")}
     >
       <Link
         href="/panel"
@@ -47,7 +49,7 @@ export const ModuleSwitcher = () => {
             : "text-carbon/55 hover:bg-carbon/5 hover:text-carbon"
         }`}
       >
-        Pedidos
+        {t("modulos.pedidos")}
       </Link>
       <Link
         href="/panel/espera"
@@ -59,7 +61,7 @@ export const ModuleSwitcher = () => {
             : "text-carbon/55 hover:bg-carbon/5 hover:text-carbon"
         }`}
       >
-        Espera de mesa
+        {t("modulos.espera")}
       </Link>
     </div>
   );

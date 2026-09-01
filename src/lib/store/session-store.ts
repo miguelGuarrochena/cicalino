@@ -1,10 +1,19 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabaseConfigured } from "@/lib/supabase/config";
+import { businessDayStart } from "@/lib/businessDay";
 
 export interface ActiveEmployee {
   id: string;
   name: string;
+  /* Cuándo fichó, en epoch ms. El fichaje vence con la jornada: sin esto
+   * quedaba activo para siempre y la tablet del mostrador seguía atribuyendo
+   * pedidos a quien fichó tres días atrás.
+   *
+   * Opcional porque los fichajes que ya están guardados en localStorage no lo
+   * tienen. Ver `fichajeVigente`: sin sello se considera vencido, así que esa
+   * gente ficha una vez más y listo. */
+  fichadoEn?: number;
 }
 
 export interface Impersonation {
@@ -65,7 +74,8 @@ export const useSessionStore = create<SessionState>()(
         set({ organizationId: organizationId, sucursalId: branchId }),
       setSucursalId: (branchId) => set({ sucursalId: branchId }),
       empleadoActivo: null,
-      fichar: (emp) => set({ empleadoActivo: emp }),
+      fichar: (emp) =>
+        set({ empleadoActivo: { ...emp, fichadoEn: emp.fichadoEn ?? Date.now() } }),
       salir: () => set({ empleadoActivo: null }),
       adminDesbloqueado: false,
       adminDesbloqueadoHasta: null,
@@ -111,6 +121,27 @@ export const useSessionStore = create<SessionState>()(
     },
   ),
 );
+
+/* ¿El fichaje sigue siendo de esta jornada?
+ *
+ * El desbloqueo de admin ya vencía (ADMIN_UNLOCK_MS); el fichaje no. Se ancla
+ * al corte del día del local, que es la unidad con la que el local piensa: el
+ * turno de la noche sigue siendo "hoy" hasta las 6, y a las 6 arranca otro.
+ *
+ * No borra nada del historial: `pedidos.empleado_id` y `esperas.empleado_id`
+ * quedan como estaban. Lo único que caduca es a quién se le atribuyen los
+ * pedidos NUEVOS en este dispositivo. */
+export const fichajeVigente = (
+  emp: ActiveEmployee | null,
+  cutoffHour: number,
+  ahora: Date = new Date(),
+): boolean => {
+  if (!emp) return false;
+  if (typeof emp.fichadoEn !== "number" || !Number.isFinite(emp.fichadoEn)) {
+    return false;
+  }
+  return emp.fichadoEn >= businessDayStart(cutoffHour, ahora).getTime();
+};
 
 export const clearSessionLocal = () => {
   useSessionStore.setState({

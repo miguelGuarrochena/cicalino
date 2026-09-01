@@ -115,7 +115,7 @@ export const SentarEsperaModal = ({
 
       <p
         className={`mb-3 text-sm font-semibold ${
-          alcanza ? "text-espera" : "text-amber-700"
+          alcanza ? "text-espera" : "text-curso"
         }`}
       >
         {es

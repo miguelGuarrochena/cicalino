@@ -30,6 +30,22 @@
   --espera-strong: #0d9488;
   --line: #e4dfc2;
   --mascota: #2536d4;
+
+  /* Estados del panel: en curso, listo y alerta.
+   *
+   * Antes cada pantalla resolvía esto con pasteles crudos de Tailwind
+   * (bg-amber-100, bg-emerald-50, text-rose-800…), que no tienen variante
+   * oscura. En modo oscuro los pills y las tarjetas de resumen quedaban como
+   * bloques claros sobre el fondo azul noche. */
+  --curso: #92400e;
+  --curso-fondo: #fef3c7;
+  --curso-borde: #fcd34d;
+  --ok: #065f46;
+  --ok-fondo: #d1fae5;
+  --ok-borde: #6ee7b7;
+  --alerta: #991b1b;
+  --alerta-fondo: #fee2e2;
+  --alerta-borde: #fca5a5;
   color-scheme: light;
 }
 
@@ -45,6 +61,15 @@
     --espera-strong: #5eead4;
     --line: #2a2f5c;
     --mascota: #ede9ce;
+    --curso: #fcd34d;
+    --curso-fondo: color-mix(in srgb, #f59e0b 18%, transparent);
+    --curso-borde: color-mix(in srgb, #f59e0b 45%, transparent);
+    --ok: #6ee7b7;
+    --ok-fondo: color-mix(in srgb, #10b981 18%, transparent);
+    --ok-borde: color-mix(in srgb, #10b981 45%, transparent);
+    --alerta: #fca5a5;
+    --alerta-fondo: color-mix(in srgb, #ef4444 18%, transparent);
+    --alerta-borde: color-mix(in srgb, #ef4444 45%, transparent);
     color-scheme: dark;
   }
 }
@@ -60,6 +85,15 @@
   --espera-strong: #5eead4;
   --line: #2a2f5c;
   --mascota: #ede9ce;
+  --curso: #fcd34d;
+  --curso-fondo: color-mix(in srgb, #f59e0b 18%, transparent);
+  --curso-borde: color-mix(in srgb, #f59e0b 45%, transparent);
+  --ok: #6ee7b7;
+  --ok-fondo: color-mix(in srgb, #10b981 18%, transparent);
+  --ok-borde: color-mix(in srgb, #10b981 45%, transparent);
+  --alerta: #fca5a5;
+  --alerta-fondo: color-mix(in srgb, #ef4444 18%, transparent);
+  --alerta-borde: color-mix(in srgb, #ef4444 45%, transparent);
   color-scheme: dark;
 }
 
@@ -72,8 +106,15 @@
   --color-espera: var(--espera);
   --color-espera-fuerte: var(--espera-strong);
   --color-linea: var(--line);
-  --color-listo: #16a34a;
-  --color-prep: #f59e0b;
+  --color-curso: var(--curso);
+  --color-curso-fondo: var(--curso-fondo);
+  --color-curso-borde: var(--curso-borde);
+  --color-ok: var(--ok);
+  --color-ok-fondo: var(--ok-fondo);
+  --color-ok-borde: var(--ok-borde);
+  --color-alerta: var(--alerta);
+  --color-alerta-fondo: var(--alerta-fondo);
+  --color-alerta-borde: var(--alerta-borde);
 
   /* Las dos variables las define next/font en el <html>. Los fallbacks quedan
      por si la fuente no llegó todavía. */

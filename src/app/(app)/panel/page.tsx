@@ -1,18 +1,12 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { fetchOrderSeenAt } from "@/lib/data/orders";
-import { seenAtNewer } from "@/lib/qrSeen";
-import { notifyCustomer, type NotifyResult } from "@/lib/notify";
+import { useQrSeenClose } from "@/lib/hooks/useQrSeenClose";
+import { notifyCustomer } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
 import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
@@ -24,13 +18,16 @@ import { HelpLink } from "@/components/panel/HelpLink";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
+import { useActiveEmployee } from "@/lib/hooks/useActiveEmployee";
 import {
   useSuperadminStore,
   branchById,
 } from "@/lib/store/superadmin-store";
 import { Pagination } from "@/components/ui/Pagination";
+import { OrderCardSkeleton, Skeleton } from "@/components/ui/Skeleton";
 import { useDebounced } from "@/lib/hooks/useDebounced";
-import { TOAST_AVISO_MS, useToast } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/Toast";
+import { useAvisoToast } from "@/lib/hooks/useAvisoToast";
 import { dingNew, notifyReady } from "@/lib/sound";
 import {
   readDeviceMode,
@@ -54,6 +51,11 @@ const FILTROS: FiltroEstado[] = [
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 
+const AVISO_PEDIDO = {
+  es: "Marcado como listo, pero el celular no tiene avisos activos: llamalo vos.",
+  en: "Marked as ready, but their phone has no alerts on — call them out.",
+};
+
 const PanelOrdersPage = () => {
   const { t, locale } = useApp();
   const toast = useToast();
@@ -75,7 +77,7 @@ const PanelOrdersPage = () => {
     { pedidos: moduloPedidos, espera: moduloEspera },
     dispositivo,
   );
-  const activeEmployee = useSessionStore((s) => s.empleadoActivo);
+  const activeEmployee = useActiveEmployee();
   const branchId = useSessionStore((s) => s.sucursalId);
   const orgs = useSuperadminStore((s) => s.organizaciones);
   const [filtro, setFiltro] = useState<FiltroEstado>("todos");
@@ -93,6 +95,7 @@ const PanelOrdersPage = () => {
     createOrder,
     changeStatus,
     branchName: liveBranchName,
+    ready,
     live,
     syncError,
   } = useOrders(branchId, {
@@ -113,13 +116,7 @@ const PanelOrdersPage = () => {
     }
   }, [branchConfigReady, visibles, router]);
 
-  const [qrOrder, setQrOrder] = useState<OrderView | null>(null);
-  /* `visto_en` al abrir. En el alta ya está “primed” (cierra al primer visto).
-   * En Ver QR hay que leer el servidor primero: si el cliente sigue en la
-   * pestaña, el timestamp ya avanzó y no hay que cerrar. */
-  const [qrOpenedSeenAt, setQrOpenedSeenAt] = useState<string | null>(null);
-  const qrOpenedSeenAtRef = useRef<string | null>(null);
-  const qrPrimedRef = useRef(true);
+  const qr = useQrSeenClose<OrderView>(fetchOrderSeenAt, orders);
   const [createOpen, setCrearOpen] = useState(false);
   const [refDraft, setRefDraft] = useState("");
   const [creating, setCreando] = useState(false);
@@ -142,43 +139,7 @@ const PanelOrdersPage = () => {
   }
 
   /* Pedido vivo: el alias puede cambiar mientras el QR sigue abierto. */
-  const qrLive = qrOrder
-    ? (orders.find((o) => o.id === qrOrder.id) ?? qrOrder)
-    : null;
-  const liveSeenAt = qrOrder
-    ? (orders.find((o) => o.id === qrOrder.id)?.seenAt ?? null)
-    : null;
-
-  useEffect(() => {
-    if (!qrOrder) return;
-    if (
-      qrPrimedRef.current &&
-      seenAtNewer(liveSeenAt, qrOpenedSeenAtRef.current)
-    ) {
-      setQrOrder(null);
-      return;
-    }
-    let vivo = true;
-    const consider = (seenAt: string | null) => {
-      if (!vivo || !seenAt) return;
-      if (!qrPrimedRef.current) {
-        qrPrimedRef.current = true;
-        qrOpenedSeenAtRef.current = seenAt;
-        setQrOpenedSeenAt(seenAt);
-        return;
-      }
-      if (seenAtNewer(seenAt, qrOpenedSeenAtRef.current)) setQrOrder(null);
-    };
-    const check = () => {
-      void fetchOrderSeenAt(qrOrder.id).then(consider);
-    };
-    check();
-    const iv = window.setInterval(check, 1_200);
-    return () => {
-      vivo = false;
-      window.clearInterval(iv);
-    };
-  }, [qrOrder, qrOpenedSeenAt, liveSeenAt]);
+  const qrLive = qr.itemVivo;
 
   /* `orders` ya viene filtrado, ordenado y recortado a la página. Los
    * contadores vienen aparte porque son sobre la jornada entera, no sobre lo
@@ -195,32 +156,7 @@ const PanelOrdersPage = () => {
         ? t("panel.buscarNombre")
         : t("panel.buscarPedido");
 
-  const toastAviso = useCallback(
-    (r: NotifyResult | null) => {
-      if (!r) return;
-      if (!r.ok) {
-        toast(
-          locale === "en"
-            ? "Couldn’t notify. Check the connection and try again."
-            : "No se pudo avisar. Revisá la conexión y probá de nuevo.",
-          "error",
-        );
-        return;
-      }
-      if (r.delivered > 0) {
-        toast(locale === "en" ? "Notified 🔔" : "Avisado 🔔", "success");
-        return;
-      }
-      toast(
-        locale === "en"
-          ? "Marked as ready, but their phone has no alerts on — call them out."
-          : "Marcado como listo, pero el celular no tiene avisos activos: llamalo vos.",
-        "info",
-        TOAST_AVISO_MS,
-      );
-    },
-    [locale, toast],
-  );
+  const toastAviso = useAvisoToast(AVISO_PEDIDO);
 
   const reavisar = async (id: string) => {
     toastAviso(await notifyCustomer({ orderId: id }));
@@ -232,10 +168,7 @@ const PanelOrdersPage = () => {
       toast("No se pudo crear el pedido", "error");
       return false;
     }
-    qrPrimedRef.current = true;
-    qrOpenedSeenAtRef.current = created.seenAt ?? null;
-    setQrOpenedSeenAt(created.seenAt ?? null);
-    setQrOrder(created);
+    qr.abrirNuevo(created);
     setFiltro("todos");
     setQ("");
     dingNew();
@@ -343,9 +276,13 @@ const PanelOrdersPage = () => {
             </h1>
             <HelpLink seccion="pedidos" />
           </div>
-          <p className="mt-1 text-sm text-carbon/55">
-            {t("panel.activos", { n: activos })}
-          </p>
+          {ready ? (
+            <p className="mt-1 text-sm text-carbon/55">
+              {t("panel.activos", { n: activos })}
+            </p>
+          ) : (
+            <Skeleton className="mt-1.5 h-4 w-28" />
+          )}
         </div>
         <button
           type="button"
@@ -377,28 +314,28 @@ const PanelOrdersPage = () => {
           onClick={() => setFiltro("creado")}
           className={`rounded-2xl border px-3 py-3 text-left transition ${
             filtro === "creado"
-              ? "border-amber-400 bg-amber-100"
+              ? "border-curso-borde bg-curso-fondo"
               : "border-linea bg-surface hover:bg-carbon/5"
           }`}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-curso">
             {t("estado.creado")}
           </p>
-          <p className="mt-0.5 font-display text-2xl text-amber-900">{enCurso}</p>
+          <p className="mt-0.5 font-display text-2xl text-curso">{enCurso}</p>
         </button>
         <button
           type="button"
           onClick={() => setFiltro("listo")}
           className={`rounded-2xl border px-3 py-3 text-left transition ${
             filtro === "listo"
-              ? "border-emerald-400 bg-emerald-100"
+              ? "border-ok-borde bg-ok-fondo"
               : "border-linea bg-surface hover:bg-carbon/5"
           }`}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-ok">
             {t("estado.listo")}
           </p>
-          <p className="mt-0.5 font-display text-2xl text-emerald-900">{listos}</p>
+          <p className="mt-0.5 font-display text-2xl text-ok">{listos}</p>
         </button>
       </div>
 
@@ -437,7 +374,16 @@ const PanelOrdersPage = () => {
         />
       </div>
 
-      {total === 0 ? (
+      {/* Hasta que vuelve la primera consulta no se sabe si la jornada está
+          vacía. Antes se pintaba el cartel de "todavía no hay pedidos" y se
+          reemplazaba por la lista un segundo después. */}
+      {!ready ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <OrderCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : total === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-[32px] border border-linea bg-surface/60 px-6 py-16 text-center">
           <div className="u-float">
             <ThemedImg name="bell" alt="" className="h-28" />
@@ -473,12 +419,7 @@ const PanelOrdersPage = () => {
                 pedido={p}
                 index={i}
                 onCambiarEstado={changeStatusUX}
-                onMostrarQr={(order) => {
-                  qrPrimedRef.current = false;
-                  qrOpenedSeenAtRef.current = order.seenAt ?? null;
-                  setQrOpenedSeenAt(order.seenAt ?? null);
-                  setQrOrder(order);
-                }}
+                onMostrarQr={qr.abrirVerQr}
                 onReavisar={live ? reavisar : undefined}
               />
             ))}
@@ -581,10 +522,10 @@ const PanelOrdersPage = () => {
           alias={qrLive.alias}
           token={qrLive.qrToken}
           etiqueta={t(`modo.${mode}`)}
-          onClose={() => setQrOrder(null)}
+          onClose={qr.cerrar}
           onCancelar={() => {
             void changeStatusUX(qrLive.id, "cancelado");
-            setQrOrder(null);
+            qr.cerrar();
           }}
         />
       )}

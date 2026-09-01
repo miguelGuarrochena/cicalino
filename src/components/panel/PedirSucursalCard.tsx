@@ -5,6 +5,7 @@ import { useSessionStore } from "@/lib/store/session-store";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
+import { useApp } from "@/components/providers/Providers";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   getQuotaSummary,
@@ -22,6 +23,7 @@ const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 
 export const PedirSucursalCard = () => {
+  const { t } = useApp();
   const toast = useToast();
   const rol = useSessionStore((s) => s.rol);
   const esDueno = rol === "admin" || rol === "superadmin";
@@ -188,7 +190,7 @@ export const PedirSucursalCard = () => {
                   Enviando…
                 </>
               ) : (
-                "Confirmar y recibir datos de pago"
+                t("config.pedirSucursalCta")
               )}
             </button>
           </div>

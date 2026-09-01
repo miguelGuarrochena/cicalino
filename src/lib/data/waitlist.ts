@@ -615,6 +615,32 @@ export const setTableCapacity = async (
   return true;
 };
 
+/* Libera una mesa y, salvo `soloEsta`, el resto de su unión — en un solo
+ * UPDATE dentro de una transacción.
+ *
+ * Antes esto era un bucle de setTableState en el cliente, una ida al servidor
+ * por mesa: si fallaba a mitad de camino quedaba media unión liberada. El
+ * grupo lo arma la RPC con lo que la base tiene en ese momento, no con el
+ * snapshot que venía mostrando la pantalla. */
+export const releaseTables = async (
+  branchId: string,
+  numero: number,
+  opts: { soloEsta?: boolean } = {},
+): Promise<boolean> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase.rpc("liberar_mesas", {
+    p_local: branchId,
+    p_numero: numero,
+    p_solo_esta: Boolean(opts.soloEsta),
+  });
+  if (error) {
+    reportError("panel.mesas.liberar", error, { branchId });
+    return false;
+  }
+  return true;
+};
+
 export const setTableState = async (
   branchId: string,
   numero: number,

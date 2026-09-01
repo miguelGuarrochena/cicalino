@@ -85,7 +85,13 @@ describe("alias-cliente.sql", () => {
 
   it("está en orden.json", () => {
     expect(orden).toContain("alias-cliente.sql");
-    expect(orden.at(-1)).toBe("alias-busca-activos.sql");
+    /* Los dos redefinen pedidos_pagina, así que lo que importa es el orden
+     * relativo entre ellos. Antes esto se pedía como "es el último de la
+     * lista", que se rompía sola con el próximo script de cualquier tema —y
+     * de hecho pedidos-avisos-activos.sql la volvió a redefinir después. */
+    expect(orden.indexOf("alias-busca-activos.sql")).toBeGreaterThan(
+      orden.indexOf("alias-cliente.sql"),
+    );
   });
 });
 

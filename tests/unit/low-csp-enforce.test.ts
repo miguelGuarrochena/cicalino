@@ -56,6 +56,8 @@ describe("Low — CSP por ruta (nonce solo donde llega)", () => {
     "/aceptar/abcdef0123456789",
     "/admin",
     "/admin/cliente/2f1c9b8a-0000-4000-8000-000000000000",
+    /* Lee el token de la query, así que se renderiza por request. */
+    "/recuperar",
   ];
   const estaticas = [
     "/",

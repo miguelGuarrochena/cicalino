@@ -29,7 +29,7 @@ const supabaseHost = (): string => {
  * Si alguna vez una ruta de acá deja de ser dinámica, o al revés, hay que
  * actualizar esta lista: `next build` lo muestra con ○ (estática) y ƒ
  * (dinámica). */
-const RUTAS_CON_NONCE = ["/p/", "/e/", "/aceptar/", "/admin"];
+const RUTAS_CON_NONCE = ["/p/", "/e/", "/aceptar/", "/admin", "/recuperar"];
 
 export const admiteNonce = (pathname: string): boolean =>
   RUTAS_CON_NONCE.some(

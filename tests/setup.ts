@@ -12,3 +12,11 @@ if (typeof globalThis.localStorage === "undefined") {
     },
   } as Storage;
 }
+
+/* zustand 5 resuelve su storage como `window.localStorage`, no como el global
+ * suelto, y lo hace al importar el store. Sin un `window` los tests que
+ * escriben en un store persistido igual pasan, pero cada set() imprime
+ * "storage is currently unavailable" y ensucia la salida de la suite. */
+if (typeof globalThis.window === "undefined") {
+  (globalThis as { window?: unknown }).window = globalThis;
+}
