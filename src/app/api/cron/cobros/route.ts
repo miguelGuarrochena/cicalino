@@ -78,11 +78,13 @@ export const GET = async (req: Request) => {
     const suscripciones = await sweepSubscriptions();
     const cobros = await sendBillingReminders();
 
-    /* Mantenimiento diario. Ninguno de los tres puede depender de que alguien
-     * tenga una pantalla abierta:
+    /* Mantenimiento diario. Ninguno puede depender de que alguien tenga una
+     * pantalla abierta:
      *
      *  - Las reservas vencidas las barría el panel. Si el local cerraba con
-     *    reservas activas, al otro día seguían bloqueando la mesa.
+     *    reservas activas, al otro día seguían figurando como activas.
+     *  - Las mesas ocupadas tampoco se liberaban solas: el mapa amanecía
+     *    lleno. El barrido deja el salón libre; no toca las reservas.
      *  - Las suscripciones push no las borraba nadie: la tabla solo crecía.
      *  - El paso a `en_preparacion` lo dispara el panel cada minuto; sin este
      *    barrido, la sucursal que tenga la tablet apagada dejaría pedidos
@@ -91,6 +93,13 @@ export const GET = async (req: Request) => {
       "expirar_reservas_vencidas",
     );
     if (errRes) console.error("cron/cobros: expirar reservas", errRes.message);
+
+    const { data: mesasLibres, error: errMesas } = await admin.rpc(
+      "liberar_mesas_jornada",
+    );
+    if (errMesas) {
+      console.error("cron/cobros: liberar mesas jornada", errMesas.message);
+    }
 
     const { data: enPreparacion, error: errPrep } = await admin.rpc(
       "marcar_en_preparacion_pendientes",
@@ -109,6 +118,7 @@ export const GET = async (req: Request) => {
       ...cobros,
       suscripciones,
       reservasExpiradas: reservas ?? null,
+      mesasLiberadas: mesasLibres ?? null,
       enPreparacion: enPreparacion ?? null,
       pushPurgadas: push ?? null,
     });

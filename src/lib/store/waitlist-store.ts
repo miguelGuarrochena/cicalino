@@ -52,6 +52,7 @@ interface WaitlistState {
   eliminarEspera: (id: string) => void;
   reavisarEspera: (id: string) => void;
   expirarReservasDemo: () => void;
+  liberarMesasJornadaDemo: (desdeIso: string) => void;
 }
 
 const iso = (minsAgo = 0) =>
@@ -466,6 +467,34 @@ export const useWaitlistStore = create<WaitlistState>()(
           });
           if (!changed) return s;
           return { reservas };
+        }),
+
+      /* Al corte: salón libre. Las reservas se quedan. */
+      liberarMesasJornadaDemo: (desdeIso) =>
+        set((s) => {
+          const desde = new Date(desdeIso).getTime();
+          if (Number.isNaN(desde)) return s;
+          const esperaById = new Map(s.esperas.map((e) => [e.id, e]));
+          const reservaById = new Map(s.reservas.map((r) => [r.id, r]));
+          let changed = false;
+          const mesas = s.mesas.map((m) => {
+            if (m.status !== "ocupada") return m;
+            const espera = m.waitlistId ? esperaById.get(m.waitlistId) : undefined;
+            const reserva = m.reservationId
+              ? reservaById.get(m.reservationId)
+              : undefined;
+            const ocupadaEn = espera?.seatedAt ?? espera?.createdAt ?? reserva?.seatedAt;
+            if (ocupadaEn && new Date(ocupadaEn).getTime() >= desde) return m;
+            changed = true;
+            return {
+              ...m,
+              status: "libre" as const,
+              waitlistId: null,
+              reservationId: null,
+            };
+          });
+          if (!changed) return s;
+          return { mesas };
         }),
     }),
     {
