@@ -228,10 +228,32 @@ button:disabled,
   animation: var(--animate-float);
 }
 
+@keyframes alertFlash {
+  0%,
+  100% {
+    background-color: var(--bg);
+  }
+  28% {
+    background-color: var(--alert-flash);
+  }
+}
+
+.u-alert-flash {
+  --alert-flash: var(--ok-fondo);
+  animation: alertFlash 0.9s ease;
+}
+
+.u-alert-flash-espera {
+  --alert-flash: color-mix(in srgb, var(--espera) 32%, var(--bg));
+  animation: alertFlash 0.9s ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .u-in,
   .u-pop,
-  .u-float {
+  .u-float,
+  .u-alert-flash,
+  .u-alert-flash-espera {
     animation: none;
     opacity: 1;
   }

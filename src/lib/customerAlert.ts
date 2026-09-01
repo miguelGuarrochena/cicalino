@@ -2,16 +2,18 @@
  * Cuándo la pestaña del cliente tiene que volver a animar / vibrar.
  *
  * El primer aviso es el salto de estado (esperando → avisado, en curso → listo).
- * "Volver a avisar" no cambia el estado: solo pisa avisado_en y manda el push.
- * Si la clave fuera solo el status, el reaviso llega al celular y la pestaña
- * no se mueve.
+ * "Volver a avisar" no cambia el estado: manda push y pisa avisado_en.
  *
  * El panel escribe avisado_en al marcar listo/avisado y /api/push/notify lo
  * vuelve a pisar. Un poll entre esas dos escrituras no tiene que sonar otra
- * vez: por eso absorbemos cambios de stamp muy juntos.
+ * vez: absorbemos stamps muy juntos. Un reaviso a los pocos segundos sí.
  */
 
-export const CUSTOMER_REAVISO_MIN_MS = 10_000;
+/** Doble escritura del primer notify (estado + push), no un reaviso. */
+export const CUSTOMER_REAVISO_MIN_MS = 4_000;
+
+/** Evita beep doble: status-change y push del mismo aviso. */
+export const CUSTOMER_PUSH_REPLAY_MIN_MS = 2_000;
 
 export const customerAlertKey = (
   status: string,
@@ -57,14 +59,12 @@ export const shouldFireCustomerAlert = (opts: {
 
 /** Push del SW con la pestaña ya en listo/avisado: es un "volver a avisar". */
 export const shouldReplayFromPush = (opts: {
-  alreadyAlerted: boolean;
   lastFiredAt: number | null;
   now?: number;
   minMs?: number;
 }): boolean => {
-  if (!opts.alreadyAlerted) return false;
   const now = opts.now ?? Date.now();
-  const minMs = opts.minMs ?? CUSTOMER_REAVISO_MIN_MS;
+  const minMs = opts.minMs ?? CUSTOMER_PUSH_REPLAY_MIN_MS;
   if (opts.lastFiredAt == null) return true;
   return now - opts.lastFiredAt >= minMs;
 };

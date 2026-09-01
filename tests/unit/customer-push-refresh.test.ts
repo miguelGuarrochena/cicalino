@@ -34,6 +34,7 @@ describe("Customer push + refresh", () => {
     }
     expect(wake).toContain("pageshow");
     expect(wake).toContain("cicalino-refresh");
+    expect(wake).toContain("emitCustomerPushWake");
     expect(CUSTOMER_SW_REFRESH).toBe("cicalino-refresh");
   });
 

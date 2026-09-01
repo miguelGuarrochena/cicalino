@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  CUSTOMER_PUSH_REPLAY_MIN_MS,
   CUSTOMER_REAVISO_MIN_MS,
   customerAlertKey,
   isNotifyStampRace,
@@ -11,7 +12,7 @@ import {
 
 const t0 = "2026-09-01T12:00:00.000Z";
 const tRace = "2026-09-01T12:00:02.000Z";
-const tReaviso = "2026-09-01T12:03:00.000Z";
+const tReaviso = "2026-09-01T12:00:08.000Z";
 
 describe("shouldFireCustomerAlert", () => {
   it("el primer snapshot dispara (el caller aplica vioEsperando)", () => {
@@ -54,7 +55,7 @@ describe("shouldFireCustomerAlert", () => {
     expect(race.key).toBe(customerAlertKey("avisado", tRace));
   });
 
-  it("volver a avisar (avisado_en minutos después) sí dispara", () => {
+  it("volver a avisar unos segundos después sí dispara", () => {
     const first = shouldFireCustomerAlert({
       prevKey: null,
       status: "avisado",
@@ -71,6 +72,7 @@ describe("shouldFireCustomerAlert", () => {
       notifiedAt: tReaviso,
     });
     expect(replay.fire).toBe(true);
+    expect(CUSTOMER_REAVISO_MIN_MS).toBeLessThanOrEqual(4_000);
   });
 
   it("cambio de estado (listo → retirado, avisado → sentado) dispara", () => {
@@ -92,30 +94,27 @@ describe("shouldReplayFromPush", () => {
   it("ignora el push del primer aviso (recién disparó)", () => {
     expect(
       shouldReplayFromPush({
-        alreadyAlerted: true,
         lastFiredAt: Date.now() - 1_000,
         now: Date.now(),
       }),
     ).toBe(false);
   });
 
-  it("reavisa si el último fire fue hace rato", () => {
+  it("reavisa si pasaron un par de segundos del último fire", () => {
     expect(
       shouldReplayFromPush({
-        alreadyAlerted: true,
-        lastFiredAt: Date.now() - CUSTOMER_REAVISO_MIN_MS - 1,
+        lastFiredAt: Date.now() - CUSTOMER_PUSH_REPLAY_MIN_MS - 1,
         now: Date.now(),
       }),
     ).toBe(true);
   });
 
-  it("no reavisa si la pestaña todavía no armó el primer aviso", () => {
+  it("el primer push dispara aunque todavía no hubiera fire local", () => {
     expect(
       shouldReplayFromPush({
-        alreadyAlerted: false,
         lastFiredAt: null,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 
@@ -134,10 +133,15 @@ describe("pestaña del cliente usa la clave con avisado_en", () => {
       join(root, "src/lib/hooks/useCustomerReadyAlert.ts"),
       "utf8",
     );
+    const wake = readFileSync(
+      join(root, "src/lib/hooks/customerPollWake.ts"),
+      "utf8",
+    );
     expect(waiting).toContain("useCustomerReadyAlert");
     expect(espera).toContain("useCustomerReadyAlert");
     expect(hook).toContain("shouldFireCustomerAlert");
     expect(hook).toContain("shouldReplayFromPush");
-    expect(hook).toContain("CUSTOMER_SW_REFRESH");
+    expect(hook).toContain("subscribeCustomerPushWake");
+    expect(wake).toContain("emitCustomerPushWake");
   });
 });
