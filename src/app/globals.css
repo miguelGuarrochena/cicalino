@@ -14,6 +14,15 @@
   }
 }
 
+/* Tablet y desktop de verdad: pantalla grande, mirada lejos.
+ *
+ * El alto entra en la cuenta a propósito. Un celular en horizontal pasa los
+ * 640 px de ancho, y ahí el aviso tiene que seguir siendo el chico: la
+ * pantalla mide 400 px de alto y un cartel grande le tapa media vista al
+ * mostrador. Con el alto de por medio, entran la tablet (parada o acostada)
+ * y el monitor, y no el celular dado vuelta. */
+@custom-variant grande (@media (min-width: 640px) and (min-height: 600px));
+
 /* ===========================================================================
    Cicalino — sistema de marca (azul cobalto sobre crema)
    Tema claro por defecto; oscuro segun sistema o forzado con data-theme.

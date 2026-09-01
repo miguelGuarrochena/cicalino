@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSuperadminStore, monthlyAmount } from "@/lib/store/superadmin-store";
 import { refreshOrganizations } from "@/lib/data/superadmin";
 import { OrgModal } from "@/components/admin/OrgModal";
@@ -86,9 +86,14 @@ const Dato = ({ label, value }: { label: string; value: string }) => (
 
 const ClientePage = () => {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const orgId = params?.id ?? "";
   const orgs = useSuperadminStore((s) => s.organizaciones);
   const org = orgs.find((o) => o.id === orgId);
+  /* Si la empresa desaparece del store después de haberla visto, es porque se
+   * la borró desde el modal: sin esto la ficha quedaba en el loader para
+   * siempre, apuntando a un id que ya no existe. */
+  const existioAlgunaVez = useRef(false);
 
   const [pagos, setPagos] = useState<PaymentRow[]>([]);
   const [mails, setMails] = useState<SentEmailRow[]>([]);
@@ -98,6 +103,14 @@ const ClientePage = () => {
   useEffect(() => {
     if (!orgs.length) void refreshOrganizations();
   }, [orgs.length]);
+
+  useEffect(() => {
+    if (org) {
+      existioAlgunaVez.current = true;
+      return;
+    }
+    if (existioAlgunaVez.current) router.replace("/admin");
+  }, [org, router]);
 
   const recargar = useMemo(
     () => () => {

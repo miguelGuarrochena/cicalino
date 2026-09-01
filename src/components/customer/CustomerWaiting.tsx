@@ -81,7 +81,6 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   );
   const ultimoAviso = useRef<string | null>(null);
   const vioEsperando = useRef(false);
-  const [ahora, setAhora] = useState(() => Date.now());
 
   useEffect(() => {
     if (!pushDisponible) return;
@@ -104,13 +103,6 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
     };
   }, [token, pushDisponible]);
 
-  /* Reloj para el tiempo transcurrido. Mismo intervalo que la tarjeta del
-   * mostrador: el minuto es la unidad que se muestra, así que 30 s alcanza. */
-  useEffect(() => {
-    const id = window.setInterval(() => setAhora(Date.now()), 30_000);
-    return () => window.clearInterval(id);
-  }, []);
-
   /* Desbloquear audio con el primer toque: sin gesto el navegador bloquea el beep. */
   useEffect(() => {
     const unlock = () => {
@@ -129,13 +121,6 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   const waiting = hydrated && !!order && !cerrado;
   const alias = aliasLocal !== undefined ? aliasLocal : (order?.alias ?? null);
   const puedeAlias = !!order && !esRetirado && !esCancelado && order.modo !== "nombre";
-  /* Cuánto lleva esperando. Se muestra recién al minuto: en los primeros
-   * segundos el cliente acaba de escanear y "0 min" no le dice nada. */
-  const minutosEsperando =
-    order?.createdAt && !cerrado
-      ? Math.floor((ahora - new Date(order.createdAt).getTime()) / 60_000)
-      : 0;
-
   useEffect(() => {
     if (!order || esRetirado || esCancelado) {
       if (hydrated) clearLastVisitIfToken(token);
@@ -355,11 +340,6 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
               <p className="mt-2 max-w-sm text-carbon/60">
                 {t("cliente.preparandoSub")}
               </p>
-              {minutosEsperando >= 1 && (
-                <p className="mt-2 text-sm font-medium tabular-nums text-carbon/45">
-                  {t("cliente.transcurrido", { n: minutosEsperando })}
-                </p>
-              )}
             </>
           )}
         </div>
