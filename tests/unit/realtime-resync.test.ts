@@ -62,7 +62,7 @@ describe("Señal idempotente del cliente", () => {
   it("mismo status con avisado_en distinto a los pocos segundos no dispara", () => {
     const t0 = "2026-09-01T12:00:00.000Z";
     const t2 = "2026-09-01T12:00:02.000Z";
-    const tLater = "2026-09-01T12:03:00.000Z";
+    const tLater = "2026-09-01T12:00:08.000Z";
     const first = shouldFireCustomerAlert({
       prevKey: null,
       status: "listo",

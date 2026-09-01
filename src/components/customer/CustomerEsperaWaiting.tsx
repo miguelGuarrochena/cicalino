@@ -225,7 +225,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   return (
     <main
       className={`relative flex min-h-dvh flex-col items-center px-6 pb-14 pt-16 text-center transition-colors duration-500 ${
-        flash ? "bg-espera/25" : "bg-crema"
+        flash ? "u-alert-flash-espera" : "bg-crema"
       }`}
     >
       <Controls className="absolute right-4 top-4 z-20" />

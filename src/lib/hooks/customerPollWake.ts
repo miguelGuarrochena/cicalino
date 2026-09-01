@@ -59,6 +59,20 @@ export const createCustomerPollAbort = (
 export const tabVisible = (): boolean =>
   typeof document !== "undefined" && document.visibilityState === "visible";
 
+const pushWakeListeners = new Set<() => void>();
+
+export const emitCustomerPushWake = (): void => {
+  for (const fn of pushWakeListeners) fn();
+};
+
+/** El SW avisa a la pestaña abierta: mismo evento que refresca el poll. */
+export const subscribeCustomerPushWake = (fn: () => void): (() => void) => {
+  pushWakeListeners.add(fn);
+  return () => {
+    pushWakeListeners.delete(fn);
+  };
+};
+
 /** El poll periódico no marca visita. Solo carga real o volver de otra app
  * (cámara → Safari: reescaneo en el mismo teléfono). */
 export const VISIT_POLL_GAP_MS = 2_500;
@@ -97,7 +111,11 @@ export const attachCustomerWake = (onWake: () => void): (() => void) => {
   };
 
   const onMessage = (ev: MessageEvent) => {
-    if (ev.data?.type === CUSTOMER_SW_REFRESH) onWake();
+    if (ev.data?.type !== CUSTOMER_SW_REFRESH) return;
+    /* El poll puede no correr si la pestaña está oculta; el aviso en pantalla
+     * sí tiene que enterarse: es el reaviso del mostrador. */
+    emitCustomerPushWake();
+    onWake();
   };
 
   document.addEventListener("visibilitychange", onVisibility);

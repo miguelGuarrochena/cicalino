@@ -218,7 +218,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   return (
     <main
       className={`relative flex min-h-dvh flex-col items-center px-6 pb-14 pt-16 text-center transition-colors duration-500 ${
-        flash ? "bg-emerald-200/70" : "bg-crema"
+        flash ? "u-alert-flash" : "bg-crema"
       }`}
     >
       <Controls className="absolute right-4 top-4 z-20" />
