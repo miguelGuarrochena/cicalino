@@ -110,7 +110,7 @@ export const ColaEspera = ({
                   {e.employee ? ` · ${e.employee}` : ""}
                 </p>
               </div>
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[9.5rem] sm:flex-row sm:flex-wrap">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[9.5rem] sm:flex-row sm:flex-wrap sm:items-center">
                 {e.status === "esperando" && (
                   <button
                     type="button"
@@ -124,7 +124,7 @@ export const ColaEspera = ({
                   <button
                     type="button"
                     onClick={() => onReavisar(e.id)}
-                    className={`${BTN_MOBILE} border border-espera/40 bg-espera/10 text-espera hover:bg-espera hover:text-crema sm:flex-1`}
+                    className={`${BTN_MOBILE} border border-espera/40 bg-espera/10 text-espera hover:bg-espera hover:text-crema sm:flex-none sm:whitespace-nowrap`}
                   >
                     {locale === "en" ? "Notify again 🔔" : "Volver a avisar 🔔"}
                   </button>
