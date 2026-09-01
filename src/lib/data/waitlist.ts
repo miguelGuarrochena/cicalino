@@ -255,6 +255,28 @@ export const expireOverdueReservations = async (
   if (error) console.error("expireOverdueReservations", error.message);
 };
 
+const lastJornadaReset = new Map<string, number>();
+
+/* Al corte, las ocupadas de la jornada anterior quedan libres. Las reservas
+ * no se tocan: viven en `reservas`, no en el estado de la mesa.
+ *
+ * El cron barre todas las sucursales; esto es para que el mapa de la mañana
+ * ya se vea vacío al abrir el panel, sin esperar al job de las 9. */
+export const resetOccupiedTablesForNewDay = async (
+  branchId: string,
+): Promise<void> => {
+  const last = lastJornadaReset.get(branchId) ?? 0;
+  const now = Date.now();
+  if (now - last < 60_000) return;
+  lastJornadaReset.set(branchId, now);
+  const supabase = createBrowserSupabase();
+  if (!supabase) return;
+  const { error } = await supabase.rpc("liberar_mesas_jornada_local", {
+    p_local: branchId,
+  });
+  if (error) console.error("resetOccupiedTablesForNewDay", error.message);
+};
+
 export const insertWaitlistEntry = async (args: {
   branchId: string;
   name: string;

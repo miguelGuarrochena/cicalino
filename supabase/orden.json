@@ -61,5 +61,6 @@
   "pedidos-en-preparacion.sql",
   "pedidos-avisos-activos.sql",
   "liberar-mesas-atomico.sql",
-  "en-preparacion-revoke.sql"
+  "en-preparacion-revoke.sql",
+  "liberar-mesas-jornada.sql"
 ]

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { attachLiveRefresh, coalesced, throttled } from "@/lib/realtime";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
+import { businessDayStart } from "@/lib/businessDay";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { useConfigStore } from "@/lib/store/config-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
@@ -23,6 +24,7 @@ import {
   releaseTables,
   setTableCapacity,
   expireOverdueReservations,
+  resetOccupiedTablesForNewDay,
   subscribeWaitlist,
 } from "@/lib/data/waitlist";
 import type {
@@ -102,7 +104,9 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   const demoEliminar = useWaitlistStore((s) => s.eliminarEspera);
   const demoReavisar = useWaitlistStore((s) => s.reavisarEspera);
   const demoExpirar = useWaitlistStore((s) => s.expirarReservasDemo);
+  const demoLiberarJornada = useWaitlistStore((s) => s.liberarMesasJornadaDemo);
   const demoWalkIn = useWaitlistStore((s) => s.ocuparWalkIn);
+  const cutoffHour = useConfigStore((s) => s.cutoffHour);
 
   const [liveEsperas, setLiveEsperas] = useState<WaitlistView[]>([]);
   const [liveMesas, setLiveMesas] = useState<TableView[]>([]);
@@ -124,6 +128,9 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   const recargar = useCallback(async () => {
     if (!live || !branchId) return;
     expire();
+    /* Antes de leer el mapa: si cambió la jornada, las ocupadas de ayer
+     * ya tienen que verse libres. Las reservas no se tocan. */
+    await resetOccupiedTablesForNewDay(branchId);
     const [e, m, r] = await Promise.all([
       fetchTodayWaitlist(branchId),
       fetchTables(branchId),
@@ -157,8 +164,12 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
         seed(tableCount);
         setMesasCount(tableCount);
         demoExpirar();
+        demoLiberarJornada(businessDayStart(cutoffHour).toISOString());
       }
-      const demoIv = window.setInterval(() => demoExpirar(), 15_000);
+      const demoIv = window.setInterval(() => {
+        demoExpirar();
+        demoLiberarJornada(businessDayStart(cutoffHour).toISOString());
+      }, 15_000);
       return () => window.clearInterval(demoIv);
     }
     void (async () => {
@@ -182,6 +193,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     reload,
     setMesasCount,
     demoExpirar,
+    demoLiberarJornada,
   ]);
 
   const sincronizarCantidadMesas = async () => {
