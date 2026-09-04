@@ -18,6 +18,7 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { EsperaCancelWatch } from "@/components/panel/EsperaCancelWatch";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { SubscriptionGate } from "@/components/panel/SubscriptionGate";
 import {
@@ -136,6 +137,7 @@ const PanelLayout = ({
 
       <SiteFooter className="pb-20 sm:pb-8" />
       {role !== "superadmin" && <PanelNav variant="bottom" />}
+      {role !== "superadmin" && <InstallBanner />}
     </div>
   );
 };
