@@ -14,7 +14,6 @@ import {
   ADMIN_UNLOCK_MS,
   useSessionStore,
 } from "@/lib/store/session-store";
-import { useConfigStore } from "@/lib/store/config-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { EsperaCancelWatch } from "@/components/panel/EsperaCancelWatch";
@@ -22,11 +21,9 @@ import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { SubscriptionGate } from "@/components/panel/SubscriptionGate";
 import {
-  readDeviceMode,
-  visibleModules,
-  panelHomePath,
-} from "@/lib/modules";
-import { useSyncExternalStore } from "react";
+  useOperationalAccess,
+  useModuleRedirect,
+} from "@/lib/hooks/useOperationalAccess";
 
 const SuperadminRedirect = () => {
   const router = useRouter();
@@ -78,23 +75,8 @@ const PanelLayout = ({
   const impersonating = useSessionStore((s) => s.impersonando);
   const branchId = useSessionStore((s) => s.sucursalId);
   const path = usePathname();
-  const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
-  const moduloEspera = useConfigStore((s) => s.moduloEspera);
-  const moduloPagos = useConfigStore((s) => s.moduloPagos);
-  const dispositivo = useSyncExternalStore(
-    (cb) => {
-      window.addEventListener("storage", cb);
-      return () => window.removeEventListener("storage", cb);
-    },
-    readDeviceMode,
-    () => "ambos" as const,
-  );
-  const homeHref = panelHomePath(
-    visibleModules(
-      { pedidos: moduloPedidos, espera: moduloEspera, pagos: moduloPagos },
-      dispositivo,
-    ),
-  );
+  const { homePath: homeHref } = useOperationalAccess();
+  useModuleRedirect();
   /* "Who's serving" is for shared devices signed in with the owner's or a
    * manager's account. A waiter with their own login is already known: the
    * database attributes their actions (staff-roles.sql). Nothing requires it. */

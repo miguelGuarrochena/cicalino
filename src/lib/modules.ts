@@ -7,6 +7,7 @@ export type ModuleId = "pedidos" | "espera" | "pagos";
 export type DeviceMode = "pedidos" | "espera" | "ambos";
 
 export const DEVICE_MODE_KEY = "cicalino-dispositivo-modulo";
+export const DEVICE_MODE_EVENT = "cicalino-device-mode";
 
 export const readDeviceMode = (): DeviceMode => {
   if (typeof window === "undefined") return "ambos";
@@ -18,6 +19,7 @@ export const readDeviceMode = (): DeviceMode => {
 export const saveDeviceMode = (modo: DeviceMode): void => {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(DEVICE_MODE_KEY, modo);
+  window.dispatchEvent(new Event(DEVICE_MODE_EVENT));
 };
 
 /**

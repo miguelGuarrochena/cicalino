@@ -3,30 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
-import { useSessionStore, type CurrentRole } from "@/lib/store/session-store";
-import { useConfigStore } from "@/lib/store/config-store";
-import {
-  readDeviceMode,
-  visibleModules,
-} from "@/lib/modules";
-import { useSyncExternalStore } from "react";
+import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
+import { navLinkActive, type NavIcon } from "@/lib/operation";
 
-type IconKey = "orders" | "espera" | "mesas" | "chart" | "settings";
-
-const LINKS: {
-  href: string;
-  key: string;
-  roles: CurrentRole[];
-  icon: IconKey;
-}[] = [
-  { href: "/panel", key: "nav.pedidos", roles: ["admin", "supervisor", "empleado"], icon: "orders" },
-  { href: "/panel/espera", key: "nav.espera", roles: ["admin", "supervisor", "empleado"], icon: "espera" },
-  { href: "/panel/mesas", key: "nav.mesas", roles: ["admin", "supervisor", "empleado"], icon: "mesas" },
-  { href: "/panel/metrics", key: "nav.metricas", roles: ["admin"], icon: "chart" },
-  { href: "/panel/config", key: "nav.config", roles: ["admin", "supervisor"], icon: "settings" },
-];
-
-const Icon = ({ k }: { k: IconKey }) => {
+const Icon = ({ k }: { k: NavIcon }) => {
   const common = {
     width: 20,
     height: 20,
@@ -59,12 +39,6 @@ const Icon = ({ k }: { k: IconKey }) => {
         <path d="M9 8h6M9 12h6" />
       </svg>
     );
-  if (k === "chart")
-    return (
-      <svg {...common}>
-        <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />
-      </svg>
-    );
   return (
     <svg {...common}>
       <circle cx="12" cy="12" r="3" />
@@ -76,36 +50,13 @@ const Icon = ({ k }: { k: IconKey }) => {
 export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) => {
   const path = usePathname();
   const { t } = useApp();
-  const role = useSessionStore((s) => s.rol);
-  const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
-  const moduloEspera = useConfigStore((s) => s.moduloEspera);
-  const moduloPagos = useConfigStore((s) => s.moduloPagos);
-  const dispositivo = useSyncExternalStore(
-    (cb) => {
-      window.addEventListener("storage", cb);
-      return () => window.removeEventListener("storage", cb);
-    },
-    readDeviceMode,
-    () => "ambos" as const,
-  );
-  const visibles = visibleModules(
-    { pedidos: moduloPedidos, espera: moduloEspera, pagos: moduloPagos },
-    dispositivo,
-  );
-  const links = LINKS.filter((l) => {
-    if (!l.roles.includes(role)) return false;
-    if (l.href === "/panel" && !visibles.pedidos) return false;
-    if (l.href === "/panel/espera" && !visibles.espera) return false;
-    if (l.href === "/panel/mesas" && !visibles.pagos) return false;
-    return true;
-  });
+  const { links } = useOperationalAccess();
 
   if (variant === "bottom") {
     return (
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t border-linea bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden print:hidden">
         {links.map((l) => {
-          const active =
-            l.href === "/panel" ? path === "/panel" : path.startsWith(l.href);
+          const active = navLinkActive(l.href, path);
           return (
             <Link
               key={l.href}
@@ -126,8 +77,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
   return (
     <nav className="hidden items-center gap-1 rounded-full bg-crema/60 p-1 sm:flex">
       {links.map((l) => {
-        const active =
-          l.href === "/panel" ? path === "/panel" : path.startsWith(l.href);
+        const active = navLinkActive(l.href, path);
         return (
           <Link
             key={l.href}
