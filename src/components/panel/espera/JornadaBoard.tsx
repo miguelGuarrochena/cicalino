@@ -58,7 +58,8 @@ export const JornadaBoard = ({
   const [pickEmp, setPickEmp] = useState("");
   const [diaOverride, setDiaOverride] = useState<number | null>(null);
   const [draftsByDay, setDraftsByDay] = useState<Partial<Record<number, DraftRange[]>>>({});
-  const dia = diaOverride ?? shift.weekday || 1;
+  /* Weekdays are ISO 1..7; 0 only means the shift hasn't loaded yet. */
+  const dia = diaOverride ?? (shift.weekday || 1);
   const templateDrafts = shift.template
     .filter((p) => p.weekday === dia)
     .map((p) => ({
