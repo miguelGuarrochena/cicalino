@@ -6,7 +6,7 @@ const root = process.cwd();
 const fix = readFileSync(join(root, "supabase/security-fixes-10.sql"), "utf8");
 const orders = readFileSync(join(root, "src/lib/data/orders.ts"), "utf8");
 const panel = readFileSync(
-  join(root, "src/app/(app)/panel/page.tsx"),
+  join(root, "src/app/(app)/panel/pedidos/page.tsx"),
   "utf8",
 );
 

@@ -79,7 +79,7 @@ describe("Tokens de estado en los tres temas", () => {
  * fondo azul noche. En las pantallas de trabajo van los tokens. */
 describe("Pantallas de trabajo sin pasteles solo-claros", () => {
   const pantallas = [
-    "src/app/(app)/panel/page.tsx",
+    "src/app/(app)/panel/pedidos/page.tsx",
     "src/app/(app)/panel/espera/page.tsx",
     "src/components/panel/config/MetricsPanel.tsx",
     "src/components/panel/OrderCard.tsx",

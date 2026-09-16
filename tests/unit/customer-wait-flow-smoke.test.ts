@@ -227,7 +227,7 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
   });
 
   it("panel cierra el QR cuando visto_en cambia (reescaneo incluido)", () => {
-    const panel = read("src/app/(app)/panel/page.tsx");
+    const panel = read("src/app/(app)/panel/pedidos/page.tsx");
     const esperaPanel = read("src/app/(app)/panel/espera/page.tsx");
     const ordersData = read("src/lib/data/orders.ts");
     const waitData = read("src/lib/data/waitlist.ts");

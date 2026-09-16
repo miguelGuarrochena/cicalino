@@ -14,7 +14,7 @@ const card = readFileSync(
   "utf8",
 );
 const panel = readFileSync(
-  join(root, "src/app/(app)/panel/page.tsx"),
+  join(root, "src/app/(app)/panel/pedidos/page.tsx"),
   "utf8",
 );
 const waitlist = readFileSync(join(root, "src/lib/data/waitlist.ts"), "utf8");

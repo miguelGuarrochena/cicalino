@@ -15,7 +15,7 @@ describe("Operación — jerarquía y layout", () => {
   });
 
   it("Pedidos y Espera no duplican el filtro en tarjetas y chips", () => {
-    const pedidos = read("src/app/(app)/panel/page.tsx");
+    const pedidos = read("src/app/(app)/panel/pedidos/page.tsx");
     const espera = read("src/app/(app)/panel/espera/page.tsx");
     expect(pedidos).not.toContain("panel.resumenActivos");
     expect(espera).not.toContain('f === "libre" ? "todas"');
