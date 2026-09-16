@@ -56,7 +56,7 @@ export const HoldReservaModal = ({
       </p>
       <p className="mt-3 rounded-2xl border border-amber-400/50 bg-amber-50/80 px-3.5 py-3 text-sm text-amber-950 dark:bg-amber-400/10 dark:text-amber-100">
         {es
-          ? "No se puede sentar walk-in mientras esté en hold. Sentá la reserva, cancelala, o esperá que venza la tolerancia."
+          ? "No se puede sentar a alguien sin reserva mientras la mesa esté tomada. Sentá la reserva, cancelala o esperá que se venza la tolerancia."
           : "Walk-ins can’t take this table while the hold is on. Seat the booking, cancel it, or wait for grace to end."}
       </p>
       <p className="mt-2 text-xs text-carbon/45">
