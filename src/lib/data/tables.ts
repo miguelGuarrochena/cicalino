@@ -1,0 +1,348 @@
+"use client";
+
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { createBrowserSupabase } from "@/lib/supabase/client";
+import { debounced, watchChannel } from "@/lib/realtime";
+import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
+import { reportError } from "@/lib/observability";
+import {
+  menuProductSchema,
+  parseInput,
+  paymentDatos,
+  paymentSettingsSchema,
+  staffPaymentSchema,
+} from "@/lib/schemas";
+import {
+  mapBill,
+  mapPaymentSettings,
+  type PaymentSettings,
+  type TableBill,
+} from "@/lib/tableBill";
+import type { z } from "zod";
+
+/* Panel side of split payments. Reads go through RLS with the staff session;
+ * every mutation of bills and payments is an RPC that re-checks access,
+ * module and subscription (supabase/split-payments.sql). */
+
+type RpcOutcome = { ok: true; data: Record<string, unknown> } | { ok: false; reason: string };
+
+const rpc = async (
+  fn: string,
+  args: Record<string, unknown>,
+  scope: string,
+): Promise<RpcOutcome> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return { ok: false, reason: "not-configured" };
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) {
+    reportError(scope, error, args);
+    return { ok: false, reason: error.code === "42501" ? "permiso" : "error" };
+  }
+  const r = (data ?? {}) as Record<string, unknown>;
+  return r.ok === false
+    ? { ok: false, reason: String(r.reason ?? "error") }
+    : { ok: true, data: r };
+};
+
+/* ---- Bills ---------------------------------------------------------------- */
+
+export const fetchTableBills = async (
+  branchId: string,
+): Promise<DataResult<TableBill[]>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok([]);
+  const { data, error } = await supabase.rpc("mesas_cuentas", { p_local: branchId });
+  if (error) {
+    reportError("panel.mesas.cuentas", error, { branchId });
+    return fail(desdeSupabase(error));
+  }
+  return ok(
+    ((data as unknown[] | null) ?? [])
+      .map(mapBill)
+      .filter((b): b is TableBill => b !== null),
+  );
+};
+
+/* Every write to a bill bumps mesa_sesiones.version, so one table is enough
+ * to hear about orders, payments and webhook confirmations. */
+export const subscribeTableBills = (
+  branchId: string,
+  onChange: () => void,
+): { unsubscribe: () => void; isHealthy: () => boolean } => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return { unsubscribe: () => {}, isHealthy: () => false };
+
+  const fire = debounced(onChange);
+  let channel: RealtimeChannel | null = null;
+  let watcher: { state: { healthy: boolean }; dispose: () => void } | null = null;
+  let disposed = false;
+
+  const connect = () => {
+    if (disposed) return;
+    if (channel) void supabase.removeChannel(channel);
+    watcher?.dispose();
+    channel = supabase.channel(`table-bills-${branchId}`).on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "mesa_sesiones",
+        filter: `local_id=eq.${branchId}`,
+      },
+      fire,
+    );
+    watcher = watchChannel(channel, connect, fire);
+  };
+
+  connect();
+
+  return {
+    unsubscribe: () => {
+      disposed = true;
+      watcher?.dispose();
+      if (channel) void supabase.removeChannel(channel);
+    },
+    isHealthy: () => watcher?.state.healthy ?? false,
+  };
+};
+
+export const confirmTablePayment = (paymentId: string, employeeId: string | null) =>
+  rpc("confirmar_pago_mesa", { p_pago: paymentId, p_empleado: employeeId }, "panel.mesas.confirmar");
+
+export const cancelTablePayment = (
+  paymentId: string,
+  reason: string | null,
+  employeeId: string | null,
+) =>
+  rpc(
+    "cancelar_pago_mesa",
+    { p_pago: paymentId, p_motivo: reason, p_empleado: employeeId },
+    "panel.mesas.cancelar-pago",
+  );
+
+export const registerStaffPayment = async (
+  sessionId: string,
+  draft: z.input<typeof staffPaymentSchema>,
+  employeeId: string | null,
+): Promise<RpcOutcome> => {
+  const v = parseInput(staffPaymentSchema, draft);
+  if (!v.ok) return { ok: false, reason: "datos-invalidos" };
+  return rpc(
+    "registrar_pago_personal",
+    { p_sesion: sessionId, p_datos: paymentDatos(v.data), p_empleado: employeeId },
+    "panel.mesas.registrar-pago",
+  );
+};
+
+export const closeTable = (sessionId: string, reason: string | null, employeeId: string | null) =>
+  rpc(
+    "cerrar_mesa",
+    { p_sesion: sessionId, p_motivo: reason, p_empleado: employeeId },
+    "panel.mesas.cerrar",
+  );
+
+/* ---- Tables and QR ---------------------------------------------------------- */
+
+export interface TableQrView {
+  id: string;
+  number: number;
+  qrToken: string;
+  generatedAt: string | null;
+}
+
+export const fetchTableQrs = async (branchId: string): Promise<DataResult<TableQrView[]>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok([]);
+  const { data, error } = await supabase
+    .from("mesas")
+    .select("id, numero, qr_token, qr_generado_en")
+    .eq("local_id", branchId)
+    .order("numero");
+  if (error) {
+    reportError("panel.mesas.qr", error, { branchId });
+    return fail(desdeSupabase(error));
+  }
+  return ok(
+    (data ?? []).map((m) => ({
+      id: m.id as string,
+      number: m.numero as number,
+      qrToken: m.qr_token as string,
+      generatedAt: (m.qr_generado_en as string | null) ?? null,
+    })),
+  );
+};
+
+export const regenerateTableQr = (tableId: string) =>
+  rpc("regenerar_qr_mesa", { p_mesa: tableId }, "panel.mesas.regenerar-qr");
+
+/* ---- Menu ---------------------------------------------------------------- */
+
+export interface MenuProductView {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  price: number;
+  active: boolean;
+  order: number;
+}
+
+const mapProduct = (p: Record<string, unknown>): MenuProductView => ({
+  id: p.id as string,
+  name: p.nombre as string,
+  description: (p.descripcion as string | null) ?? null,
+  category: (p.categoria as string | null) ?? null,
+  price: p.precio as number,
+  active: Boolean(p.activo),
+  order: (p.orden as number) ?? 0,
+});
+
+const PRODUCT_COLUMNS = "id, nombre, descripcion, categoria, precio, activo, orden";
+
+export const fetchMenuProducts = async (
+  branchId: string,
+): Promise<DataResult<MenuProductView[]>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok([]);
+  const { data, error } = await supabase
+    .from("productos")
+    .select(PRODUCT_COLUMNS)
+    .eq("local_id", branchId)
+    .order("categoria", { ascending: true, nullsFirst: true })
+    .order("orden")
+    .order("nombre");
+  if (error) {
+    reportError("panel.carta.leer", error, { branchId });
+    return fail(desdeSupabase(error));
+  }
+  return ok((data ?? []).map((p) => mapProduct(p as Record<string, unknown>)));
+};
+
+export type SaveProductResult =
+  | { ok: true; product: MenuProductView }
+  | { ok: false; message: string };
+
+export const saveMenuProduct = async (
+  branchId: string,
+  input: z.input<typeof menuProductSchema>,
+  id?: string,
+): Promise<SaveProductResult> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return { ok: false, message: "Sin conexión." };
+  const v = parseInput(menuProductSchema, input);
+  if (!v.ok) return { ok: false, message: v.error };
+  const row = {
+    nombre: v.data.name,
+    descripcion: v.data.description ?? null,
+    categoria: v.data.category ?? null,
+    precio: v.data.price,
+    activo: v.data.active,
+    orden: v.data.order,
+  };
+  const q = id
+    ? supabase.from("productos").update(row).eq("id", id).eq("local_id", branchId)
+    : supabase.from("productos").insert({ ...row, local_id: branchId });
+  const { data, error } = await q.select(PRODUCT_COLUMNS).single();
+  if (error || !data) {
+    reportError("panel.carta.guardar", error ?? "sin fila", { branchId });
+    return { ok: false, message: "No se pudo guardar el producto." };
+  }
+  return { ok: true, product: mapProduct(data as Record<string, unknown>) };
+};
+
+/* Orders keep their own copy of name and price, so deleting a product never
+ * changes a bill. */
+export const deleteMenuProduct = async (id: string): Promise<boolean> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase.from("productos").delete().eq("id", id);
+  if (error) reportError("panel.carta.borrar", error, { id });
+  return !error;
+};
+
+/* ---- Payment settings ------------------------------------------------------- */
+
+export interface PaymentSettingsView {
+  settings: PaymentSettings;
+  surchargeDeclaredAt: string | null;
+  mercadoPago: { connected: boolean; userId: string | null; expiresAt: string | null };
+}
+
+export const fetchPaymentSettings = async (
+  branchId: string,
+): Promise<DataResult<PaymentSettingsView>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) {
+    return ok({
+      settings: mapPaymentSettings(null),
+      surchargeDeclaredAt: null,
+      mercadoPago: { connected: false, userId: null, expiresAt: null },
+    });
+  }
+  const [cobros, mp] = await Promise.all([
+    supabase
+      .from("local_cobros")
+      .select(
+        "acepta_mercado_pago, acepta_transferencia, acepta_efectivo, acepta_debito, acepta_credito, transferencia_alias, transferencia_titular, transferencia_cbu, recargo_debito_pct, recargo_credito_pct, recargo_declarado, recargo_declarado_en",
+      )
+      .eq("local_id", branchId)
+      .maybeSingle(),
+    supabase.rpc("mp_estado_local", { p_local: branchId }),
+  ]);
+  const error = cobros.error ?? mp.error;
+  if (error) {
+    reportError("panel.cobros.leer", error, { branchId });
+    return fail(desdeSupabase(error));
+  }
+  const m = (mp.data ?? {}) as Record<string, unknown>;
+  return ok({
+    settings: mapPaymentSettings(cobros.data as Record<string, unknown> | null),
+    surchargeDeclaredAt:
+      ((cobros.data as Record<string, unknown> | null)?.recargo_declarado_en as string | null) ??
+      null,
+    mercadoPago: {
+      connected: Boolean(m.conectado),
+      userId: (m.mp_user_id as string | null) ?? null,
+      expiresAt: (m.expira_en as string | null) ?? null,
+    },
+  });
+};
+
+export const savePaymentSettings = async (
+  branchId: string,
+  input: PaymentSettings,
+): Promise<{ ok: true } | { ok: false; message: string }> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return { ok: false, message: "Sin conexión." };
+  const v = parseInput(paymentSettingsSchema, input);
+  if (!v.ok) return { ok: false, message: v.error };
+  const { error } = await supabase.from("local_cobros").upsert(
+    {
+      local_id: branchId,
+      acepta_mercado_pago: v.data.mercadoPago,
+      acepta_transferencia: v.data.transfer,
+      acepta_efectivo: v.data.cash,
+      acepta_debito: v.data.debit,
+      acepta_credito: v.data.credit,
+      transferencia_alias: v.data.transferAlias ?? null,
+      transferencia_titular: v.data.transferHolder ?? null,
+      transferencia_cbu: v.data.transferCbu ?? null,
+      recargo_debito_pct: v.data.debitSurchargePct,
+      recargo_credito_pct: v.data.creditSurchargePct,
+      recargo_declarado: v.data.surchargeDeclared,
+    },
+    { onConflict: "local_id" },
+  );
+  if (error) {
+    reportError("panel.cobros.guardar", error, { branchId });
+    return {
+      ok: false,
+      message: error.message.includes("Mercado Pago")
+        ? "Conectá la cuenta de Mercado Pago antes de activarlo."
+        : error.code === "42501"
+          ? "Solo el dueño puede cambiar los métodos de pago."
+          : "No se pudieron guardar los métodos de pago.",
+    };
+  }
+  return { ok: true };
+};

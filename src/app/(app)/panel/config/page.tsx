@@ -18,6 +18,8 @@ import { saveBranchConfig } from "@/lib/data/branch";
 import { syncTables } from "@/lib/data/waitlist";
 import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { HelpLink } from "@/components/panel/HelpLink";
+import { MenuEditor } from "@/components/panel/config/MenuEditor";
+import { PaymentMethodsCard } from "@/components/panel/config/PaymentMethodsCard";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { businessTypeLabel } from "@/lib/types";
@@ -178,7 +180,7 @@ const ConfigPage = () => {
 
   const validar = (): FormErrors => {
     const next: FormErrors = {};
-    if ((modo === "mesa" || c.moduloEspera) && (!tableCount || tableCount < 1)) {
+    if ((modo === "mesa" || c.moduloEspera || c.moduloPagos) && (!tableCount || tableCount < 1)) {
       next.mesas = t("config.errMesas");
     }
     if (c.moduloEspera && reservaAbreMin >= reservaCierraMin) {
@@ -217,7 +219,7 @@ const ConfigPage = () => {
          * el borrador queda como estaba y las mesas no se mueven. */
         c.hydrate(cfg);
         setDraft({});
-        if (c.moduloEspera || cfg.modo === "mesa") {
+        if (c.moduloEspera || c.moduloPagos || cfg.modo === "mesa") {
           await syncTables(id, cfg.tableCount);
         }
       } else {
@@ -329,7 +331,7 @@ const ConfigPage = () => {
         <p className="mb-4 mt-1 text-sm text-carbon/55">
           {t("config.seccionModulosSub")}
         </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div
             className={`rounded-2xl border p-4 ${
               c.moduloPedidos
@@ -358,7 +360,40 @@ const ConfigPage = () => {
                 : t("config.moduloNo")}
             </span>
           </div>
+          <div
+            className={`rounded-2xl border p-4 ${
+              c.moduloPagos
+                ? "border-marca bg-marca/10 ring-2 ring-marca/30"
+                : "border-linea bg-crema/30 opacity-55"
+            }`}
+          >
+            <span className="font-semibold text-carbon">{t("config.moduloPagos")}</span>
+            <span className="mt-1 block text-xs text-carbon/55">
+              {c.moduloPagos
+                ? t("config.moduloIncluido")
+                : t("config.moduloNo")}
+            </span>
+          </div>
         </div>
+        {c.moduloPagos && !c.moduloEspera && (
+          <div className="mt-4 max-w-xs">
+            <Campo label={t("config.tableCount")} error={errors.mesas}>
+              <input
+                type="number"
+                min={1}
+                className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
+                value={tableCount ?? ""}
+                onChange={(e) => {
+                  editar("tableCount", parseMesas(e.target.value));
+                  setErrors((er) => ({ ...er, mesas: undefined }));
+                }}
+              />
+            </Campo>
+            <p className="mt-1.5 text-xs text-carbon/50">
+              {t("config.mesasAplicarQr")}
+            </p>
+          </div>
+        )}
         {c.moduloEspera && (
           <div className="mt-4 flex flex-col gap-5">
             <div className="max-w-xs">
@@ -540,7 +575,7 @@ const ConfigPage = () => {
             );
           })}
         </div>
-        {modo === "mesa" && !c.moduloEspera && (
+        {modo === "mesa" && !c.moduloEspera && !c.moduloPagos && (
           <div className="mt-4 max-w-xs">
             <Campo label={t("config.tableCount")} error={errors.mesas}>
               <input
@@ -571,6 +606,17 @@ const ConfigPage = () => {
           </p>
         </div>
       </section>
+
+      {c.moduloPagos && isRealBranchId(branchId) && (
+        <>
+          <section className={CARD} id="carta">
+            <MenuEditor branchId={branchId} />
+          </section>
+          <section className={CARD} id="pagos">
+            <PaymentMethodsCard branchId={branchId} canEdit={role === "admin"} />
+          </section>
+        </>
+      )}
 
       <section className={CARD}>
         <EmployeeList />

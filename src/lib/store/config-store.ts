@@ -36,6 +36,7 @@ interface ConfigState {
   diasCerrados: number[];
   moduloPedidos: boolean;
   moduloEspera: boolean;
+  moduloPagos: boolean;
   employees: EmployeeUI[];
 
   setCampo: (
@@ -65,6 +66,7 @@ interface ConfigState {
         | "diasCerrados"
         | "moduloPedidos"
         | "moduloEspera"
+        | "moduloPagos"
       >
     >,
   ) => void;
@@ -99,6 +101,7 @@ const INICIAL = supabaseConfigured
       diasCerrados: [] as number[],
       moduloPedidos: true,
       moduloEspera: false,
+      moduloPagos: false,
       employees: [] as EmployeeUI[],
       branchConfigReady: false,
     }
@@ -115,6 +118,7 @@ const INICIAL = supabaseConfigured
       diasCerrados: [] as number[],
       moduloPedidos: true,
       moduloEspera: true,
+      moduloPagos: true,
       employees: [
         { id: "emp-demo-1", name: "Lucía", rol: "Mozo", tienePin: false },
         { id: "emp-demo-2", name: "Marcos", rol: "Cocina", tienePin: false },
@@ -199,6 +203,7 @@ export const useConfigStore = create<ConfigState>()(
           diasCerrados: s.diasCerrados,
           moduloPedidos: s.moduloPedidos,
           moduloEspera: s.moduloEspera,
+          moduloPagos: s.moduloPagos,
           employees: s.employees,
         };
         if (supabaseConfigured) return operacion;

@@ -18,7 +18,8 @@ import {
 import {
   PRICE_ORDERS,
   PRICE_WAITLIST,
-  PRICE_BUNDLE,
+  PRICE_SPLIT,
+  type ModuleFlags,
 } from "@/lib/pricing";
 import { addBillingCycle } from "@/lib/billing";
 import type { BusinessType } from "@/lib/store/config-store";
@@ -214,8 +215,11 @@ export const OrgModal = ({
   const [crearPrimera, setCrearPrimera] = useState(true);
   const [primeraNombre, setPrimeraNombre] = useState("");
   const [primeraTipo, setPrimeraTipo] = useState<BusinessType>("cafeteria");
-  const [primeraPedidos, setPrimeraPedidos] = useState(true);
-  const [primeraEspera, setPrimeraEspera] = useState(false);
+  const [primeraModulos, setPrimeraModulos] = useState<ModuleFlags>({
+    pedidos: true,
+    espera: false,
+    pagos: false,
+  });
 
   const draftActual = (): DraftOrg => ({
     name: name,
@@ -232,11 +236,15 @@ export const OrgModal = ({
   const sucursalesDelPlan =
     mode === "crear"
       ? crearPrimera
-        ? [{ pedidos: primeraPedidos, espera: primeraEspera }]
+        ? [primeraModulos]
         : []
       : (org?.sucursales ?? [])
           .filter((s) => s.activo)
-          .map((s) => ({ pedidos: s.moduloPedidos, espera: s.moduloEspera }));
+          .map((s) => ({
+            pedidos: s.moduloPedidos,
+            espera: s.moduloEspera,
+            pagos: s.moduloPagos,
+          }));
 
   const precioMensual = sucursalesDelPlan.length
     ? sucursalesDelPlan.reduce((sum, m) => sum + monthlyPriceForBranch(m), 0)
@@ -364,8 +372,9 @@ export const OrgModal = ({
                   name: (primeraNombre.trim() || name).slice(0, 80),
                   tipo: primeraTipo,
                   direccion: address,
-                  moduloPedidos: primeraPedidos,
-                  moduloEspera: primeraEspera,
+                  moduloPedidos: primeraModulos.pedidos,
+                  moduloEspera: primeraModulos.espera,
+                  moduloPagos: primeraModulos.pagos,
                 },
               ]
             : [],
@@ -710,10 +719,11 @@ export const OrgModal = ({
               Módulos por sucursal
             </p>
             <p className="mt-1 text-sm text-carbon/60">
-              Cada local tiene su pack (Pedidos {money.format(PRICE_ORDERS)} ·
-              Espera {money.format(PRICE_WAITLIST)} · Pack{" "}
-              {money.format(PRICE_BUNDLE)}). El cobro es la suma de las
-              sucursales.
+              Cada local tiene sus módulos (Pedidos{" "}
+              {money.format(PRICE_ORDERS)} · Espera{" "}
+              {money.format(PRICE_WAITLIST)} · Pagos divididos{" "}
+              {money.format(PRICE_SPLIT)}, y los packs combinados con su propio
+              precio). El cobro es la suma de las sucursales.
             </p>
             {mode === "crear" && (
               <div className="mt-3 rounded-xl border border-linea bg-surface p-3">
@@ -754,12 +764,8 @@ export const OrgModal = ({
                 {crearPrimera && (
                   <div className="mt-2">
                     <PackPicker
-                      pedidos={primeraPedidos}
-                      espera={primeraEspera}
-                      onChange={(p, e) => {
-                        setPrimeraPedidos(p);
-                        setPrimeraEspera(e);
-                      }}
+                      value={primeraModulos}
+                      onChange={setPrimeraModulos}
                     />
                     <p className="mt-1.5 text-xs text-carbon/50">
                       Podés cambiarlo después en el detalle del cliente.

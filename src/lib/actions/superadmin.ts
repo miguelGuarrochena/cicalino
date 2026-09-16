@@ -11,6 +11,7 @@ import {
   type CreateOrgInput,
 } from "@/lib/schemas";
 import { leadToOrgPayload, type LeadRow } from "@/lib/leadToOrg";
+import { aggregateModules, modulesFromRow, normalizeModules } from "@/lib/pricing";
 import type { Lead } from "@/lib/db/schema";
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
@@ -82,6 +83,7 @@ const createOrganizationValidated = async (
       dia_ciclo: trial.cycleDay,
       modulo_pedidos: data.moduloPedidos !== false,
       modulo_espera: Boolean(data.moduloEspera),
+      modulo_pagos: Boolean(data.moduloPagos),
     })
     .select("id")
     .single();
@@ -102,9 +104,11 @@ const createOrganizationValidated = async (
 
   if (data.sucursales.length) {
     const rows = data.sucursales.map((b) => {
-      let pedidos = b.moduloPedidos !== false;
-      const espera = Boolean(b.moduloEspera);
-      if (!pedidos && !espera) pedidos = true;
+      const mods = normalizeModules({
+        pedidos: b.moduloPedidos,
+        espera: b.moduloEspera,
+        pagos: b.moduloPagos,
+      });
       return {
         organizacion_id: org.id,
         cobro_desde: trial.nextBilling,
@@ -112,20 +116,21 @@ const createOrganizationValidated = async (
         tipo_negocio: b.tipo,
         direccion: b.direccion ?? null,
         slug: `${slugify(b.name)}-${sufijoAleatorio()}`,
-        modulo_pedidos: pedidos,
-        modulo_espera: espera,
+        modulo_pedidos: mods.pedidos,
+        modulo_espera: mods.espera,
+        modulo_pagos: mods.pagos,
       };
     });
     const { error: errSuc } = await admin.from("locales").insert(rows);
     if (errSuc) console.error("crearOrganizacion/locales", errSuc.message);
     else {
-      const pedidos = rows.some((r) => r.modulo_pedidos);
-      const espera = rows.some((r) => r.modulo_espera);
+      const agg = aggregateModules(rows.map(modulesFromRow));
       await admin
         .from("organizaciones")
         .update({
-          modulo_pedidos: pedidos || !espera,
-          modulo_espera: espera,
+          modulo_pedidos: agg.pedidos,
+          modulo_espera: agg.espera,
+          modulo_pagos: agg.pagos,
         })
         .eq("id", org.id);
     }
@@ -307,6 +312,7 @@ export const ensureDemoOrg = async (): Promise<
       .update({
         modulo_pedidos: true,
         modulo_espera: true,
+        modulo_pagos: true,
         plan: "gratis",
         pagado: true,
         activo: true,
@@ -317,6 +323,7 @@ export const ensureDemoOrg = async (): Promise<
       .update({
         modulo_pedidos: true,
         modulo_espera: true,
+        modulo_pagos: true,
         cantidad_mesas: 12,
       })
       .eq("id", sucId);
@@ -344,6 +351,7 @@ export const ensureDemoOrg = async (): Promise<
           slug: DEMO_SUC_SLUG,
           modulo_pedidos: true,
           modulo_espera: true,
+          modulo_pagos: true,
           cantidad_mesas: 12,
         })
         .select("id, nombre")
@@ -378,6 +386,7 @@ export const ensureDemoOrg = async (): Promise<
       activo: true,
       modulo_pedidos: true,
       modulo_espera: true,
+      modulo_pagos: true,
     })
     .select("id, nombre")
     .single();
@@ -394,6 +403,7 @@ export const ensureDemoOrg = async (): Promise<
       slug: DEMO_SUC_SLUG,
       modulo_pedidos: true,
       modulo_espera: true,
+      modulo_pagos: true,
       cantidad_mesas: 12,
     })
     .select("id, nombre")

@@ -18,6 +18,7 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { EsperaCancelWatch } from "@/components/panel/EsperaCancelWatch";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { SubscriptionGate } from "@/components/panel/SubscriptionGate";
 import {
@@ -79,6 +80,7 @@ const PanelLayout = ({
   const path = usePathname();
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
+  const moduloPagos = useConfigStore((s) => s.moduloPagos);
   const dispositivo = useSyncExternalStore(
     (cb) => {
       window.addEventListener("storage", cb);
@@ -89,13 +91,15 @@ const PanelLayout = ({
   );
   const homeHref = panelHomePath(
     visibleModules(
-      { pedidos: moduloPedidos, espera: moduloEspera },
+      { pedidos: moduloPedidos, espera: moduloEspera, pagos: moduloPagos },
       dispositivo,
     ),
   );
   const mostrarFichaje =
     role !== "superadmin" &&
-    (path === "/panel" || path.startsWith("/panel/espera"));
+    (path === "/panel" ||
+      path.startsWith("/panel/espera") ||
+      path === "/panel/mesas");
   const enSeccionDueño =
     path.startsWith("/panel/config") || path.startsWith("/panel/metrics");
   const bloquearAdmin = useSessionStore((s) => s.bloquearAdmin);
@@ -113,7 +117,7 @@ const PanelLayout = ({
     <div className="flex min-h-dvh flex-col bg-crema">
       <BannerImpersonacion />
       {role !== "superadmin" && <EsperaCancelWatch />}
-      <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md">
+      <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md print:hidden">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 sm:flex-nowrap sm:justify-between sm:gap-3 sm:px-8 sm:py-3">
           <Logo href={homeHref} className="h-8 shrink-0 sm:h-12" />
           <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:flex-nowrap sm:gap-3">
@@ -134,8 +138,9 @@ const PanelLayout = ({
         )}
       </main>
 
-      <SiteFooter className="pb-20 sm:pb-8" />
+      <SiteFooter className="pb-20 sm:pb-8 print:hidden" />
       {role !== "superadmin" && <PanelNav variant="bottom" />}
+      {role !== "superadmin" && <InstallBanner />}
     </div>
   );
 };

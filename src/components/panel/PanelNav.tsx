@@ -11,7 +11,7 @@ import {
 } from "@/lib/modules";
 import { useSyncExternalStore } from "react";
 
-type IconKey = "orders" | "espera" | "chart" | "settings";
+type IconKey = "orders" | "espera" | "mesas" | "chart" | "settings";
 
 const LINKS: {
   href: string;
@@ -21,6 +21,7 @@ const LINKS: {
 }[] = [
   { href: "/panel", key: "nav.pedidos", roles: ["admin", "supervisor", "empleado"], icon: "orders" },
   { href: "/panel/espera", key: "nav.espera", roles: ["admin", "supervisor", "empleado"], icon: "espera" },
+  { href: "/panel/mesas", key: "nav.mesas", roles: ["admin", "supervisor", "empleado"], icon: "mesas" },
   { href: "/panel/metrics", key: "nav.metricas", roles: ["admin"], icon: "chart" },
   { href: "/panel/config", key: "nav.config", roles: ["admin", "supervisor"], icon: "settings" },
 ];
@@ -51,6 +52,13 @@ const Icon = ({ k }: { k: IconKey }) => {
         <rect x="14" y="14" width="6" height="6" rx="1" />
       </svg>
     );
+  if (k === "mesas")
+    return (
+      <svg {...common}>
+        <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+        <path d="M9 8h6M9 12h6" />
+      </svg>
+    );
   if (k === "chart")
     return (
       <svg {...common}>
@@ -71,6 +79,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
   const role = useSessionStore((s) => s.rol);
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
+  const moduloPagos = useConfigStore((s) => s.moduloPagos);
   const dispositivo = useSyncExternalStore(
     (cb) => {
       window.addEventListener("storage", cb);
@@ -80,19 +89,20 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
     () => "ambos" as const,
   );
   const visibles = visibleModules(
-    { pedidos: moduloPedidos, espera: moduloEspera },
+    { pedidos: moduloPedidos, espera: moduloEspera, pagos: moduloPagos },
     dispositivo,
   );
   const links = LINKS.filter((l) => {
     if (!l.roles.includes(role)) return false;
     if (l.href === "/panel" && !visibles.pedidos) return false;
     if (l.href === "/panel/espera" && !visibles.espera) return false;
+    if (l.href === "/panel/mesas" && !visibles.pagos) return false;
     return true;
   });
 
   if (variant === "bottom") {
     return (
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t border-linea bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t border-linea bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden print:hidden">
         {links.map((l) => {
           const active =
             l.href === "/panel" ? path === "/panel" : path.startsWith(l.href);

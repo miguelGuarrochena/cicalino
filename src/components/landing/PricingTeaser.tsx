@@ -6,6 +6,7 @@ import {
   PRICE_ORDERS,
   PRICE_WAITLIST,
   PRICE_BUNDLE,
+  PRICE_SPLIT,
 } from "@/lib/pricing";
 
 const money = new Intl.NumberFormat("es-AR", {
@@ -52,6 +53,14 @@ export const PricingTeaser = () => {
       border: "border-marca ring-2 ring-marca/20",
       destacado: true,
     },
+    {
+      id: "pagos",
+      label: t("home.precioPagos"),
+      price: PRICE_SPLIT,
+      priceColor: "text-marca",
+      border: "border-linea",
+      destacado: false,
+    },
   ];
 
   return (
@@ -72,11 +81,11 @@ export const PricingTeaser = () => {
           </p>
         </div>
 
-        {/* Las tres cajas son identicas: mismo padding y mismas filas internas.
+        {/* Las cajas son identicas: mismo padding y mismas filas internas.
             La fila del badge y la del ahorro existen siempre (vacias en los no
             destacados) asi ninguna card queda mas alta. El enfasis del pack sale
             del color del borde, no del tamano. */}
-        <ul className="mt-10 grid gap-3 sm:grid-cols-3">
+        <ul className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {packs.map((p, idx) => (
             <li
               key={p.id}

@@ -93,6 +93,7 @@ const EsperaPanelPage = () => {
   );
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
+  const moduloPagos = useConfigStore((s) => s.moduloPagos);
   const branchConfigReady = useConfigStore((s) => s.branchConfigReady);
   const dispositivo = useSyncExternalStore(
     (cb) => {
@@ -103,7 +104,7 @@ const EsperaPanelPage = () => {
     () => "ambos" as const,
   );
   const visibles = visibleModules(
-    { pedidos: moduloPedidos, espera: moduloEspera },
+    { pedidos: moduloPedidos, espera: moduloEspera, pagos: moduloPagos },
     dispositivo,
   );
 

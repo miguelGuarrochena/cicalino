@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { isPackId, moduleLabel, modulesForPack } from "@/lib/pricing";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
 import { Spinner } from "@/components/ui/Spinner";
@@ -71,14 +72,9 @@ export const SolicitudesPanel = () => {
           const esContrato = s.tipo === "contrato";
           const planLbl =
             s.plan === "anual" ? "Anual" : s.plan === "mensual" ? "Mensual" : "";
-          const packLbl =
-            s.pack === "pack"
-              ? "Pack"
-              : s.pack === "espera"
-                ? "Espera"
-                : s.pack === "pedidos"
-                  ? "Pedidos"
-                  : "";
+          const packLbl = isPackId(s.pack)
+            ? moduleLabel(modulesForPack(s.pack))
+            : "";
           const trabajando = busy === s.id;
           return (
             <li

@@ -25,7 +25,7 @@ Gratis para el cliente final; el local paga una tarifa fija por sucursal.
 - Tipografías **Archivo** + **Archivo Black**
 - Tema **claro / oscuro / sistema** e i18n **ES / EN**
 - **Web Push** (VAPID) + polling en la vista del cliente
-- **Mercado Pago** — etapa posterior (hoy el alta es por contacto)
+- **Mercado Pago** — cobro de pagos divididos por OAuth de cada local (el alta de Cicalino sigue por contacto)
 
 ---
 
@@ -85,6 +85,7 @@ Plantilla: `.env.example`. Valores reales: `.env.local` / Vercel.
 | `NEXT_PUBLIC_APP_URL` | URL pública (links del QR) |
 | `NEXT_PUBLIC_VAPID_*` / `VAPID_*` | Web Push |
 | `UPSTASH_REDIS_REST_*` | Rate limit global (opcional) |
+| `MP_CLIENT_ID` / `MP_CLIENT_SECRET` / `MP_WEBHOOK_SECRET` / `MP_TOKENS_KEY` | Mercado Pago OAuth para pagos divididos (opcional) |
 
 ---
 
@@ -107,6 +108,8 @@ Plantilla: `.env.example`. Valores reales: `.env.local` / Vercel.
 | `/panel/metrics` | Métricas (admin) |
 | `/panel/config` | Config + empleados |
 | `/p/[token]` | Cliente (espera / listo) |
+| `/m/[token]` | Mesa: carta, cuenta y pagos divididos |
+| `/panel/mesas` | Cuentas por mesa + QR de mesas |
 | `/admin` | Superadmin |
 | `/login` · `/faq` · `/probar` · `/terms` · `/privacy` | Auxiliares |
 

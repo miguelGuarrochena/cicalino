@@ -127,12 +127,63 @@ Ver `src/lib/db/schema.ts` y los scripts en `supabase/`:
 Modo por local: `pedido` (turno atómico), `nombre` o `mesa`. Los pedidos no
 se borran; el QR expira al cierre de jornada.
 
+## Pagos divididos (módulo `pagos`)
+
+Tercer módulo comercial, al mismo nivel que Pedidos y Espera: `locales.modulo_pagos`
+(y el OR en `organizaciones`), con su precio y sus packs en `lib/pricing.ts`. Solo
+el superadmin cambia módulos: lo impone el trigger `locales_proteger_modulos`.
+Scripts: `split-payments-module.sql` y `split-payments.sql`.
+
+```
+QR de mesa (/m/[token], token opaco en mesas.qr_token)
+  → nombre → comensales (id real + sha256 del secreto en cookie httpOnly)
+  → carta (productos) → pedidos + pedido_items (copia nombre y precio)
+  → cuenta → pagos_mesa (monto_base + propina + recargo, por separado)
+      ├─ efectivo / débito / crédito / transferencia → pendiente → confirma el personal
+      └─ Mercado Pago → checkout con el token OAuth del local
+                       → /api/mp/webhook (firma + GET /v1/payments) → pagado
+  → cuando los monto_base pagados cubren el consumo → mesa_sesiones.estado = pagada
+```
+
+- **Reglas en la base**: los montos se calculan en `_crear_pago_mesa` con la
+  sesión bloqueada (`FOR UPDATE`); nunca se compromete más consumo del que hay.
+  El cliente manda el monto que vio (`monto_esperado`) y si la cuenta cambió
+  recibe `monto-cambio`.
+- **Modo de división**: lo fija el primer pago; se puede cambiar mientras no haya
+  pagos activos.
+- **Propina y recargo**: por pago, sobre la parte del consumo que cubre. No cuentan
+  para cubrir la cuenta. El recargo por tarjeta necesita la declaración del dueño
+  (`local_cobros.recargo_declarado`, con quién y cuándo).
+- **Mercado Pago**: nunca se marca pagado por volver del checkout ni a mano;
+  solo `mp_confirmar_pago` (service_role) después de validar firma, sucursal,
+  monto y moneda. Un pago que expira libera su parte; una aprobación tardía se
+  registra igual y queda el evento `excedente` para devolver.
+- **Acceso**: el comensal nunca habla con PostgREST. `/api/m/*` usa service_role,
+  rate limit y chequeo de origen, y las funciones validan id + hash. El panel lee
+  por RLS y escribe por RPC. El alias de transferencia y la cuenta de MP los
+  cambia solo el dueño. `mp_cuentas` no tiene grants para clientes.
+- **Auditoría**: `mesa_eventos`, solo lo escriben las funciones.
+- **Pedidos de mesa**: son filas de `pedidos` con `sesion_id`. No aparecen en el
+  tablero de mostrador (`pedidos_pagina`), se operan desde `/panel/mesas`, y
+  cuentan en las métricas.
+- **Mesas**: se reutiliza `mesas`. Abrir una cuenta no cambia `mesas.estado` (el
+  mapa de Espera); `sincronizar_mesas` no borra mesas con una cuenta abierta.
+- **Jornada**: una cuenta abierta de una jornada anterior se cierra sola cuando
+  alguien vuelve a escanear esa mesa.
+- **POS externos**: fuera de alcance. Los pedidos, las mesas y los pagos tienen
+  ids propios y estados explícitos, así que una integración futura puede
+  mapearlos sin tocar el flujo del comensal.
+- **Stickers**: el PNG de `/panel/mesas/qr` es lo que se manda a imprimir. La
+  impresión física queda afuera de Cicalino.
+
 ## Tests contra la base (`pnpm test:db`)
 
 Requiere `DATABASE_URL` en `.env.local`. Dos archivos:
 
 - `security-grants.test.ts` — grants, RLS activo, policies y privilegios de
   columna. Solo lectura del catálogo.
+- `split-payments.test.ts` — montos, sobrepago, propina, recargo, webhook de
+  Mercado Pago y permisos de pagos divididos. Misma técnica (rollback).
 - `rls-aislamiento.test.ts` — que la empresa A no vea nada de la B, que un
   supervisor no salga de su sucursal, que nadie se auto-ascienda de rol y que
   una cuenta cortada pueda leer pero no escribir. **Cada test corre dentro de
