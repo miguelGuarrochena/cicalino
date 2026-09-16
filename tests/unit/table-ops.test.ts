@@ -183,6 +183,13 @@ describe("buildFloor", () => {
     expect(filterFloor(floor, "ahora", "").map((r) => r.tableNumber)).toEqual([8]);
     expect(filterFloor(floor, "todas", "9").map((r) => r.tableNumber)).toEqual([9]);
     expect(filterFloor(floor, "todas", "").map((r) => r.tableNumber)).toEqual([8, 9]);
+    expect(
+      filterFloor(
+        floor.map((r) => (r.tableNumber === 8 ? { ...r, waiterName: "Pedro Gómez" } : r)),
+        "todas",
+        "pedro",
+      ).map((r) => r.tableNumber),
+    ).toEqual([8]);
   });
 });
 

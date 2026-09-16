@@ -177,6 +177,11 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('menu-categorias.sql', 'column', 'productos.imagen_url', 71),
     ('menu-categorias.sql', 'policy', 'categorias de mi scope', 71),
     ('menu-categorias.sql', 'policy', 'categorias alta', 71),
+    ('mesa-asignacion-jornada.sql', 'table', 'mesa_plantilla_turno', 72),
+    ('mesa-asignacion-jornada.sql', 'table', 'mesa_asignacion', 72),
+    ('mesa-asignacion-jornada.sql', 'function', 'mesa_jornada_leer', 72),
+    ('mesa-asignacion-jornada.sql', 'function', 'mesa_jornada_asignar', 72),
+    ('mesa-asignacion-jornada.sql', 'function', 'mesa_plantilla_guardar', 72),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -326,7 +331,8 @@ requisitos (archivo, necesita) as (
     ('mesa-qr-activo.sql', 'split-payments.sql'),
     ('staff-floor-guards.sql', 'staff-roles.sql, split-payments.sql, mesa-qr-activo.sql'),
     ('staff-floor-audit.sql', 'staff-floor-guards.sql'),
-    ('menu-categorias.sql', 'split-payments.sql, staff-floor-audit.sql')
+    ('menu-categorias.sql', 'split-payments.sql, staff-floor-audit.sql'),
+    ('mesa-asignacion-jornada.sql', 'staff-roles.sql, liberar-mesas-jornada.sql, modulo-espera.sql, split-payments-module.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

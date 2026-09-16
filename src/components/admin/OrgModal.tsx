@@ -720,7 +720,7 @@ export const OrgModal = ({
             </p>
             <p className="mt-1 text-sm text-carbon/60">
               Cada local tiene sus módulos (Pedidos{" "}
-              {money.format(PRICE_ORDERS)} · Espera{" "}
+              {money.format(PRICE_ORDERS)} · Recepción{" "}
               {money.format(PRICE_WAITLIST)} · Pagos divididos{" "}
               {money.format(PRICE_SPLIT)}, y los packs combinados con su propio
               precio). El cobro es la suma de las sucursales.

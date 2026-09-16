@@ -31,6 +31,7 @@ interface Props {
   onHold: (reservaId: string) => void;
   onOcupar: (mesa: TableView) => void;
   onLiberar: (numero: number) => void;
+  mozoPorMesa?: Map<number, string | null>;
 }
 
 export const MapaMesas = ({
@@ -45,6 +46,7 @@ export const MapaMesas = ({
   onHold,
   onOcupar,
   onLiberar,
+  mozoPorMesa,
 }: Props) => {
   return (
     <section className="rounded-[24px] border border-espera/20 bg-surface p-4 shadow-sm sm:p-5">
@@ -92,6 +94,7 @@ export const MapaMesas = ({
           const etiquetaGrupo = libre
             ? reservaProx?.name
             : (espera?.name ?? reservaSentada?.name);
+          const mozo = mozoPorMesa?.get(m.number);
           return (
             <button
               key={m.id}
@@ -164,11 +167,11 @@ export const MapaMesas = ({
               <span className="mt-0.5 text-[9px] font-semibold opacity-80">
                 {m.capacity ?? 4}p
               </span>
-              {(etiquetaGrupo || (reservaProx && !libre)) && (
+              {(etiquetaGrupo || (reservaProx && !libre) || mozo) && (
                 <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-80">
                   {!libre && reservaProx
                     ? `${etiquetaGrupo ? `${etiquetaGrupo} · ` : ""}${reservationTime(reservaProx.scheduledAt)}`
-                    : etiquetaGrupo}
+                    : etiquetaGrupo || (mozo ? mozo.split(/\s+/)[0] : "")}
                 </span>
               )}
             </button>

@@ -3,6 +3,7 @@
 import { useApp } from "@/components/providers/Providers";
 import { FloorStatusBadge, FLOOR_STYLE } from "@/components/panel/mesas/FloorStatusBadge";
 import { formatMoney } from "@/lib/tableBill";
+import { firstName } from "@/lib/floorShift";
 import { summarizeKitchen, type FloorTable } from "@/lib/tableOps";
 
 export const FloorTableTile = ({
@@ -23,6 +24,8 @@ export const FloorTableTile = ({
     .slice(0, 2)
     .map((l) => `${l.quantity}× ${l.name}`)
     .join(" · ");
+  const waiter =
+    firstName(row.waiterName) || (row.bill ? t("recepcion.sinAsignar") : "");
 
   if (dense) {
     return (
@@ -41,8 +44,13 @@ export const FloorTableTile = ({
           <span className="min-w-0 flex-1">
             <FloorStatusBadge status={row.status} />
             <span className="mt-0.5 block truncate text-[11px] text-carbon/50">
-              {kitchenHint ||
-                (row.people > 0 ? t("mesas.personasN", { n: row.people }) : t("mesas.estadoOp.libre"))}
+              {[
+                waiter,
+                kitchenHint ||
+                  (row.people > 0 ? t("mesas.personasN", { n: row.people }) : null),
+              ]
+                .filter(Boolean)
+                .join(" · ") || t("mesas.estadoOp.libre")}
             </span>
           </span>
           <span className="shrink-0 text-right">
@@ -69,7 +77,7 @@ export const FloorTableTile = ({
         type="button"
         aria-current={active ? "true" : undefined}
         onClick={onOpen}
-        className={`flex min-h-[4.75rem] w-full flex-col justify-between rounded-2xl border border-linea border-l-[3px] bg-surface px-2.5 py-2 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
+        className={`flex min-h-[5.25rem] w-full flex-col justify-between rounded-2xl border border-linea border-l-[3px] bg-surface px-2.5 py-2 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
           active ? "ring-2 ring-marca/25" : ""
         }`}
       >
@@ -81,6 +89,11 @@ export const FloorTableTile = ({
             </span>
           )}
         </span>
+        {waiter ? (
+          <span className="truncate text-[10px] font-semibold leading-none text-carbon/55">
+            {waiter}
+          </span>
+        ) : null}
         <FloorStatusBadge status={row.status} />
         {row.bill && row.consumption > 0 ? (
           <span

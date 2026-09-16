@@ -40,6 +40,10 @@ export const TableDetail = ({
   onChanged,
   onBack,
   onShowQr,
+  waiterName,
+  waiterId,
+  staff,
+  onAssign,
 }: {
   bill: TableBill;
   settings: PaymentSettings;
@@ -50,12 +54,18 @@ export const TableDetail = ({
   onChanged: () => void;
   onBack?: () => void;
   onShowQr?: () => void;
+  waiterName?: string | null;
+  waiterId?: string | null;
+  staff?: { id: string; name: string }[];
+  onAssign?: (employeeId: string | null) => Promise<{ ok: boolean; reason?: string }>;
 }) => {
   const { t } = useApp();
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const [cobrarOpen, setCobrarOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignTo, setReassignTo] = useState(waiterId ?? "");
   const open = bill.session.status === "abierta";
   const names = new Map(bill.guests.map((g) => [g.id, g.name]));
   const pending = billPending(bill);
@@ -70,7 +80,7 @@ export const TableDetail = ({
   const accountRows = guestAccountRows(bill);
 
   const errorText = (reason?: string) => {
-    for (const k of [`mesas.error.${reason}`, `mesa.error.${reason}`]) {
+    for (const k of [`recepcion.error.${reason}`, `mesas.error.${reason}`, `mesa.error.${reason}`]) {
       const txt = t(k);
       if (txt !== k) return txt;
     }
@@ -170,6 +180,10 @@ export const TableDetail = ({
               {t("mesa.mesaN", { n: bill.session.tableNumber })}
             </h2>
             <p className="text-sm text-carbon/60">
+              {waiterName
+                ? t("recepcion.atendidaPor", { n: waiterName })
+                : t("recepcion.sinAsignar")}
+              {" · "}
               {t("mesas.abiertaDesde", {
                 h: new Date(bill.session.openedAt).toLocaleTimeString([], {
                   hour: "2-digit",
@@ -219,6 +233,30 @@ export const TableDetail = ({
                 {t("mesas.verQrMesa")}
               </button>
             )}
+            {onAssign && canManage && (
+              <button
+                type="button"
+                onClick={() => {
+                  setReassignTo(waiterId ?? "");
+                  setReassignOpen((v) => !v);
+                }}
+                className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:text-carbon hover:underline"
+              >
+                {t("recepcion.reasignar")}
+              </button>
+            )}
+            {onAssign && !canManage && !waiterId && employeeId && (
+              <button
+                type="button"
+                disabled={busy === "tomar"}
+                onClick={() =>
+                  void run("tomar", () => onAssign(employeeId), t("recepcion.asignado"))
+                }
+                className="min-h-11 text-sm font-semibold text-marca underline-offset-4 hover:underline disabled:opacity-50"
+              >
+                {t("recepcion.tomar")}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => window.print()}
@@ -236,6 +274,40 @@ export const TableDetail = ({
               </button>
             )}
           </div>
+          {reassignOpen && onAssign && staff && (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <select
+                value={reassignTo}
+                onChange={(e) => setReassignTo(e.target.value)}
+                className="min-h-11 flex-1 rounded-xl border border-linea bg-crema/40 px-3 text-sm text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20"
+              >
+                <option value="">{t("recepcion.sinAsignar")}</option>
+                {staff.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={busy === "reasignar"}
+                onClick={() =>
+                  void run(
+                    "reasignar",
+                    async () => {
+                      const res = await onAssign(reassignTo || null);
+                      if (res.ok) setReassignOpen(false);
+                      return res;
+                    },
+                    t("recepcion.asignado"),
+                  )
+                }
+                className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+              >
+                {t("recepcion.asignar")}
+              </button>
+            </div>
+          )}
         </div>
 
         {waitingPayments.length > 0 && (

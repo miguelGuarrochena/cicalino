@@ -51,4 +51,18 @@ describe("Operación — jerarquía y layout", () => {
     expect(qr).toContain('"/p" | "/e" | "/m"');
     expect(qr).toContain("qr.imprimir");
   });
+
+  it("Recepción es el módulo y Mesas es la operación: jornada y mozo no se mezclan", () => {
+    const espera = read("src/app/(app)/panel/espera/page.tsx");
+    const mesas = read("src/app/(app)/panel/mesas/page.tsx");
+    const nav = read("src/lib/operation.ts");
+    const pricing = read("src/lib/pricing.ts");
+    expect(nav).toContain('key: "nav.espera"');
+    expect(nav).toContain('key: "nav.mesas"');
+    expect(espera).toContain("JornadaBoard");
+    expect(espera).toContain('t("nav.espera")');
+    expect(mesas).toContain("waiterName");
+    expect(mesas).toContain("assignTable");
+    expect(pricing).toContain('espera: "Recepción"');
+  });
 });

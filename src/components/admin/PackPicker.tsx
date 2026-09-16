@@ -14,8 +14,8 @@ const money = new Intl.NumberFormat("es-AR", {
 
 const MODULES: { key: keyof ModuleFlags; label: string; accent: string }[] = [
   { key: "pedidos", label: "Pedidos", accent: "text-marca ring-marca/40" },
-  { key: "espera", label: "Espera", accent: "text-espera ring-espera/40" },
-  { key: "pagos", label: "Pagos", accent: "text-marca ring-marca/40" },
+  { key: "espera", label: "Recepción", accent: "text-espera ring-espera/40" },
+  { key: "pagos", label: "Pagos divididos", accent: "text-marca ring-marca/40" },
 ];
 
 /* Three independent modules; each combination has its own price in

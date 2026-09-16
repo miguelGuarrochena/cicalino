@@ -62,6 +62,8 @@ export interface FloorTable {
   prepOrders: BillOrder[];
   readyOrders: BillOrder[];
   waitingPayments: number;
+  waiterId: string | null;
+  waiterName: string | null;
 }
 
 export const kitchenOrders = (
@@ -182,6 +184,8 @@ const toRow = (
   prepOrders: bill ? kitchenOrders(bill, "en_preparacion") : [],
   readyOrders: bill ? kitchenOrders(bill, "listo") : [],
   waitingPayments: bill ? waitingStaffPayments(bill) : 0,
+  waiterId: null,
+  waiterName: null,
 });
 
 export const buildFloor = (tables: FloorQr[], bills: TableBill[]): FloorTable[] => {
@@ -218,9 +222,13 @@ export const filterFloor = (
   filtro: FloorFilter,
   query: string,
 ): FloorTable[] => {
-  const q = query.trim();
+  const q = query.trim().toLowerCase();
   const searched = q
-    ? rows.filter((r) => String(r.tableNumber).includes(q))
+    ? rows.filter(
+        (r) =>
+          String(r.tableNumber).includes(q) ||
+          (r.waiterName ?? "").toLowerCase().includes(q),
+      )
     : rows;
   if (filtro === "todas") {
     return [...searched].sort((a, b) => a.tableNumber - b.tableNumber);

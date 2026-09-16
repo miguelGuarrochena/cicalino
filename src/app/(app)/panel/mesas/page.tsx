@@ -35,6 +35,9 @@ import {
   type FloorTable,
 } from "@/lib/tableOps";
 import { useToast } from "@/components/ui/Toast";
+import { useFloorShift } from "@/lib/hooks/useFloorShift";
+import { assignmentByTable } from "@/lib/floorShift";
+import { assignTable } from "@/lib/data/floorShift";
 
 const MesasPage = () => {
   const { t } = useApp();
@@ -43,8 +46,13 @@ const MesasPage = () => {
   const { visibles, canManage, ready: branchReady } = useOperationalAccess();
   const branchName = useConfigStore((s) => s.name);
   const employee = useActiveEmployee();
+  const employees = useConfigStore((s) => s.employees);
   const { bills, ready, live, syncError, refresh } = useTableBills(
     visibles.pagos ? branchId : null,
+  );
+  const { shift, refresh: refreshShift } = useFloorShift(
+    visibles.pagos ? branchId : null,
+    visibles.pagos,
   );
   const [tables, setTables] = useState<TableQrView[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -69,7 +77,18 @@ const MesasPage = () => {
     };
   }, [branchId, visibles.pagos]);
 
-  const floor = useMemo(() => buildFloor(tables, bills), [tables, bills]);
+  const floor = useMemo(() => {
+    const rows = buildFloor(tables, bills);
+    const by = assignmentByTable(shift.assignments);
+    return rows.map((r) => {
+      const a = by.get(r.tableNumber);
+      return {
+        ...r,
+        waiterId: a?.employeeId ?? null,
+        waiterName: a?.employeeName ?? null,
+      };
+    });
+  }, [tables, bills, shift.assignments]);
   const shown = useMemo(() => filterFloor(floor, filtro, query), [floor, filtro, query]);
   const inbox = useMemo(() => kitchenInbox(floor), [floor]);
   const nowN = floor.filter(needsNow).length;
@@ -81,11 +100,19 @@ const MesasPage = () => {
 
   const reload = () => {
     void refresh();
+    void refreshShift();
     if (branchId) {
       void fetchTableQrs(branchId).then((r) => {
         if (r.ok) setTables(r.data);
       });
     }
+  };
+
+  const assignWaiter = async (tableNumber: number, employeeId: string | null) => {
+    if (!branchId) return { ok: false, reason: "error" };
+    const res = await assignTable(branchId, tableNumber, employeeId, employee?.id ?? null);
+    if (res.ok) void refreshShift();
+    return res;
   };
 
   const openRow = (row: FloorTable) => {
@@ -266,6 +293,16 @@ const MesasPage = () => {
                 canManage={canManage}
                 onChanged={reload}
                 onBack={() => setSelected(null)}
+                waiterName={
+                  floor.find((r) => r.bill?.session.id === currentBill.session.id)?.waiterName
+                }
+                waiterId={
+                  floor.find((r) => r.bill?.session.id === currentBill.session.id)?.waiterId
+                }
+                staff={employees.map((e) => ({ id: e.id, name: e.name }))}
+                onAssign={(employeeId) =>
+                  assignWaiter(currentBill.session.tableNumber, employeeId)
+                }
                 onShowQr={
                   (() => {
                     const row = floor.find((r) => r.bill?.session.id === currentBill.session.id);

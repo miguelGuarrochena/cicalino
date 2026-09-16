@@ -168,7 +168,7 @@ const MesasQrPage = () => {
       <header className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <div>
           <Link href="/panel/mesas" className="text-sm text-carbon/60 hover:underline">
-            ← {t("nav.pagos")}
+            ← {t("nav.mesas")}
           </Link>
           <h1 className="font-display text-3xl uppercase tracking-tight text-carbon">
             {t("mesasQr.titulo")}

@@ -70,5 +70,6 @@
   "mesa-qr-activo.sql",
   "staff-floor-guards.sql",
   "staff-floor-audit.sql",
-  "menu-categorias.sql"
+  "menu-categorias.sql",
+  "mesa-asignacion-jornada.sql"
 ]

@@ -26,11 +26,11 @@ describe("operation — nav and module redirects", () => {
     expect(moduleForPath("/panel/ayuda")).toBeNull();
   });
 
-  it("la barra es Pedidos, Mesas y Pagos: sin Espera ni métricas", () => {
+  it("la barra es Pedidos, Recepción y Mesas: sin métricas", () => {
     expect(operationalNavLinks("admin", todos).map((l) => l.key)).toEqual([
       "nav.pedidos",
+      "nav.espera",
       "nav.mesas",
-      "nav.pagos",
     ]);
     expect(operationalNavLinks("admin", todos).map((l) => l.href)).toEqual([
       "/panel/pedidos",
