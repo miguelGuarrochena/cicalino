@@ -11,7 +11,7 @@ import { CobrarModal } from "@/components/panel/mesas/CobrarModal";
 import { CloseTableModal } from "@/components/panel/mesas/CloseTableModal";
 import { PrintableBill } from "@/components/panel/mesas/PrintableBill";
 import { TableHistory } from "@/components/panel/mesas/TableHistory";
-import { BillStatusBadge } from "@/components/panel/mesas/BillStatusBadge";
+import { FloorStatusBadge } from "@/components/panel/mesas/FloorStatusBadge";
 import { updateOrderStatus } from "@/lib/data/orders";
 import { cancelTablePayment, confirmTablePayment } from "@/lib/data/tables";
 import {
@@ -22,10 +22,13 @@ import {
   type PaymentSettings,
   type TableBill,
 } from "@/lib/tableBill";
-import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import {
+  floorStatus,
+  guestAccountRows,
+  kitchenOrders,
+  summarizeKitchen,
+} from "@/lib/tableOps";
 import type { OrderStatus } from "@/lib/types";
-
-type Tab = "pagos" | "consumo";
 
 export const TableDetail = ({
   bill,
@@ -36,30 +39,35 @@ export const TableDetail = ({
   canManage,
   onChanged,
   onBack,
+  onShowQr,
 }: {
   bill: TableBill;
   settings: PaymentSettings;
   branchName: string;
   employeeId: string | null;
   employeeName?: string | null;
-  /* Manager or owner: voiding collected money and closing with a balance.
-   * The database enforces it; this only hides buttons that would fail. */
   canManage: boolean;
   onChanged: () => void;
   onBack?: () => void;
+  onShowQr?: () => void;
 }) => {
   const { t } = useApp();
   const toast = useToast();
-  const [tab, setTab] = useState<Tab>("pagos");
   const [busy, setBusy] = useState<string | null>(null);
   const [cobrarOpen, setCobrarOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const open = bill.session.status === "abierta";
   const names = new Map(bill.guests.map((g) => [g.id, g.name]));
   const pending = billPending(bill);
+  const status = floorStatus(bill);
   const waitingPayments = bill.payments.filter(
     (p) => p.status === "pendiente" && p.method !== "mercado_pago",
   );
+  const created = kitchenOrders(bill, "creado");
+  const prep = kitchenOrders(bill, "en_preparacion");
+  const ready = kitchenOrders(bill, "listo");
+  const comanda = [...created, ...prep, ...ready];
+  const accountRows = guestAccountRows(bill);
 
   const errorText = (reason?: string) => {
     for (const k of [`mesas.error.${reason}`, `mesa.error.${reason}`]) {
@@ -86,8 +94,6 @@ export const TableDetail = ({
       o.id,
       async () => {
         const ok = await updateOrderStatus(o.id, to);
-        /* A cancel rejected by pedidos_mesa_guard (payments already cover
-         * the order) comes back as a failed update. */
         return ok ? { ok } : { ok, reason: to === "cancelado" ? "pagos-exceden" : "error" };
       },
       t(`mesas.pedidoMovido.${to}`),
@@ -146,10 +152,6 @@ export const TableDetail = ({
     );
   };
 
-  const activeOrders = bill.orders.filter(
-    (o) => o.status !== "retirado" && o.status !== "cancelado",
-  );
-
   return (
     <>
       <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6 print:hidden">
@@ -177,10 +179,9 @@ export const TableDetail = ({
               · {t("mesas.comensalesN", { n: bill.guests.length })}
             </p>
           </div>
-          <BillStatusBadge bill={bill} />
+          <FloorStatusBadge status={status} />
         </header>
 
-        {/* What a waiter needs at a glance, before any tab. */}
         <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
           {(
             [
@@ -198,32 +199,43 @@ export const TableDetail = ({
           ))}
         </dl>
 
-        {open && pending > 0 && (
-          <button
-            type="button"
-            onClick={() => setCobrarOpen(true)}
-            className="mt-4 min-h-12 w-full rounded-full bg-marca px-6 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98]"
-          >
-            {t("mesas.cobrar")} · {formatMoney(pending)}
-          </button>
-        )}
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:text-carbon hover:underline"
-          >
-            {t("mesas.imprimirCuenta")}
-          </button>
-          {open && (pending <= 0 || canManage) && (
+        <div className="mt-4 flex flex-col gap-2">
+          {open && pending > 0 && (
             <button
               type="button"
-              onClick={() => setCloseOpen(true)}
-              className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:text-carbon hover:underline"
+              onClick={() => setCobrarOpen(true)}
+              className="min-h-12 w-full rounded-full bg-marca px-6 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98]"
             >
-              {t("mesas.cerrarMesa")}
+              {t("mesas.cobrar")} · {formatMoney(pending)}
             </button>
           )}
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {onShowQr && (
+              <button
+                type="button"
+                onClick={onShowQr}
+                className="min-h-11 text-sm font-semibold text-marca underline-offset-4 hover:underline"
+              >
+                {t("mesas.verQrMesa")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:text-carbon hover:underline"
+            >
+              {t("mesas.imprimirCuenta")}
+            </button>
+            {open && (pending <= 0 || canManage) && (
+              <button
+                type="button"
+                onClick={() => setCloseOpen(true)}
+                className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:text-carbon hover:underline"
+              >
+                {t("mesas.cerrarMesa")}
+              </button>
+            )}
+          </div>
         </div>
 
         {waitingPayments.length > 0 && (
@@ -245,102 +257,118 @@ export const TableDetail = ({
           </div>
         )}
 
-        <div className="mt-5">
-          <SegmentedTabs
-            ariaLabel={t("mesas.vistas")}
-            value={tab}
-            onChange={setTab}
-            options={[
-              {
-                id: "pagos",
-                label: t("mesas.tab.pagos"),
-                badge: bill.payments.filter((p) => p.status === "pendiente").length,
-              },
-              {
-                id: "consumo",
-                label: t("mesas.tab.consumo"),
-                badge: activeOrders.length,
-              },
-            ]}
-          />
-        </div>
+        {comanda.length > 0 && (
+          <section className="mt-6 border-t border-linea pt-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-marca">{t("mesas.comanda")}</h3>
+            <p className="mt-1 text-sm text-carbon/70">
+              {summarizeKitchen(comanda)
+                .map((l) => `${l.quantity} × ${l.name}`)
+                .join(" · ")}
+            </p>
+            <ul className="mt-3 flex flex-col gap-2">
+              {comanda.map((o) => (
+                <li key={o.id} className="rounded-2xl border border-linea p-3">
+                  <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span className="font-semibold text-carbon">
+                      {o.guestId ? names.get(o.guestId) : "—"}
+                    </span>
+                    <span className="text-xs text-carbon/55">
+                      {new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {" · "}
+                      {t(`mesa.estadoPedido.${o.status}`)}
+                    </span>
+                  </p>
+                  <ul className="mt-1.5 text-sm text-carbon/75">
+                    {o.items.map((i) => (
+                      <li key={i.id}>
+                        {i.quantity} × {i.name}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {o.status === "creado" && (
+                      <button
+                        type="button"
+                        disabled={busy === o.id}
+                        onClick={() => void moveOrder(o, "en_preparacion")}
+                        className="min-h-10 rounded-full bg-marca px-4 text-xs font-semibold text-crema disabled:opacity-50"
+                      >
+                        {t("mesas.pasarAComanda")}
+                      </button>
+                    )}
+                    {(o.status === "creado" || o.status === "en_preparacion") && (
+                      <button
+                        type="button"
+                        disabled={busy === o.id}
+                        onClick={() => void moveOrder(o, "listo")}
+                        className={`min-h-10 rounded-full px-4 text-xs font-semibold disabled:opacity-50 ${
+                          o.status === "creado"
+                            ? "border border-linea text-carbon/70"
+                            : "bg-marca text-crema"
+                        }`}
+                      >
+                        {t("mesas.marcarListo")}
+                      </button>
+                    )}
+                    {o.status === "listo" && (
+                      <button
+                        type="button"
+                        disabled={busy === o.id}
+                        onClick={() => void moveOrder(o, "retirado")}
+                        className="min-h-10 rounded-full bg-marca px-4 text-xs font-semibold text-crema disabled:opacity-50"
+                      >
+                        {t("mesas.marcarEntregado")}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy === o.id}
+                      onClick={() => {
+                        if (window.confirm(t("mesas.cancelarPedidoConfirmar"))) {
+                          void moveOrder(o, "cancelado");
+                        }
+                      }}
+                      className="min-h-10 rounded-full border border-linea px-4 text-xs font-semibold text-carbon/70 disabled:opacity-50"
+                    >
+                      {t("mesas.cancelarPedido")}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-        {tab === "consumo" ? (
-          <div className="mt-4 flex flex-col gap-5">
-            {activeOrders.length > 0 && (
-              <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
-                  {t("mesas.pedidosEnCurso")}
-                </h3>
-                <ul className="flex flex-col gap-2">
-                  {activeOrders.map((o) => (
-                    <li key={o.id} className="rounded-2xl border border-linea p-3">
-                      <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                        <span className="font-semibold text-carbon">
-                          {o.guestId ? names.get(o.guestId) : "—"}
-                        </span>
-                        <span className="text-xs text-carbon/55">
-                          {new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          {" · "}
-                          {t(`mesa.estadoPedido.${o.status}`)}
-                        </span>
-                      </p>
-                      <ul className="mt-1.5 text-sm text-carbon/75">
-                        {o.items.map((i) => (
-                          <li key={i.id}>
-                            {i.quantity} × {i.name}
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {o.status !== "listo" && (
-                          <button
-                            type="button"
-                            disabled={busy === o.id}
-                            onClick={() => void moveOrder(o, "listo")}
-                            className="min-h-10 rounded-full bg-marca px-4 text-xs font-semibold text-crema disabled:opacity-50"
-                          >
-                            {t("mesas.marcarListo")}
-                          </button>
-                        )}
-                        {o.status === "listo" && (
-                          <button
-                            type="button"
-                            disabled={busy === o.id}
-                            onClick={() => void moveOrder(o, "retirado")}
-                            className="min-h-10 rounded-full bg-marca px-4 text-xs font-semibold text-crema disabled:opacity-50"
-                          >
-                            {t("mesas.marcarEntregado")}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={busy === o.id}
-                          onClick={() => {
-                            if (window.confirm(t("mesas.cancelarPedidoConfirmar"))) {
-                              void moveOrder(o, "cancelado");
-                            }
-                          }}
-                          className="min-h-10 rounded-full border border-linea px-4 text-xs font-semibold text-carbon/70 disabled:opacity-50"
-                        >
-                          {t("mesas.cancelarPedido")}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
+        <section className="mt-6 border-t border-linea pt-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-carbon/50">
+            {t("mesas.cuenta")}
+          </h3>
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {accountRows.map((r) => (
+              <li
+                key={r.guest.id}
+                className="flex items-baseline justify-between gap-3 rounded-xl px-1 py-1 text-sm"
+              >
+                <span className="truncate font-semibold text-carbon">{r.guest.name}</span>
+                <span className="shrink-0 tabular-nums text-carbon/80">
+                  {formatMoney(r.consumption)}
+                  <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-carbon/45">
+                    {t(`mesas.cuentaPersona.${r.status}`)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          {bill.totals.consumption > 0 && (
+            <div className="mt-4">
+              <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-carbon/45">
                 {t("mesas.consumoPorComensal")}
-              </h3>
+              </h4>
               <ConsumptionTable bill={bill} />
             </div>
-          </div>
-        ) : (
-          <div className="mt-4 flex flex-col gap-4">
-            <p className="text-xs text-carbon/60">
+          )}
+          <div className="mt-4">
+            <p className="mb-2 text-xs text-carbon/60">
               {bill.session.splitMode
                 ? t("mesa.modoElegido", { m: t(`mesa.modo.${bill.session.splitMode}`) })
                 : t("mesas.sinModo")}
@@ -350,7 +378,7 @@ export const TableDetail = ({
             </p>
             <PaymentRows bill={bill} actions={paymentActions} />
           </div>
-        )}
+        </section>
 
         <div className="mt-4">
           <TableHistory sessionId={bill.session.id} version={bill.session.version} />

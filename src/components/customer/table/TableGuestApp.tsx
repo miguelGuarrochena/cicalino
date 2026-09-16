@@ -55,7 +55,11 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
 
   const [guest, setGuest] = useState(initial.guest);
   const [bill, setBill] = useState<TableBill | null>(initial.bill);
-  const [tab, setTab] = useState<Tab>(initial.returningPaymentId ? "cuenta" : "carta");
+      const [tab, setTab] = useState<Tab>(
+        initial.returningPaymentId || (initial.bill && initial.bill.totals.consumption > 0)
+          ? "cuenta"
+          : "carta",
+      );
   const [cart, setCart] = useState<Record<string, number>>({});
   const [orderKey, setOrderKey] = useState(newKey);
   const [sending, setSending] = useState(false);
@@ -203,9 +207,12 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
 
   const open = bill.session.status === "abierta";
   const myOrders = bill.orders.filter((o) => o.guestId === guest.id);
+  const unpaid = open && bill.totals.available > 0;
+  const hasConsumption = bill.totals.consumption > 0;
+  const showBar = cartCount > 0 || hasConsumption || tab === "cuenta";
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pb-32 pt-4">
+    <main className={`mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-4 ${showBar ? "pb-32" : "pb-8"}`}>
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-carbon/50">
@@ -371,6 +378,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
 
       {tab === "cuenta" && (
         <section className="mt-4 flex flex-col gap-5">
+          <BillTotals bill={bill} />
           <div>
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
               {t("mesa.seccionConsumo")}
@@ -381,7 +389,6 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
               {t("mesa.seccionPagos")}
             </h2>
-            <BillTotals bill={bill} />
             {bill.session.splitMode && (
               <p className="mt-2 text-xs text-carbon/55">
                 {t("mesa.modoElegido", { m: t(`mesa.modo.${bill.session.splitMode}`) })}
@@ -412,18 +419,49 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
         </section>
       )}
 
+      {showBar && (
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-linea bg-surface/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur">
         <div className="mx-auto flex max-w-lg gap-2">
           {tab === "carta" && cartCount > 0 ? (
-            <button
-              type="button"
-              onClick={() => void sendOrder()}
-              disabled={sending || !open}
-              className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-marca px-5 font-semibold text-crema disabled:opacity-50"
-            >
-              {sending && <Spinner inline className="size-4" />}
-              {t("mesa.pedirN", { n: cartCount, total: formatMoney(cartTotal) })}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => void sendOrder()}
+                disabled={sending || !open}
+                className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-marca px-5 font-semibold text-crema disabled:opacity-50"
+              >
+                {sending && <Spinner inline className="size-4" />}
+                {t("mesa.pedirN", { n: cartCount, total: formatMoney(cartTotal) })}
+              </button>
+              {hasConsumption && (
+                <button
+                  type="button"
+                  onClick={() => setTab("cuenta")}
+                  className="min-h-12 rounded-full border-2 border-marca px-4 font-semibold text-marca"
+                >
+                  {t("mesa.verCuenta")}
+                </button>
+              )}
+            </>
+          ) : tab === "cuenta" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setTab("carta")}
+                className="min-h-12 flex-1 rounded-full border-2 border-marca px-4 font-semibold text-marca"
+              >
+                {t("mesa.seguirPidiendo")}
+              </button>
+              {unpaid && (
+                <button
+                  type="button"
+                  onClick={() => setPayOpen(true)}
+                  className="min-h-12 flex-1 rounded-full bg-marca px-4 font-semibold text-crema"
+                >
+                  {t("mesa.pagar")}
+                </button>
+              )}
+            </>
           ) : (
             <>
               <button
@@ -433,7 +471,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
               >
                 {t("mesa.verCuenta")}
               </button>
-              {open && bill.totals.available > 0 && (
+              {unpaid && (
                 <button
                   type="button"
                   onClick={() => setPayOpen(true)}
@@ -446,6 +484,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           )}
         </div>
       </div>
+      )}
 
       {payOpen && (
         <PaySheet

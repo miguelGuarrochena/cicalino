@@ -14,7 +14,7 @@ interface Props {
   etiqueta: string;
   onClose: () => void;
   onCancelar?: () => void;
-  pathPrefix?: "/p" | "/e";
+  pathPrefix?: "/p" | "/e" | "/m";
   accent?: "pedidos" | "espera";
 }
 
@@ -65,7 +65,9 @@ export const QrModal = ({
       ? locale === "en"
         ? `Follow your table wait on Cicalino: ${url}`
         : `Seguí tu espera de mesa en Cicalino: ${url}`
-      : `Seguí tu pedido en Cicalino: ${url}`;
+      : pathPrefix === "/m"
+        ? t("qr.mesaWa", { url })
+        : `Seguí tu pedido en Cicalino: ${url}`;
   const waHref = `https://wa.me/?text=${encodeURIComponent(waText)}`;
 
   const copiar = async () => {
@@ -86,12 +88,37 @@ export const QrModal = ({
                 ? locale === "en"
                   ? "Follow your table wait"
                   : "Seguí tu espera de mesa"
-                : "Seguí tu pedido",
+                : pathPrefix === "/m"
+                  ? t("qr.mesaShare")
+                  : "Seguí tu pedido",
             url,
           });
         } catch {
         }
       };
+
+  const imprimir = () => {
+    if (!dataUrl) return;
+    const esc = (s: string) =>
+      s.replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+      );
+    const w = window.open("", "_blank", "noopener,noreferrer");
+    if (!w) return;
+    const hint = pathPrefix === "/m" ? t("qr.mesaEscanea") : t("qr.escanea");
+    w.document.write(
+      `<!doctype html><html><head><meta charset="utf-8"><title>${esc(etiqueta)} ${esc(reference)}</title>
+      <style>body{font-family:system-ui,sans-serif;text-align:center;padding:32px;color:#111}img{width:280px;height:280px}h1{font-size:28px;margin:8px 0}p{color:#555}</style>
+      </head><body>
+      <p>${esc(etiqueta)}</p>
+      <h1>${esc(reference)}</h1>
+      <img src="${dataUrl}" alt="QR" />
+      <p>${esc(hint)}</p>
+      <script>window.onload=function(){window.print()}</script>
+      </body></html>`,
+    );
+    w.document.close();
+  };
 
   return (
     <ModalShell onClose={onClose} labelledBy="qr-modal-title">
@@ -139,7 +166,7 @@ export const QrModal = ({
             )}
           </div>
           <p className="mt-3 text-center text-sm text-carbon/60">
-            {t("qr.escanea")}
+            {pathPrefix === "/m" ? t("qr.mesaEscanea") : t("qr.escanea")}
           </p>
         </div>
 
@@ -169,6 +196,13 @@ export const QrModal = ({
               className="rounded-full border border-linea px-4 py-2.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 active:scale-95"
             >
               {copiado ? `✓ ${t("qr.copiado")}` : t("qr.copiar")}
+            </button>
+            <button
+              type="button"
+              onClick={imprimir}
+              className="rounded-full border border-linea px-4 py-2.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 active:scale-95"
+            >
+              {t("qr.imprimir")}
             </button>
           </div>
         </div>
