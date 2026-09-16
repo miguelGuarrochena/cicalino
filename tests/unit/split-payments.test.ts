@@ -17,6 +17,9 @@ import {
 } from "@/lib/schemas";
 import {
   PACK_IDS,
+  PACK_PRICES,
+  SOLO_PACKS,
+  COMBO_PACKS,
   isPackId,
   modulesForPack,
   normalizeModules,
@@ -105,6 +108,19 @@ describe("Pagos divididos — esquemas", () => {
 });
 
 describe("Pagos divididos — módulo comercial", () => {
+  it("los precios comerciales de la landing coinciden con cada pack", () => {
+    expect(PACK_PRICES).toEqual({
+      pedidos: 20_000,
+      espera: 10_000,
+      pagos: 15_000,
+      pack: 25_000,
+      espera_pagos: 22_000,
+      pedidos_pagos: 30_000,
+      completo: 35_000,
+    });
+    expect([...SOLO_PACKS, ...COMBO_PACKS].sort()).toEqual([...PACK_IDS].sort());
+  });
+
   it("cada combinación de módulos tiene un pack y vuelve a la misma", () => {
     for (const id of PACK_IDS) {
       expect(packIdFor(modulesForPack(id))).toBe(id);

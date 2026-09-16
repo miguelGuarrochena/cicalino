@@ -36,6 +36,16 @@ export const PACK_IDS: PackId[] = [
   "completo",
 ];
 
+/* Catalog order for the landing and /pricing. Not a billing change: same
+ * packs, listed so a restaurant owner sees every combination. */
+export const SOLO_PACKS: PackId[] = ["pedidos", "espera", "pagos"];
+export const COMBO_PACKS: PackId[] = [
+  "pack",
+  "espera_pagos",
+  "pedidos_pagos",
+  "completo",
+];
+
 export const PACK_PRICES: Record<PackId, number> = {
   pedidos: PRICE_ORDERS,
   espera: PRICE_WAITLIST,

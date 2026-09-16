@@ -9,8 +9,6 @@ const money = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-/* Illustrative only: a two-guest table. The numbers add up on purpose, a
- * restaurant owner will check them. */
 const GUESTS = [
   {
     key: "juan",
@@ -41,6 +39,16 @@ const TABLE_TOTAL = guestTotals.reduce((s, g) => s + g.total, 0);
 const PAID = guestTotals.filter((g) => g.paid).reduce((s, g) => s + g.total, 0);
 
 const STEPS = ["escanea", "pedi", "dividi", "paga"] as const;
+const CLIENT_ITEMS = [
+  "consumo",
+  "suyo",
+  "iguales",
+  "monto",
+  "porcentaje",
+  "propina",
+  "metodo",
+] as const;
+const LOCAL_ITEMS = ["total", "pagado", "falta", "quien", "metodo", "historial"] as const;
 const METHODS = ["mp", "transferencia", "efectivo", "tarjeta"] as const;
 
 const Row = ({
@@ -77,16 +85,53 @@ export const SplitBillSection = () => {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-marca">
             {t("home.pagos.kicker")}
           </p>
-          <h2 className="mt-2 font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+          <h2 className="mt-2 font-display text-3xl uppercase tracking-tight text-carbon sm:text-5xl">
             {t("home.pagos.titulo")}
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-carbon/60 sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-carbon/65 sm:text-lg">
             {t("home.pagos.sub")}
           </p>
         </div>
 
-        {/* Cómo funciona: four steps, arrows between them from sm up. */}
-        <ol className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-10 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-[28px] border border-linea bg-surface p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-marca">
+              {t("home.pagos.ladoCliente")}
+            </p>
+            <p className="mt-1 text-sm text-carbon/55">{t("home.pagos.ladoClienteSub")}</p>
+            <ul className="mt-4 flex flex-col gap-2.5">
+              {CLIENT_ITEMS.map((k) => (
+                <li key={k} className="flex items-start gap-2.5 text-sm text-carbon/80">
+                  <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-marca/10 text-[11px] font-bold text-marca">
+                    ✓
+                  </span>
+                  {t(`home.pagos.cliente.${k}`)}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-[28px] border border-linea bg-surface p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-marca">
+              {t("home.pagos.ladoLocal")}
+            </p>
+            <p className="mt-1 text-sm text-carbon/55">{t("home.pagos.ladoLocalSub")}</p>
+            <ul className="mt-4 flex flex-col gap-2.5">
+              {LOCAL_ITEMS.map((k) => (
+                <li key={k} className="flex items-start gap-2.5 text-sm text-carbon/80">
+                  <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                    ✓
+                  </span>
+                  {t(`home.pagos.local.${k}`)}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-5 rounded-2xl bg-marca/8 px-4 py-3 text-sm font-semibold text-marca">
+              {t("home.pagos.cierra")}
+            </p>
+          </div>
+        </div>
+
+        <ol className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {STEPS.map((s, idx) => (
             <li
               key={s}
@@ -110,8 +155,7 @@ export const SplitBillSection = () => {
           ))}
         </ol>
 
-        <div className="mt-10 grid items-start gap-6 lg:grid-cols-[1fr_1.1fr]">
-          {/* Benefits for the restaurant */}
+        <div className="mt-10 grid items-start gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div className="u-in flex flex-col gap-4">
             <ul className="flex flex-col gap-3">
               {(["cuenta", "modos", "propina", "local"] as const).map((b) => (
@@ -159,7 +203,6 @@ export const SplitBillSection = () => {
             </div>
           </div>
 
-          {/* Mockup: the table bill as guests and staff see it */}
           <div
             className="u-in rounded-[28px] border border-linea bg-crema/70 p-4 shadow-sm sm:p-5"
             role="img"
@@ -220,7 +263,10 @@ export const SplitBillSection = () => {
                 </div>
               ))}
             </dl>
-            <p className="mt-3 text-center text-xs text-carbon/55">{t("home.pagos.mock.nota")}</p>
+            <p className="mt-3 text-center text-xs font-medium text-carbon/60">
+              {t("home.pagos.mock.historial")}
+            </p>
+            <p className="mt-1 text-center text-xs text-carbon/45">{t("home.pagos.mock.nota")}</p>
           </div>
         </div>
       </div>
