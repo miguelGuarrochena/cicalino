@@ -332,8 +332,30 @@ const pgRound = (n: number): number => Math.round(n);
 export const activePayments = (bill: TableBill): BillPayment[] =>
   bill.payments.filter((p) => p.status !== "cancelado");
 
+/* Amounts collected by staff at the venue don't fix or block the table's
+ * split mode (same rule as _crear_pago_mesa). */
+const isStaffAmount = (p: Pick<BillPayment, "createdBy" | "mode">): boolean =>
+  p.createdBy === "personal" && (p.mode === "monto" || p.mode === "uno");
+
 export const splitModeLocked = (bill: TableBill): boolean =>
-  bill.session.splitMode !== null && activePayments(bill).length > 0;
+  bill.session.splitMode !== null &&
+  activePayments(bill).some((p) => !isStaffAmount(p));
+
+export type BillStatus = "pagada" | "parcial" | "pendiente" | "sin-consumo" | "cerrada";
+
+/* Traffic light for the cobros list. "Paid" means confirmed consumption covers
+ * the bill; a pending cash or transfer payment doesn't count yet. */
+export const billStatus = (bill: TableBill): BillStatus => {
+  if (bill.session.status === "pagada") return "pagada";
+  if (bill.session.status === "cerrada") return "cerrada";
+  if (bill.totals.consumption <= 0) return "sin-consumo";
+  if (bill.totals.uncovered <= 0) return "pagada";
+  return bill.totals.paidBase > 0 ? "parcial" : "pendiente";
+};
+
+/* What's still owed including tips already added to payments. */
+export const billPending = (bill: TableBill): number =>
+  Math.max(bill.totals.total - bill.totals.paid, 0);
 
 export const previewPayment = (
   bill: TableBill,
@@ -341,8 +363,10 @@ export const previewPayment = (
   draft: PaymentDraft,
   settings: PaymentSettings,
   now: Date = new Date(),
+  actor: "comensal" | "personal" = "comensal",
 ): PaymentPreview => {
   if (bill.session.status !== "abierta") return { ok: false, reason: "mesa-cerrada" };
+  const presencial = actor === "personal" && (draft.mode === "monto" || draft.mode === "uno");
 
   /* Expired MP reservations are released server-side before computing. */
   const active = bill.payments.filter(
@@ -356,8 +380,9 @@ export const previewPayment = (
       ),
   );
 
+  const guestActive = active.filter((p) => !isStaffAmount(p));
   let totalParts = bill.session.parts;
-  if (active.length > 0 && bill.session.splitMode !== null) {
+  if (!presencial && guestActive.length > 0 && bill.session.splitMode !== null) {
     if (
       bill.session.splitMode !== draft.mode ||
       (draft.mode === "iguales" &&
@@ -367,7 +392,7 @@ export const previewPayment = (
       return { ok: false, reason: "modo-bloqueado" };
     }
   }
-  if (active.length === 0) {
+  if (!presencial && guestActive.length === 0) {
     if (draft.mode === "iguales") {
       totalParts = draft.totalParts ?? bill.guests.length;
       if (!Number.isInteger(totalParts) || totalParts < 1 || totalParts > 50) {
@@ -380,7 +405,9 @@ export const previewPayment = (
 
   const consumption = bill.totals.consumption;
   const committed = active.reduce((s, p) => s + p.base, 0);
-  const committedParts = active.reduce((s, p) => s + p.parts, 0);
+  const committedParts = active
+    .filter((p) => p.mode === "iguales")
+    .reduce((s, p) => s + p.parts, 0);
   const available = Math.max(consumption - committed, 0);
   if (available <= 0) return { ok: false, reason: "nada-que-pagar" };
 

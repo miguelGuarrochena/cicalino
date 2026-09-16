@@ -64,5 +64,7 @@
   "en-preparacion-revoke.sql",
   "liberar-mesas-jornada.sql",
   "split-payments-module.sql",
+  "staff-role-enum.sql",
+  "staff-roles.sql",
   "split-payments.sql"
 ]

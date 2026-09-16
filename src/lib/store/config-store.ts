@@ -15,6 +15,9 @@ export interface EmployeeUI {
   tienePin: boolean;
   usuarioId: string | null;
   email: string | null;
+  /* Role of the linked login, when the owner can see it. "empleado" is a
+   * waiter; "supervisor" a manager. null = no app access (or not visible). */
+  accesoRol?: "empleado" | "supervisor" | null;
 }
 
 export type NewEmployeeInput = {

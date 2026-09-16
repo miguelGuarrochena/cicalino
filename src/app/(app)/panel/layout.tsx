@@ -95,8 +95,12 @@ const PanelLayout = ({
       dispositivo,
     ),
   );
+  /* "Who's serving" is for shared devices signed in with the owner's or a
+   * manager's account. A waiter with their own login is already known: the
+   * database attributes their actions (staff-roles.sql). Nothing requires it. */
   const mostrarFichaje =
     role !== "superadmin" &&
+    role !== "empleado" &&
     (path === "/panel" ||
       path.startsWith("/panel/espera") ||
       path === "/panel/mesas");

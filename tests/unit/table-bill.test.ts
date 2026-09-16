@@ -5,7 +5,10 @@ import {
   enabledMethods,
   mapBill,
   paymentsByPayer,
+  billPending,
+  billStatus,
   previewPayment,
+  splitModeLocked,
   type BillPayment,
   type PaymentSettings,
   type TableBill,
@@ -266,7 +269,7 @@ describe("métodos de pago", () => {
       ...["consumo", "iguales", "uno", "monto"].flatMap((m) => [`mesa.modo.${m}`, `mesa.modoAyuda.${m}`]),
       ...["pendiente", "pagado", "cancelado"].map((s) => `mesa.estadoPago.${s}`),
       ...["creado", "en_preparacion", "listo", "retirado", "cancelado"].map((s) => `mesa.estadoPedido.${s}`),
-      ...["abierta", "pagada", "cerrada"].map((s) => `mesas.estado.${s}`),
+      ...["pendiente", "parcial", "pagada", "sin-consumo", "cerrada"].map((s) => `mesas.estadoCobro.${s}`),
       ...["conectado", "no-configurado", "no-autorizado", "error"].map((s) => `cobros.mp.${s}`),
     ];
     expect(DICT.es).toBeTruthy();
@@ -275,3 +278,48 @@ describe("métodos de pago", () => {
     }
   });
 });
+
+describe("cobro en el local", () => {
+  it("el personal cobra un monto aunque la mesa haya elegido otra forma de dividir", () => {
+    const bill = mkBill({}, [payment({ guestId: "juan", base: 12000, mode: "consumo" })]);
+    expect(previewPayment(bill, null, { mode: "monto", method: "efectivo", amount: 17000 }, settings, new Date(), "personal"))
+      .toMatchObject({ ok: true, base: 17000 });
+    /* A guest still can't switch modes. */
+    expect(previewPayment(bill, "maria", { mode: "monto", method: "efectivo", amount: 17000 }, settings))
+      .toEqual({ ok: false, reason: "modo-bloqueado" });
+    /* And nobody overpays. */
+    expect(previewPayment(bill, null, { mode: "monto", method: "efectivo", amount: 17001 }, settings, new Date(), "personal"))
+      .toEqual({ ok: false, reason: "excede", available: 17000 });
+  });
+
+  it("un cobro presencial no fija el modo de la mesa ni cuenta como parte", () => {
+    const bill = mkBill({}, [payment({ mode: "monto", base: 5000, createdBy: "personal" })]);
+    bill.session.splitMode = null;
+    expect(splitModeLocked(bill)).toBe(false);
+    const r = previewPayment(bill, "juan", { mode: "iguales", method: "efectivo", totalParts: 2 }, settings);
+    expect(r).toMatchObject({ ok: true, base: Math.floor(24000 / 2), totalParts: 2 });
+  });
+});
+
+describe("semáforo de cobros", () => {
+  const withTotals = (over: Partial<TableBill["totals"]>, status: TableBill["session"]["status"] = "abierta") => {
+    const b = mkBill();
+    b.session.status = status;
+    b.totals = { ...b.totals, ...over };
+    return b;
+  };
+
+  it("pendiente, parcial y pagada según lo confirmado", () => {
+    expect(billStatus(withTotals({ paidBase: 0, uncovered: 29000 }))).toBe("pendiente");
+    expect(billStatus(withTotals({ paidBase: 12000, uncovered: 17000 }))).toBe("parcial");
+    expect(billStatus(withTotals({ paidBase: 29000, uncovered: 0 }))).toBe("pagada");
+    expect(billStatus(withTotals({}, "pagada"))).toBe("pagada");
+    expect(billStatus(withTotals({ consumption: 0 }))).toBe("sin-consumo");
+  });
+
+  it("lo pendiente incluye propinas ya sumadas a los pagos", () => {
+    expect(billPending(withTotals({ total: 31050, paid: 13200 }))).toBe(17850);
+    expect(billPending(withTotals({ total: 100, paid: 200 }))).toBe(0);
+  });
+});
+

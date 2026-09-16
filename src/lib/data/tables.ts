@@ -346,3 +346,40 @@ export const savePaymentSettings = async (
   }
   return { ok: true };
 };
+
+/* ---- History ------------------------------------------------------------ */
+
+export interface TableEventView {
+  id: number;
+  type: string;
+  actor: "comensal" | "personal" | "sistema" | "mercado_pago";
+  at: string;
+  who: string | null;
+  amount: number | null;
+  method: string | null;
+}
+
+/* Who did what on a table, newest first (mesa_historial in split-payments.sql
+ * resolves names from the employee record or the account). */
+export const fetchTableHistory = async (
+  sessionId: string,
+): Promise<DataResult<TableEventView[]>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok([]);
+  const { data, error } = await supabase.rpc("mesa_historial", { p_sesion: sessionId });
+  if (error) {
+    reportError("panel.mesas.historial", error, { sessionId });
+    return fail(desdeSupabase(error));
+  }
+  return ok(
+    ((data as Record<string, unknown>[] | null) ?? []).map((e) => ({
+      id: Number(e.id),
+      type: String(e.tipo),
+      actor: e.actor as TableEventView["actor"],
+      at: String(e.creado_en),
+      who: (e.quien as string | null) ?? null,
+      amount: e.monto == null ? null : Number(e.monto),
+      method: (e.metodo as string | null) ?? null,
+    })),
+  );
+};

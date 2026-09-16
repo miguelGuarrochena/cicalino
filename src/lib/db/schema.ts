@@ -40,10 +40,13 @@ export const identificationModeEnum = pgEnum("modo_identificacion", [
   "mesa",
 ]);
 
+/* supabase/staff-role-enum.sql adds "empleado" (waiter): runs the floor,
+ * no branch setup. */
 export const userRoleEnum = pgEnum("rol_usuario", [
   "superadmin",
   "admin",
   "supervisor",
+  "empleado",
 ]);
 
 export const subscriptionStatusEnum = pgEnum("estado_suscripcion", [
@@ -227,6 +230,8 @@ export const orders = pgTable(
     notifiedAt: timestamp("avisado_en", { withTimezone: true }),
     /* supabase/split-payments.sql — set only for orders placed from a table
      * QR. Kept out of pedidos_pagina (the counter board). */
+    /* supabase/staff-roles.sql — account that created it (auth.uid()). */
+    createdBy: uuid("creado_por"),
     tableSessionId: uuid("sesion_id"),
     guestId: uuid("comensal_id"),
     idempotencyKey: uuid("clave_idempotencia"),
@@ -329,6 +334,7 @@ export const waitlistEntries = pgTable(
     seatedAt: timestamp("sentado_en", { withTimezone: true }),
     cancelledAt: timestamp("cancelado_en", { withTimezone: true }),
     seenAt: timestamp("visto_en", { withTimezone: true }),
+    createdBy: uuid("creado_por"),
   },
   (t) => [
     index("idx_esperas_local_estado").on(t.localId, t.estado),
@@ -367,6 +373,7 @@ export const reservations = pgTable(
     seatedAt: timestamp("sentado_en", { withTimezone: true }),
     cancelledAt: timestamp("cancelado_en", { withTimezone: true }),
     expiredAt: timestamp("expirado_en", { withTimezone: true }),
+    createdBy: uuid("creado_por"),
   },
   (t) => [
     index("idx_reservas_local_horario").on(t.localId, t.horario),

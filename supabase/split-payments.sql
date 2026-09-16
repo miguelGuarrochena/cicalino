@@ -1,7 +1,7 @@
 -- ===========================================================================
 -- Cicalino — Split payments: menu, table sessions, guests, orders, payments
 -- Run in: Supabase Dashboard → SQL Editor / pnpm db:sql. Idempotent.
--- Requires: split-payments-module.sql, security-fixes-09.sql,
+-- Requires: split-payments-module.sql, staff-roles.sql, security-fixes-09.sql,
 --           pedidos-avisos-activos.sql, liberar-mesas-jornada.sql,
 --           corte-por-impago.sql
 --
@@ -38,7 +38,12 @@
 --   Guests never talk to PostgREST. /api/m/* runs with service_role, hashes the
 --   guest cookie and calls the *_comensal functions, which check the hash.
 --   Staff use their normal session; functions check puede_ver_local,
---   local_tiene_modulo('pagos') and local_operativo.
+--   local_tiene_modulo('pagos') and local_operativo. Any staff member of the
+--   branch (waiters included) can register, confirm and cancel pending
+--   payments and close a covered table; voiding a collected payment, closing
+--   with a balance, regenerating QRs and editing the menu need a manager or
+--   the owner (auth_gestiona_local, staff-roles.sql). Tables are never tied to
+--   a specific employee.
 -- ===========================================================================
 
 
@@ -462,7 +467,7 @@ begin
         'pendiente_confirmar', coalesce(sum(g.monto_total) filter (where g.estado = 'pendiente'), 0),
         'base_pagada', coalesce(sum(g.monto_base) filter (where g.estado = 'pagado'), 0),
         'base_comprometida', coalesce(sum(g.monto_base) filter (where g.estado <> 'cancelado'), 0),
-        'partes_comprometidas', coalesce(sum(g.partes) filter (where g.estado <> 'cancelado'), 0),
+        'partes_comprometidas', coalesce(sum(g.partes) filter (where g.estado <> 'cancelado' and g.modo = 'iguales'), 0),
         'falta_cubrir', greatest(v_consumo
           - coalesce(sum(g.monto_base) filter (where g.estado = 'pagado'), 0), 0),
         'disponible', greatest(v_consumo
@@ -555,6 +560,7 @@ declare
   v_pago public.pagos_mesa%rowtype;
   v_mio integer;
   v_mio_comp integer;
+  v_presencial boolean;
 begin
   select * into v_s from public.mesa_sesiones where id = p_sesion for update;
   if not found then
@@ -610,12 +616,20 @@ begin
     return json_build_object('ok', false, 'reason', 'metodo-no-disponible');
   end if;
 
+  /* A payment collected by staff at the venue ("this much, in cash") is an
+   * amount, whatever split the guests chose on their phones. It doesn't set or
+   * change the table's mode, and it's still capped by what's left, so it can't
+   * overpay. Those payments don't count when deciding whether the mode is
+   * already fixed. */
+  v_presencial := p_actor = 'personal' and v_modo in ('monto', 'uno');
+
   select count(*) into v_activos from public.pagos_mesa
-   where sesion_id = p_sesion and estado <> 'cancelado';
+   where sesion_id = p_sesion and estado <> 'cancelado'
+     and not (creado_por = 'personal' and modo in ('monto', 'uno'));
 
   /* The split mode belongs to the table: the first payment fixes it, and it
    * can change only while nothing is pending or paid. */
-  if v_activos > 0 and v_s.modo_division is not null
+  if not v_presencial and v_activos > 0 and v_s.modo_division is not null
      and (v_s.modo_division <> v_modo
           or (v_modo = 'iguales' and p_datos ? 'partes_totales'
               and (p_datos->>'partes_totales')::int is distinct from v_s.partes)) then
@@ -623,7 +637,7 @@ begin
       'modo_division', v_s.modo_division, 'partes', v_s.partes);
   end if;
 
-  if v_activos = 0 then
+  if v_activos = 0 and not v_presencial then
     if v_modo = 'iguales' then
       v_partes_tot := coalesce(
         nullif(p_datos->>'partes_totales', '')::int,
@@ -642,7 +656,8 @@ begin
   end if;
 
   v_consumo := public._consumo_sesion(p_sesion);
-  select coalesce(sum(monto_base), 0), coalesce(sum(partes), 0)
+  select coalesce(sum(monto_base), 0),
+         coalesce(sum(partes) filter (where modo = 'iguales'), 0)
     into v_comprometida, v_partes_comp
     from public.pagos_mesa where sesion_id = p_sesion and estado <> 'cancelado';
   v_disponible := greatest(v_consumo - v_comprometida, 0);
@@ -1303,6 +1318,7 @@ begin
     select 1 from public.empleados where id = p_empleado and local_id = v_local) then
     return json_build_object('ok', false, 'reason', 'empleado-invalido');
   end if;
+  p_empleado := coalesce(p_empleado, public.empleado_de_usuario(v_local));
   v_comensal := nullif(p_datos->>'comensal_id', '')::uuid;
   if v_comensal is not null and not exists (
     select 1 from public.comensales where id = v_comensal and sesion_id = p_sesion) then
@@ -1328,6 +1344,7 @@ begin
     select 1 from public.empleados where id = p_empleado and local_id = v_p.local_id) then
     return json_build_object('ok', false, 'reason', 'empleado-invalido');
   end if;
+  p_empleado := coalesce(p_empleado, public.empleado_de_usuario(v_p.local_id));
 
   perform 1 from public.mesa_sesiones where id = v_p.sesion_id for update;
   select * into v_p from public.pagos_mesa where id = p_pago for update;
@@ -1357,8 +1374,9 @@ begin
 end;
 $$;
 
-/* Pending: staff can cancel any. Paid: only a manual one, while the table is
- * still open, with a reason (it's a refund and stays in the audit log). */
+/* Pending: any staff member can cancel it. Paid: only a manual one, while the
+ * table is still open, with a reason, and only a manager or the owner (it's a
+ * refund and stays in the audit log). */
 create or replace function public.cancelar_pago_mesa(
   p_pago uuid,
   p_motivo text,
@@ -1376,6 +1394,12 @@ begin
     raise exception 'No autorizado' using errcode = '42501';
   end if;
 
+  if p_empleado is not null and not exists (
+    select 1 from public.empleados where id = p_empleado and local_id = v_p.local_id) then
+    return json_build_object('ok', false, 'reason', 'empleado-invalido');
+  end if;
+  p_empleado := coalesce(p_empleado, public.empleado_de_usuario(v_p.local_id));
+
   select estado into v_estado_sesion from public.mesa_sesiones where id = v_p.sesion_id for update;
   select * into v_p from public.pagos_mesa where id = p_pago for update;
 
@@ -1388,6 +1412,9 @@ begin
     end if;
     if v_estado_sesion <> 'abierta' then
       return json_build_object('ok', false, 'reason', 'mesa-cerrada');
+    end if;
+    if not public.auth_gestiona_local(v_p.local_id) then
+      return json_build_object('ok', false, 'reason', 'requiere-encargado');
     end if;
     if v_motivo is null then
       return json_build_object('ok', false, 'reason', 'motivo-requerido');
@@ -1423,6 +1450,11 @@ begin
   if not found or not public._staff_puede(v_s.local_id, true) then
     raise exception 'No autorizado' using errcode = '42501';
   end if;
+  if p_empleado is not null and not exists (
+    select 1 from public.empleados where id = p_empleado and local_id = v_s.local_id) then
+    return json_build_object('ok', false, 'reason', 'empleado-invalido');
+  end if;
+  p_empleado := coalesce(p_empleado, public.empleado_de_usuario(v_s.local_id));
   select * into v_s from public.mesa_sesiones where id = p_sesion for update;
   if v_s.estado = 'cerrada' then
     return json_build_object('ok', true, 'repetido', true);
@@ -1433,10 +1465,15 @@ begin
   end if;
 
   v_totales := public._cuenta_json(p_sesion)->'totales';
-  if (v_totales->>'falta_cubrir')::int > 0
-     and nullif(btrim(coalesce(p_motivo, '')), '') is null then
-    return json_build_object('ok', false, 'reason', 'motivo-requerido',
-      'falta_cubrir', (v_totales->>'falta_cubrir')::int);
+  if (v_totales->>'falta_cubrir')::int > 0 then
+    if not public.auth_gestiona_local(v_s.local_id) then
+      return json_build_object('ok', false, 'reason', 'requiere-encargado',
+        'falta_cubrir', (v_totales->>'falta_cubrir')::int);
+    end if;
+    if nullif(btrim(coalesce(p_motivo, '')), '') is null then
+      return json_build_object('ok', false, 'reason', 'motivo-requerido',
+        'falta_cubrir', (v_totales->>'falta_cubrir')::int);
+    end if;
   end if;
 
   update public.mesa_sesiones
@@ -1460,7 +1497,8 @@ declare
   v_token text;
 begin
   select local_id into v_local from public.mesas where id = p_mesa;
-  if v_local is null or not public._staff_puede(v_local, true) then
+  if v_local is null or not public._staff_puede(v_local, true)
+     or not public.auth_gestiona_local(v_local) then
     raise exception 'No autorizado' using errcode = '42501';
   end if;
   update public.mesas
@@ -1470,6 +1508,40 @@ begin
   perform public._mesa_evento(v_local, null, 'qr_regenerado', 'personal',
     p_datos => json_build_object('mesa_id', p_mesa)::jsonb);
   return json_build_object('ok', true, 'qr_token', v_token);
+end;
+$$;
+
+/* Who did what on a table, with names. Names come from the employee record
+ * when there is one, else from the account; guests show their table name. */
+create or replace function public.mesa_historial(p_sesion uuid)
+returns json
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_local uuid;
+begin
+  select local_id into v_local from public.mesa_sesiones where id = p_sesion;
+  if v_local is null or not public.puede_ver_local(v_local) then
+    raise exception 'No autorizado' using errcode = '42501';
+  end if;
+  return coalesce((
+    select json_agg(json_build_object(
+      'id', ev.id, 'tipo', ev.tipo, 'actor', ev.actor, 'creado_en', ev.creado_en,
+      'quien', coalesce(
+        emp.nombre,
+        nullif(btrim(u.nombre), ''),
+        u.email,
+        com.nombre
+      ),
+      'pago_id', ev.pago_id, 'pedido_id', ev.pedido_id,
+      'monto', g.monto_total, 'metodo', g.metodo
+    ) order by ev.creado_en desc, ev.id desc)
+      from public.mesa_eventos ev
+      left join public.empleados emp on emp.id = ev.empleado_id
+      left join public.usuarios u on u.id = ev.usuario_id
+      left join public.comensales com on com.id = ev.comensal_id
+      left join public.pagos_mesa g on g.id = ev.pago_id
+     where ev.sesion_id = p_sesion
+  ), '[]'::json);
 end;
 $$;
 
@@ -1612,8 +1684,10 @@ create trigger mp_cuentas_baja
 -- 14) Existing functions that need to know about table sessions
 -- ===========================================================================
 
-/* Same as security-fixes-09, but a table with an open bill is never deleted:
- * its QR is in the guests' hands. */
+/* Same as security-fixes-09, but a table with an open bill is never deleted
+ * (its QR is in the guests' hands), and only a manager or the owner changes
+ * the number of tables. The waitlist screen calls this on load for everyone,
+ * so a waiter gets a quiet 'sin-permiso' instead of an error. */
 create or replace function public.sincronizar_mesas(
   p_local    uuid,
   p_cantidad integer
@@ -1627,6 +1701,9 @@ declare
 begin
   if not public.puede_ver_local(p_local) then
     raise exception 'No autorizado';
+  end if;
+  if not public.auth_gestiona_local(p_local) then
+    return json_build_object('ok', false, 'reason', 'sin-permiso');
   end if;
   if not public.local_operativo(p_local) then
     return json_build_object('ok', false, 'reason', 'suscripcion-vencida');
@@ -1822,17 +1899,27 @@ grant all on table public.productos, public.local_cobros, public.mp_cuentas,
   public.pedido_items, public.pagos_mesa, public.mesa_eventos
   to service_role;
 
--- Menu: staff edit it directly, but only with the module and a live account.
+-- Menu: managers and owners edit it directly, with the module and a live
+-- account. Waiters read it.
 grant select, insert, update, delete on public.productos to authenticated;
 drop policy if exists "productos de mi scope" on public.productos;
 create policy "productos de mi scope" on public.productos
   for select using (public.puede_ver_local(local_id));
 drop policy if exists "productos escribir con modulo" on public.productos;
-create policy "productos escribir con modulo" on public.productos
-  for all using (public.puede_ver_local(local_id))
-  with check (public.puede_ver_local(local_id)
+drop policy if exists "productos alta" on public.productos;
+drop policy if exists "productos editar" on public.productos;
+drop policy if exists "productos baja" on public.productos;
+create policy "productos alta" on public.productos
+  for insert with check (public.auth_gestiona_local(local_id)
               and public.local_tiene_modulo(local_id, 'pagos')
               and public.local_operativo(local_id));
+create policy "productos editar" on public.productos
+  for update using (public.auth_gestiona_local(local_id))
+  with check (public.auth_gestiona_local(local_id)
+              and public.local_tiene_modulo(local_id, 'pagos')
+              and public.local_operativo(local_id));
+create policy "productos baja" on public.productos
+  for delete using (public.auth_gestiona_local(local_id));
 
 -- Payment methods decide where the money goes (transfer alias), so only the
 -- owner (or superadmin) edits them. Supervisors can read them.
@@ -1913,6 +2000,7 @@ revoke all on function public.cancelar_pago_mesa(uuid, text, uuid) from public, 
 revoke all on function public.cerrar_mesa(uuid, text, uuid) from public, anon;
 revoke all on function public.regenerar_qr_mesa(uuid) from public, anon;
 revoke all on function public.mp_estado_local(uuid) from public, anon;
+revoke all on function public.mesa_historial(uuid) from public, anon;
 
 grant execute on function public.mesas_cuentas(uuid) to authenticated;
 grant execute on function public.registrar_pago_personal(uuid, jsonb, uuid) to authenticated;
@@ -1921,6 +2009,7 @@ grant execute on function public.cancelar_pago_mesa(uuid, text, uuid) to authent
 grant execute on function public.cerrar_mesa(uuid, text, uuid) to authenticated;
 grant execute on function public.regenerar_qr_mesa(uuid) to authenticated;
 grant execute on function public.mp_estado_local(uuid) to authenticated;
+grant execute on function public.mesa_historial(uuid) to authenticated;
 
 revoke all on function public.proteger_modulos_local() from public, anon, authenticated;
 revoke all on function public.pedidos_mesa_guard() from public, anon, authenticated;
