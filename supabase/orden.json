@@ -69,5 +69,7 @@
   "split-payments.sql",
   "mesa-qr-activo.sql",
   "staff-floor-guards.sql",
-  "staff-floor-audit.sql"
+  "staff-floor-audit.sql",
+  "menu-categorias.sql",
+  "mesa-asignacion-jornada.sql"
 ]

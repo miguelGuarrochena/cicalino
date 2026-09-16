@@ -9,6 +9,7 @@ import {
   type TableBill,
 } from "@/lib/tableBill";
 import { mercadoPagoConfigured } from "@/lib/server/mercadopago";
+import { orderForGuests } from "@/lib/menuView";
 
 /* Guest identity at a table.
  *
@@ -105,29 +106,45 @@ export interface MenuProduct {
   description: string | null;
   category: string | null;
   price: number;
+  imageUrl: string | null;
 }
 
 export const fetchMenu = async (branchId: string): Promise<MenuProduct[]> => {
   const admin = createAdminSupabase();
   if (!admin) return [];
-  const { data, error } = await admin
-    .from("productos")
-    .select("id, nombre, descripcion, categoria, precio")
-    .eq("local_id", branchId)
-    .eq("activo", true)
-    .order("orden", { ascending: true })
-    .order("nombre", { ascending: true });
+  const [{ data, error }, cats] = await Promise.all([
+    admin
+      .from("productos")
+      .select("id, nombre, descripcion, categoria, precio, imagen_url, orden")
+      .eq("local_id", branchId)
+      .eq("activo", true)
+      .order("orden", { ascending: true })
+      .order("nombre", { ascending: true }),
+    admin
+      .from("categorias")
+      .select("nombre, activa, orden")
+      .eq("local_id", branchId),
+  ]);
   if (error) {
     console.error("m.menu", error.message);
     return [];
   }
-  return (data ?? []).map((p) => ({
+  const products = (data ?? []).map((p) => ({
     id: p.id as string,
     name: p.nombre as string,
     description: (p.descripcion as string | null) ?? null,
     category: (p.categoria as string | null) ?? null,
     price: p.precio as number,
+    imageUrl: (p.imagen_url as string | null) ?? null,
+    order: (p.orden as number | null) ?? 0,
   }));
+  const categories = (cats.data ?? []).map((c) => ({
+    name: String(c.nombre ?? ""),
+    active: c.activa !== false,
+    order: Number(c.orden ?? 0),
+  }));
+  /* Same rules as the owner's "Ver menú" preview (lib/menuView). */
+  return orderForGuests(categories, products).map(({ order: _order, ...p }) => p);
 };
 
 export interface GuestPaymentOptions {

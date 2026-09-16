@@ -28,14 +28,14 @@ export const OPERATIONAL_NAV: OperationalNavLink[] = [
   },
   {
     href: "/panel/espera",
-    key: "nav.mesas",
+    key: "nav.espera",
     roles: ["admin", "supervisor", "empleado"],
     icon: "espera",
     module: "espera",
   },
   {
     href: "/panel/mesas",
-    key: "nav.pagos",
+    key: "nav.mesas",
     roles: ["admin", "supervisor", "empleado"],
     icon: "mesas",
     module: "pagos",

@@ -6,7 +6,6 @@ import { debounced, watchChannel } from "@/lib/realtime";
 import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
 import { reportError } from "@/lib/observability";
 import {
-  menuProductSchema,
   parseInput,
   paymentDatos,
   paymentSettingsSchema,
@@ -190,88 +189,13 @@ export const regenerateTableQr = (tableId: string) =>
 
 /* ---- Menu ---------------------------------------------------------------- */
 
-export interface MenuProductView {
-  id: string;
-  name: string;
-  description: string | null;
-  category: string | null;
-  price: number;
-  active: boolean;
-  order: number;
-}
-
-const mapProduct = (p: Record<string, unknown>): MenuProductView => ({
-  id: p.id as string,
-  name: p.nombre as string,
-  description: (p.descripcion as string | null) ?? null,
-  category: (p.categoria as string | null) ?? null,
-  price: p.precio as number,
-  active: Boolean(p.activo),
-  order: (p.orden as number) ?? 0,
-});
-
-const PRODUCT_COLUMNS = "id, nombre, descripcion, categoria, precio, activo, orden";
-
-export const fetchMenuProducts = async (
-  branchId: string,
-): Promise<DataResult<MenuProductView[]>> => {
-  const supabase = createBrowserSupabase();
-  if (!supabase) return ok([]);
-  const { data, error } = await supabase
-    .from("productos")
-    .select(PRODUCT_COLUMNS)
-    .eq("local_id", branchId)
-    .order("categoria", { ascending: true, nullsFirst: true })
-    .order("orden")
-    .order("nombre");
-  if (error) {
-    reportError("panel.carta.leer", error, { branchId });
-    return fail(desdeSupabase(error));
-  }
-  return ok((data ?? []).map((p) => mapProduct(p as Record<string, unknown>)));
-};
-
-export type SaveProductResult =
-  | { ok: true; product: MenuProductView }
-  | { ok: false; message: string };
-
-export const saveMenuProduct = async (
-  branchId: string,
-  input: z.input<typeof menuProductSchema>,
-  id?: string,
-): Promise<SaveProductResult> => {
-  const supabase = createBrowserSupabase();
-  if (!supabase) return { ok: false, message: "Sin conexión." };
-  const v = parseInput(menuProductSchema, input);
-  if (!v.ok) return { ok: false, message: v.error };
-  const row = {
-    nombre: v.data.name,
-    descripcion: v.data.description ?? null,
-    categoria: v.data.category ?? null,
-    precio: v.data.price,
-    activo: v.data.active,
-    orden: v.data.order,
-  };
-  const q = id
-    ? supabase.from("productos").update(row).eq("id", id).eq("local_id", branchId)
-    : supabase.from("productos").insert({ ...row, local_id: branchId });
-  const { data, error } = await q.select(PRODUCT_COLUMNS).single();
-  if (error || !data) {
-    reportError("panel.carta.guardar", error ?? "sin fila", { branchId });
-    return { ok: false, message: "No se pudo guardar el producto." };
-  }
-  return { ok: true, product: mapProduct(data as Record<string, unknown>) };
-};
-
-/* Orders keep their own copy of name and price, so deleting a product never
- * changes a bill. */
-export const deleteMenuProduct = async (id: string): Promise<boolean> => {
-  const supabase = createBrowserSupabase();
-  if (!supabase) return false;
-  const { error } = await supabase.from("productos").delete().eq("id", id);
-  if (error) reportError("panel.carta.borrar", error, { id });
-  return !error;
-};
+export {
+  fetchMenuProducts,
+  saveMenuProduct,
+  deleteMenuProduct,
+  type MenuProductView,
+  type SaveProductResult,
+} from "@/lib/data/menu";
 
 /* ---- Payment settings ------------------------------------------------------- */
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
@@ -12,50 +12,56 @@ import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { QrModal } from "@/components/panel/QrModal";
 import { TableDetail } from "@/components/panel/mesas/TableDetail";
+import { KitchenInbox } from "@/components/panel/mesas/KitchenInbox";
+import { FloorTableTile } from "@/components/panel/mesas/FloorTableTile";
 import { STATUS_STYLE } from "@/components/panel/mesas/BillStatusBadge";
-import { fetchPaymentSettings } from "@/lib/data/tables";
+import { fetchPaymentSettings, fetchTableQrs, type TableQrView } from "@/lib/data/tables";
+import { updateOrderStatus } from "@/lib/data/orders";
 import {
   DEFAULT_PAYMENT_SETTINGS,
-  billPending,
   billStatus,
   formatMoney,
-  type BillStatus,
   type PaymentSettings,
   type TableBill,
 } from "@/lib/tableBill";
-
-const ORDER: Record<BillStatus, number> = {
-  pendiente: 0,
-  parcial: 1,
-  "sin-consumo": 2,
-  pagada: 3,
-  cerrada: 4,
-};
-
-const waitingCount = (b: TableBill) =>
-  b.payments.filter((p) => p.status === "pendiente").length;
-const kitchenCount = (b: TableBill) =>
-  b.orders.filter((o) => o.status === "creado" || o.status === "en_preparacion").length;
-
-const needsAttention = (b: TableBill) => {
-  const s = billStatus(b);
-  return s === "pendiente" || s === "parcial" || waitingCount(b) > 0;
-};
+import {
+  buildFloor,
+  filterFloor,
+  kitchenInbox,
+  needsNow,
+  type FloorFilter,
+  type FloorTable,
+} from "@/lib/tableOps";
+import { useToast } from "@/components/ui/Toast";
+import { useFloorShift } from "@/lib/hooks/useFloorShift";
+import { assignmentByTable } from "@/lib/floorShift";
+import { assignTable } from "@/lib/data/floorShift";
 
 const MesasPage = () => {
   const { t } = useApp();
+  const toast = useToast();
   const branchId = useSessionStore((s) => s.sucursalId);
   const { visibles, canManage, ready: branchReady } = useOperationalAccess();
   const branchName = useConfigStore((s) => s.name);
   const employee = useActiveEmployee();
+  const employees = useConfigStore((s) => s.employees);
   const { bills, ready, live, syncError, refresh } = useTableBills(
     visibles.pagos ? branchId : null,
   );
+  const { shift, refresh: refreshShift } = useFloorShift(
+    visibles.pagos ? branchId : null,
+    visibles.pagos,
+  );
+  const [tables, setTables] = useState<TableQrView[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [qrRow, setQrRow] = useState<FloorTable | null>(null);
   const [settings, setSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
   const [showClosed, setShowClosed] = useState(false);
-  const [filtro, setFiltro] = useState<"atencion" | "todas">("atencion");
+  const [filtro, setFiltro] = useState<FloorFilter>("ahora");
+  const [query, setQuery] = useState("");
+  const [kitchenBusy, setKitchenBusy] = useState<string | null>(null);
 
   useEffect(() => {
     if (!branchId || !visibles.pagos) return;
@@ -63,10 +69,76 @@ const MesasPage = () => {
     void fetchPaymentSettings(branchId).then((r) => {
       if (alive && r.ok) setSettings(r.data.settings);
     });
+    void fetchTableQrs(branchId).then((r) => {
+      if (alive && r.ok) setTables(r.data);
+    });
     return () => {
       alive = false;
     };
   }, [branchId, visibles.pagos]);
+
+  const floor = useMemo(() => {
+    const rows = buildFloor(tables, bills);
+    const by = assignmentByTable(shift.assignments);
+    return rows.map((r) => {
+      const a = by.get(r.tableNumber);
+      return {
+        ...r,
+        waiterId: a?.employeeId ?? null,
+        waiterName: a?.employeeName ?? null,
+      };
+    });
+  }, [tables, bills, shift.assignments]);
+  const shown = useMemo(() => filterFloor(floor, filtro, query), [floor, filtro, query]);
+  const inbox = useMemo(() => kitchenInbox(floor), [floor]);
+  const nowN = floor.filter(needsNow).length;
+  const kitchenN = inbox.created.length + inbox.prep.length + inbox.ready.length;
+  const chargeN = filterFloor(floor, "cobrar", "").length;
+  const closedBills = bills.filter((b) => b.session.status !== "abierta");
+  const currentBill = bills.find((b) => b.session.id === selected) ?? null;
+  const openPending = floor.reduce((s, r) => s + (r.bill ? r.pending : 0), 0);
+
+  const reload = () => {
+    void refresh();
+    void refreshShift();
+    if (branchId) {
+      void fetchTableQrs(branchId).then((r) => {
+        if (r.ok) setTables(r.data);
+      });
+    }
+  };
+
+  const assignWaiter = async (tableNumber: number, employeeId: string | null) => {
+    if (!branchId) return { ok: false, reason: "error" };
+    const res = await assignTable(branchId, tableNumber, employeeId, employee?.id ?? null);
+    if (res.ok) void refreshShift();
+    return res;
+  };
+
+  const openRow = (row: FloorTable) => {
+    if (row.bill) {
+      setSelected(row.bill.session.id);
+      return;
+    }
+    if (row.qrToken && row.qrActive) setQrRow(row);
+  };
+
+  const moveRows = async (row: FloorTable, orders: FloorTable["newOrders"], to: "en_preparacion" | "listo" | "retirado") => {
+    setKitchenBusy(row.key);
+    let ok = true;
+    for (const o of orders) {
+      const done = await updateOrderStatus(o.id, to);
+      if (!done) ok = false;
+    }
+    setKitchenBusy(null);
+    if (ok) {
+      toast(t(`mesas.pedidoMovido.${to}`), "success");
+      reload();
+    } else {
+      toast(t("mesas.error.error"), "error");
+      reload();
+    }
+  };
 
   if (!branchReady || !visibles.pagos) {
     return branchReady ? null : (
@@ -76,22 +148,8 @@ const MesasPage = () => {
     );
   }
 
-  const openBills = bills
-    .filter((b) => b.session.status === "abierta")
-    .sort(
-      (a, b) =>
-        ORDER[billStatus(a)] - ORDER[billStatus(b)] ||
-        billPending(b) - billPending(a) ||
-        a.session.tableNumber - b.session.tableNumber,
-    );
-  const closedBills = bills.filter((b) => b.session.status !== "abierta");
-  const current = bills.find((b) => b.session.id === selected) ?? null;
-  const desktopCurrent = current ?? openBills[0] ?? null;
-  const shown = filtro === "atencion" ? openBills.filter(needsAttention) : openBills;
-  const attentionN = openBills.filter(needsAttention).length;
-
-  const count = (s: BillStatus) => openBills.filter((b) => billStatus(b) === s).length;
-  const totalPending = openBills.reduce((sum, b) => sum + billPending(b), 0);
+  const emptyFloor = !tables.length && !floor.some((r) => r.bill);
+  const showInbox = filtro !== "cobrar";
 
   return (
     <div className="flex flex-col gap-4">
@@ -101,8 +159,8 @@ const MesasPage = () => {
             {t("mesas.titulo")}
           </h1>
           <p className="text-sm text-carbon/60">
-            {totalPending > 0
-              ? t("mesas.pendienteTotal", { n: formatMoney(totalPending) })
+            {openPending > 0
+              ? t("mesas.pendienteTotal", { n: formatMoney(openPending) })
               : t("mesas.subtitulo")}
           </p>
         </div>
@@ -111,7 +169,7 @@ const MesasPage = () => {
             href="/panel/mesas/qr"
             className="min-h-10 text-sm font-semibold text-carbon/55 underline-offset-4 hover:text-carbon hover:underline"
           >
-            {t("mesas.verQr")}
+            {t("mesas.qrGestion")}
           </Link>
         )}
       </header>
@@ -122,136 +180,98 @@ const MesasPage = () => {
         <div className="flex min-h-[30vh] items-center justify-center">
           <MascotLoader className="h-16" />
         </div>
-      ) : !desktopCurrent && openBills.length === 0 ? (
-        <div className="flex flex-col gap-3">
-          <EmptyState
-            title={t("mesas.sinMesasAbiertas")}
-            body={t("mesas.sinMesasAbiertasBody")}
-            action={
-              canManage ? (
-                <Link
-                  href="/panel/mesas/qr"
-                  className="inline-flex min-h-10 items-center text-sm font-semibold text-marca underline-offset-4 hover:underline"
-                >
-                  {t("mesas.verQr")}
-                </Link>
-              ) : undefined
-            }
-          />
-          <ClosedTodayList
-            bills={closedBills}
-            expanded={showClosed}
-            onToggle={() => setShowClosed((v) => !v)}
-            onSelect={setSelected}
-          />
-        </div>
+      ) : emptyFloor ? (
+        <EmptyState
+          title={t("mesas.sinMesasAbiertas")}
+          body={t("mesas.sinMesasAbiertasBody")}
+          action={
+            canManage ? (
+              <Link
+                href="/panel/mesas/qr"
+                className="inline-flex min-h-10 items-center text-sm font-semibold text-marca underline-offset-4 hover:underline"
+              >
+                {t("mesas.qrGestion")}
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(18rem,22rem)_1fr]">
-          <aside className={`flex flex-col gap-3 print:hidden ${current ? "hidden lg:flex" : "flex"}`}>
-            {openBills.length > 0 && (
-              <ul className="flex flex-wrap gap-2 text-xs font-semibold" aria-label={t("mesas.resumen")}>
-                {(["pendiente", "parcial", "pagada"] as const).map((s) =>
-                  count(s) > 0 ? (
-                    <li key={s} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${STATUS_STYLE[s].chip}`}>
-                      <span aria-hidden className={`size-2 rounded-full ${STATUS_STYLE[s].dot}`} />
-                      {t(`mesas.resumenEstado.${s}`, { n: count(s) })}
-                    </li>
-                  ) : null,
-                )}
-              </ul>
-            )}
+        <div className={`grid gap-4 ${currentBill ? "lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]" : ""}`}>
+          <div className={`flex flex-col gap-3 print:hidden ${currentBill ? "hidden lg:flex" : "flex"}`}>
+            <label className="block">
+              <span className="sr-only">{t("mesas.buscarMesa")}</span>
+              <input
+                type="search"
+                inputMode="numeric"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("mesas.buscarPlaceholder")}
+                className="min-h-11 w-full max-w-sm rounded-2xl border border-linea bg-surface px-4 text-sm text-carbon outline-none placeholder:text-carbon/40 focus:border-marca focus:ring-2 focus:ring-marca/20"
+              />
+            </label>
 
-            {openBills.length > 0 && (
-              <SegmentedTabs
-                ariaLabel={t("mesas.resumen")}
-                size="sm"
-                value={filtro}
-                onChange={setFiltro}
-                options={[
-                  { id: "atencion", label: t("mesas.filtroAtencion", { n: attentionN }) },
-                  { id: "todas", label: t("mesas.filtroTodas", { n: openBills.length }) },
-                ]}
+            <SegmentedTabs
+              ariaLabel={t("mesas.resumen")}
+              size="sm"
+              value={filtro}
+              onChange={setFiltro}
+              options={[
+                { id: "ahora", label: t("mesas.filtroAhora"), badge: nowN },
+                { id: "cocina", label: t("mesas.filtroCocina"), badge: kitchenN },
+                { id: "cobrar", label: t("mesas.filtroCobrar"), badge: chargeN },
+                { id: "todas", label: t("mesas.filtroTodas") },
+              ]}
+            />
+
+            {showInbox && (
+              <KitchenInbox
+                created={inbox.created}
+                prep={filtro === "cocina" || filtro === "ahora" ? inbox.prep : []}
+                ready={inbox.ready}
+                busy={kitchenBusy}
+                onOpen={openRow}
+                onPassToKitchen={(row) => void moveRows(row, row.newOrders, "en_preparacion")}
+                onReady={(row) => void moveRows(row, row.prepOrders, "listo")}
+                onServe={(row) => void moveRows(row, row.readyOrders, "retirado")}
               />
             )}
 
-            {!shown.length && (
+            {!shown.length ? (
               <EmptyState
-                title={
-                  openBills.length
-                    ? t("mesas.sinAtencion")
-                    : t("mesas.sinMesasAbiertas")
-                }
-                body={
-                  openBills.length
-                    ? t("mesas.sinAtencionBody")
-                    : t("mesas.sinMesasAbiertasBody")
-                }
+                title={query ? t("mesas.sinResultados") : t("mesas.sinAtencion")}
+                body={query ? undefined : t("mesas.sinAtencionBody")}
               />
+            ) : (
+              <>
+                <ul className="grid grid-cols-1 gap-2 md:hidden">
+                  {shown.map((row) => (
+                    <FloorTableTile
+                      key={row.key}
+                      row={row}
+                      dense
+                      active={currentBill?.session.id === row.bill?.session.id}
+                      onOpen={() => openRow(row)}
+                    />
+                  ))}
+                </ul>
+                <ul
+                  className={`hidden md:grid gap-2 ${
+                    currentBill
+                      ? "grid-cols-3 xl:grid-cols-4"
+                      : "grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+                  }`}
+                >
+                  {shown.map((row) => (
+                    <FloorTableTile
+                      key={row.key}
+                      row={row}
+                      active={currentBill?.session.id === row.bill?.session.id}
+                      onOpen={() => openRow(row)}
+                    />
+                  ))}
+                </ul>
+              </>
             )}
-
-            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-              {shown.map((b) => {
-                const status = billStatus(b);
-                const style = STATUS_STYLE[status];
-                const active = desktopCurrent?.session.id === b.session.id;
-                const waiting = waitingCount(b);
-                const kitchen = kitchenCount(b);
-                const pending = billPending(b);
-                return (
-                  <li key={b.session.id}>
-                    <button
-                      type="button"
-                      aria-current={active ? "true" : undefined}
-                      onClick={() => setSelected(b.session.id)}
-                      className={`flex min-h-[5.5rem] w-full flex-col gap-1.5 rounded-[22px] border bg-surface p-4 text-left transition hover:border-marca/40 active:scale-[0.99] ${style.ring} ${
-                        active ? "lg:ring-2 lg:ring-marca/25" : ""
-                      }`}
-                    >
-                      <span className="flex items-start justify-between gap-2">
-                        <span className="font-display text-3xl uppercase leading-none text-carbon">
-                          {t("mesa.mesaN", { n: b.session.tableNumber })}
-                        </span>
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${style.chip}`}>
-                          <span aria-hidden className={`size-2 rounded-full ${style.dot}`} />
-                          {t(`mesas.estadoCobro.${status}`)}
-                        </span>
-                      </span>
-                      {status !== "sin-consumo" ? (
-                        <span
-                          className={`font-display text-2xl tabular-nums ${
-                            pending > 0 ? "text-alerta" : "text-ok"
-                          }`}
-                        >
-                          {formatMoney(pending)}
-                          <span className="ml-1.5 align-middle text-xs font-semibold uppercase tracking-wide text-carbon/45">
-                            {t("mesa.pendiente")}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-sm text-carbon/45">{t("mesas.estadoCobro.sin-consumo")}</span>
-                      )}
-                      {(waiting > 0 || kitchen > 0) && (
-                        <span className="flex flex-wrap gap-1">
-                          {waiting > 0 && (
-                            <span className="rounded-full bg-curso-fondo px-2 py-0.5 text-[11px] font-semibold text-curso">
-                              {t("mesas.pagosPorConfirmar", { n: waiting })}
-                            </span>
-                          )}
-                          {kitchen > 0 && (
-                            <span className="rounded-full bg-marca/10 px-2 py-0.5 text-[11px] font-semibold text-marca">
-                              {t("mesas.pedidosPorPreparar", { n: kitchen })}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                      <span className="mt-1 text-sm font-semibold text-marca lg:hidden">
-                        {t("mesas.verMesa")} →
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
 
             <ClosedTodayList
               bills={closedBills}
@@ -259,26 +279,51 @@ const MesasPage = () => {
               onToggle={() => setShowClosed((v) => !v)}
               onSelect={setSelected}
             />
-          </aside>
+          </div>
 
-          <div className={current ? "block" : "hidden lg:block"}>
-            {desktopCurrent ? (
+          <div className={currentBill ? "block" : "hidden"}>
+            {currentBill ? (
               <TableDetail
-                key={desktopCurrent.session.id}
-                bill={desktopCurrent}
+                key={currentBill.session.id}
+                bill={currentBill}
                 settings={settings}
                 branchName={branchName}
                 employeeId={employee?.id ?? null}
                 employeeName={employee?.name ?? null}
                 canManage={canManage}
-                onChanged={() => void refresh()}
+                onChanged={reload}
                 onBack={() => setSelected(null)}
+                waiterName={
+                  floor.find((r) => r.bill?.session.id === currentBill.session.id)?.waiterName
+                }
+                waiterId={
+                  floor.find((r) => r.bill?.session.id === currentBill.session.id)?.waiterId
+                }
+                staff={employees.map((e) => ({ id: e.id, name: e.name }))}
+                onAssign={(employeeId) =>
+                  assignWaiter(currentBill.session.tableNumber, employeeId)
+                }
+                onShowQr={
+                  (() => {
+                    const row = floor.find((r) => r.bill?.session.id === currentBill.session.id);
+                    if (!row?.qrToken || !row.qrActive) return undefined;
+                    return () => setQrRow(row);
+                  })()
+                }
               />
-            ) : (
-              <EmptyState title={t("mesas.elegiMesa")} />
-            )}
+            ) : null}
           </div>
         </div>
+      )}
+
+      {qrRow?.qrToken && (
+        <QrModal
+          reference={String(qrRow.tableNumber)}
+          token={qrRow.qrToken}
+          etiqueta={t("mesa.mesaN", { n: qrRow.tableNumber })}
+          pathPrefix="/m"
+          onClose={() => setQrRow(null)}
+        />
       )}
     </div>
   );

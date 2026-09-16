@@ -32,7 +32,7 @@ export const ConfigNav = () => {
 
   const tabs: Tab[] = [
     { id: "general", href: "/panel/config#general", key: "config.tab.general", show: true },
-    { id: "carta", href: "/panel/config#carta", key: "config.tab.carta", show: visibles.pagos },
+    { id: "carta", href: "/panel/menu", key: "config.tab.carta", show: visibles.pagos },
     { id: "mesas", href: "/panel/config#mesas", key: "config.tab.mesas", show: showMesas },
     { id: "empleados", href: "/panel/config#empleados", key: "config.tab.empleados", show: true },
     { id: "pagos", href: "/panel/config#pagos", key: "config.tab.pagos", show: visibles.pagos },
@@ -58,7 +58,7 @@ export const ConfigNav = () => {
                   href={tab.href}
                   aria-current={selected ? "page" : undefined}
                   onClick={() => {
-                    if (tab.id !== "metricas") setHash(tab.id);
+                    if (tab.id !== "metricas" && tab.id !== "carta") setHash(tab.id);
                   }}
                   className={`inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-semibold transition ${
                     selected

@@ -102,11 +102,11 @@ const PreciosPage = () => {
           "Mostrador y PIN",
           "Métricas de pedidos",
         ],
-        espera: [
-          "Cola de espera de mesa",
+          espera: [
+          "Cola, reservas y llegada de clientes",
+          "Asignación de mesas por jornada",
           "Mapa de mesas libres/ocupadas",
-          "Calendario y próximas reservas",
-          "Métricas de espera",
+          "Calendario de reservas",
         ],
         pagos: [
           "Carta y pedidos desde el QR de la mesa",
@@ -123,11 +123,11 @@ const PreciosPage = () => {
           "Counter + staff PIN",
           "Order metrics",
         ],
-        espera: [
-          "Table waitlist",
+          espera: [
+          "Queue, reservations and arrivals",
+          "Shift table assignment",
           "Free/busy floor map",
-          "Calendar + upcoming reservations",
-          "Wait metrics",
+          "Reservation calendar",
         ],
         pagos: [
           "Menu and ordering from the table QR",

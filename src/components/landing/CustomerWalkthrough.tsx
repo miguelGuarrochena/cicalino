@@ -109,8 +109,8 @@ export const CustomerWalkthrough = ({
   const labelModo =
     flow === "espera"
       ? locale === "en"
-        ? "Table wait"
-        : "Espera de mesa"
+        ? "Reception"
+        : "Recepción"
       : t("modo.pedido");
   const headline =
     flow === "espera" ? "García" : "42";
@@ -176,7 +176,7 @@ export const CustomerWalkthrough = ({
               : "text-carbon/55 hover:bg-carbon/5"
           }`}
         >
-          {locale === "en" ? "Table wait" : "Espera de mesa"}
+          {locale === "en" ? "Reception" : "Recepción"}
         </button>
       </div>
 

@@ -5,8 +5,8 @@ export const PRICE_BUNDLE = 25_000;
 
 export const PRICE_PER_BRANCH = PRICE_ORDERS;
 
-/* The three commercial modules a branch can contract. `espera` is the table
- * module (waitlist, reservations, table map); `pagos` is split bill. */
+/* The three commercial modules a branch can contract. `espera` is Reception
+ * (queue, reservations, floor map, today's shift); `pagos` is split bill. */
 export type ModuleFlags = {
   pedidos: boolean;
   espera: boolean;
@@ -95,7 +95,7 @@ export const monthlyPriceForBranches = (lista: ModuleFlags[]): number =>
 
 const MODULE_NAMES: Record<keyof ModuleFlags, string> = {
   pedidos: "Pedidos",
-  espera: "Espera",
+  espera: "Recepción",
   pagos: "Pagos divididos",
 };
 

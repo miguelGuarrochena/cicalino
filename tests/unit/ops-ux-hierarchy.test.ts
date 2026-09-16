@@ -31,14 +31,38 @@ describe("Operación — jerarquía y layout", () => {
     expect(nav).not.toContain("nav.config");
   });
 
-  it("Pagos lista mesas a ancho completo en mobile y Cobrar es el CTA de la mesa", () => {
+  it("Pagos: grilla compacta, atención primero, Cobrar es el CTA de la mesa", () => {
     const mesas = read("src/app/(app)/panel/mesas/page.tsx");
     const detalle = read("src/components/panel/mesas/TableDetail.tsx");
+    const guest = read("src/components/customer/table/TableGuestApp.tsx");
+    const qr = read("src/components/panel/QrModal.tsx");
     expect(mesas).toContain("grid-cols-1");
-    expect(mesas).toContain("mesas.verMesa");
-    expect(mesas).toContain("SegmentedTabs");
-    expect(mesas).toContain("mesas.sinMesasAbiertasBody");
+    expect(mesas).toContain("xl:grid-cols-8");
+    expect(mesas).toContain("mesas.filtroAhora");
+    expect(mesas).toContain("KitchenInbox");
+    expect(mesas).toContain("pathPrefix=\"/m\"");
     expect(detalle).toContain("w-full rounded-full bg-marca");
     expect(detalle).toContain("mesas.cobrar");
+    expect(detalle).toContain("mesas.comanda");
+    expect(detalle).toContain("mesas.cuenta");
+    expect(guest).toContain("mesa.verCuenta");
+    expect(guest).toContain("mesa.pagar");
+    expect(guest).toContain("mesa.seguirPidiendo");
+    expect(qr).toContain('"/p" | "/e" | "/m"');
+    expect(qr).toContain("qr.imprimir");
+  });
+
+  it("Recepción es el módulo y Mesas es la operación: jornada y mozo no se mezclan", () => {
+    const espera = read("src/app/(app)/panel/espera/page.tsx");
+    const mesas = read("src/app/(app)/panel/mesas/page.tsx");
+    const nav = read("src/lib/operation.ts");
+    const pricing = read("src/lib/pricing.ts");
+    expect(nav).toContain('key: "nav.espera"');
+    expect(nav).toContain('key: "nav.mesas"');
+    expect(espera).toContain("JornadaBoard");
+    expect(espera).toContain('t("nav.espera")');
+    expect(mesas).toContain("waiterName");
+    expect(mesas).toContain("assignTable");
+    expect(pricing).toContain('espera: "Recepción"');
   });
 });
