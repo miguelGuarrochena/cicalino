@@ -38,9 +38,34 @@ const TablePage = async ({
 
   if (!mesa.ok) {
     /* An old printed QR (regenerated since) still works for someone already
-     * sitting at the table: send them to the current one. */
-    if (state.ok && state.tableToken && state.bill.session.status === "abierta") {
-      redirect(`/m/${state.tableToken}`);
+     * sitting at the table: send them to the current one. A seated guest also
+     * keeps their session if the QR was turned off after they joined. */
+    if (state.ok && state.bill.session.status === "abierta") {
+      if (state.tableToken && state.tableToken !== token) {
+        redirect(`/m/${state.tableToken}`);
+      }
+      if (state.tableToken === token && state.bill.session.tableId) {
+        const [menu, payment] = await Promise.all([
+          fetchMenu(state.bill.session.branchId),
+          fetchGuestPaymentOptions(state.bill.session.branchId),
+        ]);
+        return (
+          <TableGuestApp
+            initial={{
+              token,
+              tableNumber: state.bill.session.tableNumber,
+              branchName: "",
+              operational: true,
+              menu,
+              settings: payment.settings,
+              mercadoPagoReady: payment.mercadoPagoReady,
+              guest: { id: state.guest.id, name: state.guest.name },
+              bill: state.bill,
+              returningPaymentId: uuid.safeParse(pago).success ? pago! : null,
+            }}
+          />
+        );
+      }
     }
     return <TableNotFound reason={mesa.reason} />;
   }

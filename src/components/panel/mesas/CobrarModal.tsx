@@ -171,7 +171,7 @@ export const CobrarModal = ({
             type="button"
             onClick={() => void collect()}
             disabled={!preview?.ok || busy !== null}
-            className="min-h-12 w-full rounded-full bg-marca px-6 font-semibold text-crema disabled:opacity-50"
+            className="min-h-12 w-full rounded-full bg-marca px-6 font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98] disabled:opacity-50"
           >
             {preview?.ok
               ? t(confirmed ? "mesas.confirmarPagoN" : "mesas.registrarTransferenciaN", {
@@ -198,8 +198,8 @@ export const CobrarModal = ({
 
       <div className="mt-4 flex flex-col gap-4 text-sm">
         {waiting.length > 0 && (
-          <section className="rounded-2xl border border-amber-400/60 bg-amber-50/70 p-3 dark:bg-amber-400/10">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-100">
+          <section className="rounded-2xl border border-curso-borde bg-curso-fondo p-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-curso">
               {t("mesas.esperandoConfirmacion")}
             </h3>
             <ul className="mt-2 flex flex-col gap-2">
@@ -214,7 +214,7 @@ export const CobrarModal = ({
                     type="button"
                     disabled={busy !== null}
                     onClick={() => void confirmWaiting(p.id)}
-                    className="min-h-10 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white disabled:opacity-50"
+                    className="min-h-10 rounded-full bg-ok px-4 text-xs font-semibold text-crema disabled:opacity-50"
                   >
                     {p.method === "transferencia" ? t("mesas.confirmarRecibido") : t("mesas.confirmarPago")}
                   </button>

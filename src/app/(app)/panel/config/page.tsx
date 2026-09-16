@@ -2,11 +2,10 @@
 
 import { SubscriptionCard } from "@/components/panel/SubscriptionCard";
 import { useState } from "react";
-import { useBrowserValue } from "@/lib/hooks/useBrowserValue";
+import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { NoAccess } from "@/components/ui/NoAccess";
-import { AdminGate } from "@/components/panel/AdminGate";
 import { EmployeeList } from "@/components/panel/EmployeeList";
 import {
   useConfigStore,
@@ -23,11 +22,8 @@ import { PaymentMethodsCard } from "@/components/panel/config/PaymentMethodsCard
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { businessTypeLabel } from "@/lib/types";
-import {
-  saveDeviceMode,
-  readDeviceMode,
-  type DeviceMode,
-} from "@/lib/modules";
+import { saveDeviceMode, type DeviceMode } from "@/lib/modules";
+import { useDeviceMode } from "@/lib/hooks/useDeviceMode";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
@@ -163,7 +159,7 @@ const ConfigPage = () => {
 
   /* Lo guardado en el dispositivo, más lo que el usuario haya cambiado en esta
    * sesión. Se lee con useSyncExternalStore porque en el servidor no existe. */
-  const dispositivoGuardado = useBrowserValue<DeviceMode>(readDeviceMode, "ambos");
+  const dispositivoGuardado = useDeviceMode();
   const [elegido, setElegido] = useState<DeviceMode | null>(null);
   const dispositivo = elegido ?? dispositivoGuardado;
   const setDispositivo = setElegido;
@@ -243,7 +239,7 @@ const ConfigPage = () => {
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <SubscriptionCard />
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div id="general" className="flex scroll-mt-28 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
             {t("config.titulo")}
@@ -276,7 +272,7 @@ const ConfigPage = () => {
       </div>
 
       {role === "admin" && (
-        <section className={CARD}>
+        <section className={`${CARD} scroll-mt-28`}>
           <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-carbon/60">
             {t("config.seccionLocal")}
           </h2>
@@ -324,7 +320,7 @@ const ConfigPage = () => {
         <PedirSucursalCard />
       )}
 
-      <section className={CARD}>
+      <section className={`${CARD} scroll-mt-28`}>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
           {t("config.seccionModulos")}
         </h2>
@@ -375,137 +371,6 @@ const ConfigPage = () => {
             </span>
           </div>
         </div>
-        {c.moduloPagos && !c.moduloEspera && (
-          <div className="mt-4 max-w-xs">
-            <Campo label={t("config.tableCount")} error={errors.mesas}>
-              <input
-                type="number"
-                min={1}
-                className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
-                value={tableCount ?? ""}
-                onChange={(e) => {
-                  editar("tableCount", parseMesas(e.target.value));
-                  setErrors((er) => ({ ...er, mesas: undefined }));
-                }}
-              />
-            </Campo>
-            <p className="mt-1.5 text-xs text-carbon/50">
-              {t("config.mesasAplicarQr")}
-            </p>
-          </div>
-        )}
-        {c.moduloEspera && (
-          <div className="mt-4 flex flex-col gap-5">
-            <div className="max-w-xs">
-              <Campo label={t("config.tableCount")} error={errors.mesas}>
-                <input
-                  type="number"
-                  min={1}
-                  className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
-                  value={tableCount ?? ""}
-                  onChange={(e) => {
-                    editar("tableCount", parseMesas(e.target.value));
-                    setErrors((er) => ({ ...er, mesas: undefined }));
-                  }}
-                />
-              </Campo>
-              <p className="mt-1.5 text-xs text-carbon/50">
-                {t("config.mesasAplicar")}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-carbon/70">
-                {t("config.reservaHorario")}
-              </p>
-              <p className="mt-1 text-xs text-carbon/50">
-                {t("config.reservaHorarioSub")}
-              </p>
-              <div className="mt-3 grid max-w-md grid-cols-2 gap-3">
-                <Campo label={t("config.reservaAbre")}>
-                  <Select
-                    value={String(reservaAbreMin)}
-                    onChange={(v) => {
-                      editar("reservaAbreMin", parseInt(v, 10));
-                      setErrors((er) => ({
-                        ...er,
-                        reservaHorario: undefined,
-                      }));
-                    }}
-                    options={HORAS_RESERVA}
-                    triggerClassName="px-4 py-3"
-                  />
-                </Campo>
-                <Campo
-                  label={t("config.reservaCierra")}
-                  error={errors.reservaHorario}
-                >
-                  <Select
-                    value={String(reservaCierraMin)}
-                    onChange={(v) => {
-                      editar("reservaCierraMin", parseInt(v, 10));
-                      setErrors((er) => ({
-                        ...er,
-                        reservaHorario: undefined,
-                      }));
-                    }}
-                    options={HORAS_RESERVA}
-                    triggerClassName="px-4 py-3"
-                  />
-                </Campo>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-carbon/70">
-                {t("config.diasCerrados")}
-              </p>
-              <p className="mt-1 text-xs text-carbon/50">
-                {t("config.diasCerradosSub")}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {DIAS_SEMANA.map((d) => {
-                  const cerrado = diasCerrados.includes(d.id);
-                  return (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() =>
-                        editar(
-                          "diasCerrados",
-                          cerrado
-                            ? diasCerrados.filter((x) => x !== d.id)
-                            : [...diasCerrados, d.id],
-                        )
-                      }
-                      className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
-                        cerrado
-                          ? "bg-rose-500 text-white"
-                          : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
-                      }`}
-                      title={
-                        cerrado
-                          ? locale === "en"
-                            ? "Closed — tap to open"
-                            : "Cerrado — tocá para abrir"
-                          : locale === "en"
-                            ? "Open — tap to close"
-                            : "Abierto — tocá para cerrar"
-                      }
-                    >
-                      {locale === "en" ? d.en : d.es}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-xs text-carbon/45">
-                {locale === "en"
-                  ? "Red = closed (hidden in + Reservation)."
-                  : "Rojo = cerrado (no aparece en + Reserva)."}
-              </p>
-            </div>
-          </div>
-        )}
       </section>
 
       {c.moduloPedidos && c.moduloEspera && (
@@ -575,22 +440,6 @@ const ConfigPage = () => {
             );
           })}
         </div>
-        {modo === "mesa" && !c.moduloEspera && !c.moduloPagos && (
-          <div className="mt-4 max-w-xs">
-            <Campo label={t("config.tableCount")} error={errors.mesas}>
-              <input
-                type="number"
-                min={1}
-                className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
-                value={tableCount ?? ""}
-                onChange={(e) => {
-                  editar("tableCount", parseMesas(e.target.value));
-                  setErrors((er) => ({ ...er, mesas: undefined }));
-                }}
-              />
-            </Campo>
-          </div>
-        )}
 
         <div className="mt-4 max-w-xs border-t border-linea pt-4">
           <Campo label={t("config.corte")}>
@@ -607,28 +456,139 @@ const ConfigPage = () => {
         </div>
       </section>
 
+      {(c.moduloEspera || c.moduloPagos || modo === "mesa") && (
+        <section id="mesas" className={`${CARD} scroll-mt-28`}>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
+            {t("config.tab.mesas")}
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-carbon/55">
+            {t("config.seccionMesasSub")}
+          </p>
+          <div className="max-w-xs">
+            <Campo label={t("config.tableCount")} error={errors.mesas}>
+              <input
+                type="number"
+                min={1}
+                className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
+                value={tableCount ?? ""}
+                onChange={(e) => {
+                  editar("tableCount", parseMesas(e.target.value));
+                  setErrors((er) => ({ ...er, mesas: undefined }));
+                }}
+              />
+            </Campo>
+            <p className="mt-1.5 text-xs text-carbon/50">
+              {c.moduloPagos ? t("config.mesasAplicarQr") : t("config.mesasAplicar")}
+            </p>
+          </div>
+          {c.moduloEspera && (
+            <div className="mt-5 flex flex-col gap-5">
+              <div>
+                <p className="text-sm font-medium text-carbon/70">
+                  {t("config.reservaHorario")}
+                </p>
+                <p className="mt-1 text-xs text-carbon/50">
+                  {t("config.reservaHorarioSub")}
+                </p>
+                <div className="mt-3 grid max-w-md grid-cols-2 gap-3">
+                  <Campo label={t("config.reservaAbre")}>
+                    <Select
+                      value={String(reservaAbreMin)}
+                      onChange={(v) => {
+                        editar("reservaAbreMin", parseInt(v, 10));
+                        setErrors((er) => ({
+                          ...er,
+                          reservaHorario: undefined,
+                        }));
+                      }}
+                      options={HORAS_RESERVA}
+                      triggerClassName="px-4 py-3"
+                    />
+                  </Campo>
+                  <Campo
+                    label={t("config.reservaCierra")}
+                    error={errors.reservaHorario}
+                  >
+                    <Select
+                      value={String(reservaCierraMin)}
+                      onChange={(v) => {
+                        editar("reservaCierraMin", parseInt(v, 10));
+                        setErrors((er) => ({
+                          ...er,
+                          reservaHorario: undefined,
+                        }));
+                      }}
+                      options={HORAS_RESERVA}
+                      triggerClassName="px-4 py-3"
+                    />
+                  </Campo>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-carbon/70">
+                  {t("config.diasCerrados")}
+                </p>
+                <p className="mt-1 text-xs text-carbon/50">
+                  {t("config.diasCerradosSub")}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {DIAS_SEMANA.map((d) => {
+                    const cerrado = diasCerrados.includes(d.id);
+                    return (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() =>
+                          editar(
+                            "diasCerrados",
+                            cerrado
+                              ? diasCerrados.filter((x) => x !== d.id)
+                              : [...diasCerrados, d.id],
+                          )
+                        }
+                        className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+                          cerrado
+                            ? "bg-alerta text-crema"
+                            : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
+                        }`}
+                      >
+                        {locale === "en" ? d.en : d.es}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      <section id="empleados" className={`${CARD} scroll-mt-28`}>
+        <EmployeeList />
+      </section>
+
       {c.moduloPagos && isRealBranchId(branchId) && (
         <>
-          <section className={CARD} id="carta">
+          <section className={`${CARD} scroll-mt-28`} id="carta">
             <MenuEditor branchId={branchId} />
           </section>
-          <section className={CARD} id="pagos">
+          <section className={`${CARD} scroll-mt-28`} id="pagos">
             <PaymentMethodsCard branchId={branchId} canEdit={role === "admin"} />
+            <div className="mt-5 border-t border-linea pt-5">
+              <h3 className="text-sm font-semibold text-carbon">{t("mesasQr.titulo")}</h3>
+              <p className="mt-1 text-sm text-carbon/55">{t("config.mesasQrCtaSub")}</p>
+              <Link
+                href="/panel/mesas/qr"
+                className="mt-3 inline-flex min-h-11 items-center rounded-full bg-marca px-5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98]"
+              >
+                {t("config.mesasQrCta")}
+              </Link>
+            </div>
           </section>
         </>
       )}
-
-      <section className={CARD}>
-        <EmployeeList />
-      </section>
     </div>
   );
 };
 
-const ConfigPageGate = () => (
-  <AdminGate>
-    <ConfigPage />
-  </AdminGate>
-);
-
-export default ConfigPageGate;
+export default ConfigPage;

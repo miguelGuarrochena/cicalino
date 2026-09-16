@@ -3,31 +3,34 @@
 import { useApp } from "@/components/providers/Providers";
 import { billStatus, type BillStatus, type TableBill } from "@/lib/tableBill";
 
-export const STATUS_STYLE: Record<BillStatus, { dot: string; chip: string }> = {
+export const STATUS_STYLE: Record<BillStatus, { dot: string; chip: string; ring: string }> = {
   pendiente: {
-    dot: "bg-red-500",
-    chip: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200",
+    dot: "bg-alerta",
+    chip: "bg-alerta-fondo text-alerta",
+    ring: "border-alerta-borde",
   },
   parcial: {
-    dot: "bg-amber-400",
-    chip: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100",
+    dot: "bg-curso",
+    chip: "bg-curso-fondo text-curso",
+    ring: "border-curso-borde",
   },
   pagada: {
-    dot: "bg-emerald-500",
-    chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+    dot: "bg-ok",
+    chip: "bg-ok-fondo text-ok",
+    ring: "border-ok-borde",
   },
   "sin-consumo": {
     dot: "bg-carbon/25",
     chip: "bg-carbon/10 text-carbon/60",
+    ring: "border-linea",
   },
   cerrada: {
     dot: "bg-carbon/40",
     chip: "bg-carbon/10 text-carbon/60",
+    ring: "border-linea",
   },
 };
 
-/* 🔴 pending · 🟡 partly paid · 🟢 paid. Color plus a text label, so it
- * reads without relying on color alone. */
 export const BillStatusBadge = ({ bill }: { bill: TableBill }) => {
   const { t } = useApp();
   const status = billStatus(bill);

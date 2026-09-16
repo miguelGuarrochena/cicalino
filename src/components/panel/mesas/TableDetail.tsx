@@ -22,6 +22,7 @@ import {
   type PaymentSettings,
   type TableBill,
 } from "@/lib/tableBill";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import type { OrderStatus } from "@/lib/types";
 
 type Tab = "pagos" | "consumo";
@@ -31,6 +32,7 @@ export const TableDetail = ({
   settings,
   branchName,
   employeeId,
+  employeeName,
   canManage,
   onChanged,
   onBack,
@@ -39,6 +41,7 @@ export const TableDetail = ({
   settings: PaymentSettings;
   branchName: string;
   employeeId: string | null;
+  employeeName?: string | null;
   /* Manager or owner: voiding collected money and closing with a balance.
    * The database enforces it; this only hides buttons that would fail. */
   canManage: boolean;
@@ -109,7 +112,7 @@ export const TableDetail = ({
                 t("mesas.pagoConfirmadoMesa", { n: t("mesa.mesaN", { n: bill.session.tableNumber }) }),
               )
             }
-            className="min-h-10 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white disabled:opacity-50"
+            className="min-h-10 rounded-full bg-ok px-4 text-xs font-semibold text-crema disabled:opacity-50"
           >
             {p.method === "transferencia" ? t("mesas.confirmarRecibido") : t("mesas.confirmarPago")}
           </button>
@@ -179,8 +182,8 @@ export const TableDetail = ({
           {(
             [
               ["mesa.total", bill.totals.total, "text-carbon"],
-              ["mesa.pagado", bill.totals.paid, "text-emerald-700 dark:text-emerald-300"],
-              ["mesa.pendiente", pending, pending > 0 ? "text-red-700 dark:text-red-300" : "text-carbon/50"],
+              ["mesa.pagado", bill.totals.paid, "text-ok"],
+              ["mesa.pendiente", pending, pending > 0 ? "text-alerta" : "text-carbon/50"],
             ] as const
           ).map(([k, v, cls]) => (
             <div key={k} className="rounded-2xl border border-linea bg-crema/40 px-2 py-2.5">
@@ -197,7 +200,7 @@ export const TableDetail = ({
             <button
               type="button"
               onClick={() => setCobrarOpen(true)}
-              className="min-h-12 flex-1 rounded-full bg-marca px-6 text-base font-semibold text-crema sm:flex-none"
+              className="min-h-12 flex-1 rounded-full bg-marca px-6 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98] sm:flex-none"
             >
               {t("mesas.cobrar")}
             </button>
@@ -220,21 +223,24 @@ export const TableDetail = ({
           )}
         </div>
 
-        <div role="tablist" aria-label={t("mesas.vistas")} className="mt-5 flex rounded-2xl border border-linea bg-crema/40 p-1">
-          {(["pagos", "consumo"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="tab"
-              aria-selected={tab === k}
-              onClick={() => setTab(k)}
-              className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold transition ${
-                tab === k ? "bg-marca text-crema shadow-sm" : "text-carbon/60 hover:text-carbon"
-              }`}
-            >
-              {t(`mesas.tab.${k}`)}
-            </button>
-          ))}
+        <div className="mt-5">
+          <SegmentedTabs
+            ariaLabel={t("mesas.vistas")}
+            value={tab}
+            onChange={setTab}
+            options={[
+              {
+                id: "pagos",
+                label: t("mesas.tab.pagos"),
+                badge: bill.payments.filter((p) => p.status === "pendiente").length,
+              },
+              {
+                id: "consumo",
+                label: t("mesas.tab.consumo"),
+                badge: activeOrders.length,
+              },
+            ]}
+          />
         </div>
 
         {tab === "consumo" ? (
@@ -349,7 +355,7 @@ export const TableDetail = ({
           />
         )}
       </section>
-      <PrintableBill bill={bill} branchName={branchName} />
+      <PrintableBill bill={bill} branchName={branchName} employeeName={employeeName} />
     </>
   );
 };

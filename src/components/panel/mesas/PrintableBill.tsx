@@ -24,9 +24,11 @@ const Line = ({ label, value, strong }: { label: string; value: number; strong?:
 export const PrintableBill = ({
   bill,
   branchName,
+  employeeName,
 }: {
   bill: TableBill;
   branchName: string;
+  employeeName?: string | null;
 }) => {
   const { t } = useApp();
   const guests = consumptionByGuest(bill).filter((g) => g.lines.length > 0);
@@ -96,7 +98,9 @@ export const PrintableBill = ({
         <>
           <hr className="my-2 border-dashed border-black" />
           <p>{t("mesas.imprimirMetodo")} ____________</p>
-          <p className="mt-2">{t("mesas.imprimirEmpleado")} ____________</p>
+          <p className="mt-2">
+            {t("mesas.imprimirEmpleado")} {employeeName ? employeeName : "____________"}
+          </p>
         </>
       )}
       <hr className="my-2 border-dashed border-black" />

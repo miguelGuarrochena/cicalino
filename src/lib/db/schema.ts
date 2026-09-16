@@ -400,6 +400,7 @@ export const tables = pgTable(
     /* supabase/split-payments.sql — opaque token printed on the table QR. */
     qrToken: text("qr_token").notNull(),
     qrGeneratedAt: timestamp("qr_generado_en", { withTimezone: true }),
+    qrActive: boolean("qr_activo").notNull().default(false),
     updatedAt: timestamp("actualizado_en", { withTimezone: true })
       .notNull()
       .defaultNow(),

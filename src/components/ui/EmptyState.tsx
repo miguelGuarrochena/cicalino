@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export const EmptyState = ({
   title,
   body,
@@ -5,7 +7,7 @@ export const EmptyState = ({
 }: {
   title: string;
   body?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }) => (
   <div className="rounded-[24px] border border-dashed border-linea bg-surface/60 px-6 py-10 text-center">
     <p className="font-display text-xl uppercase tracking-tight text-carbon">{title}</p>

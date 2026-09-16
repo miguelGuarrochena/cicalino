@@ -163,6 +163,15 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('split-payments.sql', 'table', 'mesa_eventos', 67),
     ('split-payments.sql', 'function', 'mp_confirmar_pago', 67),
     ('split-payments.sql', 'trigger', 'pedidos_mesa_guard', 67),
+    ('mesa-qr-activo.sql', 'column', 'mesas.qr_activo', 68),
+    ('mesa-qr-activo.sql', 'function', 'set_mesas_qr', 68),
+    ('staff-floor-guards.sql', 'function', 'registrar_pago_personal', 69),
+    ('staff-floor-guards.sql', 'function', 'confirmar_pago_mesa', 69),
+    ('staff-floor-guards.sql', 'function', 'cancelar_pago_mesa', 69),
+    ('staff-floor-guards.sql', 'function', 'cerrar_mesa', 69),
+    ('staff-floor-guards.sql', 'function', 'sincronizar_mesas', 69),
+    ('staff-floor-audit.sql', 'function', 'mesa_historial', 70),
+    ('staff-floor-audit.sql', 'policy', 'productos alta', 70),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -308,7 +317,10 @@ requisitos (archivo, necesita) as (
     ('split-payments-module.sql', 'modulo-espera.sql, modulos-por-sucursal.sql, solicitudes-pack.sql, security-fixes-04.sql'),
     ('staff-role-enum.sql', 'setup.sql'),
     ('staff-roles.sql', 'staff-role-enum.sql, security-fixes-01.sql, security-fixes-03.sql, security-fixes-04.sql, security-fixes-17.sql, corte-por-impago.sql'),
-    ('split-payments.sql', 'split-payments-module.sql, staff-roles.sql, security-fixes-09.sql, pedidos-avisos-activos.sql, liberar-mesas-jornada.sql, corte-por-impago.sql')
+    ('split-payments.sql', 'split-payments-module.sql, staff-roles.sql, security-fixes-09.sql, pedidos-avisos-activos.sql, liberar-mesas-jornada.sql, corte-por-impago.sql'),
+    ('mesa-qr-activo.sql', 'split-payments.sql'),
+    ('staff-floor-guards.sql', 'staff-roles.sql, split-payments.sql, mesa-qr-activo.sql'),
+    ('staff-floor-audit.sql', 'staff-floor-guards.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

@@ -66,5 +66,8 @@
   "split-payments-module.sql",
   "staff-role-enum.sql",
   "staff-roles.sql",
-  "split-payments.sql"
+  "split-payments.sql",
+  "mesa-qr-activo.sql",
+  "staff-floor-guards.sql",
+  "staff-floor-audit.sql"
 ]

@@ -148,6 +148,13 @@ describe.skipIf(!enabled)("Integration — roles del personal", () => {
       )
     ).id;
     await sql(`insert into public.mesas (local_id, numero) values ($1, 8)`, [local]);
+    const qrCol = await sql(
+      `select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'mesas' and column_name = 'qr_activo'`,
+    );
+    if (qrCol.length) {
+      await sql(`update public.mesas set qr_activo = true where local_id = $1`, [local]);
+    }
     mesaToken = (await uno<{ t: string }>(`select qr_token t from public.mesas where local_id = $1`, [local])).t;
     producto = (
       await uno<{ id: string }>(

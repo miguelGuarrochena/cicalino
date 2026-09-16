@@ -148,6 +148,7 @@ export interface TableQrView {
   number: number;
   qrToken: string;
   generatedAt: string | null;
+  qrActive: boolean;
 }
 
 export const fetchTableQrs = async (branchId: string): Promise<DataResult<TableQrView[]>> => {
@@ -155,7 +156,7 @@ export const fetchTableQrs = async (branchId: string): Promise<DataResult<TableQ
   if (!supabase) return ok([]);
   const { data, error } = await supabase
     .from("mesas")
-    .select("id, numero, qr_token, qr_generado_en")
+    .select("id, numero, qr_token, qr_generado_en, qr_activo")
     .eq("local_id", branchId)
     .order("numero");
   if (error) {
@@ -168,9 +169,21 @@ export const fetchTableQrs = async (branchId: string): Promise<DataResult<TableQ
       number: m.numero as number,
       qrToken: m.qr_token as string,
       generatedAt: (m.qr_generado_en as string | null) ?? null,
+      qrActive: Boolean(m.qr_activo),
     })),
   );
 };
+
+export const setTableQrs = (
+  branchId: string,
+  active: boolean,
+  ids: string[] | null = null,
+) =>
+  rpc(
+    "set_mesas_qr",
+    { p_local: branchId, p_activo: active, p_ids: ids },
+    "panel.mesas.set-qr",
+  );
 
 export const regenerateTableQr = (tableId: string) =>
   rpc("regenerar_qr_mesa", { p_mesa: tableId }, "panel.mesas.regenerar-qr");
