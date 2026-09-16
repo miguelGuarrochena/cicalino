@@ -410,7 +410,7 @@ const dict = {
         p4t: "Empleados y PIN",
         p4d: "Altas, bajas, PIN y acceso a la app. Con acceso, cada uno entra con su cuenta como Mozo o Encargado.",
         p5t: "Módulo de este dispositivo",
-        p5d: "Si la sucursal tiene Pedidos y Espera, podés dejar este celular/tablet en Pedidos, Espera o ambos.",
+        p5d: "Si la sucursal tiene Pedidos y Espera, podés dejar este celular/tablet en Pedidos, Espera o los dos. Pagos no entra en esa elección: si está contratado, se ve igual en todos.",
         tip1: "Los datos del local (nombre, dirección) los cambia el administrador de Cicalino, no desde acá.",
       },
       metricas: {
@@ -665,7 +665,8 @@ const dict = {
       cerrarSesion: "Cerrar sesión",
       cambiar: "Cambiar de persona",
       elegi: "¿Quién está atendiendo?",
-      elegiSub: "Elegí tu nombre. Después pedimos tu PIN.",
+      elegiSub:
+        "No es un reloj de entrada. Si varios usan la misma tablet, elegí tu nombre y el PIN para que quede a tu nombre. Si cada uno entra con su cuenta, no hace falta.",
       pin: "Tu PIN",
       ingresaPin: "Ingresá el PIN de {n}",
       pinExplica: "Si ponés el PIN de otra persona, no va a entrar.",
@@ -730,8 +731,9 @@ const dict = {
       moduloNo: "No contratado acá",
       mesasAplicar: "Tocá Guardar para aplicar el cambio en el mapa de mesas.",
       seccionDispositivo: "Este dispositivo",
-      seccionDispositivoSub: "Ideal si tenés una tablet en recepción y otra en el mostrador. Se guarda solo en este aparato, no limita cuántos dispositivos usan la sucursal.",
-      dispAmbos: "Ambos módulos",
+      seccionDispositivoSub:
+        "Pagos no se elige acá: si está contratado, se ve en todos los aparatos. Esto solo sirve si tenés una tablet en recepción y otra en el mostrador: Pedidos, Espera o los dos. Se guarda en este aparato, no limita cuántos usan la sucursal.",
+      dispAmbos: "Pedidos y espera",
       dispPedidos: "Solo pedidos",
       dispEspera: "Solo espera",
       corte: "Corte del día",
@@ -1120,7 +1122,9 @@ const dict = {
       },
       subtitulo: "Qué mesas tienen que pagar, cuánto falta y cobrá desde acá.",
       verQr: "QR de mesas",
-      sinMesasAbiertas: "No hay mesas abiertas. Se abren solas cuando alguien escanea el QR.",
+      sinMesasAbiertas: "Todavía nadie se sentó",
+      sinMesasAbiertasBody:
+        "La mesa aparece acá cuando un cliente escanea el QR de esa mesa (el de Pagos) y pone su nombre. Desde el celular puede pedir y pagar. El QR de Pedidos listos no abre mesas: ese es solo para avisar que el pedido está listo.",
       filtroAtencion: "Cobrar ({n})",
       filtroTodas: "Todas ({n})",
       sinAtencion: "Ninguna mesa tiene saldo pendiente.",
@@ -1665,7 +1669,7 @@ const dict = {
         p4t: "Staff and PIN",
         p4d: "Add, remove, PINs and app access. With access, each person signs in with their own account as Waiter or Manager.",
         p5t: "Module on this device",
-        p5d: "If the branch has Orders and Wait, you can leave this phone/tablet on Orders, Wait, or both.",
+        p5d: "If the branch has Orders and Wait, you can leave this phone/tablet on Orders, Wait, or both. Payments is not part of that choice: if it's contracted, it shows on every device.",
         tip1: "Venue details (name, address) are changed by Cicalino admin, not from here.",
       },
       metricas: {
@@ -1914,7 +1918,8 @@ const dict = {
       cerrarSesion: "Sign out",
       cambiar: "Switch person",
       elegi: "Who's serving?",
-      elegiSub: "Pick your name. Then we'll ask for your PIN.",
+      elegiSub:
+        "Not a time clock. If several people share a tablet, pick your name and PIN so actions are attributed to you. If everyone signs in with their own account, you can skip this.",
       pin: "Your PIN",
       ingresaPin: "Enter {n}'s PIN",
       pinExplica: "Someone else's PIN won't let you in.",
@@ -1978,8 +1983,9 @@ const dict = {
       moduloNo: "Not enabled here",
       mesasAplicar: "Tap Save to apply the change to the floor map.",
       seccionDispositivo: "This device",
-      seccionDispositivoSub: "Handy if you keep one tablet at the door and another at the counter. It is stored on this device only and does not limit how many devices the branch uses.",
-      dispAmbos: "Both modules",
+      seccionDispositivoSub:
+        "Payments is not chosen here: if it's contracted, it shows on every device. This only splits Orders vs Wait — handy if you keep one tablet at the door and another at the counter. Stored on this device only; it doesn't limit how many devices the branch uses.",
+      dispAmbos: "Orders and wait",
       dispPedidos: "Orders only",
       dispEspera: "Table wait only",
       corte: "Day cutoff",
@@ -2368,7 +2374,9 @@ const dict = {
       },
       subtitulo: "Which tables still owe, how much, and collect from here.",
       verQr: "Table QR codes",
-      sinMesasAbiertas: "No open tables. They open by themselves when someone scans the QR.",
+      sinMesasAbiertas: "Nobody has sat down yet",
+      sinMesasAbiertasBody:
+        "A table shows up here when a guest scans that table's QR (the Payments one) and enters their name. From their phone they can order and pay. The Order-ready QR does not open tables: that one only pings them when the order is ready.",
       filtroAtencion: "To collect ({n})",
       filtroTodas: "All ({n})",
       sinAtencion: "No table has a balance due.",

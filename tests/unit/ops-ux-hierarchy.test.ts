@@ -27,6 +27,7 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesas).toContain("grid-cols-1");
     expect(mesas).toContain("mesas.verMesa");
     expect(mesas).toContain("SegmentedTabs");
+    expect(mesas).toContain("mesas.sinMesasAbiertasBody");
     expect(detalle).toContain("w-full rounded-full bg-marca");
     expect(detalle).toContain("mesas.cobrar");
   });

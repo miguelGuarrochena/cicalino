@@ -122,6 +122,29 @@ const MesasPage = () => {
         <div className="flex min-h-[30vh] items-center justify-center">
           <MascotLoader className="h-16" />
         </div>
+      ) : !desktopCurrent && openBills.length === 0 ? (
+        <div className="flex flex-col gap-3">
+          <EmptyState
+            title={t("mesas.sinMesasAbiertas")}
+            body={t("mesas.sinMesasAbiertasBody")}
+            action={
+              canManage ? (
+                <Link
+                  href="/panel/mesas/qr"
+                  className="inline-flex min-h-10 items-center text-sm font-semibold text-marca underline-offset-4 hover:underline"
+                >
+                  {t("mesas.verQr")}
+                </Link>
+              ) : undefined
+            }
+          />
+          <ClosedTodayList
+            bills={closedBills}
+            expanded={showClosed}
+            onToggle={() => setShowClosed((v) => !v)}
+            onSelect={setSelected}
+          />
+        </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(18rem,22rem)_1fr]">
           <aside className={`flex flex-col gap-3 print:hidden ${current ? "hidden lg:flex" : "flex"}`}>
@@ -158,7 +181,11 @@ const MesasPage = () => {
                     ? t("mesas.sinAtencion")
                     : t("mesas.sinMesasAbiertas")
                 }
-                body={openBills.length ? t("mesas.sinAtencionBody") : undefined}
+                body={
+                  openBills.length
+                    ? t("mesas.sinAtencionBody")
+                    : t("mesas.sinMesasAbiertasBody")
+                }
               />
             )}
 
@@ -226,37 +253,12 @@ const MesasPage = () => {
               })}
             </ul>
 
-            {closedBills.length > 0 && (
-              <div>
-                <button
-                  type="button"
-                  aria-expanded={showClosed}
-                  onClick={() => setShowClosed((v) => !v)}
-                  className="min-h-10 text-xs font-semibold text-carbon/60 underline"
-                >
-                  {t("mesas.cerradasHoy", { n: closedBills.length })}
-                </button>
-                {showClosed && (
-                  <ul className="mt-1 flex flex-col gap-1">
-                    {closedBills.map((b) => (
-                      <li key={b.session.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelected(b.session.id)}
-                          className="flex min-h-10 w-full items-center justify-between rounded-xl px-2 text-left text-sm text-carbon/70 hover:bg-carbon/5"
-                        >
-                          <span className="flex items-center gap-2">
-                            <span aria-hidden className={`size-2 rounded-full ${STATUS_STYLE[billStatus(b)].dot}`} />
-                            {t("mesa.mesaN", { n: b.session.tableNumber })}
-                          </span>
-                          <span className="tabular-nums">{formatMoney(b.totals.paid)}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
+            <ClosedTodayList
+              bills={closedBills}
+              expanded={showClosed}
+              onToggle={() => setShowClosed((v) => !v)}
+              onSelect={setSelected}
+            />
           </aside>
 
           <div className={current ? "block" : "hidden lg:block"}>
@@ -277,6 +279,52 @@ const MesasPage = () => {
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+};
+
+const ClosedTodayList = ({
+  bills,
+  expanded,
+  onToggle,
+  onSelect,
+}: {
+  bills: TableBill[];
+  expanded: boolean;
+  onToggle: () => void;
+  onSelect: (id: string) => void;
+}) => {
+  const { t } = useApp();
+  if (!bills.length) return null;
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={onToggle}
+        className="min-h-10 text-xs font-semibold text-carbon/60 underline"
+      >
+        {t("mesas.cerradasHoy", { n: bills.length })}
+      </button>
+      {expanded && (
+        <ul className="mt-1 flex flex-col gap-1">
+          {bills.map((b) => (
+            <li key={b.session.id}>
+              <button
+                type="button"
+                onClick={() => onSelect(b.session.id)}
+                className="flex min-h-10 w-full items-center justify-between rounded-xl px-2 text-left text-sm text-carbon/70 hover:bg-carbon/5"
+              >
+                <span className="flex items-center gap-2">
+                  <span aria-hidden className={`size-2 rounded-full ${STATUS_STYLE[billStatus(b)].dot}`} />
+                  {t("mesa.mesaN", { n: b.session.tableNumber })}
+                </span>
+                <span className="tabular-nums">{formatMoney(b.totals.paid)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
