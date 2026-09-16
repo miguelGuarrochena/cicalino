@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { QrModal } from "@/components/panel/QrModal";
 import { slicePage } from "@/components/ui/Pagination";
@@ -542,7 +541,6 @@ const EsperaPanelPage = () => {
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
-      <ModuleSwitcher />
       <SyncErrorBanner error={syncError} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">

@@ -25,7 +25,16 @@ describe("operation — nav and module redirects", () => {
     expect(moduleForPath("/panel/ayuda")).toBeNull();
   });
 
-  it("al cambiar a una sucursal sin pagos, Mesas no es un destino", () => {
+  it("la barra nombra el módulo de cobros Pagos, no Mesas, y no incluye métricas", () => {
+    expect(operationalNavLinks("admin", todos).map((l) => l.key)).toEqual([
+      "nav.pedidos",
+      "nav.espera",
+      "nav.pagos",
+      "nav.config",
+    ]);
+  });
+
+  it("al cambiar a una sucursal sin pagos, Pagos no es un destino", () => {
     expect(pathAllowedForModules("/panel/mesas", sinPagos)).toBe(false);
     expect(fallbackPath("/panel/mesas", sinPagos)).toBe("/panel");
     expect(fallbackPath("/panel/mesas/qr", sinPagos)).toBe("/panel");

@@ -8,7 +8,6 @@ import { useQrSeenClose } from "@/lib/hooks/useQrSeenClose";
 import { notifyCustomer } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
-import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { ModalShell } from "@/components/ui/ModalShell";
@@ -232,7 +231,6 @@ const PanelOrdersPage = () => {
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
-      <ModuleSwitcher />
       <SyncErrorBanner error={syncError} />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>

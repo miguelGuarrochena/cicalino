@@ -35,7 +35,7 @@ export const OPERATIONAL_NAV: OperationalNavLink[] = [
   },
   {
     href: "/panel/mesas",
-    key: "nav.mesas",
+    key: "nav.pagos",
     roles: ["admin", "supervisor", "empleado"],
     icon: "mesas",
     module: "pagos",

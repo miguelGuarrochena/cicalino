@@ -7,6 +7,7 @@ const dict = {
     nav: {
       pedidos: "Pedidos",
       espera: "Espera",
+      pagos: "Pagos",
       mesas: "Mesas",
       metricas: "Métricas",
       config: "Configuración",
@@ -1023,7 +1024,7 @@ const dict = {
       },
     },
     mesas: {
-      titulo: "Mesas",
+      titulo: "Pagos",
       cobrar: "Cobrar",
       cobrarMesa: "Cobrar {n}",
       pendienteN: "Pendiente: {n}",
@@ -1045,7 +1046,7 @@ const dict = {
       imprimirMetodo: "Método:",
       imprimirEmpleado: "Atendió:",
       imprimirNoFactura: "Documento no válido como factura",
-      volverCobros: "Mesas",
+      volverCobros: "Pagos",
       resumen: "Resumen de cobros",
       resumenEstado: {
         pendiente: "{n} sin pagar",
@@ -1085,7 +1086,7 @@ const dict = {
         mp_pago_duplicado: "Mercado Pago avisó un pago duplicado: revisar devolución",
         mp_monto_inconsistente: "Mercado Pago informó un monto distinto: revisar",
       },
-      subtitulo: "Cuentas abiertas, consumo por comensal y pagos.",
+      subtitulo: "Qué mesas tienen que pagar, cuánto falta y cobrá desde acá.",
       verQr: "QR de mesas",
       sinMesasAbiertas: "No hay mesas abiertas. Se abren solas cuando alguien escanea el QR.",
       filtroAtencion: "Cobrar ({n})",
@@ -1225,6 +1226,7 @@ const dict = {
     nav: {
       pedidos: "Orders",
       espera: "Wait",
+      pagos: "Payments",
       mesas: "Tables",
       metricas: "Metrics",
       config: "Settings",
@@ -2233,7 +2235,7 @@ const dict = {
       },
     },
     mesas: {
-      titulo: "Tables",
+      titulo: "Payments",
       cobrar: "Collect",
       cobrarMesa: "Collect {n}",
       pendienteN: "Pending: {n}",
@@ -2255,7 +2257,7 @@ const dict = {
       imprimirMetodo: "Method:",
       imprimirEmpleado: "Served by:",
       imprimirNoFactura: "Not a valid invoice",
-      volverCobros: "Tables",
+      volverCobros: "Payments",
       resumen: "Payments summary",
       resumenEstado: {
         pendiente: "{n} unpaid",
@@ -2295,7 +2297,7 @@ const dict = {
         mp_pago_duplicado: "Mercado Pago reported a duplicate payment: check refund",
         mp_monto_inconsistente: "Mercado Pago reported a different amount: check",
       },
-      subtitulo: "Open bills, items per guest and payments.",
+      subtitulo: "Which tables still owe, how much, and collect from here.",
       verQr: "Table QR codes",
       sinMesasAbiertas: "No open tables. They open by themselves when someone scans the QR.",
       filtroAtencion: "To collect ({n})",
