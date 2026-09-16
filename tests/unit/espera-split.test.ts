@@ -18,7 +18,6 @@ const cancelados = read("src/components/panel/espera/CanceladosHoy.tsx");
 describe("El orden de la pantalla no cambió", () => {
   it("las secciones siguen en la misma secuencia", () => {
     const orden = [
-      "<ModuleSwitcher />",
       "<SyncErrorBanner",
       "<MapaMesas",
       "<ColaEspera",

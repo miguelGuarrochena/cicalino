@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { fetchOrderSeenAt } from "@/lib/data/orders";
 import { useQrSeenClose } from "@/lib/hooks/useQrSeenClose";
 import { notifyCustomer } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
-import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { ModalShell } from "@/components/ui/ModalShell";
@@ -29,11 +27,7 @@ import { useDebounced } from "@/lib/hooks/useDebounced";
 import { useToast } from "@/components/ui/Toast";
 import { useAvisoToast } from "@/lib/hooks/useAvisoToast";
 import { dingNew, notifyReady } from "@/lib/sound";
-import {
-  readDeviceMode,
-  visibleModules,
-  panelHomePath,
-} from "@/lib/modules";
+import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
 const PAGE_SIZE = 9;
@@ -59,25 +53,9 @@ const AVISO_PEDIDO = {
 const PanelOrdersPage = () => {
   const { t, locale } = useApp();
   const toast = useToast();
-  const router = useRouter();
   const mode = useConfigStore((s) => s.modo);
   const tableCount = useConfigStore((s) => s.tableCount);
-  const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
-  const moduloEspera = useConfigStore((s) => s.moduloEspera);
-  const moduloPagos = useConfigStore((s) => s.moduloPagos);
-  const branchConfigReady = useConfigStore((s) => s.branchConfigReady);
-  const dispositivo = useSyncExternalStore(
-    (cb) => {
-      window.addEventListener("storage", cb);
-      return () => window.removeEventListener("storage", cb);
-    },
-    readDeviceMode,
-    () => "ambos" as const,
-  );
-  const visibles = visibleModules(
-    { pedidos: moduloPedidos, espera: moduloEspera, pagos: moduloPagos },
-    dispositivo,
-  );
+  const { visibles } = useOperationalAccess();
   const activeEmployee = useActiveEmployee();
   const branchId = useSessionStore((s) => s.sucursalId);
   const orgs = useSuperadminStore((s) => s.organizaciones);
@@ -108,14 +86,6 @@ const PanelOrdersPage = () => {
   const branchNameLabel = live
     ? liveBranchName
     : branchById(orgs, branchId)?.name;
-
-  /* Sucursal sin pedidos: el login cae en /panel; mandamos a su módulo. */
-  useEffect(() => {
-    if (!branchConfigReady) return;
-    if (!visibles.pedidos && (visibles.espera || visibles.pagos)) {
-      router.replace(panelHomePath(visibles));
-    }
-  }, [branchConfigReady, visibles, router]);
 
   const qr = useQrSeenClose<OrderView>(fetchOrderSeenAt, orders);
   const [createOpen, setCrearOpen] = useState(false);
@@ -257,9 +227,10 @@ const PanelOrdersPage = () => {
 
   const countFiltro = (f: FiltroEstado) => conteos[f];
 
+  if (!visibles.pedidos) return null;
+
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
-      <ModuleSwitcher />
       <SyncErrorBanner error={syncError} />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>

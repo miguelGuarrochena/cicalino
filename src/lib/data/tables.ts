@@ -148,6 +148,7 @@ export interface TableQrView {
   number: number;
   qrToken: string;
   generatedAt: string | null;
+  qrActive: boolean;
 }
 
 export const fetchTableQrs = async (branchId: string): Promise<DataResult<TableQrView[]>> => {
@@ -155,7 +156,7 @@ export const fetchTableQrs = async (branchId: string): Promise<DataResult<TableQ
   if (!supabase) return ok([]);
   const { data, error } = await supabase
     .from("mesas")
-    .select("id, numero, qr_token, qr_generado_en")
+    .select("id, numero, qr_token, qr_generado_en, qr_activo")
     .eq("local_id", branchId)
     .order("numero");
   if (error) {
@@ -168,9 +169,21 @@ export const fetchTableQrs = async (branchId: string): Promise<DataResult<TableQ
       number: m.numero as number,
       qrToken: m.qr_token as string,
       generatedAt: (m.qr_generado_en as string | null) ?? null,
+      qrActive: Boolean(m.qr_activo),
     })),
   );
 };
+
+export const setTableQrs = (
+  branchId: string,
+  active: boolean,
+  ids: string[] | null = null,
+) =>
+  rpc(
+    "set_mesas_qr",
+    { p_local: branchId, p_activo: active, p_ids: ids },
+    "panel.mesas.set-qr",
+  );
 
 export const regenerateTableQr = (tableId: string) =>
   rpc("regenerar_qr_mesa", { p_mesa: tableId }, "panel.mesas.regenerar-qr");
@@ -345,4 +358,41 @@ export const savePaymentSettings = async (
     };
   }
   return { ok: true };
+};
+
+/* ---- History ------------------------------------------------------------ */
+
+export interface TableEventView {
+  id: number;
+  type: string;
+  actor: "comensal" | "personal" | "sistema" | "mercado_pago";
+  at: string;
+  who: string | null;
+  amount: number | null;
+  method: string | null;
+}
+
+/* Who did what on a table, newest first (mesa_historial in split-payments.sql
+ * resolves names from the employee record or the account). */
+export const fetchTableHistory = async (
+  sessionId: string,
+): Promise<DataResult<TableEventView[]>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok([]);
+  const { data, error } = await supabase.rpc("mesa_historial", { p_sesion: sessionId });
+  if (error) {
+    reportError("panel.mesas.historial", error, { sessionId });
+    return fail(desdeSupabase(error));
+  }
+  return ok(
+    ((data as Record<string, unknown>[] | null) ?? []).map((e) => ({
+      id: Number(e.id),
+      type: String(e.tipo),
+      actor: e.actor as TableEventView["actor"],
+      at: String(e.creado_en),
+      who: (e.quien as string | null) ?? null,
+      amount: e.monto == null ? null : Number(e.monto),
+      method: (e.metodo as string | null) ?? null,
+    })),
+  );
 };

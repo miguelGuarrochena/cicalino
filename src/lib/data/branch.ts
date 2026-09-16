@@ -120,13 +120,22 @@ type EmpRow = {
   rol: string | null;
   tiene_pin: boolean | null;
   usuario_id?: string | null;
-  usuarios?: { email: string | null } | { email: string | null }[] | null;
+  usuarios?:
+    | { email: string | null; rol?: string | null }
+    | { email: string | null; rol?: string | null }[]
+    | null;
 };
 
-const emailDe = (r: EmpRow): string | null => {
+const cuentaDe = (r: EmpRow) => {
   const u = r.usuarios;
-  if (!u) return null;
-  return (Array.isArray(u) ? u[0]?.email : u.email) ?? null;
+  return (Array.isArray(u) ? u[0] : u) ?? null;
+};
+
+const emailDe = (r: EmpRow): string | null => cuentaDe(r)?.email ?? null;
+
+const rolDe = (r: EmpRow): EmployeeUI["accesoRol"] => {
+  const rol = cuentaDe(r)?.rol;
+  return rol === "empleado" || rol === "supervisor" ? rol : null;
 };
 
 const mapEmp = (r: EmpRow): EmployeeUI => ({
@@ -136,6 +145,7 @@ const mapEmp = (r: EmpRow): EmployeeUI => ({
   tienePin: Boolean(r.tiene_pin),
   usuarioId: r.usuario_id ?? null,
   email: emailDe(r),
+  accesoRol: rolDe(r),
 });
 
 export const fetchEmployees = async (
@@ -145,7 +155,7 @@ export const fetchEmployees = async (
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("empleados")
-    .select("id, nombre, rol, tiene_pin, usuario_id, usuarios ( email )")
+    .select("id, nombre, rol, tiene_pin, usuario_id, usuarios ( email, rol )")
     .eq("local_id", branchId)
     .eq("activo", true)
     .order("created_at", { ascending: true });

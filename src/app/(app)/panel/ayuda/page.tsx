@@ -59,7 +59,7 @@ const SECCIONES: {
   {
     id: "metricas",
     accent: "carbon",
-    href: "/panel/metrics",
+    href: "/panel/config/metricas",
     pasos: [
       { t: "ayuda.metricas.p1t", d: "ayuda.metricas.p1d" },
       { t: "ayuda.metricas.p2t", d: "ayuda.metricas.p2d" },

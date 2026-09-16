@@ -19,7 +19,7 @@ import {
   setEmployeePin,
   type OwnerUI,
 } from "@/lib/data/branch";
-import { grantAppAccess, revokeAppAccess } from "@/lib/actions/team";
+import { grantAppAccess, revokeAppAccess, setAppAccessRole } from "@/lib/actions/team";
 import { isEmail } from "@/lib/validations";
 import type { EmployeeUI } from "@/lib/store/config-store";
 
@@ -370,6 +370,42 @@ const ChangePinModal = ({
 };
 
 
+type AccessRole = "empleado" | "supervisor";
+
+const RolePicker = ({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: AccessRole;
+  onChange: (r: AccessRole) => void;
+  disabled?: boolean;
+}) => {
+  const { t } = useApp();
+  return (
+    <div role="radiogroup" aria-label={t("config.empAccesoRolTitulo")} className="grid gap-2 sm:grid-cols-2">
+      {(["empleado", "supervisor"] as const).map((r) => (
+        <button
+          key={r}
+          type="button"
+          role="radio"
+          aria-checked={value === r}
+          disabled={disabled}
+          onClick={() => onChange(r)}
+          className={`rounded-2xl border p-3 text-left transition disabled:opacity-60 ${
+            value === r ? "border-marca bg-marca/10 ring-2 ring-marca/25" : "border-linea bg-crema/30"
+          }`}
+        >
+          <span className="block text-sm font-semibold text-carbon">{t(`config.empAccesoRol.${r}`)}</span>
+          <span className="mt-0.5 block text-xs leading-snug text-carbon/55">
+            {t(`config.empAccesoRolDet.${r}`)}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
 const AccessModal = ({
   emp,
   onClose,
@@ -382,6 +418,7 @@ const AccessModal = ({
   const { t } = useApp();
   const toast = useToast();
   const [email, setEmail] = useState(emp.email ?? "");
+  const [role, setRole] = useState<AccessRole>(emp.accesoRol ?? "empleado");
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const tieneAcceso = Boolean(emp.usuarioId);
@@ -393,15 +430,30 @@ const AccessModal = ({
       return;
     }
     setSaving(true);
-    const res = await grantAppAccess({ employeeId: emp.id, email });
+    const res = await grantAppAccess({ employeeId: emp.id, email, role });
     setSaving(false);
     if (!res.ok) {
       setError(res.error);
       return;
     }
-    toast("Le mandamos la invitación por mail", "success");
+    toast(t("config.empInvitado"), "success");
     onDone();
     onClose();
+  };
+
+  const cambiarRol = async (next: AccessRole) => {
+    if (saving || next === role) return;
+    setSaving(true);
+    setError(undefined);
+    const res = await setAppAccessRole({ employeeId: emp.id, role: next });
+    setSaving(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setRole(next);
+    toast(t("config.empRolCambiado"), "success");
+    onDone();
   };
 
   const quitar = async () => {
@@ -413,7 +465,7 @@ const AccessModal = ({
       setError(res.error);
       return;
     }
-    toast("Ya no entra a la app", "info");
+    toast(t("config.empSinAcceso"), "info");
     onDone();
     onClose();
   };
@@ -445,16 +497,15 @@ const AccessModal = ({
         <div className="flex flex-col gap-3">
           <div className="rounded-xl border border-linea bg-crema/40 px-4 py-3">
             <p className="text-[11px] uppercase tracking-wide text-carbon/45">
-              Entra con
+              {t("config.empEntraCon")}
             </p>
             <p className="mt-0.5 truncate text-sm font-semibold text-carbon">
               {emp.email ?? "—"}
             </p>
           </div>
-          <p className="text-xs text-carbon/50">
-            Ve los pedidos y la espera de esta sucursal. No ve precios, pagos ni
-            datos de facturación.
-          </p>
+          {emp.accesoRol ? (
+            <RolePicker value={role} onChange={(r) => void cambiarRol(r)} disabled={saving} />
+          ) : null}
           {error && <span className="text-xs text-red-500">{error}</span>}
           <button
             type="button"
@@ -469,7 +520,7 @@ const AccessModal = ({
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-carbon/70">
-              Email de la persona *
+              {t("config.empEmail")}
             </span>
             <input
               autoFocus
@@ -486,18 +537,17 @@ const AccessModal = ({
               onKeyDown={(e) => e.key === "Enter" && void dar()}
               placeholder="lucia@ejemplo.com"
             />
-            <span className="text-xs text-carbon/45">
-              Le llega un mail para poner su contraseña.
-            </span>
-            {error && <span className="text-xs text-red-500">{error}</span>}
+            <span className="text-xs text-carbon/45">{t("config.empEmailAyuda")}</span>
           </label>
+          <RolePicker value={role} onChange={setRole} disabled={saving} />
+          {error && <span className="text-xs text-red-500">{error}</span>}
           <button
             type="button"
             onClick={() => void dar()}
             disabled={saving}
             className="w-full rounded-full bg-marca py-3 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
           >
-            {saving ? "…" : "Dar acceso"}
+            {saving ? "…" : t("config.empDarAcceso")}
           </button>
         </div>
       )}
@@ -604,7 +654,7 @@ export const EmployeeList = () => {
                     {e.name}
                     {e.usuarioId && (
                       <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                        Entra a la app
+                        {e.accesoRol ? t(`config.empAccesoRol.${e.accesoRol}`) : t("config.empEntraApp")}
                       </span>
                     )}
                   </p>

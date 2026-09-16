@@ -8,6 +8,8 @@ import { SiteFooter } from "@/components/ui/SiteFooter";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { LastVisitBanner } from "@/components/customer/LastVisitBanner";
 import { PricingTeaser } from "@/components/landing/PricingTeaser";
+import { ModulesOverview } from "@/components/landing/ModulesOverview";
+import { SplitBillSection } from "@/components/landing/SplitBillSection";
 import { CustomerWalkthrough } from "@/components/landing/CustomerWalkthrough";
 import { FaqContent } from "@/components/faq/FaqContent";
 import { useApp } from "@/components/providers/Providers";
@@ -115,14 +117,7 @@ const Home = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-3xl px-6 py-10 text-center sm:px-8 sm:py-14">
-          <h2 className="u-in font-display text-3xl uppercase tracking-tight text-marca sm:text-4xl">
-            {t("home.queTitulo")}
-          </h2>
-          <p className="u-in mx-auto mt-3 max-w-xl text-carbon/65 sm:text-lg">
-            {t("home.queSub")}
-          </p>
-        </section>
+        <ModulesOverview />
 
         <section className="mx-auto w-full max-w-4xl px-6 py-14 sm:px-8 sm:py-20">
           <div className="text-center">
@@ -195,6 +190,8 @@ const Home = () => {
             </div>
           </div>
         </section>
+
+        <SplitBillSection />
 
         <PricingTeaser />
 

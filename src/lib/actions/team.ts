@@ -7,9 +7,19 @@ import { parseInput } from "@/lib/schemas";
 
 type SimpleResult = { ok: true } | { ok: false; error: string };
 
+/* "empleado" = waiter (runs the floor), "supervisor" = manager (also branch
+ * setup and employees). Owner-only things stay owner-only either way. */
+const accessRole = z.enum(["empleado", "supervisor"]);
+
 const grantSchema = z.object({
   employeeId: z.string().uuid(),
   email: z.string().trim().toLowerCase().email().max(120),
+  role: accessRole.default("empleado"),
+});
+
+const roleSchema = z.object({
+  employeeId: z.string().uuid(),
+  role: accessRole,
 });
 
 const revokeSchema = z.object({
@@ -92,7 +102,7 @@ export const grantAppAccess = async (input: unknown): Promise<SimpleResult> => {
   }
 
   const meta = {
-    rol: "supervisor",
+    rol: v.data.role,
     organizacion_id: emp.organizationId,
     local_id: emp.localId,
   };
@@ -116,7 +126,8 @@ export const grantAppAccess = async (input: unknown): Promise<SimpleResult> => {
     if (orgActual && !mismaEmpresa) {
       return { ok: false, error: "Ese email ya se usa en otra empresa." };
     }
-    if (rolActual !== "supervisor" && !mismaEmpresa) {
+    const rolDePersonal = rolActual === "supervisor" || rolActual === "empleado";
+    if (!rolDePersonal && !mismaEmpresa) {
       return {
         ok: false,
         error: "Ese email ya tiene una cuenta. Usá otro o escribinos.",
@@ -128,7 +139,10 @@ export const grantAppAccess = async (input: unknown): Promise<SimpleResult> => {
       organizacion_id: emp.organizationId,
       nombre: emp.nombre || null,
     };
-    if (rolActual === "supervisor") cambios.local_id = emp.localId;
+    if (rolDePersonal) {
+      cambios.local_id = emp.localId;
+      cambios.rol = v.data.role;
+    }
     await admin.from("usuarios").update(cambios).eq("id", usuarioId);
   } else {
     const { data, error } = await admin.auth.admin.inviteUserByEmail(
@@ -220,5 +234,49 @@ export const revokeAppAccess = async (
     return { ok: false, error: "No se pudo quitar el acceso." };
   }
 
+  return { ok: true };
+};
+
+/* Owner switches a linked account between waiter and manager. Never touches
+ * owners or superadmins, nor the caller's own account. */
+export const setAppAccessRole = async (input: unknown): Promise<SimpleResult> => {
+  const v = parseInput(roleSchema, input);
+  if (!v.ok) return { ok: false, error: "Dato inválido." };
+
+  const perfil = await getCurrentProfile();
+  if (!perfil || (perfil.rol !== "admin" && perfil.rol !== "superadmin")) {
+    return { ok: false, error: "No autorizado" };
+  }
+
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, error: "Falta SUPABASE_SECRET_KEY" };
+
+  const emp = await loadEmployee(admin, v.data.employeeId);
+  if (!emp?.usuarioId) return { ok: false, error: "Esa persona no entra a la app." };
+  if (perfil.rol === "admin" && emp.organizationId !== perfil.organizationId) {
+    return { ok: false, error: "No autorizado" };
+  }
+  if (emp.usuarioId === perfil.id) {
+    return { ok: false, error: "No podés cambiar tu propio rol." };
+  }
+
+  const { data: cuenta } = await admin
+    .from("usuarios")
+    .select("rol")
+    .eq("id", emp.usuarioId)
+    .maybeSingle();
+  const actual = (cuenta?.rol as string | null) ?? null;
+  if (actual !== "empleado" && actual !== "supervisor") {
+    return { ok: false, error: "Ese rol no se cambia desde acá." };
+  }
+
+  const { error } = await admin
+    .from("usuarios")
+    .update({ rol: v.data.role })
+    .eq("id", emp.usuarioId);
+  if (error) {
+    console.error("setAppAccessRole", error.message);
+    return { ok: false, error: "No se pudo cambiar el rol." };
+  }
   return { ok: true };
 };

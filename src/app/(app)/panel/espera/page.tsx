@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ModuleSwitcher } from "@/components/panel/ModuleSwitcher";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { QrModal } from "@/components/panel/QrModal";
 import { slicePage } from "@/components/ui/Pagination";
@@ -34,12 +33,7 @@ import {
   earliestBookingAfterOccupied,
   reservationDateKey,
 } from "@/lib/reservations";
-import {
-  readDeviceMode,
-  visibleModules,
-} from "@/lib/modules";
-import { useRouter } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { CapacidadMesaModal } from "@/components/panel/espera/CapacidadMesaModal";
 import { ConfirmacionModal } from "@/components/panel/espera/ConfirmacionModal";
 import { HoldReservaModal } from "@/components/panel/espera/HoldReservaModal";
@@ -75,9 +69,9 @@ const AVISO_ESPERA = {
 const EsperaPanelPage = () => {
   const { locale } = useApp();
   const toast = useToast();
-  const router = useRouter();
   const branchId = useSessionStore((s) => s.sucursalId);
   const activeEmployee = useActiveEmployee();
+  const { visibles } = useOperationalAccess();
   const tableCount = useConfigStore((s) => s.tableCount);
   const cutoffHour = useConfigStore((s) => s.cutoffHour);
   const reservaAbreMin = useConfigStore((s) => s.reservaAbreMin);
@@ -91,23 +85,6 @@ const EsperaPanelPage = () => {
     }),
     [reservaAbreMin, reservaCierraMin, diasCerrados],
   );
-  const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
-  const moduloEspera = useConfigStore((s) => s.moduloEspera);
-  const moduloPagos = useConfigStore((s) => s.moduloPagos);
-  const branchConfigReady = useConfigStore((s) => s.branchConfigReady);
-  const dispositivo = useSyncExternalStore(
-    (cb) => {
-      window.addEventListener("storage", cb);
-      return () => window.removeEventListener("storage", cb);
-    },
-    readDeviceMode,
-    () => "ambos" as const,
-  );
-  const visibles = visibleModules(
-    { pedidos: moduloPedidos, espera: moduloEspera, pagos: moduloPagos },
-    dispositivo,
-  );
-
   const {
     esperas,
     mesas,
@@ -178,12 +155,6 @@ const EsperaPanelPage = () => {
     const iv = window.setInterval(() => setAhora(Date.now()), 30_000);
     return () => window.clearInterval(iv);
   }, []);
-
-  useEffect(() => {
-    if (!branchConfigReady) return;
-    if (!visibles.espera && visibles.pedidos) router.replace("/panel");
-    if (!visibles.espera && !visibles.pedidos) router.replace("/panel");
-  }, [branchConfigReady, visibles, router]);
 
   const toastAviso = useAvisoToast(AVISO_ESPERA);
 
@@ -570,7 +541,6 @@ const EsperaPanelPage = () => {
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
-      <ModuleSwitcher />
       <SyncErrorBanner error={syncError} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
