@@ -33,7 +33,8 @@ where c.table_schema = 'public'
     'organizaciones', 'locales', 'usuarios', 'empleados', 'pedidos',
     'esperas', 'reservas', 'mesas', 'push_subscriptions', 'solicitudes',
     'pedidos_sucursal', 'pagos', 'emails_enviados', 'usuario_sucursal',
-    'cron_locks'
+    'cron_locks', 'productos', 'local_cobros', 'mp_cuentas', 'mp_oauth_estados',
+    'mesa_sesiones', 'comensales', 'pedido_items', 'pagos_mesa', 'mesa_eventos'
   )
 order by c.table_name, c.ordinal_position;
 
@@ -50,7 +51,8 @@ where t.table_schema = 'public'
     'organizaciones', 'locales', 'usuarios', 'empleados', 'pedidos',
     'esperas', 'reservas', 'mesas', 'push_subscriptions', 'solicitudes',
     'pedidos_sucursal', 'pagos', 'emails_enviados', 'usuario_sucursal',
-    'cron_locks'
+    'cron_locks', 'productos', 'local_cobros', 'mp_cuentas', 'mp_oauth_estados',
+    'mesa_sesiones', 'comensales', 'pedido_items', 'pagos_mesa', 'mesa_eventos'
   )
 order by t.table_name;
 

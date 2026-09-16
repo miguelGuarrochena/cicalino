@@ -26,6 +26,7 @@ const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
   contractAcceptedAt: "2026-01-01T00:00:00Z",
   moduloPedidos: true,
   moduloEspera: false,
+  moduloPagos: false,
   altaEn: "2026-01-01T00:00:00Z",
   estadoSuscripcion: "active" as const,
   pruebaInicio: null,
@@ -47,6 +48,7 @@ const mkOrg = (over: Partial<OrganizationRow> = {}): OrganizationRow => ({
       responsableId: null,
       moduloPedidos: true,
       moduloEspera: false,
+      moduloPagos: false,
     },
   ],
   ...over,
@@ -73,6 +75,7 @@ describe("monthlyCharge", () => {
               responsableId: null,
               moduloPedidos: true,
               moduloEspera: false,
+              moduloPagos: false,
             },
             {
               id: "s2",
@@ -87,6 +90,7 @@ describe("monthlyCharge", () => {
               responsableId: null,
               moduloPedidos: true,
               moduloEspera: true,
+              moduloPagos: false,
             },
           ],
         }),
@@ -117,8 +121,15 @@ describe("cobroProximo", () => {
 describe("precioMensualPorSucursal", () => {
   it("pack es más barato que sumar ambos", () => {
     expect(
-      monthlyPriceForBranch({ pedidos: true, espera: true }),
+      monthlyPriceForBranch({ pedidos: true, espera: true, pagos: false }),
     ).toBe(PRICE_BUNDLE);
+  });
+
+  it("cada combinación con pagos divididos tiene su precio", () => {
+    expect(monthlyPriceForBranch({ pedidos: false, espera: false, pagos: true })).toBe(15_000);
+    expect(monthlyPriceForBranch({ pedidos: true, espera: false, pagos: true })).toBe(30_000);
+    expect(monthlyPriceForBranch({ pedidos: false, espera: true, pagos: true })).toBe(22_000);
+    expect(monthlyPriceForBranch({ pedidos: true, espera: true, pagos: true })).toBe(35_000);
   });
 });
 

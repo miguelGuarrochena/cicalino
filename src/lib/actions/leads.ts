@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { moduleLabel, modulesForPack } from "@/lib/pricing";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { appBaseUrl } from "@/lib/appUrl";
 import { sendEmail } from "@/lib/email/resend";
@@ -111,14 +112,7 @@ export const createLead = async (input: unknown): Promise<Resultado> => {
   const notify = process.env.LEAD_NOTIFY_EMAIL ?? "info@cicalino.net";
   const esContrato = tipo === "contrato";
   const planTxt = plan === "anual" ? "Anual" : "Mensual";
-  const packTxt =
-    pack === "pack"
-      ? "Pack (Pedidos + Espera)"
-      : pack === "espera"
-        ? "Solo espera"
-        : pack === "pedidos"
-          ? "Solo pedidos"
-          : "";
+  const packTxt = pack ? moduleLabel(modulesForPack(pack)) : "";
   const detalleContrato = [
     mail,
     telefonoVal,

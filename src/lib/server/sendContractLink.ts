@@ -12,6 +12,7 @@ import {
 } from "@/lib/contract";
 import {
   branchesModuleLabel,
+  modulesFromRow,
   type ModuleFlags,
 } from "@/lib/pricing";
 
@@ -51,7 +52,7 @@ export const sendContractLinkInternal = async (
   const { data: org } = await admin
     .from("organizaciones")
     .select(
-      "id, nombre, dueno_email, plan, cupo, mes_gratis_hasta, responsable, locales(modulo_pedidos, modulo_espera)",
+      "id, nombre, dueno_email, plan, cupo, mes_gratis_hasta, responsable, locales(modulo_pedidos, modulo_espera, modulo_pagos)",
     )
     .eq("id", organizationId)
     .maybeSingle();
@@ -76,15 +77,14 @@ export const sendContractLinkInternal = async (
   const locales = (org.locales ?? []) as {
     modulo_pedidos: boolean | null;
     modulo_espera: boolean | null;
+    modulo_pagos: boolean | null;
   }[];
   const packs: ModuleFlags[] = locales.length
-    ? locales.map((l) => ({
-        pedidos: l.modulo_pedidos !== false,
-        espera: Boolean(l.modulo_espera),
-      }))
+    ? locales.map(modulesFromRow)
     : Array.from({ length: Math.max(1, cupo) }, () => ({
         pedidos: true,
         espera: false,
+        pagos: false,
       }));
   const monto = contractAmountForBranches(plan, packs);
   const packLbl = branchesModuleLabel(packs);

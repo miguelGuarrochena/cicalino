@@ -25,7 +25,7 @@ export const mpAlias = (): string =>
 export const contractAmount = (
   plan: BillingPlanUI,
   cupo: number,
-  modulos: ModuleFlags = { pedidos: true, espera: false },
+  modulos: ModuleFlags = { pedidos: true, espera: false, pagos: false },
 ): number => {
   if (plan === "gratis") return 0;
   const mes = Math.max(1, cupo) * monthlyPriceForBranch(modulos);

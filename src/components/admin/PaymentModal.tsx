@@ -83,11 +83,13 @@ export const PaymentModal = ({
         pack: moduleLabel({
           pedidos: b.moduloPedidos,
           espera: b.moduloEspera,
+          pagos: b.moduloPagos,
         }),
         monto:
           monthlyPriceForBranch({
             pedidos: b.moduloPedidos,
             espera: b.moduloEspera,
+            pagos: b.moduloPagos,
           }) * Math.max(1, ciclos),
       })),
     [org, ciclos],

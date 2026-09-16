@@ -27,6 +27,7 @@ export interface BranchConfig {
   diasCerrados: number[];
   moduloPedidos: boolean;
   moduloEspera: boolean;
+  moduloPagos: boolean;
 }
 
 const normalizeDiasCerrados = (raw: unknown): number[] => {
@@ -49,7 +50,7 @@ export const fetchBranchConfig = async (
   const { data, error } = await supabase
     .from("locales")
     .select(
-      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera",
+      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera, modulo_pagos",
     )
     .eq("id", branchId)
     .single();
@@ -67,6 +68,7 @@ export const fetchBranchConfig = async (
     diasCerrados: normalizeDiasCerrados(data.dias_cerrados),
     moduloPedidos: data.modulo_pedidos !== false,
     moduloEspera: Boolean(data.modulo_espera),
+    moduloPagos: Boolean(data.modulo_pagos),
   };
 };
 

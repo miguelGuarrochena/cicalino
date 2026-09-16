@@ -17,6 +17,7 @@ import {
 } from "@/lib/contract";
 import {
   branchesModuleLabel,
+  modulesFromRow,
   type ModuleFlags,
 } from "@/lib/pricing";
 import { sendContractLinkInternal } from "@/lib/server/sendContractLink";
@@ -93,7 +94,7 @@ export const getContractByToken = async (
   const { data } = await admin
     .from("organizaciones")
     .select(
-      "id, nombre, plan, cupo, contrato_aceptado_en, contrato_token_creado_en, mes_gratis_hasta, terminos_version, locales(modulo_pedidos, modulo_espera)",
+      "id, nombre, plan, cupo, contrato_aceptado_en, contrato_token_creado_en, mes_gratis_hasta, terminos_version, locales(modulo_pedidos, modulo_espera, modulo_pagos)",
     )
     .eq("contrato_token", t)
     .maybeSingle();
@@ -109,15 +110,14 @@ export const getContractByToken = async (
   const locales = (data.locales ?? []) as {
     modulo_pedidos: boolean | null;
     modulo_espera: boolean | null;
+    modulo_pagos: boolean | null;
   }[];
   const packs: ModuleFlags[] = locales.length
-    ? locales.map((l) => ({
-        pedidos: l.modulo_pedidos !== false,
-        espera: Boolean(l.modulo_espera),
-      }))
+    ? locales.map(modulesFromRow)
     : Array.from({ length: Math.max(1, cupo) }, () => ({
         pedidos: true,
         espera: false,
+        pagos: false,
       }));
   const pruebaHasta = data.mes_gratis_hasta;
   const enPrueba =

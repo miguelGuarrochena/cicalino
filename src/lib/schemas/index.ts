@@ -25,7 +25,9 @@ export const leadSchema = z.object({
   direccion: optionalTextField(160, "la dirección"),
   tipo: z.enum(["prueba", "contrato"]).optional().default("prueba"),
   plan: z.enum(["mensual", "anual"]).optional(),
-  pack: z.enum(["pedidos", "espera", "pack"]).optional(),
+  pack: z
+    .enum(["pedidos", "espera", "pagos", "pack", "pedidos_pagos", "espera_pagos", "completo"])
+    .optional(),
   turnstileToken: z.string().max(2048).optional(),
 }).superRefine((v, ctx) => {
   if (v.tipo !== "contrato") return;
@@ -39,7 +41,7 @@ export const leadSchema = z.object({
   if (!v.pack) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Elegí un módulo (pedidos, espera o pack).",
+      message: "Elegí qué módulos querés contratar.",
       path: ["pack"],
     });
   }
@@ -73,6 +75,7 @@ export const branchInputSchema = z.object({
   direccion: optionalTextField(160, "la dirección"),
   moduloPedidos: z.boolean().optional().default(true),
   moduloEspera: z.boolean().optional().default(false),
+  moduloPagos: z.boolean().optional().default(false),
 });
 
 export const createOrganizationSchema = z.object({
@@ -93,15 +96,16 @@ export const createOrganizationSchema = z.object({
   mesGratis: z.boolean().optional().default(false),
   moduloPedidos: z.boolean().optional().default(true),
   moduloEspera: z.boolean().optional().default(false),
+  moduloPagos: z.boolean().optional().default(false),
   sucursales: z
     .array(branchInputSchema)
     .max(500, "Demasiadas sucursales en un solo alta.")
     .default([]),
 }).superRefine((v, ctx) => {
-  if (!v.moduloPedidos && !v.moduloEspera) {
+  if (!v.moduloPedidos && !v.moduloEspera && !v.moduloPagos) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Elegí al menos un módulo (Pedidos o Espera).",
+      message: "Elegí al menos un módulo (Pedidos, Espera o Pagos divididos).",
       path: ["moduloPedidos"],
     });
   }
@@ -360,3 +364,144 @@ export const pushNotifySchema = z
   });
 
 export const qrTokenSchema = uuid;
+
+/* ---- Split payments -------------------------------------------------------
+ * Shape checks only. Amounts, modes and ownership are decided again in SQL
+ * (supabase/split-payments.sql); these keep garbage out of the RPC calls. */
+
+export const guestNameSchema = customerAliasSchema.refine(
+  (v): v is string => v !== null,
+  "Contanos tu nombre.",
+);
+
+const cantidad = z.coerce.number().int().min(1).max(50);
+const pesos = z.coerce.number().int().min(1).max(10_000_000);
+
+export const guestOrderSchema = z.object({
+  key: uuid,
+  items: z
+    .array(z.object({ productId: uuid, quantity: cantidad }))
+    .min(1, "El pedido está vacío.")
+    .max(30, "Demasiados productos en un pedido.")
+    .refine(
+      (items) => new Set(items.map((i) => i.productId)).size === items.length,
+      "Producto repetido.",
+    ),
+});
+
+export const splitModeSchema = z.enum(["consumo", "iguales", "uno", "monto"]);
+export const paymentMethodSchema = z.enum([
+  "mercado_pago",
+  "transferencia",
+  "efectivo",
+  "tarjeta_debito",
+  "tarjeta_credito",
+]);
+
+const paymentBase = {
+  key: uuid,
+  mode: splitModeSchema,
+  method: paymentMethodSchema,
+  parts: z.coerce.number().int().min(1).max(50).optional(),
+  totalParts: z.coerce.number().int().min(1).max(50).optional(),
+  amount: pesos.optional().nullable(),
+  percent: z.coerce.number().gt(0).max(100).optional().nullable(),
+  tipPercent: z.union([z.literal(0), z.literal(5), z.literal(10), z.literal(15)]).optional().nullable(),
+  tipAmount: z.coerce.number().int().min(0).max(10_000_000).optional().nullable(),
+};
+
+export const guestPaymentSchema = z.object({
+  ...paymentBase,
+  expectedTotal: z.coerce.number().int().min(1).max(30_000_000),
+});
+
+export const staffPaymentSchema = z
+  .object({
+    ...paymentBase,
+    method: paymentMethodSchema.exclude(["mercado_pago"]),
+    guestId: uuid.optional().nullable(),
+    payerName: z.string().trim().min(1).max(40).optional().nullable(),
+    confirmed: z.boolean().default(true),
+  })
+  .refine((v) => v.guestId || v.payerName, {
+    message: "Indicá quién paga.",
+    path: ["payerName"],
+  });
+
+/* Draft → the jsonb that _crear_pago_mesa reads. A percentage tip wins over a
+ * fixed one, same as in SQL. */
+export const paymentDatos = (
+  v: z.infer<typeof guestPaymentSchema> | z.infer<typeof staffPaymentSchema>,
+): Record<string, unknown> => {
+  const d: Record<string, unknown> = {
+    clave: v.key,
+    modo: v.mode,
+    metodo: v.method,
+  };
+  if (v.parts != null) d.partes = v.parts;
+  if (v.totalParts != null) d.partes_totales = v.totalParts;
+  if (v.amount != null) d.monto = v.amount;
+  else if (v.percent != null) d.porcentaje = v.percent;
+  if (v.tipPercent != null) d.propina_porcentaje = v.tipPercent;
+  else if (v.tipAmount != null) d.propina_monto = v.tipAmount;
+  if ("expectedTotal" in v) d.monto_esperado = v.expectedTotal;
+  if ("guestId" in v && v.guestId) d.comensal_id = v.guestId;
+  if ("payerName" in v && v.payerName) d.pagador_nombre = v.payerName;
+  if ("confirmed" in v) d.confirmado = v.confirmed;
+  return d;
+};
+
+export const menuProductSchema = z.object({
+  name: textField(1, 80, "el nombre del producto"),
+  description: optionalTextField(200, "la descripción"),
+  category: optionalTextField(40, "la categoría"),
+  price: pesos,
+  active: z.boolean().default(true),
+  order: z.coerce.number().int().min(0).max(10_000).default(0),
+});
+
+const pct = z.coerce.number().min(0, "Mínimo 0%.").max(20, "Máximo 20%.");
+
+export const paymentSettingsSchema = z
+  .object({
+    mercadoPago: z.boolean(),
+    transfer: z.boolean(),
+    cash: z.boolean(),
+    debit: z.boolean(),
+    credit: z.boolean(),
+    transferAlias: optionalTextField(60, "el alias"),
+    transferHolder: optionalTextField(80, "el titular"),
+    transferCbu: z
+      .string()
+      .trim()
+      .optional()
+      .nullable()
+      .transform((v) => (v ? v.replace(/\D/g, "") : undefined))
+      .refine((v) => !v || v.length === 22, "El CBU/CVU tiene 22 dígitos."),
+    debitSurchargePct: pct,
+    creditSurchargePct: pct,
+    surchargeDeclared: z.boolean(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.transfer && (!v.transferAlias || !v.transferHolder)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Para transferencias completá alias y titular.",
+        path: ["transferAlias"],
+      });
+    }
+    if ((v.debitSurchargePct > 0 || v.creditSurchargePct > 0) && !v.surchargeDeclared) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Para cobrar recargo tenés que confirmar que la normativa te lo permite.",
+        path: ["surchargeDeclared"],
+      });
+    }
+    if (!v.mercadoPago && !v.transfer && !v.cash && !v.debit && !v.credit) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Dejá al menos un método de pago.",
+        path: ["cash"],
+      });
+    }
+  });

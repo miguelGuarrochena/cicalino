@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { PackPicker } from "@/components/admin/PackPicker";
 import { useSessionStore } from "@/lib/store/session-store";
 import type { OrganizationRow } from "@/lib/store/superadmin-store";
-import { monthlyPriceForBranch } from "@/lib/pricing";
+import { monthlyPriceForBranch, type ModuleFlags } from "@/lib/pricing";
 import {
   BUSINESS_TYPE_LABEL,
   BUSINESS_TYPES,
@@ -51,8 +51,11 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoTipo, setNuevoTipo] = useState<BusinessType>("cafeteria");
-  const [nuevoPedidos, setNuevoPedidos] = useState(true);
-  const [nuevoEspera, setNuevoEspera] = useState(false);
+  const [nuevoModulos, setNuevoModulos] = useState<ModuleFlags>({
+    pedidos: true,
+    espera: false,
+    pagos: false,
+  });
   const [creando, setCreando] = useState(false);
   const [usuarios, setUsuarios] = useState<OrgUser[]>([]);
 
@@ -69,15 +72,12 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
   const hoy = toDateOnly(new Date());
   const gratis = org.plan === "gratis";
 
-  const cambiarPack = async (
-    branchId: string,
-    pedidos: boolean,
-    espera: boolean,
-  ) => {
+  const cambiarPack = async (branchId: string, m: ModuleFlags) => {
     setBusy(branchId);
     await updateBranchModulesDb(org.id, branchId, {
-      moduloPedidos: pedidos,
-      moduloEspera: espera,
+      moduloPedidos: m.pedidos,
+      moduloEspera: m.espera,
+      moduloPagos: m.pagos,
     });
     await refreshOrganizations();
     setBusy(null);
@@ -126,8 +126,9 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
       name: nuevoNombre.trim(),
       tipo: nuevoTipo,
       direccion: "",
-      moduloPedidos: nuevoPedidos,
-      moduloEspera: nuevoEspera,
+      moduloPedidos: nuevoModulos.pedidos,
+      moduloEspera: nuevoModulos.espera,
+      moduloPagos: nuevoModulos.pagos,
     });
     await refreshOrganizations();
     setCreando(false);
@@ -152,6 +153,7 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
           const aporta = monthlyPriceForBranch({
             pedidos: s.moduloPedidos,
             espera: s.moduloEspera,
+            pagos: s.moduloPagos,
           });
           const enGratis = Boolean(s.cobroDesde && s.cobroDesde > hoy);
           const deBaja = !s.activo;
@@ -216,10 +218,13 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
 
               <div className="mt-3 sm:max-w-sm">
                 <PackPicker
-                  pedidos={s.moduloPedidos}
-                  espera={s.moduloEspera}
+                  value={{
+                    pedidos: s.moduloPedidos,
+                    espera: s.moduloEspera,
+                    pagos: s.moduloPagos,
+                  }}
                   compact
-                  onChange={(p, e) => void cambiarPack(s.id, p, e)}
+                  onChange={(m) => void cambiarPack(s.id, m)}
                 />
               </div>
 
@@ -335,14 +340,7 @@ export const BranchesSection = ({ org }: { org: OrganizationRow }) => {
           </button>
         </div>
         <div className="mt-2 sm:max-w-sm">
-          <PackPicker
-            pedidos={nuevoPedidos}
-            espera={nuevoEspera}
-            onChange={(p, e) => {
-              setNuevoPedidos(p);
-              setNuevoEspera(e);
-            }}
-          />
+          <PackPicker value={nuevoModulos} onChange={setNuevoModulos} />
         </div>
         <p className="mt-2 text-xs text-carbon/45">
           Queda gratis hasta {fecha(org.proximaFactura)}, la próxima factura del

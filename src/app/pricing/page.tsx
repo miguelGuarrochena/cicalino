@@ -12,7 +12,10 @@ import { isCuil, isEmail, formatCuil, isWhatsapp } from "@/lib/validations";
 import {
   PRICE_ORDERS,
   PRICE_WAITLIST,
-  PRICE_BUNDLE,
+  PRICE_SPLIT,
+  monthlyPriceForBranch,
+  packIdFor,
+  type ModuleFlags,
 } from "@/lib/pricing";
 
 const money = new Intl.NumberFormat("es-AR", {
@@ -21,12 +24,12 @@ const money = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-type PackId = "pedidos" | "espera" | "pack";
+type ModuleKey = keyof ModuleFlags;
 
-const PACK_PRECIO: Record<PackId, number> = {
+const MODULE_PRICE: Record<ModuleKey, number> = {
   pedidos: PRICE_ORDERS,
   espera: PRICE_WAITLIST,
-  pack: PRICE_BUNDLE,
+  pagos: PRICE_SPLIT,
 };
 
 const INPUT =
@@ -52,7 +55,18 @@ const PreciosPage = () => {
   const { locale } = useApp();
   const es = locale !== "en";
   const [anual, setAnual] = useState(false);
-  const [pack, setPack] = useState<PackId>("pack");
+  const [modulos, setModulos] = useState<ModuleFlags>({
+    pedidos: true,
+    espera: true,
+    pagos: false,
+  });
+  const pack = packIdFor(modulos) ?? "pedidos";
+  const soloEspera = modulos.espera && !modulos.pedidos && !modulos.pagos;
+  const toggleModulo = (k: ModuleKey) =>
+    setModulos((m) => {
+      const next = { ...m, [k]: !m[k] };
+      return next.pedidos || next.espera || next.pagos ? next : m;
+    });
   const [formOpen, setFormOpen] = useState(false);
   const [name, setNombre] = useState("");
   const [email, setEmail] = useState("");
@@ -72,33 +86,33 @@ const PreciosPage = () => {
 
   const necesitaTurnstile = Boolean(TURNSTILE_SITE_KEY);
   const plan = anual ? "anual" : "mensual";
-  const precioMes = PACK_PRECIO[pack];
+  const precioMes = monthlyPriceForBranch(modulos);
+  const precioSuelto = (Object.keys(MODULE_PRICE) as ModuleKey[])
+    .filter((k) => modulos[k])
+    .reduce((sum, k) => sum + MODULE_PRICE[k], 0);
+  const ahorro = precioSuelto - precioMes;
   const precioMostrar = anual ? precioMes * 10 : precioMes;
 
-  const featuresByPack: Record<PackId, string[]> = es
+  const featuresByModule: Record<ModuleKey, string[]> = es
     ? {
         pedidos: [
           "Pedidos ilimitados",
           "QR + aviso al celular",
           "Mostrador y PIN",
           "Métricas de pedidos",
-          "1 sucursal incluida",
         ],
         espera: [
           "Cola de espera de mesa",
           "Mapa de mesas libres/ocupadas",
           "Calendario y próximas reservas",
-          "QR + aviso al celular",
           "Métricas de espera",
-          "1 sucursal incluida",
         ],
-        pack: [
-          "Pedidos + Espera de mesa",
-          "QR + aviso en ambos flujos",
-          "Reservas incluidas en Espera",
-          "Pestañas claras en el panel",
-          "Métricas separadas",
-          "1 sucursal incluida",
+        pagos: [
+          "Carta y pedidos desde el QR de la mesa",
+          "Cuenta por comensal",
+          "Dividir: mi consumo, partes iguales, uno paga o monto",
+          "Propina por persona",
+          "Mercado Pago, transferencia, efectivo y tarjeta",
         ],
       }
     : {
@@ -107,26 +121,27 @@ const PreciosPage = () => {
           "QR + phone notice",
           "Counter + staff PIN",
           "Order metrics",
-          "1 branch included",
         ],
         espera: [
           "Table waitlist",
           "Free/busy floor map",
           "Calendar + upcoming reservations",
-          "QR + phone notice",
           "Wait metrics",
-          "1 branch included",
         ],
-        pack: [
-          "Orders + Table wait",
-          "QR notice for both flows",
-          "Reservations included with Wait",
-          "Clear panel tabs",
-          "Separate metrics",
-          "1 branch included",
+        pagos: [
+          "Menu and ordering from the table QR",
+          "Bill per guest",
+          "Split: my items, equal parts, one pays or amount",
+          "Per-person tip",
+          "Mercado Pago, bank transfer, cash and card",
         ],
       };
-  const features = featuresByPack[pack];
+  const features = [
+    ...(Object.keys(featuresByModule) as ModuleKey[])
+      .filter((k) => modulos[k])
+      .flatMap((k) => featuresByModule[k]),
+    es ? "1 sucursal incluida" : "1 branch included",
+  ];
 
   const msg = {
     local: es
@@ -280,35 +295,34 @@ const PreciosPage = () => {
               </h1>
               <p className="mx-auto mt-3 max-w-md text-carbon/60">
                 {es
-                  ? "Pedidos listos, espera de mesa, o los dos. Precio fijo por sucursal."
-                  : "Order ready, table wait, or both. Flat fee per branch."}
+                  ? "Pedidos listos, espera de mesa y pagos divididos. Elegí los módulos: precio fijo por sucursal."
+                  : "Order ready, table wait and split bill. Pick modules: flat fee per branch."}
               </p>
             </div>
 
             <div
               className="u-in mt-8 grid gap-3 sm:grid-cols-3"
               style={{ animationDelay: "0.05s" }}
+              role="group"
+              aria-label={es ? "Módulos" : "Modules"}
             >
               {(
                 [
                   {
                     id: "pedidos" as const,
-                    label: es ? "Solo pedidos" : "Orders only",
-                    accent: "border-marca/40",
+                    label: es ? "Pedidos" : "Orders",
                     active: "border-marca ring-2 ring-marca/25",
                     priceColor: "text-marca",
                   },
                   {
                     id: "espera" as const,
-                    label: es ? "Solo espera" : "Wait only",
-                    accent: "border-espera/40",
+                    label: es ? "Espera de mesa" : "Table wait",
                     active: "border-espera ring-2 ring-espera/25",
                     priceColor: "text-espera",
                   },
                   {
-                    id: "pack" as const,
-                    label: es ? "Pack (los dos)" : "Pack (both)",
-                    accent: "border-marca/40",
+                    id: "pagos" as const,
+                    label: es ? "Pagos divididos" : "Split bill",
                     active: "border-marca ring-2 ring-marca/25",
                     priceColor: "text-marca",
                   },
@@ -317,32 +331,45 @@ const PreciosPage = () => {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setPack(p.id)}
+                  aria-pressed={modulos[p.id]}
+                  onClick={() => toggleModulo(p.id)}
                   className={`rounded-2xl border bg-surface p-4 text-left transition ${
-                    pack === p.id ? p.active : p.accent
+                    modulos[p.id] ? p.active : "border-linea opacity-70"
                   }`}
                 >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-carbon/50">
+                  <p className="flex items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
                     {p.label}
+                    <span
+                      aria-hidden
+                      className={`grid size-5 place-items-center rounded-md border text-[11px] ${
+                        modulos[p.id]
+                          ? "border-transparent bg-marca text-crema"
+                          : "border-linea"
+                      }`}
+                    >
+                      {modulos[p.id] ? "✓" : ""}
+                    </span>
                   </p>
                   <p className={`mt-1 font-display text-2xl ${p.priceColor}`}>
-                    {money.format(PACK_PRECIO[p.id])}
+                    {money.format(MODULE_PRICE[p.id])}
                   </p>
                   <p className="text-[11px] text-carbon/45">
-                    {es ? "/mes · sucursal" : "/mo · branch"}
+                    {es ? "/mes · sucursal · solo" : "/mo · branch · alone"}
                   </p>
-                  {p.id === "pack" && (
-                    <p className="mt-2 text-[11px] font-semibold text-emerald-700">
-                      {es ? "Ahorrás $5.000" : "Save vs buying both"}
-                    </p>
-                  )}
                 </button>
               ))}
             </div>
+            {ahorro > 0 && (
+              <p className="u-in mt-3 text-center text-xs font-semibold text-emerald-700">
+                {es
+                  ? `Combinados ahorrás ${money.format(ahorro)} por mes`
+                  : `Save ${money.format(ahorro)} a month combined`}
+              </p>
+            )}
 
             <div
               className={`u-in mt-6 rounded-[28px] border bg-surface p-7 shadow-sm ${
-                pack === "espera"
+                soloEspera
                   ? "border-espera ring-2 ring-espera/25"
                   : "border-marca ring-2 ring-marca/25"
               }`}
@@ -351,7 +378,7 @@ const PreciosPage = () => {
               <div className="flex items-center justify-between gap-3">
                 <p
                   className={`text-xs font-semibold uppercase tracking-[0.3em] ${
-                    pack === "espera" ? "text-espera" : "text-marca"
+                    soloEspera ? "text-espera" : "text-marca"
                   }`}
                 >
                   Cicalino
@@ -362,7 +389,7 @@ const PreciosPage = () => {
                     onClick={() => setAnual(false)}
                     className={`flex min-h-10 flex-1 items-center justify-center rounded-full px-4 transition sm:min-h-0 sm:flex-none sm:px-3 sm:py-1.5 ${
                       !anual
-                        ? pack === "espera"
+                        ? soloEspera
                           ? "bg-espera text-crema"
                           : "bg-marca text-crema"
                         : "text-carbon/55"
@@ -375,7 +402,7 @@ const PreciosPage = () => {
                     onClick={() => setAnual(true)}
                     className={`flex min-h-10 flex-1 items-center justify-center rounded-full px-4 transition sm:min-h-0 sm:flex-none sm:px-3 sm:py-1.5 ${
                       anual
-                        ? pack === "espera"
+                        ? soloEspera
                           ? "bg-espera text-crema"
                           : "bg-marca text-crema"
                         : "text-carbon/55"
@@ -389,7 +416,7 @@ const PreciosPage = () => {
               <div className="mt-4 flex items-baseline gap-1.5">
                 <span
                   className={`font-display text-5xl ${
-                    pack === "espera" ? "text-espera" : "text-marca"
+                    soloEspera ? "text-espera" : "text-marca"
                   }`}
                 >
                   {money.format(precioMostrar)}

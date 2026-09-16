@@ -1,4 +1,5 @@
 import type { CreateOrgPayload } from "@/lib/schemas";
+import { isPackId, modulesForPack } from "@/lib/pricing";
 
 /* Fila cruda de `solicitudes` tal como la devuelve PostgREST: nombres de
  * columna de la base, no las propiedades del schema de Drizzle. */
@@ -30,14 +31,15 @@ export const leadToOrgPayload = (sol: LeadRow): CreateOrgPayload => {
   const plan =
     sol.plan === "anual" || sol.plan === "mensual" ? sol.plan : "mensual";
 
-  const pack =
-    sol.pack === "espera" || sol.pack === "pack" || sol.pack === "pedidos"
-      ? sol.pack
-      : "pedidos";
+  const pack = isPackId(sol.pack) ? sol.pack : "pedidos";
 
   /* Fuera de un contrato el alta es la prueba gratis: pedidos y nada más. */
-  const moduloPedidos = esContrato ? pack === "pedidos" || pack === "pack" : true;
-  const moduloEspera = esContrato ? pack === "espera" || pack === "pack" : false;
+  const mods = esContrato
+    ? modulesForPack(pack)
+    : { pedidos: true, espera: false, pagos: false };
+  const moduloPedidos = mods.pedidos;
+  const moduloEspera = mods.espera;
+  const moduloPagos = mods.pagos;
 
   const direccion = sol.direccion || sol.ciudad || "";
   const cuil = soloDigitos(sol.cuil);
@@ -54,6 +56,7 @@ export const leadToOrgPayload = (sol: LeadRow): CreateOrgPayload => {
     mesGratis: !esContrato,
     moduloPedidos,
     moduloEspera,
+    moduloPagos,
     sucursales: [
       {
         name: sol.local || "Principal",
@@ -61,6 +64,7 @@ export const leadToOrgPayload = (sol: LeadRow): CreateOrgPayload => {
         direccion,
         moduloPedidos,
         moduloEspera,
+        moduloPagos,
       },
     ],
   };

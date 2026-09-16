@@ -64,6 +64,7 @@ const PanelOrdersPage = () => {
   const tableCount = useConfigStore((s) => s.tableCount);
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
+  const moduloPagos = useConfigStore((s) => s.moduloPagos);
   const branchConfigReady = useConfigStore((s) => s.branchConfigReady);
   const dispositivo = useSyncExternalStore(
     (cb) => {
@@ -74,7 +75,7 @@ const PanelOrdersPage = () => {
     () => "ambos" as const,
   );
   const visibles = visibleModules(
-    { pedidos: moduloPedidos, espera: moduloEspera },
+    { pedidos: moduloPedidos, espera: moduloEspera, pagos: moduloPagos },
     dispositivo,
   );
   const activeEmployee = useActiveEmployee();
@@ -108,10 +109,10 @@ const PanelOrdersPage = () => {
     ? liveBranchName
     : branchById(orgs, branchId)?.name;
 
-  /* Sucursal solo-espera: el login cae en /panel; mandamos a la sala. */
+  /* Sucursal sin pedidos: el login cae en /panel; mandamos a su módulo. */
   useEffect(() => {
     if (!branchConfigReady) return;
-    if (!visibles.pedidos && visibles.espera) {
+    if (!visibles.pedidos && (visibles.espera || visibles.pagos)) {
       router.replace(panelHomePath(visibles));
     }
   }, [branchConfigReady, visibles, router]);

@@ -23,9 +23,10 @@ export const ModuleSwitcher = () => {
   const path = usePathname();
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
+  const moduloPagos = useConfigStore((s) => s.moduloPagos);
   const dispositivo = useSyncExternalStore(subscribe, getSnapshot, getServer);
   const visibles = visibleModules(
-    { pedidos: moduloPedidos, espera: moduloEspera },
+    { pedidos: moduloPedidos, espera: moduloEspera, pagos: moduloPagos },
     dispositivo,
   );
 

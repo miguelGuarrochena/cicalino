@@ -7,7 +7,7 @@ import {
   type PlanTipo,
 } from "@/lib/store/superadmin-store";
 import type { BusinessType } from "@/lib/store/config-store";
-import { normalizeModules } from "@/lib/pricing";
+import { aggregateModules, modulesFromRow, normalizeModules } from "@/lib/pricing";
 import { toDateOnly, type SubscriptionStatus } from "@/lib/subscription";
 
 type BranchDb = {
@@ -17,6 +17,7 @@ type BranchDb = {
   direccion: string | null;
   modulo_pedidos: boolean | null;
   modulo_espera: boolean | null;
+  modulo_pagos: boolean | null;
   created_at: string | null;
   cobro_desde: string | null;
   activa: boolean | null;
@@ -38,6 +39,7 @@ type OrgDb = {
   contrato_aceptado_en: string | null;
   modulo_pedidos: boolean | null;
   modulo_espera: boolean | null;
+  modulo_pagos: boolean | null;
   creado_en: string;
   estado_suscripcion: string | null;
   prueba_inicio: string | null;
@@ -50,10 +52,7 @@ type OrgDb = {
 
 const mapOrg = (o: OrgDb): OrganizationRow => {
   const sucursales = (o.locales ?? []).map((l) => {
-    const mods = normalizeModules({
-      pedidos: l.modulo_pedidos !== false,
-      espera: Boolean(l.modulo_espera),
-    });
+    const mods = modulesFromRow(l);
     return {
       id: l.id,
       organizationId: o.id,
@@ -67,18 +66,19 @@ const mapOrg = (o: OrgDb): OrganizationRow => {
       pedidosHoy: 0,
       moduloPedidos: mods.pedidos,
       moduloEspera: mods.espera,
+      moduloPagos: mods.pagos,
     };
   });
   const activas = sucursales.filter((s) => s.activo);
-  const agg = activas.length
-    ? {
-        moduloPedidos: activas.some((s) => s.moduloPedidos),
-        moduloEspera: activas.some((s) => s.moduloEspera),
-      }
-    : {
-        moduloPedidos: o.modulo_pedidos !== false,
-        moduloEspera: Boolean(o.modulo_espera),
-      };
+  const aggMods = activas.length
+    ? aggregateModules(
+        activas.map((s) => ({
+          pedidos: s.moduloPedidos,
+          espera: s.moduloEspera,
+          pagos: s.moduloPagos,
+        })),
+      )
+    : modulesFromRow(o);
   return {
     id: o.id,
     name: o.nombre,
@@ -93,8 +93,9 @@ const mapOrg = (o: OrgDb): OrganizationRow => {
     plan: (o.plan as PlanTipo) ?? "mensual",
     freeMonthUntil: o.mes_gratis_hasta ?? null,
     contractAcceptedAt: o.contrato_aceptado_en ?? null,
-    moduloPedidos: agg.moduloPedidos,
-    moduloEspera: agg.moduloEspera,
+    moduloPedidos: aggMods.pedidos,
+    moduloEspera: aggMods.espera,
+    moduloPagos: aggMods.pagos,
     altaEn: o.creado_en,
     estadoSuscripcion: (o.estado_suscripcion as SubscriptionStatus) ?? "active",
     pruebaInicio: o.prueba_inicio ?? null,
@@ -112,7 +113,7 @@ export const fetchOrganizations = async (): Promise<OrganizationRow[]> => {
   const { data, error } = await supabase
     .from("organizaciones")
     .select(
-      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, contrato_aceptado_en, modulo_pedidos, modulo_espera, creado_en, estado_suscripcion, prueba_inicio, prueba_fin, proxima_factura, dia_ciclo, ultimo_pago_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera, created_at, cobro_desde, activa, responsable_id)",
+      "id, nombre, responsable, telefono, cuil, direccion, dueno_email, cupo, pagado, activo, plan, mes_gratis_hasta, contrato_aceptado_en, modulo_pedidos, modulo_espera, modulo_pagos, creado_en, estado_suscripcion, prueba_inicio, prueba_fin, proxima_factura, dia_ciclo, ultimo_pago_en, locales(id, nombre, tipo_negocio, direccion, modulo_pedidos, modulo_espera, modulo_pagos, created_at, cobro_desde, activa, responsable_id)",
     )
     .order("creado_en", { ascending: false });
   if (error || !data) {
@@ -153,6 +154,7 @@ export const updateOrgDb = async (
     status: SubscriptionStatus;
     moduloPedidos?: boolean;
     moduloEspera?: boolean;
+    moduloPagos?: boolean;
   }>,
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
@@ -179,6 +181,7 @@ export const updateOrgDb = async (
   if (patch.status != null) db.estado_suscripcion = patch.status;
   if (patch.moduloPedidos != null) db.modulo_pedidos = patch.moduloPedidos;
   if (patch.moduloEspera != null) db.modulo_espera = patch.moduloEspera;
+  if (patch.moduloPagos != null) db.modulo_pagos = patch.moduloPagos;
   const { error } = await supabase
     .from("organizaciones")
     .update(db)
@@ -193,18 +196,17 @@ export const syncOrgModulesFromBranches = async (
   if (!supabase) return;
   const { data, error } = await supabase
     .from("locales")
-    .select("modulo_pedidos, modulo_espera")
+    .select("modulo_pedidos, modulo_espera, modulo_pagos")
     .eq("organizacion_id", orgId);
   if (error) {
     console.error("syncOrgModulosFromLocales", error.message);
     return;
   }
-  const rows = data ?? [];
-  const pedidos = rows.some((r) => r.modulo_pedidos !== false) || rows.length === 0;
-  const espera = rows.some((r) => Boolean(r.modulo_espera));
+  const agg = aggregateModules((data ?? []).map(modulesFromRow));
   await updateOrgDb(orgId, {
-    moduloPedidos: pedidos || !espera,
-    moduloEspera: espera,
+    moduloPedidos: agg.pedidos,
+    moduloEspera: agg.espera,
+    moduloPagos: agg.pagos,
   });
 };
 
@@ -217,6 +219,7 @@ export const insertBranchDb = async (
     whatsapp?: string;
     moduloPedidos?: boolean;
     moduloEspera?: boolean;
+    moduloPagos?: boolean;
   },
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
@@ -224,6 +227,7 @@ export const insertBranchDb = async (
   const mods = normalizeModules({
     pedidos: data.moduloPedidos,
     espera: data.moduloEspera,
+    pagos: data.moduloPagos,
   });
   const slug = `${data.name
     .toLowerCase()
@@ -248,6 +252,7 @@ export const insertBranchDb = async (
     slug,
     modulo_pedidos: mods.pedidos,
     modulo_espera: mods.espera,
+    modulo_pagos: mods.pagos,
   });
   if (error) console.error("insertBranchDb", error.message);
   else await syncOrgModulesFromBranches(orgId);
@@ -278,19 +283,21 @@ export const updateBranchIdentityDb = async (
 export const updateBranchModulesDb = async (
   orgId: string,
   branchId: string,
-  mods: { moduloPedidos: boolean; moduloEspera: boolean },
+  mods: { moduloPedidos: boolean; moduloEspera: boolean; moduloPagos: boolean },
 ): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;
   const n = normalizeModules({
     pedidos: mods.moduloPedidos,
     espera: mods.moduloEspera,
+    pagos: mods.moduloPagos,
   });
   const { error } = await supabase
     .from("locales")
     .update({
       modulo_pedidos: n.pedidos,
       modulo_espera: n.espera,
+      modulo_pagos: n.pagos,
       updated_at: new Date().toISOString(),
     })
     .eq("id", branchId);

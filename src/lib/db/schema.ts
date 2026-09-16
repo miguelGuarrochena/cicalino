@@ -81,6 +81,7 @@ export const organizations = pgTable("organizaciones", {
   internalReminderAt: timestamp("aviso_interno_en", { withTimezone: true }),
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
+  moduloPagos: boolean("modulo_pagos").notNull().default(false),
   contractToken: text("contrato_token"),
   contractTokenCreatedAt: timestamp("contrato_token_creado_en", {
     withTimezone: true,
@@ -131,6 +132,8 @@ export const branches = pgTable("locales", {
   diasCerrados: integer("dias_cerrados").array().notNull().default([]),
   moduloPedidos: boolean("modulo_pedidos").notNull().default(true),
   moduloEspera: boolean("modulo_espera").notNull().default(false),
+  /* supabase/split-payments-module.sql. Superadmin only (trigger). */
+  moduloPagos: boolean("modulo_pagos").notNull().default(false),
   activa: boolean("activa").notNull().default(true),
   bajaEn: timestamp("baja_en", { withTimezone: true }),
   /* When this branch starts being billed. Null means from day one. */
@@ -222,6 +225,11 @@ export const orders = pgTable(
     cancelledAt: timestamp("cancelado_en", { withTimezone: true }),
     seenAt: timestamp("visto_en", { withTimezone: true }),
     notifiedAt: timestamp("avisado_en", { withTimezone: true }),
+    /* supabase/split-payments.sql — set only for orders placed from a table
+     * QR. Kept out of pedidos_pagina (the counter board). */
+    tableSessionId: uuid("sesion_id"),
+    guestId: uuid("comensal_id"),
+    idempotencyKey: uuid("clave_idempotencia"),
   },
   (t) => [
     index("idx_pedidos_local_estado").on(t.localId, t.estado),
@@ -382,6 +390,9 @@ export const tables = pgTable(
     reservationId: uuid("reserva_id").references(() => reservations.id, {
       onDelete: "set null",
     }),
+    /* supabase/split-payments.sql — opaque token printed on the table QR. */
+    qrToken: text("qr_token").notNull(),
+    qrGeneratedAt: timestamp("qr_generado_en", { withTimezone: true }),
     updatedAt: timestamp("actualizado_en", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -498,6 +509,226 @@ export const reservationTables = pgTable(
   },
   (t) => [primaryKey({ columns: [t.reservaId, t.numero] })],
 );
+
+/* ---------------------------------------------------------------------------
+ * Split payments (supabase/split-payments.sql). Every write to sessions,
+ * guests, items and payments goes through SECURITY DEFINER functions; the
+ * panel only reads these tables.
+ * ------------------------------------------------------------------------ */
+
+export const tableSessionStatusEnum = pgEnum("mesa_sesion_estado", [
+  "abierta",
+  "pagada",
+  "cerrada",
+]);
+
+export const splitModeEnum = pgEnum("division_modo", [
+  "consumo",
+  "iguales",
+  "uno",
+  "monto",
+]);
+
+export const tablePaymentMethodEnum = pgEnum("metodo_pago_mesa", [
+  "mercado_pago",
+  "transferencia",
+  "efectivo",
+  "tarjeta_debito",
+  "tarjeta_credito",
+]);
+
+export const tablePaymentStatusEnum = pgEnum("pago_mesa_estado", [
+  "pendiente",
+  "pagado",
+  "cancelado",
+]);
+
+export const menuItems = pgTable("productos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
+  nombre: text("nombre").notNull(),
+  descripcion: text("descripcion"),
+  categoria: text("categoria"),
+  precio: integer("precio").notNull(),
+  activo: boolean("activo").notNull().default(true),
+  orden: integer("orden").notNull().default(0),
+  createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const branchPaymentSettings = pgTable("local_cobros", {
+  localId: uuid("local_id").primaryKey().references(() => branches.id, { onDelete: "cascade" }),
+  aceptaMercadoPago: boolean("acepta_mercado_pago").notNull().default(false),
+  aceptaTransferencia: boolean("acepta_transferencia").notNull().default(false),
+  aceptaEfectivo: boolean("acepta_efectivo").notNull().default(true),
+  aceptaDebito: boolean("acepta_debito").notNull().default(true),
+  aceptaCredito: boolean("acepta_credito").notNull().default(true),
+  transferenciaAlias: text("transferencia_alias"),
+  transferenciaTitular: text("transferencia_titular"),
+  transferenciaCbu: text("transferencia_cbu"),
+  /* numeric(4,2); Drizzle's numeric maps to string. */
+  recargoDebitoPct: text("recargo_debito_pct").notNull(),
+  recargoCreditoPct: text("recargo_credito_pct").notNull(),
+  recargoDeclarado: boolean("recargo_declarado").notNull().default(false),
+  recargoDeclaradoEn: timestamp("recargo_declarado_en", { withTimezone: true }),
+  recargoDeclaradoPor: uuid("recargo_declarado_por"),
+  updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* Server only: no grants for anon/authenticated. Tokens are AES-GCM
+ * encrypted by lib/server/mercadopago. */
+export const mercadoPagoAccounts = pgTable("mp_cuentas", {
+  localId: uuid("local_id").primaryKey().references(() => branches.id, { onDelete: "cascade" }),
+  mpUserId: text("mp_user_id").notNull(),
+  accessTokenCifrado: text("access_token_cifrado").notNull(),
+  refreshTokenCifrado: text("refresh_token_cifrado").notNull(),
+  expiraEn: timestamp("expira_en", { withTimezone: true }).notNull(),
+  liveMode: boolean("live_mode"),
+  conectadoEn: timestamp("conectado_en", { withTimezone: true }).notNull().defaultNow(),
+  conectadoPor: uuid("conectado_por"),
+  updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const mercadoPagoOauthStates = pgTable("mp_oauth_estados", {
+  stateHash: text("state_hash").primaryKey(),
+  localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
+  usuarioId: uuid("usuario_id").notNull(),
+  codeVerifier: text("code_verifier").notNull(),
+  expiraEn: timestamp("expira_en", { withTimezone: true }).notNull(),
+});
+
+export const tableSessions = pgTable(
+  "mesa_sesiones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
+    mesaId: uuid("mesa_id").references(() => tables.id, { onDelete: "set null" }),
+    mesaNumero: integer("mesa_numero").notNull(),
+    estado: tableSessionStatusEnum("estado").notNull().default("abierta"),
+    modoDivision: splitModeEnum("modo_division"),
+    partes: integer("partes"),
+    version: integer("version").notNull().default(1),
+    abiertaEn: timestamp("abierta_en", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+    pagadaEn: timestamp("pagada_en", { withTimezone: true }),
+    cerradaEn: timestamp("cerrada_en", { withTimezone: true }),
+    cerradaMotivo: text("cerrada_motivo"),
+  },
+  (t) => [
+    uniqueIndex("uq_mesa_sesion_abierta").on(t.mesaId).where(sql`estado = 'abierta'`),
+    index("idx_mesa_sesiones_local").on(t.localId, t.estado, t.updatedAt),
+  ],
+);
+
+export const guests = pgTable(
+  "comensales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sesionId: uuid("sesion_id").notNull().references(() => tableSessions.id, { onDelete: "cascade" }),
+    localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    /* sha256 of the browser secret. Not granted to authenticated. */
+    tokenHash: text("token_hash").notNull(),
+    createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    seenAt: timestamp("visto_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_comensales_token").on(t.tokenHash),
+    index("idx_comensales_sesion").on(t.sesionId),
+  ],
+);
+
+export const orderItems = pgTable(
+  "pedido_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pedidoId: uuid("pedido_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
+    sesionId: uuid("sesion_id").notNull().references(() => tableSessions.id, { onDelete: "cascade" }),
+    comensalId: uuid("comensal_id").notNull().references(() => guests.id, { onDelete: "cascade" }),
+    productoId: uuid("producto_id").references(() => menuItems.id, { onDelete: "set null" }),
+    /* Name and price copied when ordering. */
+    nombre: text("nombre").notNull(),
+    precioUnitario: integer("precio_unitario").notNull(),
+    cantidad: integer("cantidad").notNull(),
+    subtotal: integer("subtotal").generatedAlwaysAs(sql`precio_unitario * cantidad`),
+    createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_pedido_items_sesion").on(t.sesionId),
+    index("idx_pedido_items_pedido").on(t.pedidoId),
+  ],
+);
+
+export const tablePayments = pgTable(
+  "pagos_mesa",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
+    sesionId: uuid("sesion_id").notNull().references(() => tableSessions.id, { onDelete: "cascade" }),
+    comensalId: uuid("comensal_id").references(() => guests.id, { onDelete: "set null" }),
+    pagadorNombre: text("pagador_nombre").notNull(),
+    modo: splitModeEnum("modo").notNull(),
+    partes: integer("partes").notNull().default(1),
+    /* Consumption this payment covers. Tip and surcharge are separate and
+     * never count towards covering the bill. */
+    montoBase: integer("monto_base").notNull(),
+    propina: integer("propina").notNull().default(0),
+    propinaPorcentaje: integer("propina_porcentaje"),
+    recargo: integer("recargo").notNull().default(0),
+    recargoPorcentaje: text("recargo_porcentaje").notNull(),
+    montoTotal: integer("monto_total").generatedAlwaysAs(sql`monto_base + propina + recargo`),
+    metodo: tablePaymentMethodEnum("metodo").notNull(),
+    estado: tablePaymentStatusEnum("estado").notNull().default("pendiente"),
+    creadoPor: text("creado_por").notNull(),
+    claveIdempotencia: uuid("clave_idempotencia"),
+    createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+    confirmacion: text("confirmacion"),
+    confirmadoEn: timestamp("confirmado_en", { withTimezone: true }),
+    confirmadoPor: uuid("confirmado_por"),
+    confirmadoEmpleado: uuid("confirmado_empleado").references(() => employees.id, { onDelete: "set null" }),
+    canceladoEn: timestamp("cancelado_en", { withTimezone: true }),
+    canceladoMotivo: text("cancelado_motivo"),
+    expiraEn: timestamp("expira_en", { withTimezone: true }),
+    mpPreferenciaId: text("mp_preferencia_id"),
+    mpPagoId: text("mp_pago_id"),
+    mpEstado: text("mp_estado"),
+  },
+  (t) => [
+    index("idx_pagos_mesa_sesion").on(t.sesionId, t.estado),
+    uniqueIndex("uq_pagos_mesa_clave").on(t.sesionId, t.claveIdempotencia).where(sql`clave_idempotencia is not null`),
+    uniqueIndex("uq_pagos_mesa_mp_pago").on(t.mpPagoId).where(sql`mp_pago_id is not null`),
+  ],
+);
+
+export const tableEvents = pgTable(
+  "mesa_eventos",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
+    sesionId: uuid("sesion_id").references(() => tableSessions.id, { onDelete: "cascade" }),
+    tipo: text("tipo").notNull(),
+    actor: text("actor").notNull(),
+    comensalId: uuid("comensal_id"),
+    usuarioId: uuid("usuario_id"),
+    empleadoId: uuid("empleado_id"),
+    pedidoId: uuid("pedido_id"),
+    pagoId: uuid("pago_id"),
+    datos: jsonb("datos").notNull().default({}),
+    createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_mesa_eventos_sesion").on(t.sesionId, t.createdAt),
+    index("idx_mesa_eventos_local").on(t.localId, t.createdAt),
+  ],
+);
+
+export type MenuItem = typeof menuItems.$inferSelect;
+export type TableSession = typeof tableSessions.$inferSelect;
+export type Guest = typeof guests.$inferSelect;
+export type OrderItem = typeof orderItems.$inferSelect;
+export type TablePayment = typeof tablePayments.$inferSelect;
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   branches: many(branches),

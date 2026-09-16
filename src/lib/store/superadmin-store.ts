@@ -6,6 +6,7 @@ import {
   PRICE_PER_BRANCH,
   monthlyPriceForBranch,
   monthlyPriceForBranches,
+  normalizeModules,
   type ModuleFlags,
 } from "@/lib/pricing";
 import { supabaseConfigured } from "@/lib/supabase/config";
@@ -27,6 +28,7 @@ export interface BranchRow {
   pedidosHoy: number;
   moduloPedidos: boolean;
   moduloEspera: boolean;
+  moduloPagos: boolean;
 }
 
 export type PlanTipo = "mensual" | "anual" | "gratis";
@@ -47,6 +49,7 @@ export interface OrganizationRow {
   contractAcceptedAt: string | null;
   moduloPedidos: boolean;
   moduloEspera: boolean;
+  moduloPagos: boolean;
   altaEn: string;
   estadoSuscripcion: SubscriptionStatus;
   pruebaInicio: string | null;
@@ -71,6 +74,7 @@ export type OrgInput = {
   plan: PlanTipo;
   moduloPedidos?: boolean;
   moduloEspera?: boolean;
+  moduloPagos?: boolean;
 };
 
 export type BranchInput = {
@@ -79,6 +83,7 @@ export type BranchInput = {
   direccion: string;
   moduloPedidos?: boolean;
   moduloEspera?: boolean;
+  moduloPagos?: boolean;
 };
 
 interface SuperadminState {
@@ -128,6 +133,7 @@ const seed = (): OrganizationRow[] => {
       contractAcceptedAt: dia(40),
       moduloPedidos: true,
       moduloEspera: true,
+      moduloPagos: false,
       altaEn: dia(40),
       estadoSuscripcion: "active",
       pruebaInicio: null,
@@ -149,6 +155,7 @@ const seed = (): OrganizationRow[] => {
           responsableId: null,
           moduloPedidos: true,
           moduloEspera: true,
+          moduloPagos: false,
         },
         {
           id: "suc-norte",
@@ -163,6 +170,7 @@ const seed = (): OrganizationRow[] => {
           responsableId: null,
           moduloPedidos: true,
           moduloEspera: false,
+          moduloPagos: false,
         },
       ],
     },
@@ -182,6 +190,7 @@ const seed = (): OrganizationRow[] => {
       contractAcceptedAt: dia(7),
       moduloPedidos: true,
       moduloEspera: false,
+      moduloPagos: false,
       altaEn: dia(7),
       estadoSuscripcion: "pending_payment",
       pruebaInicio: null,
@@ -203,6 +212,7 @@ const seed = (): OrganizationRow[] => {
           responsableId: null,
           moduloPedidos: true,
           moduloEspera: false,
+          moduloPagos: false,
         },
       ],
     },
@@ -227,6 +237,7 @@ export const monthlyAmount = (org: OrganizationRow): number => {
       activas.map((s) => ({
         pedidos: s.moduloPedidos !== false,
         espera: Boolean(s.moduloEspera),
+        pagos: Boolean(s.moduloPagos),
       })),
     );
   }
@@ -272,6 +283,7 @@ export const useSuperadminStore = create<SuperadminState>()(
               contractAcceptedAt: null,
               moduloPedidos: data.moduloPedidos !== false,
               moduloEspera: Boolean(data.moduloEspera),
+              moduloPagos: Boolean(data.moduloPagos),
               altaEn: new Date().toISOString(),
               estadoSuscripcion: "active",
               pruebaInicio: null,
@@ -304,7 +316,8 @@ export const useSuperadminStore = create<SuperadminState>()(
             if (data.plan != null) next.plan = data.plan;
             if (data.moduloPedidos != null) next.moduloPedidos = data.moduloPedidos;
             if (data.moduloEspera != null) next.moduloEspera = data.moduloEspera;
-            if (!next.moduloPedidos && !next.moduloEspera) {
+            if (data.moduloPagos != null) next.moduloPagos = data.moduloPagos;
+            if (!next.moduloPedidos && !next.moduloEspera && !next.moduloPagos) {
               next.moduloPedidos = true;
             }
             return next;
@@ -377,6 +390,7 @@ export const useSuperadminStore = create<SuperadminState>()(
                       responsableId: null,
                       moduloPedidos: data.moduloPedidos !== false,
                       moduloEspera: Boolean(data.moduloEspera),
+                      moduloPagos: Boolean(data.moduloPagos),
                     },
                   ],
                 }
@@ -403,22 +417,19 @@ export const useSuperadminStore = create<SuperadminState>()(
                   ...(data.direccion != null
                     ? { direccion: data.direccion.trim() }
                     : {}),
-                  ...(data.moduloPedidos != null || data.moduloEspera != null
+                  ...(data.moduloPedidos != null ||
+                  data.moduloEspera != null ||
+                  data.moduloPagos != null
                     ? (() => {
-                        const pedidos =
-                          data.moduloPedidos != null
-                            ? data.moduloPedidos
-                            : suc.moduloPedidos;
-                        const espera =
-                          data.moduloEspera != null
-                            ? data.moduloEspera
-                            : suc.moduloEspera;
-                        if (!pedidos && !espera) {
-                          return { moduloPedidos: true, moduloEspera: false };
-                        }
+                        const n = normalizeModules({
+                          pedidos: data.moduloPedidos ?? suc.moduloPedidos,
+                          espera: data.moduloEspera ?? suc.moduloEspera,
+                          pagos: data.moduloPagos ?? suc.moduloPagos,
+                        });
                         return {
-                          moduloPedidos: pedidos,
-                          moduloEspera: espera,
+                          moduloPedidos: n.pedidos,
+                          moduloEspera: n.espera,
+                          moduloPagos: n.pagos,
                         };
                       })()
                     : {}),

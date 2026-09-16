@@ -143,6 +143,22 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('liberar-mesas-jornada.sql', 'function', 'liberar_mesas_jornada_local', 63),
     ('liberar-mesas-jornada.sql', 'function', 'liberar_mesas_jornada', 63),
     ('liberar-mesas-jornada.sql', 'index', 'idx_mesas_ocupadas_actualizado', 63),
+    ('split-payments-module.sql', 'column', 'locales.modulo_pagos', 65),
+    ('split-payments-module.sql', 'column', 'organizaciones.modulo_pagos', 65),
+    ('split-payments-module.sql', 'function', 'local_tiene_modulo', 65),
+    ('split-payments-module.sql', 'trigger', 'locales_proteger_modulos', 65),
+    ('split-payments.sql', 'column', 'mesas.qr_token', 66),
+    ('split-payments.sql', 'column', 'pedidos.sesion_id', 66),
+    ('split-payments.sql', 'table', 'productos', 66),
+    ('split-payments.sql', 'table', 'mesa_sesiones', 66),
+    ('split-payments.sql', 'table', 'comensales', 66),
+    ('split-payments.sql', 'table', 'pedido_items', 66),
+    ('split-payments.sql', 'table', 'pagos_mesa', 66),
+    ('split-payments.sql', 'table', 'local_cobros', 66),
+    ('split-payments.sql', 'table', 'mp_cuentas', 66),
+    ('split-payments.sql', 'table', 'mesa_eventos', 66),
+    ('split-payments.sql', 'function', 'mp_confirmar_pago', 66),
+    ('split-payments.sql', 'trigger', 'pedidos_mesa_guard', 66),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -284,7 +300,9 @@ requisitos (archivo, necesita) as (
     ('solicitudes-tipo.sql', '—'),
     ('sucursales-activa.sql', '—'),
     ('tipos-negocio.sql', '—'),
-    ('un-solo-modelo-cobro.sql', '—')
+    ('un-solo-modelo-cobro.sql', '—'),
+    ('split-payments-module.sql', 'modulo-espera.sql, modulos-por-sucursal.sql, solicitudes-pack.sql, security-fixes-04.sql'),
+    ('split-payments.sql', 'split-payments-module.sql, security-fixes-09.sql, pedidos-avisos-activos.sql, liberar-mesas-jornada.sql, corte-por-impago.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre
