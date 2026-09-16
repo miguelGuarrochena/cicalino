@@ -29,7 +29,7 @@ const archivoBlack = Archivo_Black({
 export const metadata: Metadata = {
   title: "Cicalino: avisamos el momento justo",
   description:
-    "El avisador de pedidos por QR para tu negocio gastronomico. Sin buzzers, sin apps: el cliente escanea un QR y le avisas cuando esta listo.",
+    "El avisador de pedidos por QR para tu negocio gastronómico. Sin buzzers, sin apps: el cliente escanea un QR y le avisás cuando está listo.",
   applicationName: "Cicalino",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     siteName: "Cicalino",
     title: "Cicalino: avisamos el momento justo",
     description:
-      "El avisador de pedidos por QR para tu negocio gastronomico. Sin buzzers, sin apps.",
+      "El avisador de pedidos por QR para tu negocio gastronómico. Sin buzzers, sin apps.",
     locale: "es_AR",
   },
 };

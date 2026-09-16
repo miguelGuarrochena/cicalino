@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
+import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { InstallButton } from "@/components/pwa/InstallButton";
 import { signOut } from "@/lib/auth/actions";
 import { clearSessionLocal } from "@/lib/store/session-store";
@@ -9,9 +11,12 @@ import type { Locale } from "@/lib/i18n";
 import Link from "next/link";
 
 export const PanelMenu = () => {
-  const { theme, cycleTheme, locale, setLocale } = useApp();
+  const { t, locale, setLocale } = useApp();
+  const { canManage } = useOperationalAccess();
+  const path = usePathname();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const onConfig = path.startsWith("/panel/config") || path.startsWith("/panel/metrics");
 
   useEffect(() => {
     if (!open) return;
@@ -76,16 +81,33 @@ export const PanelMenu = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={cycleTheme}
-            className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-sm text-carbon transition hover:bg-carbon/5"
-          >
-            <span>{locale === "en" ? "Theme" : "Tema"}</span>
-            <span className="text-xs capitalize text-carbon/50">{theme}</span>
-          </button>
-
           <InstallButton className="mt-1 w-full justify-center" />
+
+          {canManage && (
+            <Link
+              href="/panel/config"
+              onClick={() => setOpen(false)}
+              className={`mt-1 flex w-full items-center gap-2 rounded-xl px-2 py-2 text-sm transition hover:bg-carbon/5 ${
+                onConfig ? "font-semibold text-marca" : "text-carbon"
+              }`}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              {t("nav.config")}
+            </Link>
+          )}
 
           <Link
             href="/panel/ayuda"

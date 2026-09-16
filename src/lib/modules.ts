@@ -58,10 +58,22 @@ export const onlyModule = (m: ModuleFlags): ModuleId | null => {
   return on.length === 1 ? on[0]! : null;
 };
 
-/** Home del panel según módulos visibles. */
-export const panelHomePath = (m: ModuleFlags): string => {
-  if (m.pedidos) return "/panel";
-  if (m.espera) return "/panel/espera";
-  if (m.pagos) return "/panel/mesas";
+export const modulePath = (id: ModuleId): string => {
+  if (id === "pedidos") return "/panel/pedidos";
+  if (id === "espera") return "/panel/espera";
+  return "/panel/mesas";
+};
+
+/** Home del panel: un solo módulo va directo; si hay varios, el hub.
+ * El modo del dispositivo solo elige dónde arranca, no esconde módulos. */
+export const panelHomePath = (
+  m: ModuleFlags,
+  dispositivo: DeviceMode = "ambos",
+): string => {
+  const unico = onlyModule(m);
+  if (unico) return modulePath(unico);
+  if (dispositivo === "pedidos" && m.pedidos) return modulePath("pedidos");
+  if (dispositivo === "espera" && m.espera) return modulePath("espera");
+  if (m.pedidos || m.espera || m.pagos) return "/panel";
   return "/panel";
 };

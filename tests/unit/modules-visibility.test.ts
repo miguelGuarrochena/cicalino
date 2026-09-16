@@ -30,12 +30,16 @@ describe("modules — solo espera / dispositivo", () => {
     ).toEqual({ pedidos: true, espera: true, pagos: false });
   });
 
-  it("panelHomePath manda solo-espera a /panel/espera", () => {
+  it("panelHomePath manda un solo módulo directo y varios al hub", () => {
     expect(panelHomePath({ pedidos: false, espera: true, pagos: false })).toBe(
       "/panel/espera",
     );
-    expect(panelHomePath({ pedidos: true, espera: false, pagos: false })).toBe("/panel");
-    expect(panelHomePath({ pedidos: true, espera: true, pagos: false })).toBe("/panel");
+    expect(panelHomePath({ pedidos: true, espera: false, pagos: false })).toBe(
+      "/panel/pedidos",
+    );
+    expect(panelHomePath({ pedidos: true, espera: true, pagos: false })).toBe(
+      "/panel",
+    );
   });
 
   it("onlyModule detecta el único módulo contratado", () => {

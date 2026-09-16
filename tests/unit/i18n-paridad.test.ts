@@ -44,6 +44,19 @@ describe("Diccionario ES/EN", () => {
     }
   });
 
+  it("el castellano es rioplatense: voseo y sin tuteo de España", () => {
+    const texto = JSON.stringify(DICT.es);
+    expect(texto).not.toMatch(/Opcionalmente/);
+    expect(texto).not.toMatch(/esta listo/);
+    expect(texto).not.toMatch(/walk-in/);
+    expect(texto).not.toMatch(/El restaurante/);
+    expect(texto).not.toMatch(/¿Olvidaste tu contraseña/);
+    expect(texto).toContain("Avisá al cliente");
+    expect(texto).toContain("está listo o hay mesa");
+    expect(texto).toContain("Escaneá el QR y esperá el aviso");
+    expect(texto).toContain("¿Te olvidaste la contraseña?");
+  });
+
   it("el inglés no quedó en castellano por copiar y pegar", () => {
     /* Heurística barata: si la traducción inglesa es idéntica a la española y
      * tiene acentos o eñes, es un copiado. Los nombres propios y las

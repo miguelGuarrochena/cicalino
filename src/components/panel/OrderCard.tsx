@@ -198,24 +198,24 @@ export const OrderCard = ({
           {busy ? "…" : t("card.marcarListo")}
         </button>
       )}
-      {listo && onReavisar && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onReavisar(order.id)}
-          className="w-full rounded-full border border-marca/40 bg-marca/5 px-4 py-2.5 text-sm font-semibold text-marca transition hover:bg-marca/10 active:scale-[0.97] disabled:opacity-50"
-        >
-          {locale === "en" ? "Notify again 🔔" : "Volver a avisar 🔔"}
-        </button>
-      )}
       {listo && (
         <button
           type="button"
           disabled={busy}
           onClick={() => cambiar("retirado")}
-          className="w-full rounded-full border border-linea px-4 py-3.5 text-sm font-semibold text-carbon transition hover:bg-carbon/5 active:scale-[0.97] disabled:opacity-50 sm:py-3"
+          className="w-full rounded-full bg-marca px-4 py-3.5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.97] disabled:opacity-50 sm:py-3"
         >
           {busy ? "…" : t("card.marcarRetirado")}
+        </button>
+      )}
+      {listo && onReavisar && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onReavisar(order.id)}
+          className="w-full min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70 transition hover:bg-carbon/5 active:scale-[0.97] disabled:opacity-50"
+        >
+          {locale === "en" ? "Notify again" : "Volver a avisar"}
         </button>
       )}
 
@@ -233,53 +233,55 @@ export const OrderCard = ({
                   cambiar("cancelado");
                   setConfirmCancel(false);
                 }}
-                className="flex-1 rounded-full bg-red-500 text-white transition hover:bg-red-600 active:scale-[0.97] flex min-h-11 items-center justify-center px-4 text-sm font-semibold disabled:opacity-50 sm:min-h-0 sm:py-2 sm:text-xs"
+                className="flex min-h-11 flex-1 items-center justify-center rounded-full bg-red-500 px-4 text-sm font-semibold text-white transition hover:bg-red-600 active:scale-[0.97] disabled:opacity-50"
               >
                 {locale === "en" ? "Yes, cancel" : "Sí, cancelar"}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmCancel(false)}
-                className="flex-1 rounded-full border border-linea bg-surface text-carbon/60 transition hover:bg-carbon/5 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
+                className="flex min-h-11 flex-1 items-center justify-center rounded-full border border-linea bg-surface px-4 text-sm font-semibold text-carbon/60 transition hover:bg-carbon/5"
               >
                 {locale === "en" ? "Keep it" : "No, dejarlo"}
               </button>
             </div>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmCancel(true)}
-            className="w-full rounded-full text-alerta transition hover:bg-alerta-fondo flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
-          >
-            {t("card.marcarCancelado")}
-          </button>
+          <div className="flex gap-2">
+            {onMostrarQr && !cerrado && (
+              <button
+                type="button"
+                onClick={() => onMostrarQr(order)}
+                className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold text-carbon/55 transition hover:bg-carbon/5"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <path d="M14 14h3v3M20 20v.01M14 20v.01M20 14v.01" />
+                </svg>
+                {t("qr.verQr")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setConfirmCancel(true)}
+              className="flex min-h-11 flex-1 items-center justify-center rounded-full text-sm font-semibold text-alerta transition hover:bg-alerta-fondo"
+            >
+              {t("card.marcarCancelado")}
+            </button>
+          </div>
         ))}
-
-      {onMostrarQr && !cerrado && (
-        <button
-          type="button"
-          onClick={() => onMostrarQr(order)}
-          className="w-full gap-1.5 rounded-full text-carbon/55 transition hover:bg-carbon/5 flex min-h-11 items-center justify-center px-4 text-sm font-semibold sm:min-h-0 sm:py-2 sm:text-xs"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-            <path d="M14 14h3v3M20 20v.01M14 20v.01M20 14v.01" />
-          </svg>
-          {t("qr.verQr")}
-        </button>
-      )}
     </article>
   );
 };

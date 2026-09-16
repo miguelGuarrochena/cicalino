@@ -11,10 +11,12 @@ export const TableHistory = ({ sessionId, version }: { sessionId: string; versio
   const { t } = useApp();
   const [open, setOpen] = useState(false);
   const [events, setEvents] = useState<TableEventView[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [loadedFor, setLoadedFor] = useState<number | null>(null);
 
   const load = async () => {
     const res = await fetchTableHistory(sessionId);
+    setFailed(!res.ok);
     setEvents(res.ok ? res.data : []);
     setLoadedFor(version);
   };
@@ -48,14 +50,21 @@ export const TableHistory = ({ sessionId, version }: { sessionId: string; versio
         type="button"
         aria-expanded={open}
         onClick={toggle}
-        className="text-xs font-semibold text-carbon/60 underline"
+        className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:underline"
       >
         {open ? t("mesas.ocultarHistorial") : t("mesas.verHistorial")}
       </button>
       {open && (
         <ol className="mt-2 flex flex-col gap-1.5 text-xs text-carbon/70">
           {events === null && <li>…</li>}
-          {events?.length === 0 && <li>{t("mesas.sinHistorial")}</li>}
+          {failed && (
+            <li>
+              <button type="button" onClick={() => void load()} className="font-semibold text-marca">
+                {t("mesasQr.reintentar")}
+              </button>
+            </li>
+          )}
+          {!failed && events?.length === 0 && <li>{t("mesas.sinHistorial")}</li>}
           {events?.map((e) => (
             <li key={e.id} className="flex gap-2">
               <span className="shrink-0 tabular-nums text-carbon/45">

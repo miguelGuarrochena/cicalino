@@ -67,7 +67,7 @@ const AVISO_ESPERA = {
 };
 
 const EsperaPanelPage = () => {
-  const { locale } = useApp();
+  const { locale, t } = useApp();
   const toast = useToast();
   const branchId = useSessionStore((s) => s.sucursalId);
   const activeEmployee = useActiveEmployee();
@@ -547,12 +547,12 @@ const EsperaPanelPage = () => {
         <div>
           <div className="flex items-center gap-1.5">
             <p className="text-xs font-semibold uppercase tracking-wide text-espera">
-              {locale === "en" ? "Table wait" : "Espera de mesa"}
+              {t("nav.mesas")}
             </p>
             <HelpLink seccion="espera" accent="espera" />
           </div>
           <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-            {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
+            {t("nav.mesas")}
           </h1>
           {ready ? (
             <p className="mt-1 text-sm text-carbon/55">
@@ -588,60 +588,15 @@ const EsperaPanelPage = () => {
           >
             {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
           </button>
+          {visibles.pagos && (
+            <Link
+              href="/panel/mesas"
+              className="flex w-full min-h-12 items-center justify-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema sm:w-auto sm:min-h-0 sm:py-2.5"
+            >
+              {t("nav.pagos")}
+            </Link>
+          )}
         </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2">
-        <button
-          type="button"
-          onClick={() =>
-            setFiltroMesa((f) => (f === "libre" ? "todas" : "libre"))
-          }
-          className={`rounded-2xl border px-3 py-3 text-left transition ${
-            filtroMesa === "libre"
-              ? "border-espera bg-espera/15"
-              : "border-linea bg-surface hover:bg-carbon/5"
-          }`}
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-espera">
-            {locale === "en" ? "Free" : "Libres"}
-          </p>
-          <p className="mt-0.5 font-display text-2xl text-espera">{libres}</p>
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            setFiltroMesa((f) => (f === "conReserva" ? "todas" : "conReserva"))
-          }
-          className={`rounded-2xl border px-3 py-3 text-left transition ${
-            filtroMesa === "conReserva"
-              ? "border-curso-borde bg-curso-fondo"
-              : "border-linea bg-surface hover:bg-carbon/5"
-          }`}
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-curso">
-            {locale === "en" ? "With booking" : "Con reserva"}
-          </p>
-          <p className="mt-0.5 font-display text-2xl text-curso">
-            {conReserva}
-          </p>
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            setFiltroMesa((f) => (f === "ocupada" ? "todas" : "ocupada"))
-          }
-          className={`rounded-2xl border px-3 py-3 text-left transition ${
-            filtroMesa === "ocupada"
-              ? "border-alerta-borde bg-alerta-fondo"
-              : "border-linea bg-surface hover:bg-carbon/5"
-          }`}
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-alerta">
-            {locale === "en" ? "Busy" : "Ocupadas"}
-          </p>
-          <p className="mt-0.5 font-display text-2xl text-alerta">{ocupadas}</p>
-        </button>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -753,19 +708,6 @@ const EsperaPanelPage = () => {
               </p>
             )}
           </div>
-          {reservasAgenda.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setReservaMesas([]);
-                setReservaHorario(defaultHorarioInput(reservaHours));
-                setReservaOpen(true);
-              }}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-espera/40 bg-espera/10 px-4 text-sm font-semibold text-espera transition hover:bg-espera hover:text-crema sm:min-h-0 sm:py-2"
-            >
-              {locale === "en" ? "+ Reservation" : "+ Reserva"}
-            </button>
-          )}
         </div>
         {!ready ? (
           <Skeleton className="h-40 rounded-[24px]" />

@@ -17,6 +17,7 @@ import {
   packIdFor,
   type ModuleFlags,
 } from "@/lib/pricing";
+import { PackCatalog } from "@/components/landing/PackCatalog";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -268,7 +269,7 @@ const PreciosPage = () => {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10 sm:py-14">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-10 sm:py-14">
         {enviado ? (
           <div className="u-in text-center">
             <h1 className="font-display text-4xl uppercase tracking-tight text-marca">
@@ -295,13 +296,21 @@ const PreciosPage = () => {
               </h1>
               <p className="mx-auto mt-3 max-w-md text-carbon/60">
                 {es
-                  ? "Pedidos listos, espera de mesa y pagos divididos. Elegí los módulos: precio fijo por sucursal."
-                  : "Order ready, table wait and split bill. Pick modules: flat fee per branch."}
+                  ? "Pedidos, Mesa y Pagos divididos. Todas las combinaciones, precio fijo por sucursal."
+                  : "Orders, Tables and Split bill. Every combination, flat fee per branch."}
               </p>
             </div>
 
+            <div className="u-in mt-10">
+              <PackCatalog showCta={false} />
+            </div>
+
+            <p className="u-in mt-10 text-center text-sm font-semibold text-carbon/70">
+              {es ? "Armá tu combinación y contratá" : "Build your combination and sign up"}
+            </p>
+
             <div
-              className="u-in mt-8 grid gap-3 sm:grid-cols-3"
+              className="u-in mt-4 grid gap-3 sm:grid-cols-3"
               style={{ animationDelay: "0.05s" }}
               role="group"
               aria-label={es ? "Módulos" : "Modules"}
@@ -316,7 +325,7 @@ const PreciosPage = () => {
                   },
                   {
                     id: "espera" as const,
-                    label: es ? "Espera de mesa" : "Table wait",
+                    label: es ? "Mesa" : "Tables",
                     active: "border-espera ring-2 ring-espera/25",
                     priceColor: "text-espera",
                   },
