@@ -30,7 +30,6 @@ describe("operation — nav and module redirects", () => {
       "nav.pedidos",
       "nav.espera",
       "nav.pagos",
-      "nav.config",
     ]);
   });
 
@@ -40,7 +39,7 @@ describe("operation — nav and module redirects", () => {
     expect(fallbackPath("/panel/mesas/qr", sinPagos)).toBe("/panel");
     expect(
       operationalNavLinks("admin", sinPagos).map((l) => l.href),
-    ).toEqual(["/panel", "/panel/espera", "/panel/config"]);
+    ).toEqual(["/panel", "/panel/espera"]);
   });
 
   it("un empleado no ve Configuración y sí ve los módulos contratados", () => {

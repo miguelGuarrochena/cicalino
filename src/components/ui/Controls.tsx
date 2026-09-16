@@ -27,8 +27,30 @@ const IconSystem = () => {
   );
 };
 
+export const ThemeToggle = ({ className = "" }: { className?: string }) => {
+  const { theme, cycleTheme } = useApp();
+
+  return (
+    <button
+      type="button"
+      onClick={cycleTheme}
+      aria-label="Cambiar tema"
+      title={theme}
+      className={`flex size-8 items-center justify-center rounded-full border border-linea bg-surface/70 text-carbon backdrop-blur transition hover:bg-carbon/5 active:scale-95 sm:size-9 ${className}`}
+    >
+      {theme === "light" ? (
+        <IconSun />
+      ) : theme === "dark" ? (
+        <IconMoon />
+      ) : (
+        <IconSystem />
+      )}
+    </button>
+  );
+};
+
 export const Controls = ({ className = "" }: { className?: string }) => {
-  const { theme, cycleTheme, locale, setLocale } = useApp();
+  const { locale, setLocale } = useApp();
 
   return (
     <div className={`flex items-center gap-1.5 sm:gap-2 ${className}`}>
@@ -48,20 +70,7 @@ export const Controls = ({ className = "" }: { className?: string }) => {
           </button>
         ))}
       </div>
-      <button
-        onClick={cycleTheme}
-        aria-label="Cambiar tema"
-        title={theme}
-        className="flex size-8 items-center justify-center rounded-full border border-linea bg-surface/70 text-carbon backdrop-blur transition hover:bg-carbon/5 active:scale-95 sm:size-9"
-      >
-        {theme === "light" ? (
-          <IconSun />
-        ) : theme === "dark" ? (
-          <IconMoon />
-        ) : (
-          <IconSystem />
-        )}
-      </button>
+      <ThemeToggle />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { Fichaje } from "@/components/panel/TimeClock";
 import { SoundToggle } from "@/components/panel/SoundToggle";
 import { BranchSwitcher } from "@/components/panel/BranchSwitcher";
 import { PanelMenu } from "@/components/panel/PanelMenu";
+import { ThemeToggle } from "@/components/ui/Controls";
 import { useWakeLock } from "@/lib/hooks/useWakeLock";
 import { useBranchConfigSync } from "@/lib/hooks/useBranchConfigSync";
 import {
@@ -111,6 +112,7 @@ const PanelLayout = ({
             {role !== "superadmin" && <PanelNav />}
             {mostrarFichaje && <Fichaje />}
             {role !== "superadmin" && <SoundToggle />}
+            <ThemeToggle />
             <PanelMenu />
           </div>
         </div>

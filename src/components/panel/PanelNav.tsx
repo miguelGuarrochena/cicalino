@@ -39,12 +39,7 @@ const Icon = ({ k }: { k: NavIcon }) => {
         <path d="M9 8h6M9 12h6" />
       </svg>
     );
-  return (
-    <svg {...common}>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
+  return null;
 };
 
 export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) => {
@@ -55,16 +50,15 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
   if (variant === "bottom") {
     return (
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t border-linea bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden print:hidden">
-        {links.map((l, i) => {
+        {links.map((l) => {
           const active = navLinkActive(l.href, path);
-          const settings = l.icon === "settings";
           return (
             <Link
               key={l.href}
               href={l.href}
               className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] font-semibold transition ${
-                settings && i > 0 ? "border-l border-linea/80" : ""
-              } ${active ? "text-marca" : settings ? "text-carbon/40" : "text-carbon/50"}`}
+                active ? "text-marca" : "text-carbon/50"
+              }`}
             >
               <Icon k={l.icon} />
               {t(l.key)}
@@ -79,7 +73,6 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
     <nav className="hidden items-center gap-1 rounded-full bg-crema/60 p-1 sm:flex">
         {links.map((l) => {
           const active = navLinkActive(l.href, path);
-          const settings = l.icon === "settings";
           return (
             <Link
               key={l.href}
@@ -87,9 +80,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
               className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
                 active
                   ? "bg-marca text-crema"
-                  : settings
-                    ? "text-carbon/45 hover:bg-carbon/5 hover:text-carbon"
-                    : "text-carbon/60 hover:bg-carbon/5 hover:text-carbon"
+                  : "text-carbon/60 hover:bg-carbon/5 hover:text-carbon"
               }`}
             >
               {t(l.key)}

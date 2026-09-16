@@ -21,6 +21,16 @@ describe("Operación — jerarquía y layout", () => {
     expect(espera).not.toContain('f === "libre" ? "todas"');
   });
 
+  it("Configuración vive en el menú ··· y el tema está afuera, como en la landing", () => {
+    const menu = read("src/components/panel/PanelMenu.tsx");
+    const layout = read("src/app/(app)/panel/layout.tsx");
+    const nav = read("src/lib/operation.ts");
+    expect(menu).toContain('href="/panel/config"');
+    expect(menu).not.toContain("cycleTheme");
+    expect(layout).toContain("ThemeToggle");
+    expect(nav).not.toContain("nav.config");
+  });
+
   it("Pagos lista mesas a ancho completo en mobile y Cobrar es el CTA de la mesa", () => {
     const mesas = read("src/app/(app)/panel/mesas/page.tsx");
     const detalle = read("src/components/panel/mesas/TableDetail.tsx");

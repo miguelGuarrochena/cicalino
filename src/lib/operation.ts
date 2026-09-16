@@ -5,7 +5,7 @@ import {
   type ModuleId,
 } from "@/lib/modules";
 
-export type NavIcon = "orders" | "espera" | "mesas" | "settings";
+export type NavIcon = "orders" | "espera" | "mesas";
 
 export type OperationalNavLink = {
   href: string;
@@ -39,12 +39,6 @@ export const OPERATIONAL_NAV: OperationalNavLink[] = [
     roles: ["admin", "supervisor", "empleado"],
     icon: "mesas",
     module: "pagos",
-  },
-  {
-    href: "/panel/config",
-    key: "nav.config",
-    roles: ["admin", "supervisor"],
-    icon: "settings",
   },
 ];
 
