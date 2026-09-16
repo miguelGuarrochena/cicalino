@@ -55,15 +55,16 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
   if (variant === "bottom") {
     return (
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t border-linea bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden print:hidden">
-        {links.map((l) => {
+        {links.map((l, i) => {
           const active = navLinkActive(l.href, path);
+          const settings = l.icon === "settings";
           return (
             <Link
               key={l.href}
               href={l.href}
               className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] font-semibold transition ${
-                active ? "text-marca" : "text-carbon/50"
-              }`}
+                settings && i > 0 ? "border-l border-linea/80" : ""
+              } ${active ? "text-marca" : settings ? "text-carbon/40" : "text-carbon/50"}`}
             >
               <Icon k={l.icon} />
               {t(l.key)}
@@ -76,22 +77,25 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
 
   return (
     <nav className="hidden items-center gap-1 rounded-full bg-crema/60 p-1 sm:flex">
-      {links.map((l) => {
-        const active = navLinkActive(l.href, path);
-        return (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-              active
-                ? "bg-marca text-crema"
-                : "text-carbon/60 hover:bg-carbon/5 hover:text-carbon"
-            }`}
-          >
-            {t(l.key)}
-          </Link>
-        );
-      })}
+        {links.map((l) => {
+          const active = navLinkActive(l.href, path);
+          const settings = l.icon === "settings";
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                active
+                  ? "bg-marca text-crema"
+                  : settings
+                    ? "text-carbon/45 hover:bg-carbon/5 hover:text-carbon"
+                    : "text-carbon/60 hover:bg-carbon/5 hover:text-carbon"
+              }`}
+            >
+              {t(l.key)}
+            </Link>
+          );
+        })}
     </nav>
   );
 };

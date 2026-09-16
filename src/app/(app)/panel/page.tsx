@@ -266,51 +266,6 @@ const PanelOrdersPage = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <button
-          type="button"
-          onClick={() => setFiltro("todos")}
-          className={`rounded-2xl border px-3 py-3 text-left transition ${
-            filtro === "todos"
-              ? "border-marca bg-marca/10"
-              : "border-linea bg-surface hover:bg-carbon/5"
-          }`}
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-carbon/45">
-            {t("panel.resumenActivos")}
-          </p>
-          <p className="mt-0.5 font-display text-2xl text-carbon">{activos}</p>
-        </button>
-        <button
-          type="button"
-          onClick={() => setFiltro("creado")}
-          className={`rounded-2xl border px-3 py-3 text-left transition ${
-            filtro === "creado"
-              ? "border-curso-borde bg-curso-fondo"
-              : "border-linea bg-surface hover:bg-carbon/5"
-          }`}
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-curso">
-            {t("estado.creado")}
-          </p>
-          <p className="mt-0.5 font-display text-2xl text-curso">{enCurso}</p>
-        </button>
-        <button
-          type="button"
-          onClick={() => setFiltro("listo")}
-          className={`rounded-2xl border px-3 py-3 text-left transition ${
-            filtro === "listo"
-              ? "border-ok-borde bg-ok-fondo"
-              : "border-linea bg-surface hover:bg-carbon/5"
-          }`}
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-ok">
-            {t("estado.listo")}
-          </p>
-          <p className="mt-0.5 font-display text-2xl text-ok">{listos}</p>
-        </button>
-      </div>
-
       <div className="flex flex-col gap-3">
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">
           {FILTROS.map((f) => {

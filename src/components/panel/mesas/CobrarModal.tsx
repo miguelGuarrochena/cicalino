@@ -244,7 +244,12 @@ export const CobrarModal = ({
         ) : (
           <>
             {!methods.length ? (
-              <p className="text-carbon/65">{t("mesa.sinMetodos")}</p>
+              <p className="text-carbon/65">
+                {t("mesa.sinMetodos")}{" "}
+                <a href="/panel/config#pagos" className="font-semibold text-marca underline">
+                  {t("nav.config")}
+                </a>
+              </p>
             ) : (
               <fieldset>
                 <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">

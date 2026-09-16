@@ -42,6 +42,7 @@ const MesasQrPage = () => {
   const branchName = useConfigStore((s) => s.name);
   const { visibles, canManage, ready } = useOperationalAccess();
   const [tables, setTables] = useState<WithImage[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [printIds, setPrintIds] = useState<Set<string> | null>(null);
@@ -51,8 +52,10 @@ const MesasQrPage = () => {
     const res = await fetchTableQrs(branchId);
     if (!res.ok) {
       setTables([]);
+      setLoadError(true);
       return;
     }
+    setLoadError(false);
     const origin = window.location.origin;
     const withImages = await Promise.all(
       res.data.map(async (m) => {
@@ -178,12 +181,12 @@ const MesasQrPage = () => {
       </header>
 
       {canManage && (
-        <div className="flex flex-wrap gap-2 print:hidden">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 print:hidden">
           <button
             type="button"
-            disabled={busy || allActive}
+            disabled={busy || allActive || !tables.length}
             onClick={() => void apply(true, true)}
-            className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+            className="min-h-11 text-sm font-semibold text-marca disabled:opacity-40"
           >
             {t("mesasQr.activarTodas")}
           </button>
@@ -191,45 +194,36 @@ const MesasQrPage = () => {
             type="button"
             disabled={busy || activeCount === 0}
             onClick={() => void apply(false, true)}
-            className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/75 disabled:opacity-50"
+            className="min-h-11 text-sm font-semibold text-carbon/60 disabled:opacity-40"
           >
             {t("mesasQr.quitarTodas")}
           </button>
-          {selected.size > 0 && (
-            <>
-              {selectedInactive > 0 && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void apply(true, false)}
-                  className="min-h-11 rounded-full border border-marca/40 px-4 text-sm font-semibold text-marca disabled:opacity-50"
-                >
-                  {t("mesasQr.activarN", { n: selectedInactive })}
-                </button>
-              )}
-              {selectedActive > 0 && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void apply(false, false)}
-                  className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70 disabled:opacity-50"
-                >
-                  {t("mesasQr.quitarN", { n: selectedActive })}
-                </button>
-              )}
-            </>
-          )}
           <button
             type="button"
             onClick={printSelected}
-            className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/75"
+            className="min-h-11 text-sm font-semibold text-carbon/60"
           >
-            {selected.size ? t("mesasQr.imprimirSeleccionados") : t("mesasQr.imprimir")}
+            {t("mesasQr.imprimir")}
           </button>
         </div>
       )}
 
-      {!tables.length && (
+      {loadError && (
+        <EmptyState
+          title={t("mesasQr.errorCarga")}
+          action={
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="min-h-11 rounded-full bg-marca px-5 text-sm font-semibold text-crema"
+            >
+              {t("mesasQr.reintentar")}
+            </button>
+          }
+        />
+      )}
+
+      {!loadError && !tables.length && (
         <EmptyState
           title={t("mesasQr.sinMesas")}
           action={
@@ -240,7 +234,7 @@ const MesasQrPage = () => {
         />
       )}
 
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 print:grid-cols-2 print:gap-6">
+      <ul className={`grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 print:grid-cols-2 print:gap-6 ${selected.size ? "pb-28 sm:pb-4" : ""}`}>
         {tables.map((m) => {
           const on = m.qrActive;
           const checked = selected.has(m.id);
@@ -248,7 +242,7 @@ const MesasQrPage = () => {
           return (
             <li
               key={m.id}
-              className={`flex break-inside-avoid flex-col rounded-[20px] border bg-surface p-3 transition print:items-center print:rounded-none print:border-2 print:border-dashed print:border-gray-400 print:bg-white print:p-4 print:text-center ${
+              className={`flex break-inside-avoid flex-col rounded-[20px] border bg-surface p-4 transition print:items-center print:rounded-none print:border-2 print:border-dashed print:border-gray-400 print:bg-white print:p-4 print:text-center ${
                 hidePrint ? "print:hidden" : ""
               } ${
                 on
@@ -256,7 +250,7 @@ const MesasQrPage = () => {
                   : "border-linea"
               } ${checked ? "ring-2 ring-marca/40" : ""}`}
             >
-              <label className="flex cursor-pointer items-start justify-between gap-2 print:hidden">
+              <label className="flex cursor-pointer items-start justify-between gap-3 print:hidden">
                 <span className="flex min-w-0 flex-col">
                   <span className="font-display text-2xl uppercase text-carbon">
                     {t("mesa.mesaN", { n: m.number })}
@@ -267,7 +261,7 @@ const MesasQrPage = () => {
                   type="checkbox"
                   checked={checked}
                   onChange={() => toggle(m.id)}
-                  className="mt-1 size-5 accent-[var(--brand)]"
+                  className="mt-1 size-6 accent-[var(--brand)]"
                   aria-label={t("mesa.mesaN", { n: m.number })}
                 />
               </label>
@@ -282,11 +276,11 @@ const MesasQrPage = () => {
                 <img
                   src={m.image}
                   alt={t("mesasQr.alt", { n: m.number })}
-                  className="mt-2 w-full max-w-[220px] self-center"
+                  className="mt-3 w-full self-center print:max-w-[220px]"
                 />
               ) : (
-                <div className="mt-3 flex min-h-24 flex-col items-center justify-center rounded-2xl border border-dashed border-linea bg-crema/40 text-center print:hidden">
-                  <p className="text-xs text-carbon/50">{t("mesasQr.sinQr")}</p>
+                <div className="mt-3 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-linea bg-crema/40 text-center print:hidden">
+                  <p className="text-sm text-carbon/50">{t("mesasQr.sinQr")}</p>
                 </div>
               )}
               {on && (
@@ -294,12 +288,12 @@ const MesasQrPage = () => {
                   {t("mesasQr.instruccion")}
                 </p>
               )}
-              <div className="mt-3 flex flex-wrap gap-2 print:hidden">
+              <div className="mt-4 flex flex-col gap-2 print:hidden sm:flex-row sm:flex-wrap">
                 {on && (
                   <button
                     type="button"
                     onClick={() => download(m)}
-                    className="min-h-9 rounded-full border border-linea px-3 text-xs font-semibold text-carbon/75"
+                    className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/75"
                   >
                     {t("mesasQr.descargar")}
                   </button>
@@ -309,7 +303,7 @@ const MesasQrPage = () => {
                     type="button"
                     disabled={busy}
                     onClick={() => void regenerate(m)}
-                    className="min-h-9 rounded-full border border-linea px-3 text-xs font-semibold text-carbon/60 disabled:opacity-50"
+                    className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/60 disabled:opacity-50"
                   >
                     {t("mesasQr.regenerar")}
                   </button>
@@ -333,7 +327,7 @@ const MesasQrPage = () => {
                         }
                       })();
                     }}
-                    className="min-h-9 rounded-full bg-marca px-3 text-xs font-semibold text-crema disabled:opacity-50"
+                    className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
                   >
                     {t("mesasQr.activar")}
                   </button>
@@ -343,6 +337,41 @@ const MesasQrPage = () => {
           );
         })}
       </ul>
+
+      {canManage && selected.size > 0 && (
+        <div className="fixed inset-x-0 bottom-14 z-20 border-t border-linea bg-surface/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:bottom-0 print:hidden">
+          <p className="text-sm font-semibold text-carbon">{t("mesasQr.seleccionN", { n: selected.size })}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {selectedInactive > 0 && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void apply(true, false)}
+                className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+              >
+                {t("mesasQr.activarN", { n: selectedInactive })}
+              </button>
+            )}
+            {selectedActive > 0 && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void apply(false, false)}
+                className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70 disabled:opacity-50"
+              >
+                {t("mesasQr.quitarN", { n: selectedActive })}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={printSelected}
+              className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/75"
+            >
+              {t("mesasQr.imprimirSeleccionados")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -11,6 +11,7 @@ import { useTableBills } from "@/lib/hooks/useTableBills";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { TableDetail } from "@/components/panel/mesas/TableDetail";
 import { STATUS_STYLE } from "@/components/panel/mesas/BillStatusBadge";
 import { fetchPaymentSettings } from "@/lib/data/tables";
@@ -108,7 +109,7 @@ const MesasPage = () => {
         {canManage && (
           <Link
             href="/panel/mesas/qr"
-            className="min-h-10 rounded-full border border-linea px-4 py-2 text-sm font-semibold text-carbon/75 transition hover:bg-carbon/5 active:scale-[0.98]"
+            className="min-h-10 text-sm font-semibold text-carbon/55 underline-offset-4 hover:text-carbon hover:underline"
           >
             {t("mesas.verQr")}
           </Link>
@@ -138,25 +139,16 @@ const MesasPage = () => {
             )}
 
             {openBills.length > 0 && (
-              <div className="flex rounded-full border border-linea bg-surface p-1">
-                {(
-                  [
-                    ["atencion", t("mesas.filtroAtencion", { n: attentionN })],
-                    ["todas", t("mesas.filtroTodas", { n: openBills.length })],
-                  ] as const
-                ).map(([k, label]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setFiltro(k)}
-                    className={`min-h-9 flex-1 rounded-full px-3 text-xs font-semibold transition ${
-                      filtro === k ? "bg-marca text-crema" : "text-carbon/55 hover:text-carbon"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <SegmentedTabs
+                ariaLabel={t("mesas.resumen")}
+                size="sm"
+                value={filtro}
+                onChange={setFiltro}
+                options={[
+                  { id: "atencion", label: t("mesas.filtroAtencion", { n: attentionN }) },
+                  { id: "todas", label: t("mesas.filtroTodas", { n: openBills.length }) },
+                ]}
+              />
             )}
 
             {!shown.length && (
@@ -166,10 +158,11 @@ const MesasPage = () => {
                     ? t("mesas.sinAtencion")
                     : t("mesas.sinMesasAbiertas")
                 }
+                body={openBills.length ? t("mesas.sinAtencionBody") : undefined}
               />
             )}
 
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
               {shown.map((b) => {
                 const status = billStatus(b);
                 const style = STATUS_STYLE[status];
@@ -183,49 +176,50 @@ const MesasPage = () => {
                       type="button"
                       aria-current={active ? "true" : undefined}
                       onClick={() => setSelected(b.session.id)}
-                      className={`flex min-h-[7.5rem] w-full flex-col gap-2 rounded-[22px] border bg-surface p-3 text-left transition hover:border-marca/40 active:scale-[0.99] ${style.ring} ${
+                      className={`flex min-h-[5.5rem] w-full flex-col gap-1.5 rounded-[22px] border bg-surface p-4 text-left transition hover:border-marca/40 active:scale-[0.99] ${style.ring} ${
                         active ? "lg:ring-2 lg:ring-marca/25" : ""
                       }`}
                     >
-                      <span className="flex items-start justify-between gap-1">
-                        <span className="font-display text-2xl uppercase leading-none text-carbon sm:text-3xl">
-                          {b.session.tableNumber}
+                      <span className="flex items-start justify-between gap-2">
+                        <span className="font-display text-3xl uppercase leading-none text-carbon">
+                          {t("mesa.mesaN", { n: b.session.tableNumber })}
                         </span>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${style.chip}`}>
-                          <span aria-hidden className={`size-1.5 rounded-full ${style.dot}`} />
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${style.chip}`}>
+                          <span aria-hidden className={`size-2 rounded-full ${style.dot}`} />
                           {t(`mesas.estadoCobro.${status}`)}
                         </span>
                       </span>
                       {status !== "sin-consumo" ? (
-                        <span className="mt-auto">
-                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-carbon/45">
+                        <span
+                          className={`font-display text-2xl tabular-nums ${
+                            pending > 0 ? "text-alerta" : "text-ok"
+                          }`}
+                        >
+                          {formatMoney(pending)}
+                          <span className="ml-1.5 align-middle text-xs font-semibold uppercase tracking-wide text-carbon/45">
                             {t("mesa.pendiente")}
-                          </span>
-                          <span
-                            className={`font-display text-lg tabular-nums sm:text-xl ${
-                              pending > 0 ? "text-alerta" : "text-ok"
-                            }`}
-                          >
-                            {formatMoney(pending)}
                           </span>
                         </span>
                       ) : (
-                        <span className="mt-auto text-xs text-carbon/45">{t("mesas.estadoCobro.sin-consumo")}</span>
+                        <span className="text-sm text-carbon/45">{t("mesas.estadoCobro.sin-consumo")}</span>
                       )}
                       {(waiting > 0 || kitchen > 0) && (
                         <span className="flex flex-wrap gap-1">
                           {waiting > 0 && (
-                            <span className="rounded-full bg-curso-fondo px-2 py-0.5 text-[10px] font-semibold text-curso">
+                            <span className="rounded-full bg-curso-fondo px-2 py-0.5 text-[11px] font-semibold text-curso">
                               {t("mesas.pagosPorConfirmar", { n: waiting })}
                             </span>
                           )}
                           {kitchen > 0 && (
-                            <span className="rounded-full bg-marca/10 px-2 py-0.5 text-[10px] font-semibold text-marca">
+                            <span className="rounded-full bg-marca/10 px-2 py-0.5 text-[11px] font-semibold text-marca">
                               {t("mesas.pedidosPorPreparar", { n: kitchen })}
                             </span>
                           )}
                         </span>
                       )}
+                      <span className="mt-1 text-sm font-semibold text-marca lg:hidden">
+                        {t("mesas.verMesa")} →
+                      </span>
                     </button>
                   </li>
                 );

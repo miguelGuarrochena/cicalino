@@ -34,6 +34,7 @@ export const ConfigNav = () => {
     { id: "general", href: "/panel/config#general", key: "config.tab.general", show: true },
     { id: "mesas", href: "/panel/config#mesas", key: "config.tab.mesas", show: showMesas },
     { id: "empleados", href: "/panel/config#empleados", key: "config.tab.empleados", show: true },
+    { id: "carta", href: "/panel/config#carta", key: "config.tab.carta", show: visibles.pagos },
     { id: "pagos", href: "/panel/config#pagos", key: "config.tab.pagos", show: visibles.pagos },
     { id: "metricas", href: "/panel/config/metricas", key: "config.tab.metricas", show: isOwner },
   ];

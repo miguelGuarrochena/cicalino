@@ -57,6 +57,9 @@ export const TableDetail = ({
   const open = bill.session.status === "abierta";
   const names = new Map(bill.guests.map((g) => [g.id, g.name]));
   const pending = billPending(bill);
+  const waitingPayments = bill.payments.filter(
+    (p) => p.status === "pendiente" && p.method !== "mercado_pago",
+  );
 
   const errorText = (reason?: string) => {
     for (const k of [`mesas.error.${reason}`, `mesa.error.${reason}`]) {
@@ -195,20 +198,20 @@ export const TableDetail = ({
           ))}
         </dl>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          {open && pending > 0 && (
-            <button
-              type="button"
-              onClick={() => setCobrarOpen(true)}
-              className="min-h-12 flex-1 rounded-full bg-marca px-6 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98] sm:flex-none"
-            >
-              {t("mesas.cobrar")}
-            </button>
-          )}
+        {open && pending > 0 && (
+          <button
+            type="button"
+            onClick={() => setCobrarOpen(true)}
+            className="mt-4 min-h-12 w-full rounded-full bg-marca px-6 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98]"
+          >
+            {t("mesas.cobrar")} · {formatMoney(pending)}
+          </button>
+        )}
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
           <button
             type="button"
             onClick={() => window.print()}
-            className="min-h-12 rounded-full border border-linea px-5 text-sm font-semibold text-carbon/75"
+            className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:text-carbon hover:underline"
           >
             {t("mesas.imprimirCuenta")}
           </button>
@@ -216,12 +219,31 @@ export const TableDetail = ({
             <button
               type="button"
               onClick={() => setCloseOpen(true)}
-              className="min-h-12 rounded-full border border-linea px-5 text-sm font-semibold text-carbon/60"
+              className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:text-carbon hover:underline"
             >
               {t("mesas.cerrarMesa")}
             </button>
           )}
         </div>
+
+        {waitingPayments.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-curso-borde bg-curso-fondo p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-curso">
+              {t("mesas.esperandoConfirmacion")}
+            </p>
+            <ul className="mt-2 flex flex-col gap-2">
+              {waitingPayments.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0 text-sm">
+                    <span className="font-semibold text-carbon">{p.payerName}</span>{" "}
+                    <span className="tabular-nums">{formatMoney(p.total)}</span>
+                  </span>
+                  {paymentActions(p)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="mt-5">
           <SegmentedTabs

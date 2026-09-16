@@ -241,9 +241,12 @@ const ConfigPage = () => {
       <SubscriptionCard />
       <div id="general" className="flex scroll-mt-28 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-            {t("config.titulo")}
-          </h1>
+          <div>
+            <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+              {t("config.titulo")}
+            </h1>
+            <p className="mt-1 text-sm text-carbon/55">{t("config.subtitulo")}</p>
+          </div>
           <HelpLink seccion="config" />
         </div>
         <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
@@ -579,13 +582,30 @@ const ConfigPage = () => {
               <p className="mt-1 text-sm text-carbon/55">{t("config.mesasQrCtaSub")}</p>
               <Link
                 href="/panel/mesas/qr"
-                className="mt-3 inline-flex min-h-11 items-center rounded-full bg-marca px-5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98]"
+                className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-[0.98]"
               >
                 {t("config.mesasQrCta")}
               </Link>
             </div>
           </section>
         </>
+      )}
+
+      {dirty && (
+        <div className="sticky bottom-20 z-20 -mx-4 mt-4 border-t border-linea bg-crema/95 px-4 py-3 sm:hidden">
+          <button
+            type="button"
+            onClick={() => void guardar()}
+            disabled={saving}
+            className="min-h-12 w-full rounded-full bg-marca px-5 text-sm font-semibold text-crema disabled:opacity-60"
+          >
+            {saving
+              ? "…"
+              : guardado
+                ? `✓ ${t("config.guardado")}`
+                : t("config.guardar")}
+          </button>
+        </div>
       )}
     </div>
   );

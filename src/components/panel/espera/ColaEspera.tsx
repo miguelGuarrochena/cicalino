@@ -59,15 +59,6 @@ export const ColaEspera = ({
           {locale === "en" ? "Waiting list" : "Lista de espera"}
           {cola.length ? ` · ${cola.length}` : ""}
         </h2>
-        {cola.length > 0 && (
-          <button
-            type="button"
-            onClick={onAgregar}
-            className="inline-flex min-h-11 items-center justify-center rounded-full bg-espera px-4 text-sm font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte sm:min-h-0 sm:py-2"
-          >
-            {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
-          </button>
-        )}
       </div>
       <div className="flex flex-col gap-3">
         {paginated.map((e, idx) => {
@@ -110,23 +101,14 @@ export const ColaEspera = ({
                   {e.employee ? ` · ${e.employee}` : ""}
                 </p>
               </div>
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[9.5rem] sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[9.5rem]">
                 {e.status === "esperando" && (
                   <button
                     type="button"
                     onClick={() => onAvisar(e.id)}
-                    className={`${BTN_MOBILE} bg-espera text-crema hover:bg-espera-fuerte sm:flex-1`}
+                    className={`${BTN_MOBILE} bg-espera text-crema hover:bg-espera-fuerte`}
                   >
                     {locale === "en" ? "Notify" : "Avisar"}
-                  </button>
-                )}
-                {e.status === "avisado" && (
-                  <button
-                    type="button"
-                    onClick={() => onReavisar(e.id)}
-                    className={`${BTN_MOBILE} border border-espera/40 bg-espera/10 text-espera hover:bg-espera hover:text-crema sm:flex-none sm:whitespace-nowrap`}
-                  >
-                    {locale === "en" ? "Notify again 🔔" : "Volver a avisar 🔔"}
                   </button>
                 )}
                 {(e.status === "esperando" || e.status === "avisado") && (
@@ -134,9 +116,27 @@ export const ColaEspera = ({
                     type="button"
                     onClick={() => onSentar(e.id)}
                     disabled={!sentable}
-                    className={`${BTN_MOBILE} bg-carbon text-crema hover:opacity-90 disabled:opacity-40 sm:flex-1`}
+                    className={`${BTN_MOBILE} ${
+                      e.status === "avisado"
+                        ? "bg-espera text-crema hover:bg-espera-fuerte"
+                        : "border border-linea text-carbon/80 hover:bg-crema"
+                    } disabled:opacity-40`}
                   >
                     {locale === "en" ? "Seat" : "Sentar"}
+                    {!sentable
+                      ? locale === "en"
+                        ? " · no free table"
+                        : " · sin mesa libre"
+                      : ""}
+                  </button>
+                )}
+                {e.status === "avisado" && (
+                  <button
+                    type="button"
+                    onClick={() => onReavisar(e.id)}
+                    className={`${BTN_MOBILE} border border-espera/40 text-espera hover:bg-espera/10`}
+                  >
+                    {locale === "en" ? "Notify again" : "Volver a avisar"}
                   </button>
                 )}
                 <div className="flex gap-2">
