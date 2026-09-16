@@ -17,7 +17,6 @@ import { saveBranchConfig } from "@/lib/data/branch";
 import { syncTables } from "@/lib/data/waitlist";
 import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { HelpLink } from "@/components/panel/HelpLink";
-import { MenuEditor } from "@/components/panel/config/MenuEditor";
 import { PaymentMethodsCard } from "@/components/panel/config/PaymentMethodsCard";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
@@ -583,14 +582,9 @@ const ConfigPage = () => {
       </section>
 
       {c.moduloPagos && isRealBranchId(branchId) && (
-        <>
-          <section className={`${CARD} scroll-mt-28`} id="carta">
-            <MenuEditor branchId={branchId} />
-          </section>
-          <section className={`${CARD} scroll-mt-28`} id="pagos">
-            <PaymentMethodsCard branchId={branchId} canEdit={role === "admin"} />
-          </section>
-        </>
+        <section className={`${CARD} scroll-mt-28`} id="pagos">
+          <PaymentMethodsCard branchId={branchId} canEdit={role === "admin"} />
+        </section>
       )}
 
       {dirty && (

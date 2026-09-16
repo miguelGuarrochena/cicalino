@@ -172,6 +172,11 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('staff-floor-guards.sql', 'function', 'sincronizar_mesas', 69),
     ('staff-floor-audit.sql', 'function', 'mesa_historial', 70),
     ('staff-floor-audit.sql', 'policy', 'productos alta', 70),
+    ('menu-categorias.sql', 'table', 'categorias', 71),
+    ('menu-categorias.sql', 'column', 'productos.costo', 71),
+    ('menu-categorias.sql', 'column', 'productos.imagen_url', 71),
+    ('menu-categorias.sql', 'policy', 'categorias de mi scope', 71),
+    ('menu-categorias.sql', 'policy', 'categorias alta', 71),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -320,7 +325,8 @@ requisitos (archivo, necesita) as (
     ('split-payments.sql', 'split-payments-module.sql, staff-roles.sql, security-fixes-09.sql, pedidos-avisos-activos.sql, liberar-mesas-jornada.sql, corte-por-impago.sql'),
     ('mesa-qr-activo.sql', 'split-payments.sql'),
     ('staff-floor-guards.sql', 'staff-roles.sql, split-payments.sql, mesa-qr-activo.sql'),
-    ('staff-floor-audit.sql', 'staff-floor-guards.sql')
+    ('staff-floor-audit.sql', 'staff-floor-guards.sql'),
+    ('menu-categorias.sql', 'split-payments.sql, staff-floor-audit.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

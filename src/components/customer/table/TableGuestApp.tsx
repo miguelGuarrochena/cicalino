@@ -26,6 +26,7 @@ export interface GuestMenuProduct {
   description: string | null;
   category: string | null;
   price: number;
+  imageUrl?: string | null;
 }
 
 export interface TableGuestInitial {
@@ -286,6 +287,14 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
                   const q = cart[p.id] ?? 0;
                   return (
                     <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-linea bg-surface p-3">
+                      {p.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.imageUrl}
+                          alt=""
+                          className="size-14 shrink-0 rounded-xl object-cover"
+                        />
+                      ) : null}
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-carbon">{p.name}</p>
                         {p.description && (

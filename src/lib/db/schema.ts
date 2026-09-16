@@ -551,6 +551,16 @@ export const tablePaymentStatusEnum = pgEnum("pago_mesa_estado", [
   "cancelado",
 ]);
 
+export const menuCategories = pgTable("categorias", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
+  nombre: text("nombre").notNull(),
+  activa: boolean("activa").notNull().default(true),
+  orden: integer("orden").notNull().default(0),
+  createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const menuItems = pgTable("productos", {
   id: uuid("id").primaryKey().defaultRandom(),
   localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
@@ -558,6 +568,8 @@ export const menuItems = pgTable("productos", {
   descripcion: text("descripcion"),
   categoria: text("categoria"),
   precio: integer("precio").notNull(),
+  costo: integer("costo"),
+  imagenUrl: text("imagen_url"),
   activo: boolean("activo").notNull().default(true),
   orden: integer("orden").notNull().default(0),
   createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),

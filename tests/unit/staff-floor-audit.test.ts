@@ -14,9 +14,11 @@ const chequeo = readFileSync(
 
 describe("staff-floor-audit", () => {
   it("va después de staff-floor-guards", () => {
-    expect(orden[orden.length - 1]).toBe("staff-floor-audit.sql");
     expect(orden.indexOf("staff-floor-guards.sql")).toBeLessThan(
       orden.indexOf("staff-floor-audit.sql"),
+    );
+    expect(orden.indexOf("staff-floor-audit.sql")).toBeLessThan(
+      orden.indexOf("menu-categorias.sql"),
     );
   });
 

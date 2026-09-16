@@ -105,29 +105,46 @@ export interface MenuProduct {
   description: string | null;
   category: string | null;
   price: number;
+  imageUrl: string | null;
 }
 
 export const fetchMenu = async (branchId: string): Promise<MenuProduct[]> => {
   const admin = createAdminSupabase();
   if (!admin) return [];
-  const { data, error } = await admin
-    .from("productos")
-    .select("id, nombre, descripcion, categoria, precio")
-    .eq("local_id", branchId)
-    .eq("activo", true)
-    .order("orden", { ascending: true })
-    .order("nombre", { ascending: true });
+  const [{ data, error }, cats] = await Promise.all([
+    admin
+      .from("productos")
+      .select("id, nombre, descripcion, categoria, precio, imagen_url")
+      .eq("local_id", branchId)
+      .eq("activo", true)
+      .order("orden", { ascending: true })
+      .order("nombre", { ascending: true }),
+    admin
+      .from("categorias")
+      .select("nombre, activa")
+      .eq("local_id", branchId)
+      .eq("activa", false),
+  ]);
   if (error) {
     console.error("m.menu", error.message);
     return [];
   }
-  return (data ?? []).map((p) => ({
-    id: p.id as string,
-    name: p.nombre as string,
-    description: (p.descripcion as string | null) ?? null,
-    category: (p.categoria as string | null) ?? null,
-    price: p.precio as number,
-  }));
+  const hidden = new Set(
+    (cats.data ?? []).map((c) => String(c.nombre ?? "").trim().toLowerCase()),
+  );
+  return (data ?? [])
+    .filter((p) => {
+      const cat = ((p.categoria as string | null) ?? "").trim().toLowerCase();
+      return !cat || !hidden.has(cat);
+    })
+    .map((p) => ({
+      id: p.id as string,
+      name: p.nombre as string,
+      description: (p.descripcion as string | null) ?? null,
+      category: (p.categoria as string | null) ?? null,
+      price: p.precio as number,
+      imageUrl: (p.imagen_url as string | null) ?? null,
+    }));
 };
 
 export interface GuestPaymentOptions {

@@ -451,11 +451,38 @@ export const paymentDatos = (
   return d;
 };
 
+const pesosCero = z.coerce.number().int().min(0).max(10_000_000);
+
 export const menuProductSchema = z.object({
   name: textField(1, 80, "el nombre del producto"),
   description: optionalTextField(200, "la descripción"),
   category: optionalTextField(40, "la categoría"),
   price: pesos,
+  cost: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? null : v),
+    pesosCero.nullable().optional(),
+  ),
+  imageUrl: z
+    .string()
+    .trim()
+    .max(200_000, "la imagen es demasiado pesada.")
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v : undefined))
+    .refine(
+      (v) =>
+        !v ||
+        v.startsWith("https://") ||
+        v.startsWith("http://") ||
+        v.startsWith("data:image/"),
+      "La imagen tiene que ser una URL o un archivo de foto.",
+    ),
+  active: z.boolean().default(true),
+  order: z.coerce.number().int().min(0).max(10_000).default(0),
+});
+
+export const menuCategorySchema = z.object({
+  name: textField(1, 40, "el nombre de la categoría"),
   active: z.boolean().default(true),
   order: z.coerce.number().int().min(0).max(10_000).default(0),
 });

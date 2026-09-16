@@ -12,6 +12,7 @@ export const ModalShell = ({
   labelledBy,
   busy = false,
   busyLabel,
+  wide = false,
 }: {
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -19,6 +20,7 @@ export const ModalShell = ({
   labelledBy?: string;
   busy?: boolean;
   busyLabel?: string;
+  wide?: boolean;
 }) => {
   const capaRef = useRef<HTMLDivElement>(null);
   const volverA = useRef<HTMLElement | null | undefined>(undefined);
@@ -114,7 +116,9 @@ export const ModalShell = ({
         tabIndex={-1}
         aria-labelledby={labelledBy}
         aria-busy={busy || undefined}
-        className="u-pop relative z-10 flex max-h-[min(92dvh,760px)] w-full max-w-none flex-col overflow-hidden rounded-t-[24px] border border-linea border-b-0 bg-surface shadow-2xl sm:max-w-lg sm:rounded-[28px] sm:border-b"
+        className={`u-pop relative z-10 flex max-h-[min(92dvh,760px)] w-full max-w-none flex-col overflow-hidden rounded-t-[24px] border border-linea border-b-0 bg-surface shadow-2xl sm:rounded-[28px] sm:border-b ${
+          wide ? "sm:max-w-2xl" : "sm:max-w-lg"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div
