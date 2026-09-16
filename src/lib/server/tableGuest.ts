@@ -9,6 +9,7 @@ import {
   type TableBill,
 } from "@/lib/tableBill";
 import { mercadoPagoConfigured } from "@/lib/server/mercadopago";
+import { orderForGuests } from "@/lib/menuView";
 
 /* Guest identity at a table.
  *
@@ -114,37 +115,36 @@ export const fetchMenu = async (branchId: string): Promise<MenuProduct[]> => {
   const [{ data, error }, cats] = await Promise.all([
     admin
       .from("productos")
-      .select("id, nombre, descripcion, categoria, precio, imagen_url")
+      .select("id, nombre, descripcion, categoria, precio, imagen_url, orden")
       .eq("local_id", branchId)
       .eq("activo", true)
       .order("orden", { ascending: true })
       .order("nombre", { ascending: true }),
     admin
       .from("categorias")
-      .select("nombre, activa")
-      .eq("local_id", branchId)
-      .eq("activa", false),
+      .select("nombre, activa, orden")
+      .eq("local_id", branchId),
   ]);
   if (error) {
     console.error("m.menu", error.message);
     return [];
   }
-  const hidden = new Set(
-    (cats.data ?? []).map((c) => String(c.nombre ?? "").trim().toLowerCase()),
-  );
-  return (data ?? [])
-    .filter((p) => {
-      const cat = ((p.categoria as string | null) ?? "").trim().toLowerCase();
-      return !cat || !hidden.has(cat);
-    })
-    .map((p) => ({
-      id: p.id as string,
-      name: p.nombre as string,
-      description: (p.descripcion as string | null) ?? null,
-      category: (p.categoria as string | null) ?? null,
-      price: p.precio as number,
-      imageUrl: (p.imagen_url as string | null) ?? null,
-    }));
+  const products = (data ?? []).map((p) => ({
+    id: p.id as string,
+    name: p.nombre as string,
+    description: (p.descripcion as string | null) ?? null,
+    category: (p.categoria as string | null) ?? null,
+    price: p.precio as number,
+    imageUrl: (p.imagen_url as string | null) ?? null,
+    order: (p.orden as number | null) ?? 0,
+  }));
+  const categories = (cats.data ?? []).map((c) => ({
+    name: String(c.nombre ?? ""),
+    active: c.activa !== false,
+    order: Number(c.orden ?? 0),
+  }));
+  /* Same rules as the owner's "Ver menú" preview (lib/menuView). */
+  return orderForGuests(categories, products).map(({ order: _order, ...p }) => p);
 };
 
 export interface GuestPaymentOptions {

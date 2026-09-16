@@ -1,11 +1,8 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { MenuManager } from "@/components/panel/config/menu/MenuManager";
-import { useSessionStore } from "@/lib/store/session-store";
-
-const ConfigCartaPage = () => {
-  const branchId = useSessionStore((s) => s.sucursalId);
-  return <MenuManager key={branchId} />;
+/* The menu moved to its own page. Old links and bookmarks land there. */
+const ConfigCartaRedirect = () => {
+  redirect("/panel/menu");
 };
 
-export default ConfigCartaPage;
+export default ConfigCartaRedirect;

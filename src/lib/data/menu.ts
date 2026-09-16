@@ -53,6 +53,10 @@ const mapCategory = (c: Record<string, unknown>): MenuCategoryView => ({
   order: (c.orden as number) ?? 0,
 });
 
+/* Category names are matched case-insensitively with ilike. Escape its
+ * wildcards so a name like "2x1_promo" can't match other categories. */
+const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (c) => `\\${c}`);
+
 const sameCat = (a: string | null | undefined, b: string | null | undefined) =>
   (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 
@@ -106,7 +110,7 @@ const ensureCategory = async (
     .from("categorias")
     .select("id")
     .eq("local_id", branchId)
-    .ilike("nombre", trimmed)
+    .ilike("nombre", escapeLike(trimmed))
     .maybeSingle();
   if (data) return;
   await supabase.from("categorias").insert({
@@ -196,7 +200,7 @@ export const saveMenuCategory = async (
       .from("productos")
       .update({ categoria: v.data.name })
       .eq("local_id", branchId)
-      .ilike("categoria", previousName.trim());
+      .ilike("categoria", escapeLike(previousName.trim()));
   }
   return { ok: true, category: mapCategory(data as Record<string, unknown>) };
 };
@@ -211,7 +215,7 @@ export const deleteMenuCategory = async (
     .from("productos")
     .update({ categoria: null })
     .eq("local_id", branchId)
-    .ilike("categoria", category.name.trim());
+    .ilike("categoria", escapeLike(category.name.trim()));
   if (productsError) {
     reportError("panel.carta.categoria.vaciar", productsError, { id: category.id });
     return false;
@@ -298,14 +302,12 @@ export const importMenuRows = async (
   branchId: string,
   rows: MenuImportRow[],
   existing: MenuProductView[],
-  categoryCount: number,
 ): Promise<{ created: number; skipped: number; failed: number }> => {
   const valid = rows.filter((r) => !r.error && r.price != null);
   let created = 0;
   let skipped = 0;
   let failed = 0;
   let order = existing.reduce((m, p) => Math.max(m, p.order + 1), 0);
-  let cats = categoryCount;
   for (const row of valid) {
     const dup = existing.some(
       (p) =>
@@ -328,12 +330,10 @@ export const importMenuRows = async (
     if (res.ok) {
       created++;
       existing.push(res.product);
-      if (row.category) cats += 1;
     } else {
       failed++;
     }
   }
-  void cats;
   return { created, skipped, failed };
 };
 

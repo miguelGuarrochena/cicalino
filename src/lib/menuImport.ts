@@ -93,15 +93,6 @@ export const parseDelimited = (text: string): string[][] => {
     .map((l) => splitLine(l, delim));
 };
 
-export const isSpreadsheetBinary = (file: File, text: string): boolean => {
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".csv") || name.endsWith(".tsv") || name.endsWith(".txt")) {
-    return false;
-  }
-  if (name.endsWith(".xlsx") || name.endsWith(".xls")) return true;
-  return text.startsWith("PK") || file.type.includes("spreadsheet");
-};
-
 export const draftFromTable = (table: string[][]): MenuImportDraft | null => {
   const headers = table[0];
   if (!headers || headers.length < 2) return null;
@@ -119,16 +110,31 @@ export const draftFromTable = (table: string[][]): MenuImportDraft | null => {
   return { headers, mapping, rows: table.slice(1) };
 };
 
-const money = (raw: string): number | null => {
-  const s = raw.replace(/\s/g, "").replace(/\$/g, "");
-  if (!s) return null;
-  const normalized = s.includes(",") && !s.includes(".")
-    ? s.replace(/\./g, "").replace(",", ".")
-    : s.replace(/,/g, "");
+/* Prices as people type them in Argentina: "12000", "12.000", "$ 12.000",
+ * "12.000,50", "12,000.50". A lone separator followed by exactly three digits
+ * groups thousands; otherwise it's the decimal mark. */
+export const parseMoney = (raw: string): number | null => {
+  const s = raw.replace(/[\s$]/g, "").replace(/ARS/i, "");
+  if (!s || !/^-?[\d.,]+$/.test(s)) return null;
+  const lastDot = s.lastIndexOf(".");
+  const lastComma = s.lastIndexOf(",");
+  let normalized: string;
+  if (lastDot >= 0 && lastComma >= 0) {
+    const decimal = lastDot > lastComma ? "." : ",";
+    const group = decimal === "." ? "," : ".";
+    normalized = s.split(group).join("").replace(decimal, ".");
+  } else if (lastDot >= 0 || lastComma >= 0) {
+    const sep = lastDot >= 0 ? "." : ",";
+    const thousands = new RegExp(`^-?\\d{1,3}(\\${sep}\\d{3})+$`);
+    normalized = thousands.test(s) ? s.split(sep).join("") : s.replace(sep, ".");
+  } else {
+    normalized = s;
+  }
   const n = Number(normalized);
-  if (!Number.isFinite(n)) return null;
-  return Math.round(n);
+  return Number.isFinite(n) ? Math.round(n) : null;
 };
+
+const money = parseMoney;
 
 export const applyMapping = (draft: MenuImportDraft): MenuImportRow[] => {
   const idx = (col: MenuImportColumn) => draft.mapping.indexOf(col);

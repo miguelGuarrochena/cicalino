@@ -6,6 +6,8 @@ import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Select } from "@/components/ui/Select";
 import { useApp } from "@/components/providers/Providers";
 import { compressMenuImage, type MenuCategoryView, type MenuProductView } from "@/lib/data/menu";
+import { AvailabilitySwitch } from "@/components/panel/menu/RowMenu";
+import { formatMoney } from "@/lib/tableBill";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-3 py-2.5 text-sm text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20";
@@ -49,6 +51,7 @@ export const MenuProductDrawer = ({
   error,
   onClose,
   onSave,
+  onDelete,
 }: {
   draft: ProductDraft;
   setDraft: (next: ProductDraft) => void;
@@ -58,6 +61,8 @@ export const MenuProductDrawer = ({
   error: string | null;
   onClose: () => void;
   onSave: () => void;
+  /* Only when editing an existing product. */
+  onDelete?: () => void;
 }) => {
   const { t } = useApp();
   const [imageBusy, setImageBusy] = useState(false);
@@ -71,6 +76,10 @@ export const MenuProductDrawer = ({
     ],
     [categories, t],
   );
+
+  const price = Number(draft.price) || 0;
+  const cost = draft.cost ? Number(draft.cost) : null;
+  const margin = cost != null && price > 0 ? Math.round(((price - cost) / price) * 100) : null;
 
   const pickFile = async (file: File | undefined) => {
     if (!file) return;
@@ -93,13 +102,24 @@ export const MenuProductDrawer = ({
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 flex-1 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70"
-          >
-            {t("carta.cancelar")}
-          </button>
+          {onDelete ? (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={busy}
+              className="min-h-11 rounded-full border border-red-300 px-4 text-sm font-semibold text-red-600 disabled:opacity-50"
+            >
+              {t("carta.borrar")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-11 flex-1 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70"
+            >
+              {t("carta.cancelar")}
+            </button>
+          )}
           <button
             type="button"
             onClick={onSave}
@@ -113,7 +133,7 @@ export const MenuProductDrawer = ({
     >
       <div className="flex items-start justify-between gap-3">
         <h2 id="carta-producto" className="font-display text-2xl uppercase tracking-tight text-carbon">
-          {editing ? t("carta.editar") : t("carta.crearProducto")}
+          {editing ? t("carta.editarProducto") : t("carta.nuevoProducto")}
         </h2>
         <ModalCloseBtn onClick={onClose} label={t("carta.cancelar")} />
       </div>
@@ -164,15 +184,23 @@ export const MenuProductDrawer = ({
               onChange={(e) =>
                 setDraft({ ...draft, cost: e.target.value.replace(/\D/g, "") })
               }
+              placeholder={t("carta.costoPh")}
             />
           </label>
         </div>
+        {margin != null && (
+          <p className={`-mt-1 text-xs ${margin < 0 ? "text-red-600" : "text-carbon/55"}`}>
+            {t("carta.margen", { n: margin, monto: formatMoney(price - (cost ?? 0)) })}
+          </p>
+        )}
         <label className="flex flex-col gap-1">
           <span className="text-xs font-semibold text-carbon/55">{t("carta.descripcion")}</span>
-          <input
-            className={INPUT}
+          <textarea
+            className={`${INPUT} min-h-20 resize-y`}
             maxLength={200}
+            rows={2}
             value={draft.description}
+            placeholder={t("carta.descripcionPh")}
             onChange={(e) => setDraft({ ...draft, description: e.target.value })}
           />
         </label>
@@ -207,14 +235,15 @@ export const MenuProductDrawer = ({
             />
           </label>
         </div>
-        <label className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-linea px-3">
+        <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-linea px-3">
           <span className="text-sm font-semibold text-carbon">{t("carta.disponibilidad")}</span>
-          <input
-            type="checkbox"
+          <AvailabilitySwitch
             checked={draft.active}
-            onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+            onChange={(active) => setDraft({ ...draft, active })}
+            labelOn={t("carta.disponible")}
+            labelOff={t("carta.noDisponible")}
           />
-        </label>
+        </div>
         {imageError && <p className="text-xs text-red-600">{imageError}</p>}
         {error && <p className="text-xs text-red-600">{error}</p>}
       </form>
