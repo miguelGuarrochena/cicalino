@@ -20,7 +20,7 @@ export type OperationalNavLink = {
  * not a waiter screen. */
 export const OPERATIONAL_NAV: OperationalNavLink[] = [
   {
-    href: "/panel",
+    href: "/panel/pedidos",
     key: "nav.pedidos",
     roles: ["admin", "supervisor", "empleado"],
     icon: "orders",
@@ -28,7 +28,7 @@ export const OPERATIONAL_NAV: OperationalNavLink[] = [
   },
   {
     href: "/panel/espera",
-    key: "nav.espera",
+    key: "nav.mesas",
     roles: ["admin", "supervisor", "empleado"],
     icon: "espera",
     module: "espera",
@@ -56,7 +56,8 @@ export const moduleForPath = (path: string): ModuleId | null => {
   ) {
     return null;
   }
-  if (path === "/panel" || path.startsWith("/panel?")) return "pedidos";
+  if (path.startsWith("/panel/pedidos")) return "pedidos";
+  if (path === "/panel" || path.startsWith("/panel?")) return null;
   return null;
 };
 
@@ -82,6 +83,7 @@ export const fallbackPath = (
 
 export const navLinkActive = (href: string, path: string): boolean => {
   if (href === "/panel") return path === "/panel";
+  if (href === "/panel/pedidos") return path.startsWith("/panel/pedidos");
   if (href === "/panel/config") {
     return path.startsWith("/panel/config") || path.startsWith("/panel/metrics");
   }

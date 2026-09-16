@@ -17,7 +17,7 @@ const SECCIONES: {
   {
     id: "pedidos",
     accent: "marca",
-    href: "/panel",
+    href: "/panel/pedidos",
     pasos: [
       { t: "ayuda.pedidos.p1t", d: "ayuda.pedidos.p1d" },
       { t: "ayuda.pedidos.p2t", d: "ayuda.pedidos.p2d" },

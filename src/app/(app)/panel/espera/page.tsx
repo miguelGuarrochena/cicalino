@@ -67,7 +67,7 @@ const AVISO_ESPERA = {
 };
 
 const EsperaPanelPage = () => {
-  const { locale } = useApp();
+  const { locale, t } = useApp();
   const toast = useToast();
   const branchId = useSessionStore((s) => s.sucursalId);
   const activeEmployee = useActiveEmployee();
@@ -547,12 +547,12 @@ const EsperaPanelPage = () => {
         <div>
           <div className="flex items-center gap-1.5">
             <p className="text-xs font-semibold uppercase tracking-wide text-espera">
-              {locale === "en" ? "Table wait" : "Espera de mesa"}
+              {t("nav.mesas")}
             </p>
             <HelpLink seccion="espera" accent="espera" />
           </div>
           <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
-            {locale === "en" ? "Floor & waitlist" : "Sala y lista de espera"}
+            {t("nav.mesas")}
           </h1>
           {ready ? (
             <p className="mt-1 text-sm text-carbon/55">
@@ -588,6 +588,14 @@ const EsperaPanelPage = () => {
           >
             {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
           </button>
+          {visibles.pagos && (
+            <Link
+              href="/panel/mesas"
+              className="flex w-full min-h-12 items-center justify-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema sm:w-auto sm:min-h-0 sm:py-2.5"
+            >
+              {t("nav.pagos")}
+            </Link>
+          )}
         </div>
       </div>
 

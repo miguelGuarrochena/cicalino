@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSessionStore, type CurrentRole } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
-import { visibleModules, panelHomePath, type ModuleFlags } from "@/lib/modules";
+import { panelHomePath, type ModuleFlags } from "@/lib/modules";
 import { useDeviceMode } from "@/lib/hooks/useDeviceMode";
 import {
   fallbackPath,
@@ -37,14 +37,16 @@ export const useOperationalAccess = (): OperationalAccess => {
     espera: moduloEspera,
     pagos: moduloPagos,
   };
-  const visibles = visibleModules(activos, dispositivo);
+  /* Nav and screens use what the branch contracted. Device mode only
+   * chooses the landing path (reception tablet vs counter), it must not
+   * hide Pedidos/Mesas/Pagos on a waiter's phone. */
   return {
     role,
     ready,
     activos,
-    visibles,
-    homePath: panelHomePath(visibles),
-    links: operationalNavLinks(role, visibles),
+    visibles: activos,
+    homePath: panelHomePath(activos, dispositivo),
+    links: operationalNavLinks(role, activos),
     canManage: role === "admin" || role === "supervisor" || role === "superadmin",
     isOwner: role === "admin",
   };

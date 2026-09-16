@@ -6,7 +6,7 @@ const dict = {
   es: {
     nav: {
       pedidos: "Pedidos",
-      espera: "Espera",
+      espera: "Mesas",
       pagos: "Pagos",
       mesas: "Mesas",
       metricas: "Métricas",
@@ -21,6 +21,10 @@ const dict = {
     },
     footer: {
       creado: "Creado por",
+    },
+    hub: {
+      titulo: "¿Qué querés hacer?",
+      sub: "Tocá Pedidos, Mesas o Pagos para entrar.",
     },
     faq: {
       titulo: "Preguntas frecuentes",
@@ -713,8 +717,9 @@ const dict = {
         general: "General",
         mesas: "Mesas",
         empleados: "Empleados",
-        carta: "Carta",
+        carta: "Menú",
         pagos: "Pagos",
+        modulos: "Módulos",
         metricas: "Métricas",
       },
       seccionMesasSub:
@@ -723,7 +728,7 @@ const dict = {
       mesasQrCtaSub:
         "Acá no se crean mesas. Elegís cuáles de las mesas ya definidas tienen QR para pedir y pagar.",
       moduloPedidos: "Pedidos listos",
-      moduloEspera: "Espera de mesa",
+      moduloEspera: "Mesas",
       moduloPagos: "Pagos divididos",
       mesasAplicarQr:
         "Guardar crea o actualiza las mesas. En Pagos elegís cuáles tienen QR; no hace falta generar uno por una.",
@@ -732,10 +737,10 @@ const dict = {
       mesasAplicar: "Tocá Guardar para aplicar el cambio en el mapa de mesas.",
       seccionDispositivo: "Este dispositivo",
       seccionDispositivoSub:
-        "Pagos no se elige acá: si está contratado, se ve en todos los aparatos. Esto solo sirve si tenés una tablet en recepción y otra en el mostrador: Pedidos, Espera o los dos. Se guarda en este aparato, no limita cuántos usan la sucursal.",
-      dispAmbos: "Pedidos y espera",
-      dispPedidos: "Solo pedidos",
-      dispEspera: "Solo espera",
+        "No esconde módulos. Si este aparato es de recepción o del mostrador, elegí dónde arranca. Pedidos, Mesas y Pagos se ven igual. Se guarda en este aparato.",
+      dispAmbos: "Elegir al abrir",
+      dispPedidos: "Arrancar en Pedidos",
+      dispEspera: "Arrancar en Mesas",
       corte: "Corte del día",
       corteSub: "La jornada arranca a esta hora. Los pedidos de después de medianoche cuentan para el mismo día hasta acá. Al corte, las mesas ocupadas quedan libres; las reservas no se tocan. Útil para bares (default 06:00).",
       sinGuardar: "Cambios sin guardar",
@@ -763,7 +768,7 @@ const dict = {
       empEmailInvalido: "Poné un email válido.",
       pedirSucursalCta: "Confirmar y recibir datos de pago",
       titulo: "Configuración",
-      subtitulo: "Ajustes del local. Durante el servicio usá Pedidos, Espera o Pagos.",
+      subtitulo: "Ajustes del local. Durante el servicio usá Pedidos, Mesas o Pagos.",
       guardar: "Guardar cambios",
       guardado: "Cambios guardados",
       seccionLocal: "Datos del local",
@@ -1266,7 +1271,7 @@ const dict = {
   en: {
     nav: {
       pedidos: "Orders",
-      espera: "Wait",
+      espera: "Tables",
       pagos: "Payments",
       mesas: "Tables",
       metricas: "Metrics",
@@ -1281,6 +1286,10 @@ const dict = {
     },
     footer: {
       creado: "Built by",
+    },
+    hub: {
+      titulo: "What do you need?",
+      sub: "Tap Orders, Tables or Payments to open it.",
     },
     faq: {
       titulo: "FAQ",
@@ -1967,6 +1976,7 @@ const dict = {
         empleados: "Staff",
         carta: "Menu",
         pagos: "Payments",
+        modulos: "Modules",
         metricas: "Metrics",
       },
       seccionMesasSub:
@@ -1975,7 +1985,7 @@ const dict = {
       mesasQrCtaSub:
         "Tables are not created here. You choose which of the existing tables have a QR to order and pay.",
       moduloPedidos: "Order ready",
-      moduloEspera: "Table wait",
+      moduloEspera: "Tables",
       moduloPagos: "Split bill",
       mesasAplicarQr:
         "Save creates or updates the tables. In Payments you choose which ones get a QR — you don't generate one by one.",
@@ -1984,10 +1994,10 @@ const dict = {
       mesasAplicar: "Tap Save to apply the change to the floor map.",
       seccionDispositivo: "This device",
       seccionDispositivoSub:
-        "Payments is not chosen here: if it's contracted, it shows on every device. This only splits Orders vs Wait — handy if you keep one tablet at the door and another at the counter. Stored on this device only; it doesn't limit how many devices the branch uses.",
-      dispAmbos: "Orders and wait",
-      dispPedidos: "Orders only",
-      dispEspera: "Table wait only",
+        "This doesn't hide modules. If this device is the door tablet or the counter, pick where it opens. Orders, Tables and Payments stay visible. Stored on this device only.",
+      dispAmbos: "Choose on open",
+      dispPedidos: "Start in Orders",
+      dispEspera: "Start in Tables",
       corte: "Day cutoff",
       corteSub: "The business day starts at this hour, so after-midnight orders still count as the same day. Occupied tables free themselves at cutover; reservations are left alone. Handy for bars (default 06:00).",
       sinGuardar: "Unsaved changes",
@@ -2015,7 +2025,7 @@ const dict = {
       empEmailInvalido: "Enter a valid email.",
       pedirSucursalCta: "Confirm and get payment details",
       titulo: "Settings",
-      subtitulo: "Branch settings. During service use Orders, Wait or Payments.",
+      subtitulo: "Branch settings. During service use Orders, Tables or Payments.",
       guardar: "Save changes",
       guardado: "Changes saved",
       seccionLocal: "Business details",

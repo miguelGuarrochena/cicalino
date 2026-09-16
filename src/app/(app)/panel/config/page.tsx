@@ -323,7 +323,7 @@ const ConfigPage = () => {
         <PedirSucursalCard />
       )}
 
-      <section className={`${CARD} scroll-mt-28`}>
+      <section id="modulos" className={`${CARD} scroll-mt-28`}>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
           {t("config.seccionModulos")}
         </h2>
@@ -563,6 +563,18 @@ const ConfigPage = () => {
               </div>
             </div>
           )}
+          {c.moduloPagos && isRealBranchId(branchId) && (
+            <div className="mt-5 border-t border-linea pt-5">
+              <h3 className="text-sm font-semibold text-carbon">{t("mesasQr.titulo")}</h3>
+              <p className="mt-1 text-sm text-carbon/55">{t("config.mesasQrCtaSub")}</p>
+              <Link
+                href="/panel/mesas/qr"
+                className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-[0.98]"
+              >
+                {t("config.mesasQrCta")}
+              </Link>
+            </div>
+          )}
         </section>
       )}
 
@@ -577,16 +589,6 @@ const ConfigPage = () => {
           </section>
           <section className={`${CARD} scroll-mt-28`} id="pagos">
             <PaymentMethodsCard branchId={branchId} canEdit={role === "admin"} />
-            <div className="mt-5 border-t border-linea pt-5">
-              <h3 className="text-sm font-semibold text-carbon">{t("mesasQr.titulo")}</h3>
-              <p className="mt-1 text-sm text-carbon/55">{t("config.mesasQrCtaSub")}</p>
-              <Link
-                href="/panel/mesas/qr"
-                className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-[0.98]"
-              >
-                {t("config.mesasQrCta")}
-              </Link>
-            </div>
           </section>
         </>
       )}

@@ -85,6 +85,7 @@ const PanelLayout = ({
     role !== "superadmin" &&
     role !== "empleado" &&
     (path === "/panel" ||
+      path.startsWith("/panel/pedidos") ||
       path.startsWith("/panel/espera") ||
       path === "/panel/mesas");
   const enSeccionDueño =
