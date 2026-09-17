@@ -16,6 +16,7 @@ describe("Operación — jerarquía y layout", () => {
     expect(qr).toContain("descargarPlancha");
     expect(modal).toContain("descargarSolo");
     expect(modal).toContain("descargarMarco");
+    expect(modal).toContain("sm:items-start");
     expect(qr).not.toContain("grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4");
   });
 
@@ -105,11 +106,15 @@ describe("Operación — jerarquía y layout", () => {
     for (const f of files) {
       expect(read(f), f).not.toMatch(/<select[\s>]/);
     }
-    /* Solid fill per state, like the floor map in Recepción. */
+    /* Solid fill per state, like the floor map in Recepción. Kitchen action
+     * and the amount live in separate zones — not "Pedido nuevo" jammed next
+     * to "Por cobrar". */
     const tile = read("src/components/panel/mesas/FloorTableTile.tsx");
     expect(tile).toContain("bg-alerta text-crema");
     expect(tile).toContain("bg-curso text-crema");
     expect(tile).toContain("bg-marca text-crema");
+    expect(tile).toContain("bg-black/15");
+    expect(tile).not.toContain("mesas.porCobrar");
     expect(tile).not.toContain("border-l-[6px]");
     expect(tile).not.toContain("verQrMesa");
     const turno = [
