@@ -71,7 +71,7 @@ const EsperaPanelPage = () => {
   const toast = useToast();
   const branchId = useSessionStore((s) => s.sucursalId);
   const activeEmployee = useActiveEmployee();
-  const { visibles, canManage } = useOperationalAccess();
+  const { visibles } = useOperationalAccess();
   const tableCount = useConfigStore((s) => s.tableCount);
   const cutoffHour = useConfigStore((s) => s.cutoffHour);
   const reservaAbreMin = useConfigStore((s) => s.reservaAbreMin);
