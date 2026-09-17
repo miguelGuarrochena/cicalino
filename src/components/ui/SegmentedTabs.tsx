@@ -25,12 +25,12 @@ export const SegmentedTabs = <T extends string>({
 }) => {
   const active =
     accent === "espera" ? "bg-espera text-crema shadow-sm" : "bg-marca text-crema shadow-sm";
-  const pad = size === "sm" ? "min-h-9 px-3 text-xs" : "min-h-11 px-3 text-sm";
+  const pad = size === "sm" ? "min-h-9 px-2 text-xs sm:px-3" : "min-h-11 px-3 text-sm";
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="flex rounded-2xl border border-linea bg-crema/40 p-1"
+      className="flex flex-wrap rounded-2xl border border-linea bg-crema/40 p-1"
     >
       {options.map((opt) => {
         const selected = value === opt.id;
@@ -41,7 +41,7 @@ export const SegmentedTabs = <T extends string>({
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(opt.id)}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl font-semibold transition ${pad} ${
+            className={`flex min-w-[calc(50%-0.125rem)] flex-1 items-center justify-center gap-1.5 rounded-xl font-semibold transition sm:min-w-0 ${pad} ${
               selected ? active : "text-carbon/60 hover:text-carbon"
             }`}
           >

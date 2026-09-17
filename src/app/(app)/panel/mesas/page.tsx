@@ -101,6 +101,7 @@ const MesasPage = () => {
   const chargeN = floor.filter(needsCharge).length;
   const closedBills = bills.filter((b) => b.session.status !== "abierta");
   const currentBill = bills.find((b) => b.session.id === selected) ?? null;
+  const showDetail = Boolean(currentBill) && tab !== "turno";
   const openPending = floor.reduce((s, r) => s + (r.bill ? r.pending : 0), 0);
   const occupied = useMemo(
     () =>
@@ -235,8 +236,8 @@ const MesasPage = () => {
           }
         />
       ) : (
-        <div className={`grid gap-4 ${currentBill ? "lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]" : ""}`}>
-          <div className={`flex flex-col gap-3 print:hidden ${currentBill ? "hidden lg:flex" : "flex"}`}>
+        <div className={`grid gap-4 ${showDetail ? "lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]" : ""}`}>
+          <div className={`flex min-w-0 flex-col gap-3 print:hidden ${showDetail ? "hidden lg:flex" : "flex"}`}>
             {tab !== "turno" && (
             <label className="block">
               <span className="sr-only">{t("mesas.buscarMesa")}</span>
@@ -328,7 +329,7 @@ const MesasPage = () => {
               mapLayout ? (
                 <ul
                   className={`grid grid-cols-3 gap-2 ${
-                    currentBill
+                    showDetail
                       ? "sm:grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))]"
                       : "sm:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))]"
                   }`}
@@ -337,9 +338,8 @@ const MesasPage = () => {
                     <FloorTableTile
                       key={row.key}
                       row={row}
-                      active={currentBill?.session.id === row.bill?.session.id}
+                      active={showDetail && currentBill?.session.id === row.bill?.session.id}
                       onOpen={() => openRow(row)}
-                      onShowQr={row.qrToken ? () => showQr(row) : undefined}
                     />
                   ))}
                 </ul>
@@ -350,9 +350,8 @@ const MesasPage = () => {
                       key={row.key}
                       row={row}
                       dense
-                      active={currentBill?.session.id === row.bill?.session.id}
+                      active={showDetail && currentBill?.session.id === row.bill?.session.id}
                       onOpen={() => openRow(row)}
-                      onShowQr={row.qrToken ? () => showQr(row) : undefined}
                     />
                   ))}
                 </ul>
@@ -369,8 +368,8 @@ const MesasPage = () => {
             )}
           </div>
 
-          <div className={currentBill ? "block" : "hidden"}>
-            {currentBill ? (
+          <div className={showDetail ? "block" : "hidden"}>
+            {showDetail && currentBill ? (
               <TableDetail
                 key={currentBill.session.id}
                 bill={currentBill}

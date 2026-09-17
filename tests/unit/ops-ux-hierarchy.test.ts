@@ -47,6 +47,8 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesas).toContain("venueName={branchName}");
     expect(mesas).toContain("JornadaBoard");
     expect(mesas).toContain("mesas.filtroTurno");
+    expect(mesas).toContain("showDetail");
+    expect(mesas).toMatch(/tab !== "turno"/);
     expect(detalle).toContain("w-full rounded-full bg-marca");
     expect(detalle).toContain("mesas.cobrar");
     expect(detalle).toContain("mesas.comanda");
@@ -101,5 +103,12 @@ describe("Operación — jerarquía y layout", () => {
     expect(tile).toContain("bg-curso text-crema");
     expect(tile).toContain("bg-marca text-crema");
     expect(tile).not.toContain("border-l-[6px]");
+    expect(tile).not.toContain("verQrMesa");
+    const turno = read("src/components/panel/mesas/JornadaBoard.tsx");
+    expect(turno).toContain("grid-cols-6");
+    expect(turno).toContain("min-h-11 w-full");
+    const tabs = read("src/components/ui/SegmentedTabs.tsx");
+    expect(tabs).toContain("flex-wrap");
+    expect(tabs).toContain("min-w-[calc(50%-0.125rem)]");
   });
 });
