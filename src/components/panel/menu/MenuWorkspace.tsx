@@ -105,8 +105,10 @@ export const MenuWorkspace = () => {
     const [cats, items] = await Promise.all([fetchMenuCategories(branchId), fetchMenuProducts(branchId)]);
     if (!cats.ok || !items.ok) {
       setLoadError(true);
-      setCategories((c) => c ?? []);
-      setProducts((p) => p ?? []);
+      if (cats.ok) setCategories(cats.data);
+      else setCategories((c) => c ?? []);
+      if (items.ok) setProducts(items.data);
+      else setProducts((p) => p ?? []);
       return;
     }
     setLoadError(false);
@@ -341,17 +343,24 @@ export const MenuWorkspace = () => {
   };
 
   const seedDefaults = async () => {
+    if (busy) return;
     setBusy(true);
-    let order = sortedCats.length;
-    const next = [...sortedCats];
-    for (const key of DEFAULT_MENU_CATEGORY_KEYS) {
-      const name = t(`carta.sugerida.${key}`);
-      if (next.some((c) => sameCat(c.name, name))) continue;
-      const res = await saveMenuCategory(branchId, { name, active: true, order: order++ });
-      if (res.ok) next.push(res.category);
+    try {
+      let order = sortedCats.length;
+      const next = [...sortedCats];
+      let failed = 0;
+      for (const key of DEFAULT_MENU_CATEGORY_KEYS) {
+        const name = t(`carta.sugerida.${key}`);
+        if (next.some((c) => sameCat(c.name, name))) continue;
+        const res = await saveMenuCategory(branchId, { name, active: true, order: order++ });
+        if (res.ok) next.push(res.category);
+        else failed++;
+      }
+      setCategories(next);
+      if (failed) toast(t("carta.error"), "error");
+    } finally {
+      setBusy(false);
     }
-    setCategories(next);
-    setBusy(false);
   };
 
   const runImport = async (rows: MenuImportRow[]) => {

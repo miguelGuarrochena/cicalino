@@ -46,6 +46,14 @@ describe("Menú — gestión de carta", () => {
     }
   });
 
+  it("cargar categorías típicas avisa si el alta falla", () => {
+    const ws = read("src/components/panel/menu/MenuWorkspace.tsx");
+    const seed = ws.slice(ws.indexOf("const seedDefaults"), ws.indexOf("const runImport"));
+    expect(seed).toContain("saveMenuCategory(");
+    expect(seed).toContain('toast(t("carta.error"), "error")');
+    expect(seed).toContain("finally");
+  });
+
   it("la vista previa no muestra costos ni controles", () => {
     const preview = read("src/components/panel/menu/MenuPreviewDialog.tsx");
     expect(preview).not.toMatch(/\.cost\b|costo|AvailabilitySwitch|RowMenu/);
