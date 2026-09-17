@@ -161,6 +161,7 @@ const MesasPage = () => {
   const inboxCreated = showInbox ? inbox.created : [];
   const inboxCalled = showInbox ? inbox.called : [];
   const tiles = filtro === "pedido" ? [] : shown;
+  const mapLayout = filtro === "todas";
   const hasInbox = inboxCreated.length + inboxCalled.length > 0;
 
   const cancelInbox = (row: FloorTable, orders: FloorTable["newOrders"]) => {
@@ -292,28 +293,12 @@ const MesasPage = () => {
                 }
               />
             ) : tiles.length ? (
-              <>
-                <ul className="grid grid-cols-1 gap-2 md:hidden">
-                  {tiles.map((row) => (
-                    <FloorTableTile
-                      key={row.key}
-                      row={row}
-                      dense
-                      active={currentBill?.session.id === row.bill?.session.id}
-                      onOpen={() => openRow(row)}
-                      onShowQr={
-                        filtro === "todas" && row.bill && row.qrToken
-                          ? () => showQr(row)
-                          : undefined
-                      }
-                    />
-                  ))}
-                </ul>
+              mapLayout ? (
                 <ul
-                  className={`hidden md:grid gap-2 ${
+                  className={`grid grid-cols-3 gap-2 ${
                     currentBill
-                      ? "grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))]"
-                      : "grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))]"
+                      ? "sm:grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))]"
+                      : "sm:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))]"
                   }`}
                 >
                   {tiles.map((row) => (
@@ -322,15 +307,24 @@ const MesasPage = () => {
                       row={row}
                       active={currentBill?.session.id === row.bill?.session.id}
                       onOpen={() => openRow(row)}
-                      onShowQr={
-                        filtro === "todas" && row.bill && row.qrToken
-                          ? () => showQr(row)
-                          : undefined
-                      }
+                      onShowQr={row.qrToken ? () => showQr(row) : undefined}
                     />
                   ))}
                 </ul>
-              </>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {tiles.map((row) => (
+                    <FloorTableTile
+                      key={row.key}
+                      row={row}
+                      dense
+                      active={currentBill?.session.id === row.bill?.session.id}
+                      onOpen={() => openRow(row)}
+                      onShowQr={row.qrToken ? () => showQr(row) : undefined}
+                    />
+                  ))}
+                </ul>
+              )
             ) : null}
 
             <ClosedTodayList
