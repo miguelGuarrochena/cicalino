@@ -79,7 +79,7 @@ const dict = {
           sentado: "Los sentás y liberás cuando se van",
         },
         q1: "¿Es lo mismo que el modo mesa de pedidos?",
-        a1: "No. El modo mesa en pedidos solo etiqueta el retiro en mostrador. Recepción es un módulo aparte: cola de grupos, mapa de mesas, reservas y asignación del turno.",
+        a1: "No. El modo mesa en pedidos solo etiqueta el retiro en mostrador. Recepción es un módulo aparte: cola de grupos, mapa de mesas y reservas.",
         q2: "¿Puedo tener Pedidos y Recepción juntos?",
         a2: "Sí. Cada sucursal contrata su pack. Si tiene ambos, en Configuración podés dejar un dispositivo solo en Pedidos, solo en Recepción, o ambos.",
         q3: "¿Cómo configuro cuántas mesas tengo?",
@@ -89,7 +89,7 @@ const dict = {
         q5: "¿Las métricas se mezclan con los pedidos?",
         a5: "No. Métricas tiene pestañas separadas: Pedidos y Recepción.",
         q6: "¿Las reservas vienen con Recepción?",
-        a6: "Sí. En Recepción tenés cola de gente sin reserva, mapa de mesas, agenda de reservas y la jornada del turno. No es un producto aparte ni un costo extra.",
+        a6: "Sí. En Recepción tenés cola de gente sin reserva, mapa de mesas y agenda de reservas. No es un producto aparte ni un costo extra.",
       },
     },
     home: {
@@ -106,7 +106,7 @@ const dict = {
       localKicker: "Para el local",
       localTitulo: "Tres toques en el mostrador",
       localSub:
-        "Pedidos en curso, listos, retirados o cancelados. Cada acción queda a nombre de quien la hizo. Si contratás Recepción, también manejás la cola, las reservas y la jornada.",
+        "Pedidos en curso, listos, retirados o cancelados. Cada acción queda a nombre de quien la hizo. Si contratás Recepción, también manejás la cola y las reservas.",
       paso1Titulo: "Creás el pedido",
       paso1Sub:
         "Ingresás mesa, nombre o N° de turno. Se genera un QR y se lo pasás al cliente.",
@@ -143,11 +143,11 @@ const dict = {
         },
         espera: {
           titulo: "Recepción",
-          sub: "Espera, reservas, llegada y asignación de mesas. El cliente espera con QR; vos sentás y seguís el servicio.",
+          sub: "Espera, reservas y llegada. El cliente espera con QR; vos sentás y seguís el salón.",
         },
         pagos: {
           titulo: "Pagos divididos",
-          sub: "Cada comensal paga lo suyo desde el celular. Vos ves cuánto falta y cobrás el resto en el local.",
+          sub: "Cada comensal paga lo suyo desde el celular. Ves quién atiende la mesa, cuánto falta y cobrás el resto en el local.",
         },
       },
       pagos: {
@@ -383,7 +383,7 @@ const dict = {
       espera: {
         titulo: "Recepción",
         intro:
-          "Cola, reservas, mapa de mesas y jornada del turno. Ideal en recepción. El cliente espera con QR hasta que hay mesa.",
+          "Cola, reservas y mapa de mesas. Ideal en recepción. El cliente espera con QR hasta que hay mesa.",
         p1t: "Agregá un grupo a la cola",
         p1d: "Tocá «+ Agregar grupo», poné el apellido/nombre y cuántas personas. Se genera un QR para el cliente.",
         p2t: "Avisá cuando hay mesa",
@@ -655,8 +655,8 @@ const dict = {
       titulo: "QR del pedido",
       escanea: "El cliente lo escanea con la cámara del celular.",
       mesaEscanea: "Escaneá para ver la carta, pedir y pagar.",
-      mesaShare: "Carta, pedidos y cuenta de la mesa",
-      mesaWa: "Carta y cuenta de la mesa en Cicalino: {url}",
+      mesaShare: "{bar} · carta, pedidos y cuenta de la mesa",
+      mesaWa: "{bar}: carta y cuenta de la mesa {url}",
       sinCamara: "¿No le funciona la cámara? Mandale el link:",
       copiar: "Copiar link",
       copiado: "¡Link copiado!",
@@ -1188,6 +1188,7 @@ const dict = {
       filtroPedido: "Pedido",
       filtroCobrar: "Cobrar",
       filtroTodas: "Todas",
+      filtroTurno: "Turno",
       sinAtencion: "Nada pide atención ahora.",
       sinAtencionBody: "Las demás mesas están en Todas.",
       sinPedidosCola: "Nada para anotar.",
@@ -1580,7 +1581,7 @@ const dict = {
           sentado: "Seat them; free the table when they leave",
         },
         q1: "Is this the same as “table” order mode?",
-        a1: "No. Table mode on orders only labels counter pickup. Reception is a separate module: party queue, floor map, reservations and the shift assignment.",
+        a1: "No. Table mode on orders only labels counter pickup. Reception is a separate module: party queue, floor map and reservations.",
         q2: "Can I have Orders and Reception together?",
         a2: "Yes. Each branch has its own pack. If it includes both, in Settings you can lock a device to Orders, Reception, or both.",
         q3: "How do I set how many tables I have?",
@@ -1590,7 +1591,7 @@ const dict = {
         q5: "Are metrics mixed with orders?",
         a5: "No. Metrics has separate tabs: Orders and Reception.",
         q6: "Do reservations come with Reception?",
-        a6: "Yes. Reception includes the walk-in queue, floor map, reservation agenda and today's shift. Not a separate product or extra fee.",
+        a6: "Yes. Reception includes the walk-in queue, floor map and reservation agenda. Not a separate product or extra fee.",
       },
     },
     home: {
@@ -1644,11 +1645,11 @@ const dict = {
         },
         espera: {
           titulo: "Reception",
-          sub: "Waitlist, reservations, arrivals and table assignment. Guests wait with a QR; you seat them and run the floor.",
+          sub: "Waitlist, reservations and arrivals. Guests wait with a QR; you seat them and run the floor.",
         },
         pagos: {
           titulo: "Split bill",
-          sub: "Each guest pays their share from their phone. You see what's left and collect the rest at the venue.",
+          sub: "Each guest pays their share from their phone. You see who is on the table, what's left and collect the rest at the venue.",
         },
       },
       pagos: {
@@ -1883,7 +1884,7 @@ const dict = {
       espera: {
         titulo: "Reception",
         intro:
-          "Queue, reservations, floor map and today's shift. Guests wait with a QR until a table is free.",
+          "Queue, reservations and floor map. Guests wait with a QR until a table is free.",
         p1t: "Add a party to the queue",
         p1d: "Tap “+ Add party”, enter name and party size. A QR is generated for the guest.",
         p2t: "Notify when a table is free",
@@ -2149,8 +2150,8 @@ const dict = {
       titulo: "Order QR",
       escanea: "The customer scans it with their phone camera.",
       mesaEscanea: "Scan to see the menu, order and pay.",
-      mesaShare: "Menu, orders and bill for this table",
-      mesaWa: "Table menu and bill on Cicalino: {url}",
+      mesaShare: "{bar} · menu, orders and bill for this table",
+      mesaWa: "{bar}: table menu and bill {url}",
       sinCamara: "Camera not working? Send them the link:",
       copiar: "Copy link",
       copiado: "Link copied!",
@@ -2681,6 +2682,7 @@ const dict = {
       filtroPedido: "Order",
       filtroCobrar: "Collect",
       filtroTodas: "All",
+      filtroTurno: "Shift",
       sinAtencion: "Nothing needs attention now.",
       sinAtencionBody: "The other tables are under All.",
       sinPedidosCola: "Nothing to note down.",

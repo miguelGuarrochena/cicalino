@@ -16,6 +16,7 @@ import { QrModal } from "@/components/panel/QrModal";
 import { TableDetail } from "@/components/panel/mesas/TableDetail";
 import { KitchenInbox } from "@/components/panel/mesas/KitchenInbox";
 import { FloorTableTile } from "@/components/panel/mesas/FloorTableTile";
+import { JornadaBoard } from "@/components/panel/mesas/JornadaBoard";
 import { STATUS_STYLE } from "@/components/panel/mesas/BillStatusBadge";
 import { fetchPaymentSettings, fetchTableQrs, acknowledgeWaiterCall, type TableQrView } from "@/lib/data/tables";
 import { updateOrderStatus } from "@/lib/data/orders";
@@ -48,10 +49,11 @@ const MesasPage = () => {
   const branchName = useConfigStore((s) => s.name);
   const employee = useActiveEmployee();
   const employees = useConfigStore((s) => s.employees);
+  const tableCount = useConfigStore((s) => s.tableCount);
   const { bills, ready, live, syncError, refresh } = useTableBills(
     visibles.pagos ? branchId : null,
   );
-  const { shift, refresh: refreshShift } = useFloorShift(
+  const { shift, live: shiftLive, refresh: refreshShift } = useFloorShift(
     visibles.pagos ? branchId : null,
     visibles.pagos,
   );
@@ -60,7 +62,7 @@ const MesasPage = () => {
   const [qrRow, setQrRow] = useState<FloorTable | null>(null);
   const [settings, setSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
   const [showClosed, setShowClosed] = useState(false);
-  const [filtro, setFiltro] = useState<FloorFilter>("pedido");
+  const [tab, setTab] = useState<FloorFilter | "turno">("pedido");
   const [query, setQuery] = useState("");
   const [kitchenBusy, setKitchenBusy] = useState<string | null>(null);
 
@@ -90,13 +92,25 @@ const MesasPage = () => {
       };
     });
   }, [tables, bills, shift.assignments]);
-  const shown = useMemo(() => filterFloor(floor, filtro, query), [floor, filtro, query]);
+  const shown = useMemo(
+    () => filterFloor(floor, tab === "turno" ? "todas" : tab, query),
+    [floor, tab, query],
+  );
   const inbox = useMemo(() => kitchenInbox(floor), [floor]);
   const pedidoN = floor.filter(needsPedido).length;
   const chargeN = floor.filter(needsCharge).length;
   const closedBills = bills.filter((b) => b.session.status !== "abierta");
   const currentBill = bills.find((b) => b.session.id === selected) ?? null;
   const openPending = floor.reduce((s, r) => s + (r.bill ? r.pending : 0), 0);
+  const occupied = useMemo(
+    () =>
+      new Set(
+        floor
+          .filter((r) => r.bill?.session.status === "abierta")
+          .map((r) => r.tableNumber),
+      ),
+    [floor],
+  );
 
   const reload = () => {
     void refresh();
@@ -157,11 +171,11 @@ const MesasPage = () => {
   }
 
   const emptyFloor = !tables.length && !floor.some((r) => r.bill);
-  const showInbox = filtro === "pedido";
+  const showInbox = tab === "pedido";
   const inboxCreated = showInbox ? inbox.created : [];
   const inboxCalled = showInbox ? inbox.called : [];
-  const tiles = filtro === "pedido" ? [] : shown;
-  const mapLayout = filtro === "todas";
+  const tiles = tab === "pedido" || tab === "turno" ? [] : shown;
+  const mapLayout = tab === "todas";
   const hasInbox = inboxCreated.length + inboxCalled.length > 0;
 
   const cancelInbox = (row: FloorTable, orders: FloorTable["newOrders"]) => {
@@ -223,6 +237,7 @@ const MesasPage = () => {
       ) : (
         <div className={`grid gap-4 ${currentBill ? "lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]" : ""}`}>
           <div className={`flex flex-col gap-3 print:hidden ${currentBill ? "hidden lg:flex" : "flex"}`}>
+            {tab !== "turno" && (
             <label className="block">
               <span className="sr-only">{t("mesas.buscarMesa")}</span>
               <input
@@ -234,18 +249,35 @@ const MesasPage = () => {
                 className="min-h-11 w-full max-w-sm rounded-2xl border border-linea bg-surface px-4 text-sm text-carbon outline-none placeholder:text-carbon/40 focus:border-marca focus:ring-2 focus:ring-marca/20"
               />
             </label>
+            )}
 
             <SegmentedTabs
               ariaLabel={t("mesas.resumen")}
               size="sm"
-              value={filtro}
-              onChange={setFiltro}
+              value={tab}
+              onChange={setTab}
               options={[
                 { id: "pedido", label: t("mesas.filtroPedido"), badge: pedidoN },
                 { id: "cobrar", label: t("mesas.filtroCobrar"), badge: chargeN },
                 { id: "todas", label: t("mesas.filtroTodas") },
+                { id: "turno", label: t("mesas.filtroTurno") },
               ]}
             />
+
+            {tab === "turno" ? (
+              <JornadaBoard
+                branchId={branchId}
+                shift={shift}
+                live={shiftLive}
+                tableCount={tableCount || tables.length}
+                occupied={occupied}
+                employees={employees}
+                canManage={canManage}
+                actorId={employee?.id ?? null}
+                onChanged={refreshShift}
+              />
+            ) : (
+              <>
 
             {showInbox && (
               <KitchenInbox
@@ -276,18 +308,18 @@ const MesasPage = () => {
                 title={
                   query
                     ? t("mesas.sinResultados")
-                    : filtro === "pedido"
+                    : tab === "pedido"
                       ? t("mesas.sinPedidosCola")
-                      : filtro === "cobrar"
+                      : tab === "cobrar"
                         ? t("mesas.sinCobros")
                         : t("mesas.sinAtencion")
                 }
                 body={
                   query
                     ? undefined
-                    : filtro === "pedido"
+                    : tab === "pedido"
                       ? t("mesas.sinPedidosColaBody")
-                      : filtro === "cobrar"
+                      : tab === "cobrar"
                         ? t("mesas.sinCobrosBody")
                         : t("mesas.sinAtencionBody")
                 }
@@ -333,6 +365,8 @@ const MesasPage = () => {
               onToggle={() => setShowClosed((v) => !v)}
               onSelect={setSelected}
             />
+              </>
+            )}
           </div>
 
           <div className={currentBill ? "block" : "hidden"}>
@@ -376,6 +410,7 @@ const MesasPage = () => {
           token={qrRow.qrToken}
           etiqueta={t("mesa.mesaN", { n: qrRow.tableNumber })}
           pathPrefix="/m"
+          venueName={branchName}
           onClose={() => setQrRow(null)}
         />
       )}

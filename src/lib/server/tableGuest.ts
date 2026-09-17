@@ -100,6 +100,13 @@ export const resolveTableQr = async (token: string): Promise<TableQr> => {
   };
 };
 
+export const fetchBranchName = async (branchId: string): Promise<string> => {
+  const admin = createAdminSupabase();
+  if (!admin) return "";
+  const { data } = await admin.from("locales").select("nombre").eq("id", branchId).maybeSingle();
+  return String(data?.nombre ?? "");
+};
+
 export interface MenuProduct {
   id: string;
   name: string;

@@ -81,14 +81,29 @@ export const FLOOR_STYLE: Record<
   },
 };
 
-export const FloorStatusBadge = ({ status }: { status: FloorOpStatus }) => {
+/* `sobrePleno` is for the floor tiles, which are filled with the state's own
+ * colour: there the tinted chip would disappear, so it turns into a veil over
+ * that fill. */
+export const FloorStatusBadge = ({
+  status,
+  sobrePleno,
+}: {
+  status: FloorOpStatus;
+  sobrePleno?: boolean;
+}) => {
   const { t } = useApp();
   const style = FLOOR_STYLE[status];
+  const tono = sobrePleno
+    ? "bg-white/20 text-current"
+    : `${style.chip} ${style.text}`;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${style.chip} ${style.text}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${tono}`}
     >
-      <span aria-hidden className={`size-2 rounded-full ${style.dot}`} />
+      <span
+        aria-hidden
+        className={`size-2 rounded-full ${sobrePleno ? "bg-current opacity-70" : style.dot}`}
+      />
       {t(`mesas.estadoOp.${status}`)}
     </span>
   );

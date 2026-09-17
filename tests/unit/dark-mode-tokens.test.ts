@@ -81,7 +81,7 @@ describe("Pantallas de trabajo sin pasteles solo-claros", () => {
   const pantallas = [
     "src/app/(app)/panel/pedidos/page.tsx",
     "src/app/(app)/panel/espera/page.tsx",
-    "src/components/panel/espera/JornadaBoard.tsx",
+    "src/components/panel/mesas/JornadaBoard.tsx",
     "src/components/panel/OrderCard.tsx",
     "src/components/panel/SubscriptionCard.tsx",
   ];

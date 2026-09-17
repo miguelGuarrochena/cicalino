@@ -16,6 +16,7 @@ interface Props {
   onCancelar?: () => void;
   pathPrefix?: "/p" | "/e" | "/m";
   accent?: "pedidos" | "espera";
+  venueName?: string;
 }
 
 export const QrModal = ({
@@ -27,6 +28,7 @@ export const QrModal = ({
   onCancelar,
   pathPrefix = "/p",
   accent = "pedidos",
+  venueName,
 }: Props) => {
   const { t, locale } = useApp();
   const [dataUrl, setDataUrl] = useState("");
@@ -60,13 +62,15 @@ export const QrModal = ({
       .catch(() => {});
   }, [url, darkColor]);
 
+  const venue = venueName?.trim() || "Cicalino";
+
   const waText =
     pathPrefix === "/e"
       ? locale === "en"
         ? `Follow your table wait on Cicalino: ${url}`
         : `Seguí tu espera de mesa en Cicalino: ${url}`
       : pathPrefix === "/m"
-        ? t("qr.mesaWa", { url })
+        ? t("qr.mesaWa", { bar: venue, url })
         : `Seguí tu pedido en Cicalino: ${url}`;
   const waHref = `https://wa.me/?text=${encodeURIComponent(waText)}`;
 
@@ -82,14 +86,14 @@ export const QrModal = ({
   const compartir = async () => {
         try {
           await navigator.share({
-            title: "Cicalino",
+            title: venue,
             text:
               pathPrefix === "/e"
                 ? locale === "en"
                   ? "Follow your table wait"
                   : "Seguí tu espera de mesa"
                 : pathPrefix === "/m"
-                  ? t("qr.mesaShare")
+                  ? t("qr.mesaShare", { bar: venue })
                   : "Seguí tu pedido",
             url,
           });
@@ -106,10 +110,12 @@ export const QrModal = ({
     const w = window.open("", "_blank", "noopener,noreferrer");
     if (!w) return;
     const hint = pathPrefix === "/m" ? t("qr.mesaEscanea") : t("qr.escanea");
+    const barLine = pathPrefix === "/m" ? `<p>${esc(venue)}</p>` : "";
     w.document.write(
-      `<!doctype html><html><head><meta charset="utf-8"><title>${esc(etiqueta)} ${esc(reference)}</title>
+      `<!doctype html><html><head><meta charset="utf-8"><title>${esc(venue)} · ${esc(etiqueta)} ${esc(reference)}</title>
       <style>body{font-family:system-ui,sans-serif;text-align:center;padding:32px;color:#111}img{width:280px;height:280px}h1{font-size:28px;margin:8px 0}p{color:#555}</style>
       </head><body>
+      ${barLine}
       <p>${esc(etiqueta)}</p>
       <h1>${esc(reference)}</h1>
       <img src="${dataUrl}" alt="QR" />
@@ -125,7 +131,7 @@ export const QrModal = ({
       <div className="mb-4 flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-carbon/40">
-              {etiqueta}
+              {pathPrefix === "/m" && venueName?.trim() ? venue : etiqueta}
             </p>
             <div
               id="qr-modal-title"
