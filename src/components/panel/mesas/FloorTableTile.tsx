@@ -16,31 +16,26 @@ const moneyStatus = (status: FloorTable["status"]) =>
   status === "esperando-pago" ||
   status === "pagada";
 
+/* Solid fill per state, like the floor map in Recepción: the tile is the
+ * colour and everything inside it reads in crema. Washed-out tints and the
+ * thick left bar didn't survive a glance across the room. */
 const tileTone = (row: FloorTable) => {
   if (row.calledAt || row.status === "llamado") {
-    return "border-alerta-borde bg-alerta-fondo border-l-alerta";
+    return "border-alerta bg-alerta text-crema";
   }
   if (row.status === "pedido-nuevo") {
-    return "border-marca/50 bg-marca/20 border-l-marca";
+    return "border-marca bg-marca text-crema";
   }
   if (row.pending > 0) {
-    return "border-alerta-borde bg-alerta-fondo border-l-alerta";
+    return "border-alerta bg-alerta text-crema";
   }
   if (hasOrder(row)) {
-    return "border-curso-borde bg-curso-fondo border-l-curso";
+    return "border-curso bg-curso text-crema";
   }
   if (row.bill) {
-    return "border-carbon/25 bg-carbon/[0.07] border-l-carbon/50";
+    return "border-carbon/60 bg-carbon/70 text-crema";
   }
-  return "border-linea bg-surface border-l-linea";
-};
-
-const numberTone = (row: FloorTable) => {
-  if (row.calledAt || row.status === "llamado") return "text-alerta";
-  if (row.status === "pedido-nuevo") return "text-marca";
-  if (row.pending > 0) return "text-alerta";
-  if (hasOrder(row)) return "text-curso";
-  return "text-carbon";
+  return "border-espera bg-espera text-crema";
 };
 
 export const FloorTableTile = ({
@@ -58,7 +53,6 @@ export const FloorTableTile = ({
 }) => {
   const { t } = useApp();
   const tone = tileTone(row);
-  const numCls = numberTone(row);
   const ordered = hasOrder(row);
   const kitchen = summarizeKitchen([...row.newOrders, ...row.prepOrders, ...row.readyOrders]);
   const kitchenHint = kitchen
@@ -74,27 +68,27 @@ export const FloorTableTile = ({
   if (dense) {
     return (
       <li
-        className={`flex items-stretch overflow-hidden rounded-2xl border border-l-[6px] ${tone} ${
-          active ? "ring-2 ring-marca/25" : ""
+        className={`flex items-stretch overflow-hidden rounded-2xl border-2 ${tone} ${
+          active ? "ring-2 ring-carbon/25" : ""
         }`}
       >
         <button
           type="button"
           aria-current={active ? "true" : undefined}
           onClick={onOpen}
-          className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left transition hover:bg-carbon/[0.03] active:scale-[0.99]"
+          className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left transition hover:brightness-95 active:scale-[0.99]"
         >
-          <span className={`w-10 shrink-0 font-display text-2xl leading-none ${numCls}`}>
+          <span className="w-10 shrink-0 font-display text-2xl leading-none">
             {row.tableNumber}
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex flex-wrap items-center gap-x-2">
-              <FloorStatusBadge status={row.status} />
+              <FloorStatusBadge status={row.status} sobrePleno />
               {chargingHint ? (
-                <span className="text-[11px] font-semibold text-alerta">{chargingHint}</span>
+                <span className="text-[11px] font-semibold">{chargingHint}</span>
               ) : null}
             </span>
-            <span className="mt-0.5 block truncate text-[11px] text-carbon/50">
+            <span className="mt-0.5 block truncate text-[11px] opacity-75">
               {[
                 waiter,
                 kitchenHint ||
@@ -105,11 +99,7 @@ export const FloorTableTile = ({
             </span>
           </span>
           {row.bill && row.consumption > 0 ? (
-            <span
-              className={`shrink-0 font-display text-lg tabular-nums leading-none ${
-                row.pending > 0 ? "text-alerta" : "text-ok"
-              }`}
-            >
+            <span className="shrink-0 font-display text-lg tabular-nums leading-none">
               {formatMoney(row.pending > 0 ? row.pending : row.paid)}
             </span>
           ) : null}
@@ -118,7 +108,7 @@ export const FloorTableTile = ({
           <button
             type="button"
             onClick={onShowQr}
-            className="shrink-0 self-center px-3 py-2 text-xs font-semibold text-marca"
+            className="shrink-0 self-center px-3 py-2 text-xs font-semibold underline underline-offset-2"
           >
             {t("mesas.verQrMesa")}
           </button>
@@ -129,49 +119,45 @@ export const FloorTableTile = ({
 
   return (
     <li
-      className={`relative flex min-h-[6.5rem] flex-col overflow-hidden rounded-2xl border border-l-[6px] ${tone} ${
-        active ? "ring-2 ring-marca/25" : ""
+      className={`relative flex min-h-[6.5rem] flex-col overflow-hidden rounded-2xl border-2 ${tone} ${
+        active ? "ring-2 ring-carbon/25" : ""
       }`}
     >
       <button
         type="button"
         aria-current={active ? "true" : undefined}
         onClick={onOpen}
-        className={`flex w-full flex-1 flex-col justify-between px-3 py-2.5 text-left transition hover:bg-carbon/[0.03] active:scale-[0.99] ${
+        className={`flex w-full flex-1 flex-col justify-between px-3 py-2.5 text-left transition hover:brightness-95 active:scale-[0.99] ${
           showQr ? "pb-8" : ""
         }`}
       >
         <span className="flex items-start justify-between gap-1">
-          <span className={`font-display text-2xl leading-none ${numCls}`}>{row.tableNumber}</span>
+          <span className="font-display text-2xl leading-none">{row.tableNumber}</span>
           {row.people > 0 && (
-            <span className="text-[10px] font-semibold tabular-nums text-carbon/45">
+            <span className="text-[10px] font-semibold tabular-nums opacity-75">
               {t("mesas.personasN", { n: row.people })}
             </span>
           )}
         </span>
         {waiter ? (
-          <span className="truncate text-[10px] font-semibold leading-none text-carbon/55">
+          <span className="truncate text-[10px] font-semibold leading-none opacity-80">
             {waiter}
           </span>
         ) : null}
         <span className="flex flex-wrap items-center gap-x-1.5">
-          <FloorStatusBadge status={row.status} />
+          <FloorStatusBadge status={row.status} sobrePleno />
           {chargingHint ? (
-            <span className="text-[10px] font-semibold text-alerta">{chargingHint}</span>
+            <span className="text-[10px] font-semibold">{chargingHint}</span>
           ) : null}
         </span>
         {row.bill && row.consumption > 0 ? (
-          <span
-            className={`font-display text-sm tabular-nums leading-none ${
-              row.pending > 0 ? "text-alerta" : "text-ok"
-            }`}
-          >
+          <span className="font-display text-sm tabular-nums leading-none">
             {formatMoney(row.pending > 0 ? row.pending : row.paid)}
           </span>
         ) : kitchenHint ? (
-          <span className="truncate text-[10px] text-carbon/50">{kitchenHint}</span>
+          <span className="truncate text-[10px] opacity-75">{kitchenHint}</span>
         ) : (
-          <span className="text-[10px] text-carbon/40">
+          <span className="text-[10px] opacity-70">
             {row.bill ? t("mesas.estadoOp.sin-consumo") : t("mesas.estadoOp.libre")}
           </span>
         )}
@@ -180,7 +166,7 @@ export const FloorTableTile = ({
         <button
           type="button"
           onClick={onShowQr}
-          className="absolute bottom-2 left-3 text-[11px] font-semibold text-marca"
+          className="absolute bottom-2 left-3 text-[11px] font-semibold underline underline-offset-2"
         >
           {t("mesas.verQrMesa")}
         </button>
