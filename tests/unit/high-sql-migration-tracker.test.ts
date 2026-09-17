@@ -67,6 +67,9 @@ describe("High — SQL migration tracker", () => {
     expect(existsSync(join(root, "scripts/db-migrate.mjs"))).toBe(true);
     const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
     expect(pkg.scripts["db:sql"]).toContain("db-migrate.mjs");
+    expect(readFileSync(join(root, "scripts/db-migrate.mjs"), "utf8")).toContain(
+      "notify pgrst, 'reload schema'",
+    );
     expect(pkg.scripts["db:sql:baseline"]).toContain("--baseline");
     expect(pkg.scripts["db:migrate"]).toContain("drizzle-kit migrate");
   });

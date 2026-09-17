@@ -80,7 +80,7 @@ export const LandingHeader = ({
           <Controls className="hidden md:flex" />
 
           <Link
-            href="/login"
+            href="/panel"
             className="flex min-h-11 items-center justify-center rounded-full px-3 text-sm font-semibold text-carbon/65 underline-offset-4 transition hover:text-marca hover:underline sm:px-4"
           >
             {t("nav.entrar")}

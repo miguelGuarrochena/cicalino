@@ -67,6 +67,7 @@ describe("Menú — gestión de carta", () => {
     expect(sql).toMatch(/add column if not exists costo/);
     expect(sql).toMatch(/add column if not exists imagen_url/);
     expect(sql).toMatch(/categorias alta/);
+    expect(sql).toContain("notify pgrst, 'reload schema'");
     expect(sql).toContain("productos.categoria stays the category name");
     expect(guest).toContain("imagen_url");
     expect(guest).not.toMatch(/select\("id, nombre, descripcion, categoria, precio, costo/);
