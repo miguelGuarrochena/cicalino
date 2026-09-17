@@ -8,16 +8,21 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { DayShiftModal } from "@/components/panel/mesas/DayShiftModal";
+import { DayNavBtn } from "@/components/panel/mesas/DayNavBtn";
 import { MesaChip } from "@/components/panel/mesas/MesaChip";
 import { RangeAssignModal } from "@/components/panel/mesas/RangeAssignModal";
 import { WeekCalendar } from "@/components/panel/mesas/WeekCalendar";
 import {
   BTN,
+  FREE_BRUSH,
   MESAS,
   allMesas,
   draftKey,
   parseRange,
+  uniqueIds,
+  weekdayFromOffset,
   weekdaysInSpan,
+  shiftWeekday,
 } from "@/components/panel/mesas/jornadaUi";
 import type { EmployeeUI } from "@/lib/store/config-store";
 import {
@@ -129,15 +134,20 @@ export const JornadaBoard = ({
   const [open, setOpen] = useState<OpenUi>(null);
   const [brush, setBrush] = useState("");
   const [diaOverride, setDiaOverride] = useState<number | null>(null);
+  const [dayOffset, setDayOffset] = useState(0);
   const [drafts, setDrafts] = useState<
     Partial<Record<string, Record<number, string>>>
   >({});
   const dia = diaOverride ?? (shift.weekday || 1);
+  const todayWeekday = shift.weekday || 1;
+  const viewWeekday = weekdayFromOffset(todayWeekday, dayOffset);
+  const viewingToday = dayOffset === 0;
 
   const ownersOf = (d: number) =>
     drafts[draftKey(activeTramo, d)] ??
     ownersFromTemplate(shift.template, d, activeTramo);
   const owners = ownersOf(dia);
+  const viewOwners = ownersOf(viewWeekday);
 
   const markTable = (n: number, employeeId: string | null, day = dia) => {
     setDrafts((prev) => {
@@ -177,12 +187,16 @@ export const JornadaBoard = ({
     }
   };
 
-  const fecha = shift.date
-    ? new Date(`${shift.date}T12:00:00`).toLocaleDateString(
-        locale === "en" ? "en-GB" : "es-AR",
-        { day: "2-digit", month: "2-digit" },
-      )
-    : "";
+  const fechaDe = (offset: number) => {
+    if (!shift.date) return "";
+    const d = new Date(`${shift.date}T12:00:00`);
+    d.setDate(d.getDate() + offset);
+    return d.toLocaleDateString(locale === "en" ? "en-GB" : "es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+  };
+  const viewFecha = fechaDe(dayOffset);
 
   const assignOne = (mesa: number, employeeId: string | null) =>
     run(
@@ -226,7 +240,10 @@ export const JornadaBoard = ({
         const cur = {
           ...(next[k] ?? ownersFromTemplate(shift.template, d, activeTramo)),
         };
-        for (const n of tables) cur[n] = payload.employeeId;
+        for (const n of tables) {
+          if (payload.employeeId === FREE_BRUSH) delete cur[n];
+          else cur[n] = payload.employeeId;
+        }
         next[k] = cur;
       }
       return next;
@@ -310,25 +327,57 @@ export const JornadaBoard = ({
       <section className="min-w-0 rounded-[24px] border border-marca/20 bg-surface p-4 shadow-sm sm:p-5">
         <header>
           <p className="text-xs font-semibold uppercase tracking-wide text-marca">
-            {t("recepcion.jornadaHoy")}
+            {viewingToday ? t("recepcion.jornadaHoy") : t("recepcion.plantilla")}
             {` · ${tramoLabel}`}
           </p>
-          <h2 className="font-display text-2xl uppercase tracking-tight text-carbon">
-            {t(`recepcion.dia.${shift.weekday || dia}`)}
-            {fecha ? ` — ${fecha}` : ""}
-          </h2>
+          <div className="mt-1 flex items-center gap-2">
+            <DayNavBtn
+              dir="prev"
+              label={t("recepcion.diaAnterior")}
+              onClick={() => {
+                setDayOffset((n) => n - 1);
+                closeUi();
+              }}
+            />
+            <h2 className="min-w-0 flex-1 text-center font-display text-2xl uppercase tracking-tight text-carbon">
+              {t(`recepcion.dia.${viewWeekday}`)}
+              {viewFecha ? ` — ${viewFecha}` : ""}
+            </h2>
+            <DayNavBtn
+              dir="next"
+              label={t("recepcion.diaSiguiente")}
+              onClick={() => {
+                setDayOffset((n) => n + 1);
+                closeUi();
+              }}
+            />
+          </div>
         </header>
 
         <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-carbon/55">
-          <span className="rounded-full bg-marca/10 px-2.5 py-1 text-marca">
-            {staff.length} {t("recepcion.enTurno")}
-          </span>
-          <span className="rounded-full bg-carbon/5 px-2.5 py-1">
-            {libres.length} {t("recepcion.mesasLibres")}
-          </span>
-          <span className="rounded-full bg-carbon/5 px-2.5 py-1">
-            {ocupadasN} {t("recepcion.ocupadas")}
-          </span>
+          {viewingToday ? (
+            <>
+              <span className="rounded-full bg-marca/10 px-2.5 py-1 text-marca">
+                {staff.length} {t("recepcion.enTurno")}
+              </span>
+              <span className="rounded-full bg-carbon/5 px-2.5 py-1">
+                {libres.length} {t("recepcion.mesasLibres")}
+              </span>
+              <span className="rounded-full bg-carbon/5 px-2.5 py-1">
+                {ocupadasN} {t("recepcion.ocupadas")}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="rounded-full bg-marca/10 px-2.5 py-1 text-marca">
+                {uniqueIds(viewOwners).length} {t("recepcion.enTurno")}
+              </span>
+              <span className="rounded-full bg-carbon/5 px-2.5 py-1">
+                {mesas.filter((n) => !viewOwners[n]).length}{" "}
+                {t("recepcion.mesasLibres")}
+              </span>
+            </>
+          )}
         </div>
 
         {!employees.length ? (
@@ -340,22 +389,37 @@ export const JornadaBoard = ({
             </p>
             <div className={`mt-2 ${MESAS}`}>
               {mesas.map((n) => {
-                const row = byTable.get(n);
+                if (viewingToday) {
+                  const row = byTable.get(n);
+                  return (
+                    <MesaChip
+                      key={n}
+                      n={n}
+                      employeeId={row?.employeeId ?? null}
+                      empIds={empIds}
+                      name={
+                        row?.employeeId
+                          ? firstName(empName(row.employeeId) || row.employeeName)
+                          : ""
+                      }
+                      occupied={occupied.has(n)}
+                      selected={picked === n}
+                      disabled={busy != null}
+                      onClick={() => setOpen({ kind: "mesa", table: n })}
+                    />
+                  );
+                }
+                const owner = viewOwners[n] || null;
                 return (
                   <MesaChip
                     key={n}
                     n={n}
-                    employeeId={row?.employeeId ?? null}
+                    employeeId={owner}
                     empIds={empIds}
-                    name={
-                      row?.employeeId
-                        ? firstName(empName(row.employeeId) || row.employeeName)
-                        : ""
+                    name={owner ? firstName(empName(owner)) : ""}
+                    onClick={
+                      canManage ? () => openDay(viewWeekday) : undefined
                     }
-                    occupied={occupied.has(n)}
-                    selected={picked === n}
-                    disabled={busy != null}
-                    onClick={() => setOpen({ kind: "mesa", table: n })}
                   />
                 );
               })}
@@ -363,7 +427,7 @@ export const JornadaBoard = ({
           </>
         )}
 
-        {canManage && employees.length > 0 && mesaOpts.length > 0 ? (
+        {viewingToday && canManage && employees.length > 0 && mesaOpts.length > 0 ? (
           <button
             type="button"
             disabled={busy != null}
@@ -374,7 +438,7 @@ export const JornadaBoard = ({
           </button>
         ) : null}
 
-        {canManage && (
+        {viewingToday && canManage && (
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
               type="button"
@@ -459,10 +523,15 @@ export const JornadaBoard = ({
           busy={busy != null}
           onBrush={setBrush}
           onMark={(n) => {
+            if (brush === FREE_BRUSH) {
+              markTable(n, null);
+              return;
+            }
             if (!brush) return;
             const owner = owners[n] || null;
             markTable(n, owner === brush ? null : brush);
           }}
+          onShiftDay={(delta) => setDiaOverride(shiftWeekday(dia, delta))}
           onClose={closeUi}
         />
       ) : null}
@@ -470,7 +539,10 @@ export const JornadaBoard = ({
       {rangeScope ? (
         <RangeAssignModal
           scope={rangeScope}
-          employees={empOpts}
+          employees={[
+            { value: FREE_BRUSH, label: t("recepcion.dejarLibre") },
+            ...empOpts,
+          ]}
           mesaOpts={mesaOpts}
           dayOpts={dayOpts}
           defaultEmp={brush}
@@ -486,7 +558,11 @@ export const JornadaBoard = ({
                 String(payload.mesaFrom),
                 String(payload.mesaTo),
               );
-              if (!payload.employeeId || !tables.length) return;
+              const empId =
+                payload.employeeId === FREE_BRUSH ? null : payload.employeeId;
+              if ((empId == null && payload.employeeId !== FREE_BRUSH) || !tables.length) {
+                return;
+              }
               closeUi();
               void run(
                 "rango",
@@ -495,7 +571,7 @@ export const JornadaBoard = ({
                     branchId!,
                     a,
                     b,
-                    payload.employeeId,
+                    empId,
                     actorId,
                     activeTramo,
                   ),
@@ -535,7 +611,7 @@ export const JornadaBoard = ({
               triggerClassName="min-h-11 w-full"
               ariaLabel={t("recepcion.elegiQuien")}
               options={[
-                { value: "", label: t("recepcion.sinAsignar") },
+                { value: "", label: t("recepcion.dejarLibre") },
                 ...empOpts,
               ]}
             />
