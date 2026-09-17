@@ -48,6 +48,11 @@ describe("Operación — jerarquía y layout", () => {
     expect(detalle).toContain("mesas.cobrar");
     expect(detalle).toContain("mesas.comanda");
     expect(detalle).toContain("mesas.cuenta");
+    expect(detalle).toContain("from \"@/components/ui/Select\"");
+    expect(detalle).not.toContain("<select");
+    expect(detalle).toContain("mesas.pagoElegido");
+    expect(detalle).toContain("min-h-11 w-full rounded-full bg-ok");
+    expect(detalle).toContain("flex w-full flex-col gap-2");
     expect(guest).toContain("mesa.verCuenta");
     expect(guest).toContain("mesa.pagar");
     expect(guest).toContain("mesa.seguirPidiendo");
@@ -68,5 +73,21 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesas).toContain("waiterName");
     expect(mesas).toContain("assignTable");
     expect(pricing).toContain('espera: "Recepción"');
+  });
+
+  it("el panel no usa el select nativo: las opciones van por el Select de la app", () => {
+    const files = [
+      "src/components/panel/mesas/TableDetail.tsx",
+      "src/components/panel/mesas/CobrarModal.tsx",
+      "src/components/panel/espera/JornadaBoard.tsx",
+      "src/components/panel/mesas/FloorTableTile.tsx",
+    ];
+    for (const f of files) {
+      expect(read(f), f).not.toMatch(/<select[\s>]/);
+    }
+    const tile = read("src/components/panel/mesas/FloorTableTile.tsx");
+    expect(tile).toContain("bg-alerta-fondo");
+    expect(tile).toContain("bg-curso-fondo");
+    expect(tile).toContain("bg-marca/20");
   });
 });

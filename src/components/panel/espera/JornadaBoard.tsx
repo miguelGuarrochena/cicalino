@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
+import { Select } from "@/components/ui/Select";
 import type { EmployeeUI } from "@/lib/store/config-store";
 import {
   WEEKDAYS,
@@ -20,8 +21,6 @@ import {
   saveShiftTemplate,
 } from "@/lib/data/floorShift";
 
-const SELECT =
-  "min-h-11 rounded-xl border border-linea bg-crema/40 px-3 text-sm text-carbon outline-none focus:border-espera focus:ring-2 focus:ring-espera/20";
 const INPUT =
   "min-h-11 w-20 rounded-xl border border-linea bg-crema/40 px-3 text-sm tabular-nums text-carbon outline-none focus:border-espera focus:ring-2 focus:ring-espera/20";
 
@@ -229,18 +228,17 @@ export const JornadaBoard = ({
             </p>
             {canManage ? (
               <>
-                <select
+                <Select
                   value={pickEmp}
-                  onChange={(e) => setPickEmp(e.target.value)}
-                  className={`${SELECT} flex-1`}
-                >
-                  <option value="">{t("recepcion.sinAsignar")}</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setPickEmp}
+                  className="flex-1"
+                  triggerClassName="min-h-11"
+                  ariaLabel={t("recepcion.asignar")}
+                  options={[
+                    { value: "", label: t("recepcion.sinAsignar") },
+                    ...employees.map((e) => ({ value: e.id, label: e.name })),
+                  ]}
+                />
                 <button
                   type="button"
                   disabled={busy != null}
@@ -312,17 +310,14 @@ export const JornadaBoard = ({
                   className={`${INPUT} ml-1`}
                 />
               </label>
-              <select
+              <Select
                 value={empId}
-                onChange={(e) => setRangeEmp(e.target.value)}
-                className={`${SELECT} min-w-[10rem] flex-1`}
-              >
-                {employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setRangeEmp}
+                className="min-w-[10rem] flex-1"
+                triggerClassName="min-h-11"
+                ariaLabel={t("recepcion.asignar")}
+                options={employees.map((e) => ({ value: e.id, label: e.name }))}
+              />
               <button
                 type="submit"
                 disabled={busy != null || !empId}
@@ -409,21 +404,18 @@ export const JornadaBoard = ({
           <ul className="mt-3 flex flex-col gap-2">
             {drafts.map((row, i) => (
               <li key={`${row.employeeId}-${i}`} className="flex flex-wrap items-center gap-2">
-                <select
+                <Select
                   value={row.employeeId}
-                  onChange={(e) =>
+                  onChange={(employeeId) =>
                     setDrafts((rows) =>
-                      rows.map((r, j) => (j === i ? { ...r, employeeId: e.target.value } : r)),
+                      rows.map((r, j) => (j === i ? { ...r, employeeId } : r)),
                     )
                   }
-                  className={`${SELECT} min-w-[10rem] flex-1`}
-                >
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name}
-                    </option>
-                  ))}
-                </select>
+                  className="min-w-[10rem] flex-1"
+                  triggerClassName="min-h-11"
+                  ariaLabel={t("recepcion.asignar")}
+                  options={employees.map((emp) => ({ value: emp.id, label: emp.name }))}
+                />
                 <input
                   type="number"
                   min={1}

@@ -6,6 +6,7 @@ import { createPreference } from "@/lib/server/mercadopago";
 import {
   attachPreference,
   cancelMercadoPagoPayment,
+  callWaiter,
   createGuestPayment,
   fetchGuestState,
   readGuestCookie,
@@ -91,6 +92,11 @@ export const POST = async (
       await attachPreference(paymentId, pref.id);
       checkout = pref.initPoint;
     }
+  }
+
+  if (res.metodo && res.metodo !== "mercado_pago") {
+    /* Cash, transfer and cards at the table need someone to come by. */
+    await callWaiter(creds);
   }
 
   const state = await fetchGuestState(creds);

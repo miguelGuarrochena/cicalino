@@ -46,6 +46,8 @@ describe("Llamar mesero/a", () => {
     const guestFn = sql.slice(sql.indexOf("llamar_mozo_comensal"));
     expect(guestFn).toContain("ya-llamado");
     expect(guestFn).toContain("mozo_llamado");
+    expect(sql).toContain("pagar_como_comensal");
+    expect(sql).toContain("v_metodo <> 'mercado_pago'");
     expect(sql).toMatch(
       /grant execute on function public\.llamar_mozo_comensal\(uuid, text\)\s+to service_role/,
     );
@@ -60,5 +62,17 @@ describe("Llamar mesero/a", () => {
     expect(mesas).toContain("mesas.filtroPedido");
     expect(mesas).toContain("onAcknowledge");
     expect(mesas).toContain("onShowQr");
+  });
+
+  it("elegir efectivo en el celular avisa al mozo", () => {
+    const pagos = readFileSync(join(root, "src/app/api/m/[token]/pagos/route.ts"), "utf8");
+    expect(pagos).toContain("callWaiter");
+    expect(pagos).toContain("mercado_pago");
+    const detalle = readFileSync(
+      join(root, "src/components/panel/mesas/TableDetail.tsx"),
+      "utf8",
+    );
+    expect(detalle).toContain("mesas.pagoElegido");
+    expect(detalle).toContain("min-h-11 w-full");
   });
 });
