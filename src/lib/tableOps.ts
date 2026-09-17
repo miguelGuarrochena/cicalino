@@ -23,6 +23,7 @@ export type FloorOpStatus =
   | "libre"
   | "sin-consumo"
   | "pedido-nuevo"
+  | "llamado"
   | "preparando"
   | "listo"
   | "consumiendo"
@@ -32,7 +33,7 @@ export type FloorOpStatus =
   | "pagada"
   | "cerrada";
 
-export type FloorFilter = "ahora" | "cocina" | "cobrar" | "todas";
+export type FloorFilter = "pedido" | "cobrar" | "todas";
 
 export interface KitchenLine {
   name: string;
@@ -64,6 +65,7 @@ export interface FloorTable {
   waitingPayments: number;
   waiterId: string | null;
   waiterName: string | null;
+  calledAt: string | null;
 }
 
 export const kitchenOrders = (
@@ -118,6 +120,7 @@ export const floorStatus = (bill: TableBill | null): FloorOpStatus => {
   const waiting = waitingStaffPayments(bill);
 
   if (created > 0) return "pedido-nuevo";
+  if (bill.session.calledAt) return "llamado";
   if (ready > 0) return "listo";
   if (waiting > 0) return "esperando-pago";
   if (prep > 0) return "preparando";
@@ -128,40 +131,25 @@ export const floorStatus = (bill: TableBill | null): FloorOpStatus => {
   return delivered ? "consumiendo" : "pendiente";
 };
 
-export const needsNow = (row: FloorTable): boolean => {
-  const s = row.status;
-  return (
-    s === "pedido-nuevo" ||
-    s === "listo" ||
-    s === "esperando-pago" ||
-    s === "pendiente" ||
-    s === "parcial"
-  );
-};
-
-export const needsKitchen = (row: FloorTable): boolean =>
-  row.status === "pedido-nuevo" ||
-  row.status === "preparando" ||
-  row.status === "listo";
+export const needsPedido = (row: FloorTable): boolean =>
+  row.newOrders.length > 0 || Boolean(row.calledAt);
 
 export const needsCharge = (row: FloorTable): boolean =>
-  row.status === "pendiente" ||
-  row.status === "parcial" ||
-  row.status === "esperando-pago" ||
-  row.status === "consumiendo";
+  Boolean(row.bill && row.bill.session.status === "abierta" && row.pending > 0);
 
 const NOW_ORDER: Record<FloorOpStatus, number> = {
   "pedido-nuevo": 0,
-  listo: 1,
-  "esperando-pago": 2,
-  pendiente: 3,
-  parcial: 4,
-  preparando: 5,
-  consumiendo: 6,
-  pagada: 7,
-  "sin-consumo": 8,
-  libre: 9,
-  cerrada: 10,
+  llamado: 1,
+  listo: 2,
+  "esperando-pago": 3,
+  pendiente: 4,
+  parcial: 5,
+  preparando: 6,
+  consumiendo: 7,
+  pagada: 8,
+  "sin-consumo": 9,
+  libre: 10,
+  cerrada: 11,
 };
 
 const toRow = (
@@ -186,6 +174,7 @@ const toRow = (
   waitingPayments: bill ? waitingStaffPayments(bill) : 0,
   waiterId: null,
   waiterName: null,
+  calledAt: bill?.session.calledAt ?? null,
 });
 
 export const buildFloor = (tables: FloorQr[], bills: TableBill[]): FloorTable[] => {
@@ -233,16 +222,16 @@ export const filterFloor = (
   if (filtro === "todas") {
     return [...searched].sort((a, b) => a.tableNumber - b.tableNumber);
   }
-  if (filtro === "ahora") return searched.filter(needsNow);
-  if (filtro === "cocina") return searched.filter(needsKitchen);
+  if (filtro === "pedido") return searched.filter(needsPedido);
   if (filtro === "cobrar") return searched.filter(needsCharge);
   return searched;
 };
 
 export const kitchenInbox = (
   rows: FloorTable[],
-): { created: FloorTable[]; prep: FloorTable[]; ready: FloorTable[] } => ({
+): { created: FloorTable[]; called: FloorTable[]; prep: FloorTable[]; ready: FloorTable[] } => ({
   created: rows.filter((r) => r.newOrders.length > 0),
+  called: rows.filter((r) => Boolean(r.calledAt) && r.newOrders.length === 0),
   prep: rows.filter((r) => r.prepOrders.length > 0 && r.newOrders.length === 0),
   ready: rows.filter((r) => r.readyOrders.length > 0),
 });

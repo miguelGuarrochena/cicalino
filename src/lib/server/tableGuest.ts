@@ -260,6 +260,19 @@ export const cancelGuestPayment = (creds: GuestCredentials, paymentId: string) =
     p_pago: paymentId,
   });
 
+export const cancelGuestOrder = (creds: GuestCredentials, orderId: string) =>
+  callRpc("cancelar_pedido_comensal", {
+    p_comensal: creds.guestId,
+    p_token_hash: creds.tokenHash,
+    p_pedido: orderId,
+  });
+
+export const callWaiter = (creds: GuestCredentials) =>
+  callRpc("llamar_mozo_comensal", {
+    p_comensal: creds.guestId,
+    p_token_hash: creds.tokenHash,
+  });
+
 export const attachPreference = async (paymentId: string, preferenceId: string) => {
   const admin = createAdminSupabase();
   if (!admin) return;

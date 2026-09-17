@@ -93,6 +93,7 @@ const mkBill = (over: Partial<TableBill> = {}, payments: BillPayment[] = []): Ta
       paidAt: null,
       closedAt: null,
       closeReason: null,
+      calledAt: null,
     },
     guests: [
       { id: "juan", name: "Juan", joinedAt: "", consumption: 12000 },

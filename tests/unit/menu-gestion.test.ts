@@ -28,6 +28,20 @@ describe("Menú — gestión de carta", () => {
     expect(existsSync(join(root, "src/components/panel/config/MenuEditor.tsx"))).toBe(false);
   });
 
+  it("el buscador está en el encabezado y cada producto muestra editar y eliminar", () => {
+    const ws = read("src/components/panel/menu/MenuWorkspace.tsx");
+    const header = ws.slice(ws.indexOf("/* ---- Page"), ws.indexOf("{productDraft &&"));
+    const panel = ws.slice(ws.indexOf("const productPanel"), ws.indexOf("/* ---- Page"));
+    const row = ws.slice(ws.indexOf("const productRow"), ws.indexOf("const productList"));
+    expect(header).toContain('t("carta.buscarPh")');
+    expect(header).toContain('t("carta.buscar")');
+    expect(panel).not.toContain('t("carta.buscar")');
+    expect(panel).not.toContain('type="search"');
+    expect(row).toContain('t("carta.editarCorto")');
+    expect(row).toContain('t("carta.eliminarCorto")');
+    expect(row).toContain("removeProduct(p)");
+  });
+
   it("la página tiene las cuatro acciones principales y CRUD de categorías y productos", () => {
     const ws = read("src/components/panel/menu/MenuWorkspace.tsx");
     for (const key of ["carta.crearProducto", "carta.crearCategoria", "carta.importarExcel", "carta.verMenu"]) {

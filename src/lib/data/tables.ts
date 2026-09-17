@@ -140,6 +140,9 @@ export const closeTable = (sessionId: string, reason: string | null, employeeId:
     "panel.mesas.cerrar",
   );
 
+export const acknowledgeWaiterCall = (sessionId: string) =>
+  rpc("atender_llamado_mesa", { p_sesion: sessionId }, "panel.mesas.atender-llamado");
+
 /* ---- Tables and QR ---------------------------------------------------------- */
 
 export interface TableQrView {

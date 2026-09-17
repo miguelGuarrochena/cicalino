@@ -101,7 +101,7 @@ export const MenuProductDrawer = ({
       busy={busy || imageBusy}
       onClose={onClose}
       footer={
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {onDelete ? (
             <button
               type="button"
@@ -109,22 +109,21 @@ export const MenuProductDrawer = ({
               disabled={busy}
               className="min-h-11 rounded-full border border-red-300 px-4 text-sm font-semibold text-red-600 disabled:opacity-50"
             >
-              {t("carta.borrar")}
+              {t("carta.eliminarCorto")}
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-11 flex-1 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70"
-            >
-              {t("carta.cancelar")}
-            </button>
-          )}
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70"
+          >
+            {t("carta.cancelar")}
+          </button>
           <button
             type="button"
             onClick={onSave}
             disabled={busy || !draft.name.trim() || !draft.price}
-            className="min-h-11 flex-1 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+            className="min-h-11 min-w-[8rem] flex-1 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
           >
             {editing ? t("carta.guardar") : t("carta.crearProducto")}
           </button>

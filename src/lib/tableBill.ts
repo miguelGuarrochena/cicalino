@@ -114,6 +114,7 @@ export interface TableBill {
     paidAt: string | null;
     closedAt: string | null;
     closeReason: string | null;
+    calledAt: string | null;
   };
   guests: BillGuest[];
   orders: BillOrder[];
@@ -149,6 +150,7 @@ export const mapBill = (raw: unknown): TableBill | null => {
       paidAt: strOrNull(s.pagada_en),
       closedAt: strOrNull(s.cerrada_en),
       closeReason: strOrNull(s.cerrada_motivo),
+      calledAt: strOrNull(s.llamado_en),
     },
     guests: ((r.comensales as Json[] | null) ?? []).map((c) => ({
       id: str(c.id),

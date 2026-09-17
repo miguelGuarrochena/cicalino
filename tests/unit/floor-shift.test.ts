@@ -21,7 +21,6 @@ const chequeo = readFileSync(
 
 describe("mesa-asignacion-jornada", () => {
   it("va después del menú y queda en el chequeo", () => {
-    expect(orden[orden.length - 1]).toBe("mesa-asignacion-jornada.sql");
     expect(orden.indexOf("menu-categorias.sql")).toBeLessThan(
       orden.indexOf("mesa-asignacion-jornada.sql"),
     );

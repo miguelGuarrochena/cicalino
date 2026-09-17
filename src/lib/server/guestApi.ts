@@ -23,6 +23,8 @@ const REASON_STATUS: Record<string, number> = {
   "nada-que-pagar": 409,
   excede: 409,
   "no-pendiente": 409,
+  "ya-anotado": 409,
+  "pagos-exceden": 409,
   "suscripcion-vencida": 403,
   "metodo-no-disponible": 422,
   "not-configured": 503,
