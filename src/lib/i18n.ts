@@ -404,7 +404,7 @@ const dict = {
       config: {
         titulo: "Configuración",
         intro:
-          "Ajustes del local. Solo dueño y supervisor. Pedí la contraseña de la cuenta al entrar.",
+          "Ajustes del local. Solo dueño y supervisor.",
         p1t: "Modo de identificación (Pedidos)",
         p1d: "Elegí si al crear un pedido pedís N° de turno, nombre o mesa. Cambia la etiqueta; el flujo de estados es el mismo.",
         p2t: "Cantidad de mesas",
@@ -420,7 +420,7 @@ const dict = {
       metricas: {
         titulo: "Métricas",
         intro:
-          "Números del día, semana, mes o año. Solo el dueño (con contraseña).",
+          "Números del día, semana, mes o año. Solo el dueño.",
         p1t: "Elegí el período",
         p1d: "Día, semana, mes o año. Las tarjetas y el gráfico se actualizan.",
         p2t: "Pedidos vs Espera",
@@ -812,7 +812,7 @@ const dict = {
       empPinDup: "Ese PIN ya lo usa otro empleado.",
       guardarEmp: "Agregar",
       modalSub:
-        "Nombre y PIN para elegir quién atiende en un dispositivo compartido. Configuración pide la contraseña de la cuenta.",
+        "Nombre y PIN para elegir quién atiende en un dispositivo compartido.",
       agregar: "Agregar empleado",
       sinEmp: "Todavía no cargaste empleados.",
       sinRol: "Sin puesto",
@@ -1868,7 +1868,7 @@ const dict = {
       config: {
         titulo: "Settings",
         intro:
-          "Branch settings. Owner and supervisor only. Enter the account password to open this area.",
+          "Branch settings. Owner and supervisor only.",
         p1t: "ID mode (Orders)",
         p1d: "Choose whether creating an order asks for ticket #, name or table. Only the label changes; statuses stay the same.",
         p2t: "Table count",
@@ -1884,7 +1884,7 @@ const dict = {
       metricas: {
         titulo: "Metrics",
         intro:
-          "Numbers for day, week, month or year. Owner only (with password).",
+          "Numbers for day, week, month or year. Owner only.",
         p1t: "Pick the period",
         p1d: "Day, week, month or year. Cards and chart update.",
         p2t: "Orders vs Wait",
@@ -2269,7 +2269,7 @@ const dict = {
       empPinDup: "That PIN is already used by someone else.",
       guardarEmp: "Add",
       modalSub:
-        "Name and PIN to pick who's serving on a shared device. Settings asks for the account password.",
+        "Name and PIN to pick who's serving on a shared device.",
       agregar: "Add staff member",
       sinEmp: "No staff added yet.",
       sinRol: "No title",

@@ -260,7 +260,7 @@ const PreciosPage = () => {
         <Logo className="h-10 sm:h-12" />
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
-            href="/login"
+            href="/panel"
             className="flex min-h-11 items-center justify-center rounded-full bg-marca px-6 text-sm font-semibold text-crema transition hover:bg-marca-fuerte sm:min-h-0 sm:px-5 sm:py-2"
           >
             {es ? "Entrar" : "Log in"}

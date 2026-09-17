@@ -177,6 +177,10 @@ const EntrarPage = () => {
           </form>
 
           <p className="mt-8 text-center text-xs text-carbon/40">
+            <Link href="/panel" className="underline-offset-2 hover:underline">
+              {t("nav.entrar")}
+            </Link>
+            {" · "}
             <Link href="/" className="underline-offset-2 hover:underline">
               {t("entrar.volver")}
             </Link>

@@ -110,6 +110,7 @@ for (const archivo of pendientes) {
       [archivo],
     );
     await client.query("commit");
+    await client.query("notify pgrst, 'reload schema'");
     console.log(mode === "baseline" ? "MARKED" : "OK");
   } catch (e) {
     await client.query("rollback");

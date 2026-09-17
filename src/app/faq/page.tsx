@@ -23,7 +23,7 @@ const FaqPage = () => {
               {t("nav.precios")}
             </Link>
             <Link
-              href="/login"
+              href="/panel"
               className="flex min-h-11 items-center justify-center rounded-full bg-marca px-5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte sm:min-h-0 sm:px-4 sm:py-2"
             >
               {t("nav.entrar")}

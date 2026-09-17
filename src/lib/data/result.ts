@@ -56,5 +56,14 @@ export const desdeSupabase = (err: {
   if (!err.code && /fetch|network|failed to fetch/i.test(err.message)) {
     return { kind: "conexion", message: err.message };
   }
+  /* PostgREST PGRST303: gateway minted a JWT whose iat is a couple of
+   * seconds ahead of the node that checks it. The same request usually
+   * works a beat later — treat it like a blip, not a denied login. */
+  if (
+    err.code === "PGRST303" ||
+    /JWT issued at future/i.test(err.message)
+  ) {
+    return { kind: "conexion", message: err.message };
+  }
   return { kind: "desconocido", message: err.message };
 };

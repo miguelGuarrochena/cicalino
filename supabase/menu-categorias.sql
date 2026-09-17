@@ -97,3 +97,7 @@ create policy "categorias editar" on public.categorias
 drop policy if exists "categorias baja" on public.categorias;
 create policy "categorias baja" on public.categorias
   for delete using (public.auth_gestiona_local(local_id));
+
+-- PostgREST keeps its own schema cache. Without this, /panel/menu 404s the
+-- new table and columns until the API restarts.
+notify pgrst, 'reload schema';

@@ -37,6 +37,12 @@ describe("desdeSupabase", () => {
     );
   });
 
+  it("un JWT emitido en el futuro es un blip de reloj, no un permiso", () => {
+    expect(
+      desdeSupabase({ message: "JWT issued at future", code: "PGRST303" }).kind,
+    ).toBe("conexion");
+  });
+
   it("un fallo de fetch sin código es conexión", () => {
     expect(desdeSupabase({ message: "Failed to fetch" }).kind).toBe("conexion");
     expect(desdeSupabase({ message: "network error" }).kind).toBe("conexion");

@@ -11,10 +11,7 @@ import { PanelMenu } from "@/components/panel/PanelMenu";
 import { ThemeToggle } from "@/components/ui/Controls";
 import { useWakeLock } from "@/lib/hooks/useWakeLock";
 import { useBranchConfigSync } from "@/lib/hooks/useBranchConfigSync";
-import {
-  ADMIN_UNLOCK_MS,
-  useSessionStore,
-} from "@/lib/store/session-store";
+import { useSessionStore } from "@/lib/store/session-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { EsperaCancelWatch } from "@/components/panel/EsperaCancelWatch";
@@ -88,18 +85,9 @@ const PanelLayout = ({
       path.startsWith("/panel/pedidos") ||
       path.startsWith("/panel/espera") ||
       path === "/panel/mesas");
-  const enSeccionDueño =
-    path.startsWith("/panel/config") || path.startsWith("/panel/metrics");
-  const bloquearAdmin = useSessionStore((s) => s.bloquearAdmin);
 
   useWakeLock(role !== "superadmin");
   useBranchConfigSync(branchId);
-
-  useEffect(() => {
-    if (enSeccionDueño) return;
-    const t = window.setTimeout(bloquearAdmin, ADMIN_UNLOCK_MS);
-    return () => window.clearTimeout(t);
-  }, [enSeccionDueño, bloquearAdmin]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-crema">

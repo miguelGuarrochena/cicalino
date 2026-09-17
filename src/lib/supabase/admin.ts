@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "./config";
+import { fetchWithJwtSkewRetry } from "./jwtSkewRetry";
 
 export const createAdminSupabase = () => {
   const key =
@@ -10,5 +11,6 @@ export const createAdminSupabase = () => {
   if (!SUPABASE_URL || !key) return null;
   return createClient(SUPABASE_URL, key, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: fetchWithJwtSkewRetry },
   });
 };

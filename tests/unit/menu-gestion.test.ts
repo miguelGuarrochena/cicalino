@@ -46,6 +46,14 @@ describe("Menú — gestión de carta", () => {
     }
   });
 
+  it("cargar categorías típicas avisa si el alta falla", () => {
+    const ws = read("src/components/panel/menu/MenuWorkspace.tsx");
+    const seed = ws.slice(ws.indexOf("const seedDefaults"), ws.indexOf("const runImport"));
+    expect(seed).toContain("saveMenuCategory(");
+    expect(seed).toContain('toast(t("carta.error"), "error")');
+    expect(seed).toContain("finally");
+  });
+
   it("la vista previa no muestra costos ni controles", () => {
     const preview = read("src/components/panel/menu/MenuPreviewDialog.tsx");
     expect(preview).not.toMatch(/\.cost\b|costo|AvailabilitySwitch|RowMenu/);
@@ -59,6 +67,7 @@ describe("Menú — gestión de carta", () => {
     expect(sql).toMatch(/add column if not exists costo/);
     expect(sql).toMatch(/add column if not exists imagen_url/);
     expect(sql).toMatch(/categorias alta/);
+    expect(sql).toContain("notify pgrst, 'reload schema'");
     expect(sql).toContain("productos.categoria stays the category name");
     expect(guest).toContain("imagen_url");
     expect(guest).not.toMatch(/select\("id, nombre, descripcion, categoria, precio, costo/);
