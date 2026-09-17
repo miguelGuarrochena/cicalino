@@ -34,7 +34,6 @@ import {
   reservationDateKey,
 } from "@/lib/reservations";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
-import { useFloorShift } from "@/lib/hooks/useFloorShift";
 import { CapacidadMesaModal } from "@/components/panel/espera/CapacidadMesaModal";
 import { ConfirmacionModal } from "@/components/panel/espera/ConfirmacionModal";
 import { HoldReservaModal } from "@/components/panel/espera/HoldReservaModal";
@@ -47,8 +46,6 @@ import { ReservasAgenda } from "@/components/panel/espera/ReservasAgenda";
 import { MapaMesas } from "@/components/panel/espera/MapaMesas";
 import { ColaEspera } from "@/components/panel/espera/ColaEspera";
 import { CanceladosHoy } from "@/components/panel/espera/CanceladosHoy";
-import { JornadaBoard } from "@/components/panel/espera/JornadaBoard";
-import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { motivoOcupar, motivoReserva } from "@/lib/espera/motivos";
 import {
   defaultHorarioInput,
@@ -76,7 +73,6 @@ const EsperaPanelPage = () => {
   const activeEmployee = useActiveEmployee();
   const { visibles, canManage } = useOperationalAccess();
   const tableCount = useConfigStore((s) => s.tableCount);
-  const employees = useConfigStore((s) => s.employees);
   const cutoffHour = useConfigStore((s) => s.cutoffHour);
   const reservaAbreMin = useConfigStore((s) => s.reservaAbreMin);
   const reservaCierraMin = useConfigStore((s) => s.reservaCierraMin);
@@ -108,12 +104,6 @@ const EsperaPanelPage = () => {
     ready,
     syncError,
   } = useWaitlist(branchId);
-
-  const { shift, live: shiftLive, refresh: refreshShift } = useFloorShift(
-    visibles.espera ? branchId : null,
-    visibles.espera,
-  );
-  const [vista, setVista] = useState<"sala" | "jornada">("sala");
 
   const qr = useQrSeenClose<WaitlistView>(fetchEsperaSeenAt, esperas);
   const [createOpen, setCreateOpen] = useState(false);
@@ -240,15 +230,6 @@ const EsperaPanelPage = () => {
 
   const libres = mesas.filter((m) => m.status === "libre").length;
   const ocupadas = mesas.filter((m) => m.status === "ocupada").length;
-  const ocupadasSet = useMemo(
-    () => new Set(mesas.filter((m) => m.status === "ocupada").map((m) => m.number)),
-    [mesas],
-  );
-  const mozoPorMesa = useMemo(() => {
-    const m = new Map<number, string | null>();
-    for (const a of shift.assignments) m.set(a.tableNumber, a.employeeName);
-    return m;
-  }, [shift.assignments]);
   const conReserva = mesas.filter((m) => reservaPorMesa.has(m.number)).length;
   const personasEnCola = cola.reduce((sum, e) => sum + e.partySize, 0);
   const mesasFiltradas = useMemo(() => {
@@ -618,31 +599,6 @@ const EsperaPanelPage = () => {
         </div>
       </div>
 
-      <SegmentedTabs
-        accent="espera"
-        ariaLabel={t("nav.espera")}
-        value={vista}
-        onChange={setVista}
-        options={[
-          { id: "sala", label: t("recepcion.sala") },
-          { id: "jornada", label: t("recepcion.jornada") },
-        ]}
-      />
-
-      {vista === "jornada" ? (
-        <JornadaBoard
-          branchId={branchId}
-          shift={shift}
-          live={shiftLive}
-          tableCount={tableCount}
-          occupied={ocupadasSet}
-          employees={employees}
-          canManage={canManage}
-          actorId={activeEmployee?.id ?? null}
-          onChanged={refreshShift}
-        />
-      ) : (
-      <>
       <div className="flex flex-col gap-3">
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">
           {(
@@ -713,7 +669,6 @@ const EsperaPanelPage = () => {
           setOcuparOpen(true);
         }}
         onLiberar={setLiberarNumero}
-        mozoPorMesa={mozoPorMesa}
       />
 
       <ColaEspera
@@ -833,8 +788,6 @@ const EsperaPanelPage = () => {
           {locale === "en" ? "Help" : "Ayuda"}
         </Link>
       </p>
-      </>
-      )}
 
       {qr.item && (
         <QrModal

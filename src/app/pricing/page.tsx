@@ -104,13 +104,13 @@ const PreciosPage = () => {
         ],
           espera: [
           "Cola, reservas y llegada de clientes",
-          "Asignación de mesas por jornada",
           "Mapa de mesas libres/ocupadas",
           "Calendario de reservas",
         ],
         pagos: [
           "Carta y pedidos desde el QR de la mesa",
           "Cuenta por comensal",
+          "Quién atiende cada mesa (propina y orden)",
           "Dividir: mi consumo, partes iguales, uno paga o monto",
           "Propina por persona",
           "Mercado Pago, transferencia, efectivo y tarjeta",
@@ -125,13 +125,13 @@ const PreciosPage = () => {
         ],
           espera: [
           "Queue, reservations and arrivals",
-          "Shift table assignment",
           "Free/busy floor map",
           "Reservation calendar",
         ],
         pagos: [
           "Menu and ordering from the table QR",
           "Bill per guest",
+          "Who is on each table (tips and order)",
           "Split: my items, equal parts, one pays or amount",
           "Per-person tip",
           "Mercado Pago, bank transfer, cash and card",

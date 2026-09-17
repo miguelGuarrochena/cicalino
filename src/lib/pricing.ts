@@ -6,7 +6,7 @@ export const PRICE_BUNDLE = 25_000;
 export const PRICE_PER_BRANCH = PRICE_ORDERS;
 
 /* The three commercial modules a branch can contract. `espera` is Reception
- * (queue, reservations, floor map, today's shift); `pagos` is split bill. */
+ * (queue, reservations, floor map); `pagos` is split bill and who waits the table. */
 export type ModuleFlags = {
   pedidos: boolean;
   espera: boolean;

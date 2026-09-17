@@ -22,7 +22,7 @@ import {
 } from "@/lib/data/floorShift";
 
 const INPUT =
-  "min-h-11 w-20 rounded-xl border border-linea bg-crema/40 px-3 text-sm tabular-nums text-carbon outline-none focus:border-espera focus:ring-2 focus:ring-espera/20";
+  "min-h-11 w-20 rounded-xl border border-linea bg-crema/40 px-3 text-sm tabular-nums text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20";
 
 type DraftRange = { employeeId: string; from: string; to: string };
 
@@ -120,10 +120,10 @@ export const JornadaBoard = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="rounded-[24px] border border-espera/20 bg-surface p-4 shadow-sm sm:p-5">
+      <section className="rounded-[24px] border border-marca/20 bg-surface p-4 shadow-sm sm:p-5">
         <header className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-espera">
+            <p className="text-xs font-semibold uppercase tracking-wide text-marca">
               {t("recepcion.jornadaHoy")}
             </p>
             <h2 className="font-display text-2xl uppercase tracking-tight text-carbon">
@@ -134,7 +134,7 @@ export const JornadaBoard = ({
         </header>
 
         <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-carbon/55">
-          <span className="rounded-full bg-espera/10 px-2.5 py-1 text-espera">
+          <span className="rounded-full bg-marca/10 px-2.5 py-1 text-marca">
             {staff.length} {t("recepcion.enTurno")}
           </span>
           <span className="rounded-full bg-carbon/5 px-2.5 py-1">
@@ -174,7 +174,7 @@ export const JornadaBoard = ({
                         occupied.has(n)
                           ? "bg-rose-600 text-crema"
                           : picked === n
-                            ? "bg-espera text-crema"
+                            ? "bg-marca text-crema"
                             : "bg-surface text-carbon ring-1 ring-linea"
                       }`}
                     >
@@ -206,7 +206,7 @@ export const JornadaBoard = ({
                     occupied.has(n)
                       ? "bg-rose-600 text-crema"
                       : picked === n
-                        ? "bg-espera text-crema"
+                        ? "bg-marca text-crema"
                         : "bg-surface text-carbon/70 ring-1 ring-dashed ring-linea"
                   }`}
                 >
@@ -218,7 +218,7 @@ export const JornadaBoard = ({
         )}
 
         {picked != null && (
-          <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-espera/25 bg-espera/5 p-3 sm:flex-row sm:items-center">
+          <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-marca/25 bg-marca/5 p-3 sm:flex-row sm:items-center">
             <p className="text-sm font-semibold text-carbon">
               {t("mesa.mesaN", { n: picked })}
               {byTable.get(picked)?.employeeName
@@ -247,7 +247,7 @@ export const JornadaBoard = ({
                     setPicked(null);
                     void assignOne(mesa, pickEmp || null);
                   }}
-                  className="min-h-11 rounded-full bg-espera px-4 text-sm font-semibold text-crema disabled:opacity-50"
+                  className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
                 >
                   {t("recepcion.asignar")}
                 </button>
@@ -261,7 +261,7 @@ export const JornadaBoard = ({
                   setPicked(null);
                   void assignOne(mesa, actorId);
                 }}
-                className="min-h-11 rounded-full bg-espera px-4 text-sm font-semibold text-crema disabled:opacity-50"
+                className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
               >
                 {t("recepcion.tomar")}
               </button>
@@ -321,7 +321,7 @@ export const JornadaBoard = ({
               <button
                 type="submit"
                 disabled={busy != null || !empId}
-                className="min-h-11 rounded-full bg-espera px-4 text-sm font-semibold text-crema disabled:opacity-50"
+                className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
               >
                 {t("recepcion.asignar")}
               </button>
@@ -354,7 +354,7 @@ export const JornadaBoard = ({
               onClick={() =>
                 void run("fill", () => applyShiftTemplate(branchId!, false), t("recepcion.hoyCompletado"))
               }
-              className="min-h-10 text-sm font-semibold text-espera underline-offset-4 hover:underline disabled:opacity-50"
+              className="min-h-10 text-sm font-semibold text-marca underline-offset-4 hover:underline disabled:opacity-50"
             >
               {t("recepcion.aplicarHoy")}
             </button>
@@ -375,7 +375,7 @@ export const JornadaBoard = ({
 
       {canManage && (
         <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-espera">
+          <p className="text-xs font-semibold uppercase tracking-wide text-marca">
             {t("recepcion.plantilla")}
           </p>
           <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
@@ -392,7 +392,7 @@ export const JornadaBoard = ({
                   type="button"
                   onClick={() => setDiaOverride(d)}
                   className={`min-h-10 shrink-0 rounded-full px-3 text-xs font-semibold ${
-                    active ? "bg-espera text-crema" : "border border-linea text-carbon/60"
+                    active ? "bg-marca text-crema" : "border border-linea text-carbon/60"
                   }`}
                 >
                   {t(`recepcion.dia.${d}`)}
@@ -467,7 +467,7 @@ export const JornadaBoard = ({
                   },
                 ])
               }
-              className="min-h-11 rounded-full border border-espera/40 px-4 text-sm font-semibold text-espera"
+              className="min-h-11 rounded-full border border-marca/40 px-4 text-sm font-semibold text-marca"
             >
               {t("recepcion.agregarRango")}
             </button>
@@ -502,7 +502,7 @@ export const JornadaBoard = ({
                   t("recepcion.plantillaGuardada"),
                 );
               }}
-              className="min-h-11 rounded-full bg-espera px-4 text-sm font-semibold text-crema disabled:opacity-50"
+              className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
             >
               {t("recepcion.guardarDia")}
             </button>

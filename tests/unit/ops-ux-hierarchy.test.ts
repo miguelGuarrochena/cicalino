@@ -40,10 +40,13 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesas).toContain("minmax(9.5rem,1fr)");
     expect(mesas).toContain("mesas.filtroPedido");
     expect(mesas).toContain("KitchenInbox");
-    expect(mesas).toMatch(/filtro === "pedido"\s*\? \[\]/);
+    expect(mesas).toMatch(/tab === "pedido" \|\| tab === "turno"/);
     expect(mesas).toContain("flex flex-col gap-2");
     expect(mesas).toContain("onShowQr");
     expect(mesas).toContain("pathPrefix=\"/m\"");
+    expect(mesas).toContain("venueName={branchName}");
+    expect(mesas).toContain("JornadaBoard");
+    expect(mesas).toContain("mesas.filtroTurno");
     expect(detalle).toContain("w-full rounded-full bg-marca");
     expect(detalle).toContain("mesas.cobrar");
     expect(detalle).toContain("mesas.comanda");
@@ -59,17 +62,24 @@ describe("Operación — jerarquía y layout", () => {
     expect(guest).toContain("mesa.llamarMozo");
     expect(qr).toContain('"/p" | "/e" | "/m"');
     expect(qr).toContain("qr.imprimir");
+    expect(qr).toContain("venueName");
+    const guestPage = read("src/app/(customer)/m/[token]/page.tsx");
+    expect(guestPage).toContain("generateMetadata");
+    expect(guestPage).toContain("fetchBranchName");
+    expect(guestPage).not.toContain('branchName: ""');
   });
 
-  it("Recepción es el módulo y Mesas es la operación: jornada y mozo no se mezclan", () => {
+  it("Recepción sienta gente; el turno de quién atiende vive en Mesas", () => {
     const espera = read("src/app/(app)/panel/espera/page.tsx");
     const mesas = read("src/app/(app)/panel/mesas/page.tsx");
     const nav = read("src/lib/operation.ts");
     const pricing = read("src/lib/pricing.ts");
     expect(nav).toContain('key: "nav.espera"');
     expect(nav).toContain('key: "nav.mesas"');
-    expect(espera).toContain("JornadaBoard");
+    expect(espera).not.toContain("JornadaBoard");
+    expect(espera).not.toContain("recepcion.jornada");
     expect(espera).toContain('t("nav.espera")');
+    expect(mesas).toContain("JornadaBoard");
     expect(mesas).toContain("waiterName");
     expect(mesas).toContain("assignTable");
     expect(pricing).toContain('espera: "Recepción"');
@@ -79,7 +89,7 @@ describe("Operación — jerarquía y layout", () => {
     const files = [
       "src/components/panel/mesas/TableDetail.tsx",
       "src/components/panel/mesas/CobrarModal.tsx",
-      "src/components/panel/espera/JornadaBoard.tsx",
+      "src/components/panel/mesas/JornadaBoard.tsx",
       "src/components/panel/mesas/FloorTableTile.tsx",
     ];
     for (const f of files) {

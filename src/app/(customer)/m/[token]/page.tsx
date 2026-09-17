@@ -7,6 +7,7 @@ import {
   fetchGuestPaymentOptions,
   fetchGuestState,
   fetchMenu,
+  fetchBranchName,
   readGuestCookie,
   resolveTableQr,
 } from "@/lib/server/tableGuest";
@@ -15,8 +16,20 @@ import {
  * first HTML already has the menu and, for a returning guest, the bill. */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
+export const generateMetadata = async ({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> => {
+  const { token } = await params;
+  if (!qrTokenSchema.safeParse(token).success) {
+    return { robots: { index: false, follow: false } };
+  }
+  const mesa = await resolveTableQr(token);
+  return {
+    robots: { index: false, follow: false },
+    title: mesa.ok ? `${mesa.branchName} · Mesa ${mesa.tableNumber}` : "Cicalino",
+  };
 };
 
 const TablePage = async ({
@@ -45,16 +58,17 @@ const TablePage = async ({
         redirect(`/m/${state.tableToken}`);
       }
       if (state.tableToken === token && state.bill.session.tableId) {
-        const [menu, payment] = await Promise.all([
+        const [menu, payment, branchName] = await Promise.all([
           fetchMenu(state.bill.session.branchId),
           fetchGuestPaymentOptions(state.bill.session.branchId),
+          fetchBranchName(state.bill.session.branchId),
         ]);
         return (
           <TableGuestApp
             initial={{
               token,
               tableNumber: state.bill.session.tableNumber,
-              branchName: "",
+              branchName,
               operational: true,
               menu,
               settings: payment.settings,
