@@ -8,13 +8,14 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 describe("Operación — jerarquía y layout", () => {
   it("QR: una columna en mobile, dos en tablet, tres o más en desktop", () => {
     const qr = read("src/app/(app)/panel/mesas/qr/page.tsx");
+    const modal = read("src/components/panel/mesas/QrDownloadModal.tsx");
     expect(qr).toContain("grid-cols-1");
     expect(qr).toContain("md:grid-cols-2");
     expect(qr).toContain("lg:grid-cols-3");
     expect(qr).toContain("QrDownloadModal");
-    expect(qr).toContain("descargarSolo");
-    expect(qr).toContain("descargarMarco");
     expect(qr).toContain("descargarPlancha");
+    expect(modal).toContain("descargarSolo");
+    expect(modal).toContain("descargarMarco");
     expect(qr).not.toContain("grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4");
   });
 
