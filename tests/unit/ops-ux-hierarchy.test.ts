@@ -50,6 +50,9 @@ describe("Operación — jerarquía y layout", () => {
     expect(detalle).toContain("mesas.cuenta");
     expect(detalle).toContain("from \"@/components/ui/Select\"");
     expect(detalle).not.toContain("<select");
+    expect(detalle).toContain("mesas.pagoElegido");
+    expect(detalle).toContain("min-h-11 w-full rounded-full bg-ok");
+    expect(detalle).toContain("flex w-full flex-col gap-2");
     expect(guest).toContain("mesa.verCuenta");
     expect(guest).toContain("mesa.pagar");
     expect(guest).toContain("mesa.seguirPidiendo");

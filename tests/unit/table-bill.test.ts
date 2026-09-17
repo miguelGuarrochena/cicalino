@@ -254,6 +254,33 @@ describe("vistas de la cuenta", () => {
     expect(b?.payments[0]).toMatchObject({ base: 5000, tip: 500, total: 5500 });
     expect(b?.totals).toMatchObject({ consumption: 5000, available: 0, uncovered: 5000 });
   });
+
+  it("mapBill lee el llamado al mozo aunque venga como Date", () => {
+    const iso = "2026-09-16T20:10:00.000Z";
+    const fromString = mapBill({
+      sesion: { id: "s", local_id: "l", mesa_numero: 1, estado: "abierta", llamado_en: iso },
+      comensales: [],
+      pedidos: [],
+      pagos: [],
+      totales: {},
+    });
+    const fromDate = mapBill({
+      sesion: { id: "s", local_id: "l", mesa_numero: 1, estado: "abierta", llamado_en: new Date(iso) },
+      comensales: [],
+      pedidos: [],
+      pagos: [],
+      totales: {},
+    });
+    expect(fromString?.session.calledAt).toBe(iso);
+    expect(fromDate?.session.calledAt).toBe(iso);
+  });
+
+  it("el aviso de efectivo dice el método, no que ya pagaron del celular", () => {
+    expect(translate("es", "mesas.pagoElegido", { m: translate("es", "mesa.metodo.efectivo") }))
+      .toBe("Pago elegido: Efectivo");
+    expect(translate("en", "mesas.pagoElegido", { m: translate("en", "mesa.metodo.efectivo") }))
+      .toBe("Payment chosen: Cash");
+  });
 });
 
 describe("métodos de pago", () => {

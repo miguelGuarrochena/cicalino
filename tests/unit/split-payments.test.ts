@@ -231,6 +231,7 @@ describe("Pagos divididos — superficie de seguridad del SQL", () => {
       "src/app/api/m/[token]/pedidos/route.ts",
       "src/app/api/m/[token]/pagos/route.ts",
       "src/app/api/m/[token]/pagos/[pagoId]/cancelar/route.ts",
+      "src/app/api/m/[token]/llamar/route.ts",
     ]) {
       expect(read(rel)).toContain("mutating: true");
     }

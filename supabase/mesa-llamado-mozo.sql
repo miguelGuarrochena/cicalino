@@ -5,6 +5,8 @@
 --
 -- Un botón en el celular para cualquier cosa (cubiertos, la cuenta, una
 -- consulta). Queda prendido en Pedido hasta que el local toca «Ya voy».
+-- Elegir efectivo, transferencia o tarjeta desde el celular avisa igual:
+-- no está pagado, hay que pasar a confirmar.
 -- ===========================================================================
 
 alter table public.mesa_sesiones
@@ -141,6 +143,46 @@ revoke all on function public.llamar_mozo_comensal(uuid, text)
   from public, anon, authenticated;
 grant execute on function public.llamar_mozo_comensal(uuid, text)
   to service_role;
+
+
+/* Cash, transfer and cards chosen on the phone are not paid yet: someone
+ * has to come by. Light Pedido the same way as the explicit call button. */
+create or replace function public.pagar_como_comensal(
+  p_comensal uuid,
+  p_token_hash text,
+  p_datos jsonb
+)
+returns json
+language plpgsql security definer set search_path = public as $$
+declare
+  v_c public.comensales%rowtype;
+  v_res json;
+  v_metodo text;
+begin
+  v_c := public._comensal_valido(p_comensal, p_token_hash);
+  if v_c.id is null then
+    return json_build_object('ok', false, 'reason', 'comensal-invalido');
+  end if;
+  if not public.local_tiene_modulo(v_c.local_id, 'pagos') then
+    return json_build_object('ok', false, 'reason', 'not-available');
+  end if;
+  v_res := public._crear_pago_mesa(v_c.sesion_id, v_c.id, 'comensal', p_datos);
+  v_metodo := v_res->>'metodo';
+  if coalesce(v_res->>'ok', '') = 'true'
+     and v_metodo is not null
+     and v_metodo <> 'mercado_pago' then
+    update public.mesa_sesiones
+       set llamado_en = now()
+     where id = v_c.sesion_id and estado = 'abierta' and llamado_en is null;
+    if found then
+      perform public._mesa_evento(
+        v_c.local_id, v_c.sesion_id, 'mozo_llamado', 'comensal', p_comensal => v_c.id);
+      perform public._tocar_sesion(v_c.sesion_id);
+    end if;
+  end if;
+  return v_res;
+end;
+$$;
 
 
 create or replace function public.atender_llamado_mesa(p_sesion uuid)

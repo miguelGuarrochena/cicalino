@@ -120,7 +120,7 @@ export const TableDetail = ({
       return null;
     }
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="mt-2 flex w-full flex-col gap-2 sm:mt-0">
         {canConfirm && (
           <button
             type="button"
@@ -132,13 +132,13 @@ export const TableDetail = ({
                 t("mesas.pagoConfirmadoMesa", { n: t("mesa.mesaN", { n: bill.session.tableNumber }) }),
               )
             }
-            className="min-h-10 rounded-full bg-ok px-4 text-xs font-semibold text-crema disabled:opacity-50"
+            className="min-h-11 w-full rounded-full bg-ok px-4 text-sm font-semibold text-crema disabled:opacity-50"
           >
             {p.method === "transferencia" ? t("mesas.confirmarRecibido") : t("mesas.confirmarPago")}
           </button>
         )}
         {p.status === "pendiente" && p.method === "mercado_pago" && (
-          <span className="self-center text-[11px] text-carbon/55">{t("mesas.mpSoloWebhook")}</span>
+          <span className="text-[11px] text-carbon/55">{t("mesas.mpSoloWebhook")}</span>
         )}
         {canCancel && (
           <button
@@ -154,7 +154,7 @@ export const TableDetail = ({
               }
               void run(p.id, () => cancelTablePayment(p.id, motivo, employeeId), t("mesas.pagoCancelado"));
             }}
-            className="min-h-10 rounded-full border border-linea px-4 text-xs font-semibold text-carbon/70 disabled:opacity-50"
+            className="min-h-11 w-full rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70 disabled:opacity-50"
           >
             {p.status === "pagado" ? t("mesas.anularPago") : t("mesas.cancelarPago")}
           </button>
@@ -329,11 +329,15 @@ export const TableDetail = ({
         {waitingPayments.length > 0 && (
           <div className="mt-4 rounded-2xl border border-curso-borde bg-curso-fondo p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-curso">
-              {t("mesas.esperandoConfirmacion")}
+              {waitingPayments.length === 1
+                ? t("mesas.pagoElegido", {
+                    m: t(`mesa.metodo.${waitingPayments[0]!.method}`),
+                  })
+                : t("mesas.esperandoConfirmacion")}
             </p>
-            <ul className="mt-2 flex flex-col gap-2">
+            <ul className="mt-2 flex flex-col gap-3">
               {waitingPayments.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2">
+                <li key={p.id} className="flex flex-col gap-2">
                   <span className="min-w-0 text-sm">
                     <span className="font-semibold text-carbon">{p.payerName}</span>{" "}
                     <span className="tabular-nums">{formatMoney(p.total)}</span>

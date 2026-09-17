@@ -201,21 +201,22 @@ export const CobrarModal = ({
         {waiting.length > 0 && (
           <section className="rounded-2xl border border-curso-borde bg-curso-fondo p-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-curso">
-              {t("mesas.esperandoConfirmacion")}
+              {waiting.length === 1
+                ? t("mesas.pagoElegido", { m: t(`mesa.metodo.${waiting[0]!.method}`) })
+                : t("mesas.esperandoConfirmacion")}
             </h3>
-            <ul className="mt-2 flex flex-col gap-2">
+            <ul className="mt-2 flex flex-col gap-3">
               {waiting.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2">
+                <li key={p.id} className="flex flex-col gap-2">
                   <span className="min-w-0">
                     <span className="font-semibold text-carbon">{p.payerName}</span>{" "}
-                    <span className="tabular-nums text-carbon/80">{formatMoney(p.total)}</span>{" "}
-                    <span className="text-carbon/60">· {t(`mesa.metodo.${p.method}`)}</span>
+                    <span className="tabular-nums text-carbon/80">{formatMoney(p.total)}</span>
                   </span>
                   <button
                     type="button"
                     disabled={busy !== null}
                     onClick={() => void confirmWaiting(p.id)}
-                    className="min-h-10 rounded-full bg-ok px-4 text-xs font-semibold text-crema disabled:opacity-50"
+                    className="min-h-11 w-full rounded-full bg-ok px-4 text-sm font-semibold text-crema disabled:opacity-50"
                   >
                     {p.method === "transferencia" ? t("mesas.confirmarRecibido") : t("mesas.confirmarPago")}
                   </button>

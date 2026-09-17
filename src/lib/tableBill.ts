@@ -127,8 +127,11 @@ export interface TableBill {
 type Json = Record<string, unknown>;
 const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0));
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
-const strOrNull = (v: unknown): string | null =>
-  typeof v === "string" ? v : null;
+const strOrNull = (v: unknown): string | null => {
+  if (typeof v === "string" && v) return v;
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString();
+  return null;
+};
 
 export const mapBill = (raw: unknown): TableBill | null => {
   if (!raw || typeof raw !== "object") return null;
