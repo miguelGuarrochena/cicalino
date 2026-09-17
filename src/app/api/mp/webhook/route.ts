@@ -26,7 +26,9 @@ const reply = (status: number, body: Record<string, unknown> = {}) =>
  * Answers 200 for anything we handled or deliberately ignore, and 5xx only
  * when a retry could help (MP down, token refresh failed). */
 export const POST = async (req: Request) => {
-  if (!mercadoPagoConfigured()) return reply(503, { ok: false });
+  /* Not configured yet: no checkout can exist, so there's nothing to confirm.
+   * Answer 200 so MP accepts the URL while the application is being set up. */
+  if (!mercadoPagoConfigured()) return reply(200, { ok: true, ignored: true });
 
   const limit = await sharedRateLimit(`mp-webhook:ip:${clientIp(req)}`, 600, 60_000);
   if (!limit.ok) return reply(429, { ok: false });
