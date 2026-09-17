@@ -212,6 +212,28 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
     }
   };
 
+  const callStaff = async () => {
+    if (sending || bill?.session.calledAt) return;
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/m/${token}/llamar`, { method: "POST" });
+      const data = (await res.json().catch(() => null)) as
+        | { ok: boolean; reason?: string; bill?: TableBill }
+        | null;
+      if (!data?.ok) {
+        setError(errorText(data?.reason));
+        return;
+      }
+      applyBill(data.bill ?? null);
+      setNotice(t("mesa.llamadoEnviado"));
+    } catch {
+      setError(t("mesa.error.red"));
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (!guest || !bill) {
     return (
       <JoinTable
@@ -247,6 +269,17 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
         </div>
         <Controls />
       </header>
+
+      {open && (
+        <button
+          type="button"
+          disabled={sending || Boolean(bill.session.calledAt)}
+          onClick={() => void callStaff()}
+          className="mt-3 min-h-11 w-full rounded-full border border-marca px-4 text-sm font-semibold text-marca disabled:opacity-60"
+        >
+          {bill.session.calledAt ? t("mesa.llamandoMozo") : t("mesa.llamarMozo")}
+        </button>
+      )}
 
       {!open && (
         <div className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100">

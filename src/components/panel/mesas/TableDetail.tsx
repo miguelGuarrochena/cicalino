@@ -13,7 +13,7 @@ import { PrintableBill } from "@/components/panel/mesas/PrintableBill";
 import { TableHistory } from "@/components/panel/mesas/TableHistory";
 import { FloorStatusBadge } from "@/components/panel/mesas/FloorStatusBadge";
 import { updateOrderStatus } from "@/lib/data/orders";
-import { cancelTablePayment, confirmTablePayment } from "@/lib/data/tables";
+import { cancelTablePayment, confirmTablePayment, acknowledgeWaiterCall } from "@/lib/data/tables";
 import {
   billPending,
   formatMoney,
@@ -196,6 +196,22 @@ export const TableDetail = ({
           <FloorStatusBadge status={status} />
         </header>
 
+        {open && bill.session.calledAt && (
+          <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-alerta/40 bg-alerta/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-semibold text-alerta">{t("mesas.teLlaman")}</p>
+            <button
+              type="button"
+              disabled={busy === "llamado"}
+              onClick={() =>
+                void run("llamado", () => acknowledgeWaiterCall(bill.session.id), t("mesas.llamadoAtendido"))
+              }
+              className="min-h-11 rounded-full bg-alerta px-5 text-sm font-semibold text-crema disabled:opacity-50"
+            >
+              {t("mesas.yaVoy")}
+            </button>
+          </div>
+        )}
+
         <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
           {(
             [
@@ -223,16 +239,16 @@ export const TableDetail = ({
               {t("mesas.cobrar")} · {formatMoney(pending)}
             </button>
           )}
+          {onShowQr && (
+            <button
+              type="button"
+              onClick={onShowQr}
+              className="min-h-11 w-full rounded-full border border-marca px-6 text-sm font-semibold text-marca"
+            >
+              {t("mesas.verQrMesa")}
+            </button>
+          )}
           <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {onShowQr && (
-              <button
-                type="button"
-                onClick={onShowQr}
-                className="min-h-11 text-sm font-semibold text-marca underline-offset-4 hover:underline"
-              >
-                {t("mesas.verQrMesa")}
-              </button>
-            )}
             {onAssign && canManage && (
               <button
                 type="button"
@@ -358,13 +374,13 @@ export const TableDetail = ({
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-col gap-2">
                     {o.status === "creado" && (
                       <button
                         type="button"
                         disabled={busy === o.id}
                         onClick={() => void moveOrder(o, "en_preparacion")}
-                        className="min-h-10 rounded-full bg-marca px-4 text-xs font-semibold text-crema disabled:opacity-50"
+                        className="min-h-12 w-full rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
                       >
                         {t("mesas.pasarAComanda")}
                       </button>
@@ -374,7 +390,7 @@ export const TableDetail = ({
                         type="button"
                         disabled={busy === o.id}
                         onClick={() => void moveOrder(o, "listo")}
-                        className={`min-h-10 rounded-full px-4 text-xs font-semibold disabled:opacity-50 ${
+                        className={`min-h-12 w-full rounded-full px-4 text-sm font-semibold disabled:opacity-50 ${
                           o.status === "creado"
                             ? "border border-linea text-carbon/70"
                             : "bg-marca text-crema"
@@ -388,7 +404,7 @@ export const TableDetail = ({
                         type="button"
                         disabled={busy === o.id}
                         onClick={() => void moveOrder(o, "retirado")}
-                        className="min-h-10 rounded-full bg-marca px-4 text-xs font-semibold text-crema disabled:opacity-50"
+                        className="min-h-12 w-full rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
                       >
                         {t("mesas.marcarEntregado")}
                       </button>
@@ -405,7 +421,7 @@ export const TableDetail = ({
                           void moveOrder(o, "cancelado");
                         }
                       }}
-                      className="min-h-10 rounded-full border border-transparent px-4 text-xs font-semibold text-red-600 hover:border-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                      className="min-h-11 w-full rounded-full border border-transparent px-4 text-sm font-semibold text-red-600 hover:border-red-300 hover:bg-red-500/10 disabled:opacity-50"
                     >
                       {t("mesas.cancelarPedido")}
                     </button>

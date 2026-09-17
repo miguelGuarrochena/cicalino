@@ -70,5 +70,6 @@ describe("Pedido de mesa — anotar y cancelar", () => {
     expect(inbox).toContain("mesas.copiarTicket");
     expect(inbox).toContain("mesas.cancelarPedido");
     expect(inbox).toContain("mesas.inboxAyuda");
+    expect(inbox).toContain("min-h-12 w-full");
   });
 });

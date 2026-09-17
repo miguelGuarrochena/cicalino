@@ -38,10 +38,10 @@ describe("Operación — jerarquía y layout", () => {
     const qr = read("src/components/panel/QrModal.tsx");
     expect(mesas).toContain("grid-cols-1");
     expect(mesas).toContain("minmax(9.5rem,1fr)");
-    expect(mesas).toContain("mesas.filtroAhora");
+    expect(mesas).toContain("mesas.filtroPedido");
     expect(mesas).toContain("KitchenInbox");
-    expect(mesas).toContain("inboxKeys");
-    expect(mesas).toContain('filtro === "cocina"');
+    expect(mesas).toMatch(/filtro === "pedido"\s*\? \[\]/);
+    expect(mesas).toContain("onShowQr");
     expect(mesas).toContain("pathPrefix=\"/m\"");
     expect(detalle).toContain("w-full rounded-full bg-marca");
     expect(detalle).toContain("mesas.cobrar");
@@ -50,6 +50,7 @@ describe("Operación — jerarquía y layout", () => {
     expect(guest).toContain("mesa.verCuenta");
     expect(guest).toContain("mesa.pagar");
     expect(guest).toContain("mesa.seguirPidiendo");
+    expect(guest).toContain("mesa.llamarMozo");
     expect(qr).toContain('"/p" | "/e" | "/m"');
     expect(qr).toContain("qr.imprimir");
   });

@@ -57,6 +57,7 @@ const mkBill = (over: Partial<TableBill> = {}): TableBill => {
       paidAt: null,
       closedAt: null,
       closeReason: null,
+      calledAt: null,
       ...over.session,
     },
     guests: over.guests ?? [{ id: "juan", name: "Juan", joinedAt: "", consumption }],
@@ -172,17 +173,31 @@ describe("buildFloor", () => {
     expect(billPending(floor[0]!.bill!)).toBe(20000);
   });
 
-  it("Ahora no mezcla mesas libres ni históricas", () => {
+  it("Pedido se apaga al anotar; Cobrar sigue hasta pagar todo", () => {
+    const notedUnpaid = mkBill({
+      orders: [order({ status: "en_preparacion" })],
+    });
+    const paid = mkBill({
+      session: { ...mkBill().session, id: "s2", tableId: "m9", tableNumber: 9 },
+      orders: [order({ status: "retirado" })],
+      totals: {
+        ...mkBill().totals,
+        paid: 20000,
+        paidBase: 20000,
+        uncovered: 0,
+        available: 0,
+      },
+    });
     const floor = buildFloor(
       [
         { id: "m8", number: 8, qrToken: "t8", qrActive: true },
         { id: "m9", number: 9, qrToken: "t9", qrActive: true },
       ],
-      [mkBill(), mkBill({ session: { ...mkBill().session, id: "s2", tableId: "m9", tableNumber: 9, status: "cerrada" } })],
+      [notedUnpaid, paid],
     );
-    expect(filterFloor(floor, "ahora", "").map((r) => r.tableNumber)).toEqual([8]);
+    expect(filterFloor(floor, "pedido", "").map((r) => r.tableNumber)).toEqual([]);
+    expect(filterFloor(floor, "cobrar", "").map((r) => r.tableNumber)).toEqual([8]);
     expect(filterFloor(floor, "todas", "9").map((r) => r.tableNumber)).toEqual([9]);
-    expect(filterFloor(floor, "todas", "").map((r) => r.tableNumber)).toEqual([8, 9]);
     expect(
       filterFloor(
         floor.map((r) => (r.tableNumber === 8 ? { ...r, waiterName: "Pedro Gómez" } : r)),
@@ -190,6 +205,17 @@ describe("buildFloor", () => {
         "pedro",
       ).map((r) => r.tableNumber),
     ).toEqual([8]);
+  });
+
+  it("un llamado prende Pedido aunque no haya pedido nuevo", () => {
+    const bill = mkBill({
+      orders: [order({ status: "retirado" })],
+      session: { ...mkBill().session, calledAt: "2026-09-16T20:10:00Z" },
+    });
+    const floor = buildFloor([{ id: "m8", number: 8, qrToken: "t8", qrActive: true }], [bill]);
+    expect(floor[0]?.status).toBe("llamado");
+    expect(filterFloor(floor, "pedido", "").map((r) => r.tableNumber)).toEqual([8]);
+    expect(kitchenInbox(floor).called.map((r) => r.tableNumber)).toEqual([8]);
   });
 });
 

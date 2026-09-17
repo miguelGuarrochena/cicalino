@@ -72,5 +72,6 @@
   "staff-floor-audit.sql",
   "menu-categorias.sql",
   "mesa-asignacion-jornada.sql",
-  "mesa-pedido-comensal.sql"
+  "mesa-pedido-comensal.sql",
+  "mesa-llamado-mozo.sql"
 ]

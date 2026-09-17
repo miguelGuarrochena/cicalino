@@ -11,11 +11,13 @@ export const FloorTableTile = ({
   active,
   dense,
   onOpen,
+  onShowQr,
 }: {
   row: FloorTable;
   active: boolean;
   dense?: boolean;
   onOpen: () => void;
+  onShowQr?: () => void;
 }) => {
   const { t } = useApp();
   const style = FLOOR_STYLE[row.status];
@@ -29,12 +31,12 @@ export const FloorTableTile = ({
 
   if (dense) {
     return (
-      <li>
+      <li className="flex items-stretch gap-2">
         <button
           type="button"
           aria-current={active ? "true" : undefined}
           onClick={onOpen}
-          className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border border-linea border-l-[3px] bg-surface px-3 py-2 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
+          className={`flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-linea border-l-[3px] bg-surface px-3 py-2 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
             active ? "ring-2 ring-marca/25" : ""
           }`}
         >
@@ -62,22 +64,31 @@ export const FloorTableTile = ({
               >
                 {formatMoney(row.pending > 0 ? row.pending : row.paid)}
               </span>
-            ) : row.qrActive ? (
+            ) : row.qrActive && !onShowQr ? (
               <span className="text-xs font-semibold text-marca">{t("mesas.verQrMesa")}</span>
             ) : null}
           </span>
         </button>
+        {onShowQr ? (
+          <button
+            type="button"
+            onClick={onShowQr}
+            className="min-h-14 shrink-0 rounded-2xl border border-linea bg-surface px-3 text-xs font-semibold text-marca"
+          >
+            {t("mesas.verQrMesa")}
+          </button>
+        ) : null}
       </li>
     );
   }
 
   return (
-    <li>
+    <li className="flex flex-col gap-1">
       <button
         type="button"
         aria-current={active ? "true" : undefined}
         onClick={onOpen}
-        className={`flex min-h-[6.5rem] w-full flex-col justify-between rounded-2xl border border-linea border-l-[3px] bg-surface px-3 py-2.5 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
+        className={`flex min-h-[6.5rem] w-full flex-1 flex-col justify-between rounded-2xl border border-linea border-l-[3px] bg-surface px-3 py-2.5 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
             active ? "ring-2 ring-marca/25" : ""
           }`}
       >
@@ -107,10 +118,19 @@ export const FloorTableTile = ({
           <span className="truncate text-[10px] text-carbon/50">{kitchenHint}</span>
         ) : (
           <span className="text-[10px] text-carbon/40">
-            {row.qrActive ? t("mesas.verQrMesa") : "—"}
+            {row.qrActive && !onShowQr ? t("mesas.verQrMesa") : "—"}
           </span>
         )}
       </button>
+      {onShowQr ? (
+        <button
+          type="button"
+          onClick={onShowQr}
+          className="min-h-9 w-full rounded-xl border border-linea bg-surface text-xs font-semibold text-marca"
+        >
+          {t("mesas.verQrMesa")}
+        </button>
+      ) : null}
     </li>
   );
 };

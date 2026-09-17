@@ -12,6 +12,11 @@ export const FLOOR_STYLE: Record<
     dot: "bg-marca",
     text: "text-marca",
   },
+  llamado: {
+    bar: "border-l-alerta",
+    dot: "bg-alerta",
+    text: "text-alerta",
+  },
   listo: {
     bar: "border-l-ok",
     dot: "bg-ok",
