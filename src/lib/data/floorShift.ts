@@ -5,7 +5,8 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 import { debounced, watchChannel } from "@/lib/realtime";
 import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
 import { reportError } from "@/lib/observability";
-import type { ShiftDay, TableAssignment, TemplateRange } from "@/lib/floorShift";
+import type { ShiftDay, TableAssignment, TemplateRange, FloorTramo } from "@/lib/floorShift";
+import { parseTramo } from "@/lib/floorShift";
 
 type RpcOutcome = { ok: true; data: Record<string, unknown> } | { ok: false; reason: string };
 
@@ -39,16 +40,19 @@ const mapTemplate = (raw: unknown): TemplateRange[] =>
     employeeName: str(p.empleado_nombre),
     from: num(p.desde),
     to: num(p.hasta),
+    tramo: parseTramo(p.tramo),
   }));
 
 const mapShift = (raw: Record<string, unknown>): ShiftDay => ({
   date: str(raw.fecha),
   weekday: num(raw.dia),
+  turnosPiso: num(raw.turnos_piso) === 2 ? 2 : 1,
   assignments: ((raw.asignaciones as Record<string, unknown>[] | null) ?? []).map(
     (a): TableAssignment => ({
       tableNumber: num(a.mesa),
       employeeId: strOrNull(a.empleado_id),
       employeeName: strOrNull(a.empleado_nombre),
+      tramo: parseTramo(a.tramo),
     }),
   ),
   template: mapTemplate(raw.plantilla),
@@ -57,7 +61,7 @@ const mapShift = (raw: Record<string, unknown>): ShiftDay => ({
 export const fetchFloorShift = async (branchId: string): Promise<DataResult<ShiftDay>> => {
   const supabase = createBrowserSupabase();
   if (!supabase) {
-    return ok({ date: "", weekday: 1, assignments: [], template: [] });
+    return ok({ date: "", weekday: 1, assignments: [], template: [], turnosPiso: 1 });
   }
   const { data, error } = await supabase.rpc("mesa_jornada_leer", { p_local: branchId });
   if (error) {
@@ -111,12 +115,14 @@ export const saveShiftTemplate = (
   branchId: string,
   weekday: number,
   rows: { employeeId: string; from: number; to: number }[],
+  tramo: FloorTramo = "manana",
 ) =>
   rpc(
     "mesa_plantilla_guardar",
     {
       p_local: branchId,
       p_dia: weekday,
+      p_tramo: tramo,
       p_filas: rows.map((r) => ({
         empleado_id: r.employeeId,
         desde: r.from,
@@ -126,11 +132,39 @@ export const saveShiftTemplate = (
     "panel.jornada.plantilla",
   );
 
+export const saveShiftWeek = (
+  branchId: string,
+  tramo: FloorTramo,
+  rows: { weekday: number; employeeId: string; from: number; to: number }[],
+) =>
+  rpc(
+    "mesa_plantilla_guardar_semana",
+    {
+      p_local: branchId,
+      p_tramo: tramo,
+      p_filas: rows.map((r) => ({
+        dia: r.weekday,
+        empleado_id: r.employeeId,
+        desde: r.from,
+        hasta: r.to,
+      })),
+    },
+    "panel.jornada.semana",
+  );
+
+export const setFloorTurnos = (branchId: string, n: 1 | 2) =>
+  rpc(
+    "mesa_local_set_turnos",
+    { p_local: branchId, p_n: n },
+    "panel.jornada.turnos",
+  );
+
 export const assignTable = (
   branchId: string,
   tableNumber: number,
   employeeId: string | null,
   actorId: string | null,
+  tramo: FloorTramo = "manana",
 ) =>
   rpc(
     "mesa_jornada_asignar",
@@ -139,6 +173,7 @@ export const assignTable = (
       p_mesa: tableNumber,
       p_empleado: employeeId,
       p_empleado_actor: actorId,
+      p_tramo: tramo,
     },
     "panel.jornada.asignar",
   );
@@ -149,6 +184,7 @@ export const assignTableRange = (
   to: number,
   employeeId: string | null,
   actorId: string | null,
+  tramo: FloorTramo = "manana",
 ) =>
   rpc(
     "mesa_jornada_asignar_rango",
@@ -158,6 +194,7 @@ export const assignTableRange = (
       p_hasta: to,
       p_empleado: employeeId,
       p_empleado_actor: actorId,
+      p_tramo: tramo,
     },
     "panel.jornada.rango",
   );

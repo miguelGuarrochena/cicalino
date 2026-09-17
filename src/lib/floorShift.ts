@@ -4,6 +4,8 @@
  * These helpers expand ranges the same way the RPC does, so the editor can
  * reject overlaps before saving. */
 
+export type FloorTramo = "manana" | "noche";
+
 export interface TemplateRange {
   id?: string;
   weekday: number;
@@ -11,12 +13,14 @@ export interface TemplateRange {
   employeeName: string;
   from: number;
   to: number;
+  tramo?: FloorTramo;
 }
 
 export interface TableAssignment {
   tableNumber: number;
   employeeId: string | null;
   employeeName: string | null;
+  tramo?: FloorTramo;
 }
 
 export interface ShiftDay {
@@ -24,10 +28,29 @@ export interface ShiftDay {
   weekday: number;
   assignments: TableAssignment[];
   template: TemplateRange[];
+  turnosPiso: 1 | 2;
 }
 
 export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
+
+export const NIGHT_FROM_HOUR = 17;
+
+export const parseTramo = (v: unknown): FloorTramo =>
+  v === "noche" ? "noche" : "manana";
+
+export const currentFloorTramo = (
+  turnosPiso: 1 | 2,
+  hour = new Date().getHours(),
+): FloorTramo => {
+  if (turnosPiso !== 2) return "manana";
+  return hour >= NIGHT_FROM_HOUR ? "noche" : "manana";
+};
+
+export const assignmentsForTramo = (
+  rows: TableAssignment[],
+  tramo: FloorTramo,
+): TableAssignment[] => rows.filter((r) => (r.tramo ?? "manana") === tramo);
 
 export const rangesOverlap = (
   rows: { from: number; to: number }[],
@@ -157,4 +180,40 @@ export const firstName = (name: string | null | undefined): string => {
   const n = (name ?? "").trim();
   if (!n) return "";
   return n.split(/\s+/)[0] ?? n;
+};
+
+export const ownersFromTemplate = (
+  template: TemplateRange[],
+  weekday: number,
+  tramo: FloorTramo,
+): Record<number, string> => {
+  const out: Record<number, string> = {};
+  for (const p of template) {
+    if (p.weekday !== weekday) continue;
+    if ((p.tramo ?? "manana") !== tramo) continue;
+    if (!p.employeeId) continue;
+    for (const n of tablesInRange(p.from, p.to)) out[n] = p.employeeId;
+  }
+  return out;
+};
+
+export const rangesFromOwners = (
+  owners: Record<number, string>,
+): { employeeId: string; from: number; to: number }[] => {
+  const byEmp = new Map<string, number[]>();
+  for (const [raw, id] of Object.entries(owners)) {
+    if (!id) continue;
+    const n = Number(raw);
+    if (!Number.isInteger(n)) continue;
+    const list = byEmp.get(id) ?? [];
+    list.push(n);
+    byEmp.set(id, list);
+  }
+  const out: { employeeId: string; from: number; to: number }[] = [];
+  for (const [employeeId, tables] of byEmp) {
+    for (const r of compactRanges(tables)) {
+      out.push({ employeeId, from: r.from, to: r.to });
+    }
+  }
+  return out.sort((a, b) => a.from - b.from || a.employeeId.localeCompare(b.employeeId));
 };

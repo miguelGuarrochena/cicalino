@@ -1,28 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
 import { Select } from "@/components/ui/Select";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import type { EmployeeUI } from "@/lib/store/config-store";
 import {
   WEEKDAYS,
   assignmentByTable,
+  assignmentsForTramo,
   compactRanges,
+  currentFloorTramo,
   firstName,
   formatTableRange,
   nextFreeRange,
-  rangesOverlap,
+  ownersFromTemplate,
+  rangesFromOwners,
   staffOnShift,
   tablesInRange,
   unassignedTables,
+  type FloorTramo,
   type ShiftDay,
 } from "@/lib/floorShift";
 import {
   applyShiftTemplate,
   assignTable,
   assignTableRange,
-  saveShiftTemplate,
+  saveShiftWeek,
+  setFloorTurnos,
 } from "@/lib/data/floorShift";
 
 const BTN =
@@ -30,16 +36,15 @@ const BTN =
 const MESAS =
   "grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8";
 const CHIP =
-  "flex aspect-square w-full flex-col items-center justify-center rounded-2xl text-base font-semibold tabular-nums";
+  "relative flex aspect-square w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 text-center";
 const EMP_TONE = [
   "bg-marca text-crema",
   "bg-espera text-crema",
   "bg-curso text-crema",
   "bg-carbon text-crema",
-  "bg-alerta text-crema",
+  "bg-[#5b4a8a] text-crema",
+  "bg-marca/65 text-crema",
 ];
-
-type DraftRange = { employeeId: string; from: string; to: string };
 
 const allMesas = (count: number) =>
   Array.from({ length: Math.max(0, count) }, (_, i) => i + 1);
@@ -57,6 +62,8 @@ const parseRange = (from: string, to: string) => {
   const b = Number(to);
   return { a, b, tables: tablesInRange(a, b) };
 };
+
+const draftKey = (tramo: FloorTramo, d: number) => `${tramo}-${d}`;
 
 export const JornadaBoard = ({
   branchId,
@@ -91,27 +98,31 @@ export const JornadaBoard = ({
   const empName = (id: string) =>
     employees.find((e) => e.id === id)?.name ?? "";
 
-  const byTable = useMemo(
-    () => assignmentByTable(shift.assignments),
-    [shift.assignments],
+  const [turnos, setTurnos] = useState<1 | 2>(shift.turnosPiso);
+  const [tramo, setTramo] = useState<FloorTramo>(() =>
+    currentFloorTramo(shift.turnosPiso),
   );
-  const staff = useMemo(
-    () => staffOnShift(shift.assignments),
-    [shift.assignments],
+  useEffect(() => {
+    setTurnos(shift.turnosPiso);
+  }, [shift.turnosPiso]);
+  const activeTramo: FloorTramo = turnos === 2 ? tramo : "manana";
+  const todayRows = useMemo(
+    () => assignmentsForTramo(shift.assignments, activeTramo),
+    [shift.assignments, activeTramo],
   );
+  const byTable = useMemo(() => assignmentByTable(todayRows), [todayRows]);
+  const staff = useMemo(() => staffOnShift(todayRows), [todayRows]);
   const libres = useMemo(
-    () => unassignedTables(tableCount, shift.assignments),
-    [tableCount, shift.assignments],
+    () => unassignedTables(tableCount, todayRows),
+    [tableCount, todayRows],
   );
   const ocupadasN = [...occupied].length;
   const takenToday = useMemo(
     () =>
       compactRanges(
-        shift.assignments
-          .filter((a) => a.employeeId)
-          .map((a) => a.tableNumber),
+        todayRows.filter((a) => a.employeeId).map((a) => a.tableNumber),
       ),
-    [shift.assignments],
+    [todayRows],
   );
   const freeToday = useMemo(
     () => nextFreeRange(tableCount, takenToday),
@@ -124,41 +135,31 @@ export const JornadaBoard = ({
   const fromVal = from ?? String(freeToday?.from ?? mesas[0] ?? 1);
   const toVal = to ?? String(freeToday?.to ?? mesas[0] ?? 1);
   const [picked, setPicked] = useState<number | null>(null);
-  const [pickEmp, setPickEmp] = useState("");
+  const [brush, setBrush] = useState(employees[0]?.id ?? "");
   const [diaOverride, setDiaOverride] = useState<number | null>(null);
-  const [draftsByDay, setDraftsByDay] = useState<
-    Partial<Record<number, DraftRange[]>>
+  const [drafts, setDrafts] = useState<
+    Partial<Record<string, Record<number, string>>>
   >({});
   const dia = diaOverride ?? (shift.weekday || 1);
-  const templateDrafts = shift.template
-    .filter((p) => p.weekday === dia)
-    .map((p) => ({
-      employeeId: p.employeeId,
-      from: String(p.from),
-      to: String(p.to),
-    }));
-  const drafts = draftsByDay[dia] ?? templateDrafts;
-  const setDrafts = (
-    next: DraftRange[] | ((rows: DraftRange[]) => DraftRange[]),
-  ) =>
-    setDraftsByDay((prev) => ({
-      ...prev,
-      [dia]: typeof next === "function" ? next(drafts) : next,
-    }));
   const empId = rangeEmp || employees[0]?.id || "";
   const rangePreview = parseRange(fromVal, toVal).tables.filter(
     (n) => n <= tableCount,
   );
 
-  const rowsForDay = (d: number): DraftRange[] =>
-    draftsByDay[d] ??
-    shift.template
-      .filter((p) => p.weekday === d)
-      .map((p) => ({
-        employeeId: p.employeeId,
-        from: String(p.from),
-        to: String(p.to),
-      }));
+  const ownersOf = (d: number) =>
+    drafts[draftKey(activeTramo, d)] ??
+    ownersFromTemplate(shift.template, d, activeTramo);
+  const owners = ownersOf(dia);
+
+  const markTable = (n: number, employeeId: string | null) => {
+    setDrafts((prev) => {
+      const k = draftKey(activeTramo, dia);
+      const cur = { ...(prev[k] ?? ownersFromTemplate(shift.template, dia, activeTramo)) };
+      if (!employeeId) delete cur[n];
+      else cur[n] = employeeId;
+      return { ...prev, [k]: cur };
+    });
+  };
 
   const reasonText = (reason?: string) => {
     const k = `recepcion.error.${reason ?? "error"}`;
@@ -196,38 +197,34 @@ export const JornadaBoard = ({
   const assignOne = (mesa: number, employeeId: string | null) =>
     run(
       `m-${mesa}`,
-      () => assignTable(branchId!, mesa, employeeId, actorId),
+      () => assignTable(branchId!, mesa, employeeId, actorId, activeTramo),
       t("recepcion.asignado"),
     );
-
-  const fillRangeDefaults = () => {
-    if (freeToday) {
-      setFrom(String(freeToday.from));
-      setTo(String(freeToday.to));
-    }
-  };
 
   const mesaChip = (
     n: number,
     employeeId: string | null,
-    opts?: { showName?: boolean; onClick?: () => void },
+    opts?: { onClick?: () => void; selected?: boolean },
   ) => {
     const busyMesa = occupied.has(n);
-    const selected = picked === n;
-    const cls = `${CHIP} ${
-      busyMesa
-        ? "bg-rose-600 text-crema"
-        : selected
-          ? "bg-marca text-crema ring-2 ring-marca ring-offset-2 ring-offset-surface"
-          : toneFor(employeeId, empIds)
-    }`;
+    const selected = opts?.selected ?? picked === n;
+    const name =
+      employeeId
+        ? firstName(empName(employeeId) || byTable.get(n)?.employeeName)
+        : "";
+    const cls = `${CHIP} ${toneFor(employeeId, empIds)} ${
+      selected ? "ring-2 ring-marca ring-offset-2 ring-offset-surface" : ""
+    } ${busyMesa ? "ring-2 ring-rose-600" : ""}`;
     const inner = (
       <>
-        <span className="font-display leading-none">{n}</span>
-        {opts?.showName && employeeId && !busyMesa ? (
-          <span className="mt-0.5 max-w-full truncate px-0.5 text-[9px] font-semibold leading-tight opacity-90">
-            {firstName(empName(employeeId) || byTable.get(n)?.employeeName)}
+        <span className="font-display text-lg leading-none">{n}</span>
+        {name ? (
+          <span className="line-clamp-2 max-w-full px-0.5 text-xs font-bold leading-tight">
+            {name}
           </span>
+        ) : null}
+        {busyMesa ? (
+          <span className="absolute right-1 top-1 size-2 rounded-full bg-rose-600" />
         ) : null}
       </>
     );
@@ -251,19 +248,83 @@ export const JornadaBoard = ({
     );
   };
 
-  const draftOwner = (n: number) => {
-    for (const row of drafts) {
-      if (parseRange(row.from, row.to).tables.includes(n)) return row.employeeId;
-    }
-    return "";
-  };
+  const empPicker = (onPick: (id: string | null) => void, selectedId?: string) => (
+    <div className="flex flex-col gap-2">
+      {employees.map((e) => (
+        <button
+          key={e.id}
+          type="button"
+          onClick={() => onPick(e.id)}
+          className={`flex min-h-12 items-center gap-3 rounded-2xl border-2 px-3 text-left ${
+            selectedId === e.id
+              ? "border-carbon"
+              : "border-transparent"
+          }`}
+        >
+          <span className={`size-8 shrink-0 rounded-full ${toneFor(e.id, empIds)}`} />
+          <span className="text-base font-bold text-carbon">{e.name}</span>
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => onPick(null)}
+        className="flex min-h-11 items-center gap-3 rounded-2xl px-3 text-left text-sm font-semibold text-carbon/55"
+      >
+        <span className="size-8 shrink-0 rounded-full bg-surface ring-1 ring-dashed ring-linea" />
+        {t("recepcion.sinAsignar")}
+      </button>
+    </div>
+  );
+
+  const tramoSwitch =
+    turnos === 2 ? (
+      <SegmentedTabs
+        ariaLabel={t("recepcion.plantilla")}
+        value={activeTramo}
+        onChange={(id) => {
+          setTramo(id);
+          setPicked(null);
+        }}
+        options={[
+          { id: "manana", label: t("recepcion.tramoManana") },
+          { id: "noche", label: t("recepcion.tramoNoche") },
+        ]}
+      />
+    ) : null;
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex flex-col gap-2">
+      {canManage && (
+        <SegmentedTabs
+          ariaLabel={t("recepcion.plantilla")}
+          value={String(turnos)}
+          onChange={(id) => {
+            const n = id === "2" ? 2 : 1;
+            setTurnos(n);
+            if (n === 1) setTramo("manana");
+            void run(
+              "turnos",
+              () => setFloorTurnos(branchId!, n),
+              n === 2 ? t("recepcion.dosTurnos") : t("recepcion.unTurno"),
+            );
+          }}
+          options={[
+            { id: "1", label: t("recepcion.unTurno") },
+            { id: "2", label: t("recepcion.dosTurnos") },
+          ]}
+        />
+      )}
+      {turnos === 2 ? tramoSwitch : null}
+      </div>
+
       <section className="min-w-0 rounded-[24px] border border-marca/20 bg-surface p-4 shadow-sm sm:p-5">
         <header>
           <p className="text-xs font-semibold uppercase tracking-wide text-marca">
             {t("recepcion.jornadaHoy")}
+            {turnos === 2
+              ? ` · ${t(activeTramo === "noche" ? "recepcion.tramoNoche" : "recepcion.tramoManana")}`
+              : ` · ${t("recepcion.tramoUnico")}`}
           </p>
           <h2 className="font-display text-2xl uppercase tracking-tight text-carbon">
             {t(`recepcion.dia.${shift.weekday || dia}`)}
@@ -287,121 +348,58 @@ export const JornadaBoard = ({
           <p className="mt-4 text-sm text-carbon/55">{t("recepcion.sinEmpleados")}</p>
         ) : (
           <>
+            <ul className="mt-4 flex flex-col gap-1.5">
+              {employees.map((e) => (
+                <li key={e.id} className="flex items-center gap-3">
+                  <span className={`size-7 shrink-0 rounded-full ${toneFor(e.id, empIds)}`} />
+                  <span className="text-base font-bold text-carbon">{e.name}</span>
+                  <span className="text-sm tabular-nums text-carbon/55">
+                    {formatTableRange(staff.find((s) => s.id === e.id)?.tables ?? []) || "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
             <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-carbon/50">
               {t("recepcion.todasLasMesas")}
             </p>
             <div className={`mt-2 ${MESAS}`}>
               {mesas.map((n) =>
                 mesaChip(n, byTable.get(n)?.employeeId ?? null, {
-                  showName: true,
-                  onClick: () => {
-                    setPicked(n);
-                    setPickEmp(
-                      byTable.get(n)?.employeeId ??
-                        (canManage ? empId : actorId ?? ""),
-                    );
-                  },
+                  onClick: () => setPicked(n),
                 }),
               )}
             </div>
-
-            <ul className="mt-4 flex flex-col gap-2">
-              {staff.map((s) => (
-                <li
-                  key={s.id}
-                  className="rounded-2xl border border-linea bg-crema/30 px-3 py-2.5"
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-semibold text-carbon">{s.name}</p>
-                    <p className="text-sm tabular-nums text-carbon/70">
-                      {t("recepcion.mesasRango", {
-                        rango: formatTableRange(s.tables),
-                      })}
-                    </p>
-                  </div>
-                  <div className={`mt-2 ${MESAS}`}>
-                    {s.tables.map((n) =>
-                      mesaChip(n, s.id, {
-                        onClick: () => {
-                          setPicked(n);
-                          setPickEmp(s.id);
-                        },
-                      }),
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            {libres.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-carbon/50">
-                  {t("recepcion.mesasLibres")}
-                </p>
-                <div className={`mt-2 ${MESAS}`}>
-                  {libres.map((n) =>
-                    mesaChip(n, null, {
-                      onClick: () => {
-                        setPicked(n);
-                        setPickEmp(canManage ? empId : actorId ?? "");
-                      },
-                    }),
-                  )}
-                </div>
-              </div>
-            )}
           </>
         )}
 
         {picked != null && (
-          <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-marca/25 bg-marca/5 p-3 sm:flex-row sm:items-center">
-            <p className="text-sm font-semibold text-carbon">
+          <div className="mt-4 rounded-2xl border border-marca/25 bg-marca/5 p-3">
+            <p className="mb-2 text-sm font-bold text-carbon">
               {t("mesa.mesaN", { n: picked })}
-              {byTable.get(picked)?.employeeName
-                ? ` · ${byTable.get(picked)?.employeeName}`
-                : ` · ${t("recepcion.sinAsignar")}`}
-              {occupied.has(picked) ? ` · ${t("recepcion.ocupada")}` : ""}
+              {" · "}
+              {t("recepcion.elegiQuien")}
             </p>
-            {canManage ? (
-              <>
-                <Select
-                  value={pickEmp}
-                  onChange={setPickEmp}
-                  className="w-full sm:flex-1"
-                  triggerClassName="min-h-11 w-full"
-                  ariaLabel={t("recepcion.atiende")}
-                  options={[
-                    { value: "", label: t("recepcion.sinAsignar") },
-                    ...employees.map((e) => ({ value: e.id, label: e.name })),
-                  ]}
-                />
+            {canManage
+              ? empPicker((id) => {
+                  const mesa = picked;
+                  setPicked(null);
+                  void assignOne(mesa, id);
+                }, byTable.get(picked)?.employeeId ?? undefined)
+              : actorId && !byTable.get(picked)?.employeeId ? (
                 <button
                   type="button"
                   disabled={busy != null}
                   onClick={() => {
                     const mesa = picked;
                     setPicked(null);
-                    void assignOne(mesa, pickEmp || null);
+                    void assignOne(mesa, actorId);
                   }}
                   className={`${BTN} bg-marca text-crema`}
                 >
-                  {t("recepcion.asignar")}
+                  {t("recepcion.tomar")}
                 </button>
-              </>
-            ) : actorId && !byTable.get(picked)?.employeeId ? (
-              <button
-                type="button"
-                disabled={busy != null}
-                onClick={() => {
-                  const mesa = picked;
-                  setPicked(null);
-                  void assignOne(mesa, actorId);
-                }}
-                className={`${BTN} bg-marca text-crema`}
-              >
-                {t("recepcion.tomar")}
-              </button>
-            ) : null}
+              ) : null}
           </div>
         )}
 
@@ -414,7 +412,8 @@ export const JornadaBoard = ({
               if (!empId || !parseRange(fromVal, toVal).tables.length) return;
               void run(
                 "rango",
-                () => assignTableRange(branchId!, a, b, empId, actorId),
+                () =>
+                  assignTableRange(branchId!, a, b, empId, actorId, activeTramo),
                 t("recepcion.asignado"),
               );
             }}
@@ -467,55 +466,12 @@ export const JornadaBoard = ({
                   />
                 </label>
               </div>
-              {rangePreview.length > 0 && (
-                <div>
-                  <p className="text-sm tabular-nums text-carbon/70">
-                    {empName(empId) || t("recepcion.atiende")}
-                    {" · "}
-                    {t("recepcion.mesasRango", {
-                      rango: formatTableRange(rangePreview),
-                    })}
-                  </p>
-                  <div className={`mt-2 ${MESAS}`}>
-                    {rangePreview.map((n) =>
-                      mesaChip(n, empId || null),
-                    )}
-                  </div>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={fillRangeDefaults}
-                className="self-start text-sm font-semibold text-marca underline-offset-4 hover:underline"
-              >
-                {freeToday
-                  ? t("recepcion.mesasRango", {
-                      rango: `${freeToday.from}–${freeToday.to}`,
-                    })
-                  : t("recepcion.sinMesasLibres")}
-              </button>
               <button
                 type="submit"
                 disabled={busy != null || !empId || !rangePreview.length}
                 className={`${BTN} bg-marca text-crema`}
               >
                 {t("recepcion.asignar")}
-              </button>
-              <button
-                type="button"
-                disabled={busy != null || !rangePreview.length}
-                onClick={() => {
-                  const { a, b } = parseRange(fromVal, toVal);
-                  if (!parseRange(fromVal, toVal).tables.length) return;
-                  void run(
-                    "quitar",
-                    () => assignTableRange(branchId!, a, b, null, actorId),
-                    t("recepcion.asignado"),
-                  );
-                }}
-                className={`${BTN} border border-linea text-carbon/70`}
-              >
-                {t("recepcion.quitar")}
               </button>
             </div>
           </form>
@@ -566,38 +522,27 @@ export const JornadaBoard = ({
           <div className="mt-3 grid grid-cols-7 gap-1">
             {WEEKDAYS.map((d) => {
               const active = dia === d;
-              const rows = rowsForDay(d);
+              const has = Object.keys(ownersOf(d)).length > 0;
               return (
                 <button
                   key={d}
                   type="button"
-                  onClick={() => setDiaOverride(d)}
-                  className={`flex min-h-[4.75rem] flex-col items-center rounded-2xl border-2 px-0.5 py-1.5 text-center ${
+                  onClick={() => {
+                    setDiaOverride(d);
+                    setPicked(null);
+                  }}
+                  className={`flex min-h-12 flex-col items-center justify-center rounded-2xl border-2 px-0.5 py-1.5 text-center text-[11px] font-bold uppercase tracking-wide ${
                     active
                       ? "border-marca bg-marca text-crema"
                       : "border-linea text-carbon/70 hover:border-carbon/25"
                   }`}
                 >
-                  <span className="text-[11px] font-bold uppercase tracking-wide">
-                    {t(`recepcion.diaCorto.${d}`)}
-                  </span>
+                  {t(`recepcion.diaCorto.${d}`)}
                   <span
-                    className={`mt-1 line-clamp-3 w-full text-[9px] font-semibold leading-tight ${
-                      active ? "text-crema/90" : "text-carbon/55"
+                    className={`mt-1 size-1.5 rounded-full ${
+                      has ? (active ? "bg-crema" : "bg-marca") : "bg-transparent"
                     }`}
-                  >
-                    {rows.length
-                      ? rows
-                          .map((r) => {
-                            const name = firstName(empName(r.employeeId));
-                            const rango = formatTableRange(
-                              parseRange(r.from, r.to).tables,
-                            );
-                            return name ? `${name} ${rango}` : rango;
-                          })
-                          .join(" · ")
-                      : "—"}
-                  </span>
+                  />
                 </button>
               );
             })}
@@ -605,208 +550,89 @@ export const JornadaBoard = ({
 
           <p className="mt-4 font-display text-lg uppercase tracking-tight text-carbon">
             {t(`recepcion.dia.${dia}`)}
+            {turnos === 2
+              ? ` · ${t(activeTramo === "noche" ? "recepcion.tramoNoche" : "recepcion.tramoManana")}`
+              : ""}
           </p>
+
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-carbon/50">
+            {t("recepcion.marcarCon")}
+          </p>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {employees.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => setBrush(e.id)}
+                className={`flex min-h-12 items-center gap-3 rounded-2xl border-2 px-3 text-left ${
+                  brush === e.id ? "border-carbon" : "border-transparent"
+                }`}
+              >
+                <span className={`size-8 shrink-0 rounded-full ${toneFor(e.id, empIds)}`} />
+                <span className="text-base font-bold text-carbon">{e.name}</span>
+                <span className="ml-auto text-sm tabular-nums text-carbon/55">
+                  {formatTableRange(
+                    Object.entries(owners)
+                      .filter(([, id]) => id === e.id)
+                      .map(([n]) => Number(n)),
+                  ) || "—"}
+                </span>
+              </button>
+            ))}
+          </div>
 
           {mesas.length > 0 && (
             <>
-              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
+              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-carbon/50">
                 {t("recepcion.todasLasMesas")}
               </p>
               <div className={`mt-2 ${MESAS}`}>
                 {mesas.map((n) => {
-                  const owner = draftOwner(n);
-                  return (
-                    <div
-                      key={n}
-                      className={`${CHIP} ${toneFor(owner || null, empIds)}`}
-                    >
-                      <span className="font-display leading-none">{n}</span>
-                      {owner ? (
-                        <span className="mt-0.5 max-w-full truncate px-0.5 text-[9px] font-semibold leading-tight opacity-90">
-                          {firstName(empName(owner))}
-                        </span>
-                      ) : null}
-                    </div>
-                  );
+                  const owner = owners[n] || null;
+                  return mesaChip(n, owner, {
+                    selected: false,
+                    onClick: () => {
+                      if (!brush) {
+                        setBrush(employees[0]?.id ?? "");
+                      }
+                      markTable(n, owner === brush ? null : brush || employees[0]?.id || null);
+                    },
+                  });
                 })}
               </div>
             </>
           )}
 
-          <ul className="mt-3 flex flex-col gap-3">
-            {drafts.map((row, i) => {
-              const preview = parseRange(row.from, row.to).tables.filter(
-                (n) => n <= tableCount,
-              );
-              return (
-                <li
-                  key={`${row.employeeId}-${i}`}
-                  className="flex flex-col gap-2 rounded-2xl border border-linea p-3"
-                >
-                  <label className="flex flex-col gap-1 text-xs font-semibold text-carbon/55">
-                    {t("recepcion.atiende")}
-                    <Select
-                      value={row.employeeId}
-                      onChange={(employeeId) =>
-                        setDrafts((rows) =>
-                          rows.map((r, j) =>
-                            j === i ? { ...r, employeeId } : r,
-                          ),
-                        )
-                      }
-                      className="w-full"
-                      triggerClassName="min-h-11 w-full"
-                      ariaLabel={t("recepcion.atiende")}
-                      options={employees.map((emp) => ({
-                        value: emp.id,
-                        label: emp.name,
-                      }))}
-                    />
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="flex flex-col gap-1 text-xs font-semibold text-carbon/55">
-                      {t("recepcion.mesaDesde")}
-                      <Select
-                        value={row.from}
-                        onChange={(fromVal) =>
-                          setDrafts((rows) =>
-                            rows.map((r, j) =>
-                              j === i
-                                ? {
-                                    ...r,
-                                    from: fromVal,
-                                    to:
-                                      Number(fromVal) > Number(r.to)
-                                        ? fromVal
-                                        : r.to,
-                                  }
-                                : r,
-                            ),
-                          )
-                        }
-                        className="w-full"
-                        triggerClassName="min-h-11 w-full"
-                        ariaLabel={t("recepcion.mesaDesde")}
-                        options={mesaOpts}
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs font-semibold text-carbon/55">
-                      {t("recepcion.mesaHasta")}
-                      <Select
-                        value={row.to}
-                        onChange={(toVal) =>
-                          setDrafts((rows) =>
-                            rows.map((r, j) =>
-                              j === i
-                                ? {
-                                    ...r,
-                                    to: toVal,
-                                    from:
-                                      Number(toVal) < Number(r.from)
-                                        ? toVal
-                                        : r.from,
-                                  }
-                                : r,
-                            ),
-                          )
-                        }
-                        className="w-full"
-                        triggerClassName="min-h-11 w-full"
-                        ariaLabel={t("recepcion.mesaHasta")}
-                        options={mesaOpts}
-                      />
-                    </label>
-                  </div>
-                  {preview.length > 0 && (
-                    <p className="text-sm tabular-nums text-carbon/70">
-                      {empName(row.employeeId)}
-                      {" · "}
-                      {t("recepcion.mesasRango", {
-                        rango: formatTableRange(preview),
-                      })}
-                    </p>
-                  )}
-                  {preview.length > 0 && (
-                    <div className={MESAS}>
-                      {preview.map((n) => (
-                        <div
-                          key={n}
-                          className={`${CHIP} ${toneFor(row.employeeId, empIds)}`}
-                        >
-                          {n}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDrafts((rows) => rows.filter((_, j) => j !== i))
-                    }
-                    className="min-h-11 w-full text-sm font-semibold text-carbon/50 underline-offset-4 hover:underline sm:w-auto"
-                  >
-                    {t("recepcion.quitarRango")}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-
-          {!drafts.length && (
+          {!Object.keys(owners).length && (
             <p className="mt-3 text-sm text-carbon/50">
               {t("recepcion.sinPlantilla")}
             </p>
           )}
 
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <button
-              type="button"
-              onClick={() => {
-                const taken = drafts.map((r) => ({
-                  from: Number(r.from),
-                  to: Number(r.to),
-                }));
-                const free = nextFreeRange(tableCount, taken);
-                if (!free) {
-                  toast(t("recepcion.sinMesasLibres"), "error");
-                  return;
-                }
-                setDrafts((rows) => [
-                  ...rows,
-                  {
-                    employeeId: employees[0]?.id ?? "",
-                    from: String(free.from),
-                    to: String(free.to),
-                  },
-                ]);
-              }}
-              className={`${BTN} border border-marca/40 text-marca`}
-            >
-              {t("recepcion.agregarRango")}
-            </button>
+          <div className="mt-4">
             <button
               type="button"
               disabled={busy != null || !employees.length}
               onClick={() => {
-                const rows = drafts
-                  .map((r) => ({
-                    employeeId: r.employeeId,
-                    from: Number(r.from),
-                    to: Number(r.to),
-                  }))
-                  .filter((r) => r.employeeId && r.from >= 1 && r.to >= r.from);
-                if (rangesOverlap(rows)) {
-                  toast(t("recepcion.error.solape"), "error");
-                  return;
+                const rows: {
+                  weekday: number;
+                  employeeId: string;
+                  from: number;
+                  to: number;
+                }[] = [];
+                for (const d of WEEKDAYS) {
+                  for (const r of rangesFromOwners(ownersOf(d))) {
+                    rows.push({ weekday: d, ...r });
+                  }
                 }
                 void run(
-                  "plantilla",
+                  "semana",
                   async () => {
-                    const res = await saveShiftTemplate(branchId!, dia, rows);
+                    const res = await saveShiftWeek(branchId!, activeTramo, rows);
                     if (res.ok) {
-                      setDraftsByDay((p) => {
+                      setDrafts((p) => {
                         const n = { ...p };
-                        delete n[dia];
+                        for (const d of WEEKDAYS) delete n[draftKey(activeTramo, d)];
                         return n;
                       });
                     }
@@ -817,7 +643,7 @@ export const JornadaBoard = ({
               }}
               className={`${BTN} bg-marca text-crema`}
             >
-              {t("recepcion.guardarDia")}
+              {t("recepcion.guardarSemana")}
             </button>
           </div>
         </section>
