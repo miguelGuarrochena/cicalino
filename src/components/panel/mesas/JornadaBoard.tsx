@@ -383,7 +383,9 @@ export const JornadaBoard = ({
           </h3>
           <p className="mt-1 text-sm text-carbon/55">{t("recepcion.plantillaSub")}</p>
 
-          <div className="mt-3 flex gap-1 overflow-x-auto pb-0.5">
+          {/* Wrapped, not scrolled: with the bill open the row is narrow and
+              Sunday used to sit off-screen with nothing saying so. */}
+          <div className="mt-3 flex flex-wrap gap-1">
             {WEEKDAYS.map((d) => {
               const active = dia === d;
               return (
