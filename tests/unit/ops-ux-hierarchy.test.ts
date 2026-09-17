@@ -93,6 +93,9 @@ describe("Operación — jerarquía y layout", () => {
       "src/components/panel/mesas/CobrarModal.tsx",
       "src/components/panel/mesas/JornadaBoard.tsx",
       "src/components/panel/mesas/FloorTableTile.tsx",
+      "src/components/panel/mesas/WeekCalendar.tsx",
+      "src/components/panel/mesas/DayShiftModal.tsx",
+      "src/components/panel/mesas/RangeAssignModal.tsx",
     ];
     for (const f of files) {
       expect(read(f), f).not.toMatch(/<select[\s>]/);
@@ -104,7 +107,12 @@ describe("Operación — jerarquía y layout", () => {
     expect(tile).toContain("bg-marca text-crema");
     expect(tile).not.toContain("border-l-[6px]");
     expect(tile).not.toContain("verQrMesa");
-    const turno = read("src/components/panel/mesas/JornadaBoard.tsx");
+    const turno = [
+      read("src/components/panel/mesas/JornadaBoard.tsx"),
+      read("src/components/panel/mesas/WeekCalendar.tsx"),
+      read("src/components/panel/mesas/DayShiftModal.tsx"),
+      read("src/components/panel/mesas/jornadaUi.ts"),
+    ].join("\n");
     expect(turno).toContain("grid-cols-4");
     expect(turno).toContain("lg:grid-cols-8");
     expect(turno).toContain("aspect-square");
@@ -115,6 +123,9 @@ describe("Operación — jerarquía y layout", () => {
     expect(turno).toContain("elegiQuien");
     expect(turno).toContain("diaCorto");
     expect(turno).toContain("min-h-11 w-full");
+    expect(turno).toContain("WeekCalendar");
+    expect(turno).toContain("DayShiftModal");
+    expect(turno).toContain("RangeAssignModal");
     const tabs = read("src/components/ui/SegmentedTabs.tsx");
     expect(tabs).toContain("min-h-[4.5rem]");
     expect(tabs).toContain("grid-cols-2 sm:grid-cols-4");

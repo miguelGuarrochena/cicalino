@@ -82,5 +82,5 @@ describe("nombreEmpleadoEnUso", () => {
   });
 });
 
-// El chequeo de PIN duplicado se movió a la base (`set_empleado_pin`): el
-// cliente ya no conoce los PINs, así que no se puede testear acá.
+// El PIN puede repetirse: el fichaje es nombre + PIN de ESA persona.
+// Chequear unicidad del PIN filtraría el de otro.

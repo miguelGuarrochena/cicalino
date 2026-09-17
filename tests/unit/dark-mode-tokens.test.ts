@@ -82,6 +82,10 @@ describe("Pantallas de trabajo sin pasteles solo-claros", () => {
     "src/app/(app)/panel/pedidos/page.tsx",
     "src/app/(app)/panel/espera/page.tsx",
     "src/components/panel/mesas/JornadaBoard.tsx",
+    "src/components/panel/mesas/WeekCalendar.tsx",
+    "src/components/panel/mesas/DayShiftModal.tsx",
+    "src/components/panel/mesas/RangeAssignModal.tsx",
+    "src/components/panel/mesas/MesaChip.tsx",
     "src/components/panel/OrderCard.tsx",
     "src/components/panel/SubscriptionCard.tsx",
   ];
