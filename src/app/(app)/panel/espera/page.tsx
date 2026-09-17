@@ -6,6 +6,8 @@ import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { QrModal } from "@/components/panel/QrModal";
 import { slicePage } from "@/components/ui/Pagination";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { TabGlyph } from "@/components/ui/TabGlyph";
 import { HelpLink } from "@/components/panel/HelpLink";
 import { useApp } from "@/components/providers/Providers";
 import { useWaitlist } from "@/lib/hooks/useWaitlist";
@@ -600,39 +602,38 @@ const EsperaPanelPage = () => {
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          {(
-            [
-              ["todas", locale === "en" ? "All" : "Todas", mesas.length],
-              ["libre", locale === "en" ? "Free" : "Libres", libres],
-              [
-                "conReserva",
-                locale === "en" ? "With booking" : "Con reserva",
-                conReserva,
-              ],
-              ["ocupada", locale === "en" ? "Busy" : "Ocupadas", ocupadas],
-            ] as const
-          ).map(([key, label, n]) => {
-            const active = filtroMesa === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setFiltroMesa(key)}
-                className={`flex min-h-11 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold transition sm:min-h-0 sm:px-3.5 sm:py-2 ${
-                  active
-                    ? "bg-espera text-crema"
-                    : "border border-linea bg-surface text-carbon/60 hover:bg-carbon/5"
-                }`}
-              >
-                {label}
-                <span className={`ml-1.5 ${active ? "opacity-80" : "opacity-50"}`}>
-                  {n}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedTabs
+          ariaLabel={locale === "en" ? "Table filters" : "Filtro de mesas"}
+          accent="espera"
+          value={filtroMesa}
+          onChange={setFiltroMesa}
+          options={[
+            {
+              id: "todas",
+              label: locale === "en" ? "All" : "Todas",
+              icon: <TabGlyph k="todas" />,
+              badge: mesas.length,
+            },
+            {
+              id: "libre",
+              label: locale === "en" ? "Free" : "Libres",
+              icon: <TabGlyph k="libre" />,
+              badge: libres,
+            },
+            {
+              id: "conReserva",
+              label: locale === "en" ? "With booking" : "Con reserva",
+              icon: <TabGlyph k="reserva" />,
+              badge: conReserva,
+            },
+            {
+              id: "ocupada",
+              label: locale === "en" ? "Busy" : "Ocupadas",
+              icon: <TabGlyph k="ocupada" />,
+              badge: ocupadas,
+            },
+          ]}
+        />
         <input
           type="search"
           value={qMesa}

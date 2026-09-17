@@ -6,6 +6,8 @@ import { ThemedImg } from "@/components/ui/ThemedImg";
 import Image from "next/image";
 import iconoApp from "../../../public/icon-192.png";
 import { useApp } from "@/components/providers/Providers";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { TabGlyph } from "@/components/ui/TabGlyph";
 
 const AUTO_MS = 4200;
 const SWIPE_MIN = 48;
@@ -148,36 +150,25 @@ export const CustomerWalkthrough = ({
         </button>
       </div>
 
-      <div
-        className="mt-4 flex rounded-2xl border border-linea bg-crema/50 p-1"
-        role="tablist"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={flow === "pedidos"}
-          onClick={() => setFlow("pedidos")}
-          className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition sm:text-sm ${
-            flow === "pedidos"
-              ? "bg-marca text-crema"
-              : "text-carbon/55 hover:bg-carbon/5"
-          }`}
-        >
-          {locale === "en" ? "Order ready" : "Pedido listo"}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={flow === "espera"}
-          onClick={() => setFlow("espera")}
-          className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition sm:text-sm ${
-            flow === "espera"
-              ? "bg-espera text-crema"
-              : "text-carbon/55 hover:bg-carbon/5"
-          }`}
-        >
-          {locale === "en" ? "Reception" : "Recepción"}
-        </button>
+      <div className="mt-4">
+        <SegmentedTabs
+          ariaLabel={locale === "en" ? "How it works" : "Cómo funciona"}
+          accent={flow === "espera" ? "espera" : "marca"}
+          value={flow}
+          onChange={setFlow}
+          options={[
+            {
+              id: "pedidos",
+              label: locale === "en" ? "Order ready" : "Pedido listo",
+              icon: <TabGlyph k="pedido" />,
+            },
+            {
+              id: "espera",
+              label: locale === "en" ? "Reception" : "Recepción",
+              icon: <TabGlyph k="espera" />,
+            },
+          ]}
+        />
       </div>
 
       <div

@@ -12,6 +12,7 @@ import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { TabGlyph } from "@/components/ui/TabGlyph";
 import { QrModal } from "@/components/panel/QrModal";
 import { TableDetail } from "@/components/panel/mesas/TableDetail";
 import { KitchenInbox } from "@/components/panel/mesas/KitchenInbox";
@@ -254,14 +255,31 @@ const MesasPage = () => {
 
             <SegmentedTabs
               ariaLabel={t("mesas.resumen")}
-              size="sm"
               value={tab}
               onChange={setTab}
               options={[
-                { id: "pedido", label: t("mesas.filtroPedido"), badge: pedidoN },
-                { id: "cobrar", label: t("mesas.filtroCobrar"), badge: chargeN },
-                { id: "todas", label: t("mesas.filtroTodas") },
-                { id: "turno", label: t("mesas.filtroTurno") },
+                {
+                  id: "pedido",
+                  label: t("mesas.filtroPedido"),
+                  icon: <TabGlyph k="pedido" />,
+                  badge: pedidoN,
+                },
+                {
+                  id: "cobrar",
+                  label: t("mesas.filtroCobrar"),
+                  icon: <TabGlyph k="cobrar" />,
+                  badge: chargeN,
+                },
+                {
+                  id: "todas",
+                  label: t("mesas.filtroTodas"),
+                  icon: <TabGlyph k="todas" />,
+                },
+                {
+                  id: "turno",
+                  label: t("mesas.filtroTurno"),
+                  icon: <TabGlyph k="turno" />,
+                },
               ]}
             />
 

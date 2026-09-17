@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import { Controls } from "@/components/ui/Controls";
+import { TabGlyph } from "@/components/ui/TabGlyph";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   BillTotals,
@@ -318,7 +319,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
       <nav
         role="tablist"
         aria-label={t("mesa.secciones")}
-        className="sticky top-0 z-10 -mx-4 mt-4 flex gap-1 border-b border-linea bg-crema/90 px-4 py-2 backdrop-blur"
+        className="sticky top-0 z-10 -mx-4 mt-4 grid grid-cols-3 gap-2 border-b border-linea bg-crema/90 px-4 py-2 backdrop-blur"
       >
         {(["carta", "pedidos", "cuenta"] as const).map((k) => (
           <button
@@ -327,10 +328,13 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
             aria-selected={tab === k}
             type="button"
             onClick={() => setTab(k)}
-            className={`min-h-10 flex-1 rounded-full px-3 text-sm font-semibold transition ${
-              tab === k ? "bg-marca text-crema" : "text-carbon/60 hover:bg-carbon/5"
+            className={`flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-2xl border-2 px-1 py-2 text-xs font-semibold transition ${
+              tab === k
+                ? "border-marca bg-marca text-crema"
+                : "border-linea bg-surface text-carbon/60 hover:text-carbon"
             }`}
           >
+            <TabGlyph k={k === "pedidos" ? "pedido" : k} size={22} />
             {t(`mesa.tab.${k}`)}
           </button>
         ))}

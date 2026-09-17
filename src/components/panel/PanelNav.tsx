@@ -42,12 +42,13 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
           <Link
             key={l.href}
             href={l.href}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+            className={`flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
               active
                 ? "bg-marca text-crema"
                 : "text-carbon/60 hover:bg-carbon/5 hover:text-carbon"
             }`}
           >
+            <NavIconSvg k={l.icon} size={18} />
             {t(l.key)}
           </Link>
         );
