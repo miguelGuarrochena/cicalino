@@ -74,6 +74,37 @@ export const unassignedTables = (
   return out;
 };
 
+export const tablesInRange = (from: number, to: number): number[] => {
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < 1) {
+    return [];
+  }
+  const a = Math.min(from, to);
+  const b = Math.max(from, to);
+  const out: number[] = [];
+  for (let n = a; n <= b; n += 1) out.push(n);
+  return out;
+};
+
+export const nextFreeRange = (
+  tableCount: number,
+  taken: { from: number; to: number }[],
+): { from: number; to: number } | null => {
+  if (!(tableCount >= 1)) return null;
+  const used = new Set<number>();
+  for (const r of taken) {
+    for (const n of tablesInRange(r.from, r.to)) used.add(n);
+  }
+  let start: number | null = null;
+  for (let n = 1; n <= tableCount; n += 1) {
+    if (used.has(n)) {
+      if (start != null) return { from: start, to: n - 1 };
+      continue;
+    }
+    if (start == null) start = n;
+  }
+  return start == null ? null : { from: start, to: tableCount };
+};
+
 export const compactRanges = (tables: number[]): { from: number; to: number }[] => {
   const sorted = [...new Set(tables)].sort((a, b) => a - b);
   if (!sorted.length) return [];

@@ -4,8 +4,10 @@ import { join } from "node:path";
 import {
   compactRanges,
   formatTableRange,
+  nextFreeRange,
   rangesOverlap,
   staffOnShift,
+  tablesInRange,
   unassignedTables,
 } from "@/lib/floorShift";
 
@@ -39,6 +41,14 @@ describe("rangos de mesas", () => {
     expect(rangesOverlap([{ from: 1, to: 6 }, { from: 6, to: 8 }])).toBe(true);
     expect(formatTableRange([1, 2, 3, 7, 8, 12])).toBe("1–3, 7–8, 12");
     expect(compactRanges([5, 4, 4, 6])).toEqual([{ from: 4, to: 6 }]);
+    expect(tablesInRange(6, 4)).toEqual([4, 5, 6]);
+    expect(nextFreeRange(12, [])).toEqual({ from: 1, to: 12 });
+    expect(nextFreeRange(12, [{ from: 1, to: 6 }])).toEqual({ from: 7, to: 12 });
+    expect(nextFreeRange(12, [{ from: 5, to: 5 }, { from: 10, to: 10 }])).toEqual({
+      from: 1,
+      to: 4,
+    });
+    expect(nextFreeRange(6, [{ from: 1, to: 6 }])).toBeNull();
     expect(unassignedTables(6, [{ tableNumber: 2, employeeId: "a", employeeName: "A" }])).toEqual([
       1, 3, 4, 5, 6,
     ]);
