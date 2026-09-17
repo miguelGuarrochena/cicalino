@@ -29,14 +29,14 @@ export const ModulesOverview = () => {
     },
     {
       id: "espera",
-      img: "espera" as const,
+      img: "bell" as const,
       price: PRICE_WAITLIST,
       accent: "text-espera",
       ring: "hover:border-espera/40",
     },
     {
       id: "pagos",
-      img: "ok" as const,
+      img: "bell" as const,
       price: PRICE_SPLIT,
       accent: "text-marca",
       ring: "hover:border-marca/40",
