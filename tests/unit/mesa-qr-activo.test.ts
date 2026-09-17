@@ -39,4 +39,22 @@ describe("mesa-qr-activo", () => {
   it("regenerar vuelve a dejar el QR activo", () => {
     expect(sql).toMatch(/qr_activo = true/);
   });
+
+  it("se puede descargar solo el QR, con marco, o una plancha", () => {
+    const page = readFileSync(
+      join(root, "src/app/(app)/panel/mesas/qr/page.tsx"),
+      "utf8",
+    );
+    const sticker = readFileSync(join(root, "src/lib/qrSticker.ts"), "utf8");
+    const modal = readFileSync(
+      join(root, "src/components/panel/mesas/QrDownloadModal.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("QrDownloadModal");
+    expect(page).toContain("sheetPng");
+    expect(page).not.toMatch(/<select[\s>]/);
+    expect(sticker).toContain('kind: "solo" | "marco"');
+    expect(modal).toContain("descargarSoloHint");
+    expect(modal).toContain("descargarMarcoHint");
+  });
 });

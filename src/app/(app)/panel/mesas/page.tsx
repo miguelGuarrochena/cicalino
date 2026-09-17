@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
@@ -37,7 +37,7 @@ import {
   type FloorFilter,
   type FloorTable,
 } from "@/lib/tableOps";
-import { useToast } from "@/components/ui/Toast";
+import { TOAST_AVISO_MS, useToast } from "@/components/ui/Toast";
 import { useFloorShift } from "@/lib/hooks/useFloorShift";
 import { assignmentByTable, assignmentsForTramo, currentFloorTramo } from "@/lib/floorShift";
 import { assignTable } from "@/lib/data/floorShift";
@@ -66,6 +66,38 @@ const MesasPage = () => {
   const [tab, setTab] = useState<FloorFilter | "turno">("pedido");
   const [query, setQuery] = useState("");
   const [kitchenBusy, setKitchenBusy] = useState<string | null>(null);
+  const seenCalls = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    seenCalls.current = null;
+  }, [branchId]);
+
+  useEffect(() => {
+    const calling = new Set(
+      bills
+        .filter((b) => b.session.status === "abierta" && b.session.calledAt)
+        .map((b) => b.session.id),
+    );
+    const prev = seenCalls.current;
+    if (prev == null) {
+      seenCalls.current = calling;
+      return;
+    }
+    for (const b of bills) {
+      if (
+        b.session.status === "abierta" &&
+        b.session.calledAt &&
+        !prev.has(b.session.id)
+      ) {
+        toast(
+          t("mesas.teLlamanToast", { n: b.session.tableNumber }),
+          "info",
+          TOAST_AVISO_MS,
+        );
+      }
+    }
+    seenCalls.current = calling;
+  }, [bills, t, toast]);
 
   useEffect(() => {
     if (!branchId || !visibles.pagos) return;

@@ -62,6 +62,8 @@ describe("Llamar mesero/a", () => {
     expect(mesas).toContain("mesas.filtroPedido");
     expect(mesas).toContain("onAcknowledge");
     expect(mesas).toContain("onShowQr");
+    expect(mesas).toContain("teLlamanToast");
+    expect(mesas).toContain("TOAST_AVISO_MS");
   });
 
   it("elegir efectivo en el celular avisa al mozo", () => {
