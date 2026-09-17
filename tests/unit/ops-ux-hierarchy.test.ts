@@ -36,11 +36,12 @@ describe("Operación — jerarquía y layout", () => {
     const detalle = read("src/components/panel/mesas/TableDetail.tsx");
     const guest = read("src/components/customer/table/TableGuestApp.tsx");
     const qr = read("src/components/panel/QrModal.tsx");
-    expect(mesas).toContain("grid-cols-1");
+    expect(mesas).toContain("grid-cols-3");
     expect(mesas).toContain("minmax(9.5rem,1fr)");
     expect(mesas).toContain("mesas.filtroPedido");
     expect(mesas).toContain("KitchenInbox");
     expect(mesas).toMatch(/filtro === "pedido"\s*\? \[\]/);
+    expect(mesas).toContain("flex flex-col gap-2");
     expect(mesas).toContain("onShowQr");
     expect(mesas).toContain("pathPrefix=\"/m\"");
     expect(detalle).toContain("w-full rounded-full bg-marca");

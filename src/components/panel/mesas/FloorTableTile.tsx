@@ -1,10 +1,33 @@
 "use client";
 
 import { useApp } from "@/components/providers/Providers";
-import { FloorStatusBadge, FLOOR_STYLE } from "@/components/panel/mesas/FloorStatusBadge";
+import { FloorStatusBadge } from "@/components/panel/mesas/FloorStatusBadge";
 import { formatMoney } from "@/lib/tableBill";
 import { firstName } from "@/lib/floorShift";
 import { summarizeKitchen, type FloorTable } from "@/lib/tableOps";
+
+const hasOrder = (row: FloorTable) =>
+  row.newOrders.length + row.prepOrders.length + row.readyOrders.length > 0 ||
+  row.consumption > 0;
+
+const moneyStatus = (status: FloorTable["status"]) =>
+  status === "pendiente" ||
+  status === "parcial" ||
+  status === "esperando-pago" ||
+  status === "pagada";
+
+const tileTone = (row: FloorTable) => {
+  if (row.pending > 0) {
+    return "border-alerta/40 bg-alerta/[0.09] border-l-alerta";
+  }
+  if (hasOrder(row)) {
+    return "border-marca/35 bg-marca/[0.08] border-l-marca";
+  }
+  if (row.bill) {
+    return "border-carbon/20 bg-carbon/[0.04] border-l-carbon/35";
+  }
+  return "border-linea bg-surface border-l-linea";
+};
 
 export const FloorTableTile = ({
   row,
@@ -20,7 +43,8 @@ export const FloorTableTile = ({
   onShowQr?: () => void;
 }) => {
   const { t } = useApp();
-  const style = FLOOR_STYLE[row.status];
+  const tone = tileTone(row);
+  const ordered = hasOrder(row);
   const kitchen = summarizeKitchen([...row.newOrders, ...row.prepOrders, ...row.readyOrders]);
   const kitchenHint = kitchen
     .slice(0, 2)
@@ -28,23 +52,33 @@ export const FloorTableTile = ({
     .join(" · ");
   const waiter =
     firstName(row.waiterName) || (row.bill ? t("recepcion.sinAsignar") : "");
+  const showQr = Boolean(ordered && onShowQr);
+  const chargingHint =
+    row.pending > 0 && !moneyStatus(row.status) ? t("mesas.porCobrar") : null;
 
   if (dense) {
     return (
-      <li className="flex items-stretch gap-2">
+      <li
+        className={`flex items-stretch overflow-hidden rounded-2xl border border-l-[3px] ${tone} ${
+          active ? "ring-2 ring-marca/25" : ""
+        }`}
+      >
         <button
           type="button"
           aria-current={active ? "true" : undefined}
           onClick={onOpen}
-          className={`flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-linea border-l-[3px] bg-surface px-3 py-2 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
-            active ? "ring-2 ring-marca/25" : ""
-          }`}
+          className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left transition hover:bg-carbon/[0.03] active:scale-[0.99]"
         >
           <span className="w-10 shrink-0 font-display text-2xl leading-none text-carbon">
             {row.tableNumber}
           </span>
           <span className="min-w-0 flex-1">
-            <FloorStatusBadge status={row.status} />
+            <span className="flex flex-wrap items-center gap-x-2">
+              <FloorStatusBadge status={row.status} />
+              {chargingHint ? (
+                <span className="text-[11px] font-semibold text-alerta">{chargingHint}</span>
+              ) : null}
+            </span>
             <span className="mt-0.5 block truncate text-[11px] text-carbon/50">
               {[
                 waiter,
@@ -55,25 +89,21 @@ export const FloorTableTile = ({
                 .join(" · ") || t("mesas.estadoOp.libre")}
             </span>
           </span>
-          <span className="shrink-0 text-right">
-            {row.bill && row.consumption > 0 ? (
-              <span
-                className={`block font-display text-lg tabular-nums leading-none ${
-                  row.pending > 0 ? "text-alerta" : "text-ok"
-                }`}
-              >
-                {formatMoney(row.pending > 0 ? row.pending : row.paid)}
-              </span>
-            ) : row.qrActive && !onShowQr ? (
-              <span className="text-xs font-semibold text-marca">{t("mesas.verQrMesa")}</span>
-            ) : null}
-          </span>
+          {row.bill && row.consumption > 0 ? (
+            <span
+              className={`shrink-0 font-display text-lg tabular-nums leading-none ${
+                row.pending > 0 ? "text-alerta" : "text-ok"
+              }`}
+            >
+              {formatMoney(row.pending > 0 ? row.pending : row.paid)}
+            </span>
+          ) : null}
         </button>
-        {onShowQr ? (
+        {showQr ? (
           <button
             type="button"
             onClick={onShowQr}
-            className="min-h-14 shrink-0 rounded-2xl border border-linea bg-surface px-3 text-xs font-semibold text-marca"
+            className="shrink-0 self-center px-3 py-2 text-xs font-semibold text-marca"
           >
             {t("mesas.verQrMesa")}
           </button>
@@ -83,14 +113,18 @@ export const FloorTableTile = ({
   }
 
   return (
-    <li className="flex flex-col gap-1">
+    <li
+      className={`relative flex min-h-[6.5rem] flex-col overflow-hidden rounded-2xl border border-l-[3px] ${tone} ${
+        active ? "ring-2 ring-marca/25" : ""
+      }`}
+    >
       <button
         type="button"
         aria-current={active ? "true" : undefined}
         onClick={onOpen}
-        className={`flex min-h-[6.5rem] w-full flex-1 flex-col justify-between rounded-2xl border border-linea border-l-[3px] bg-surface px-3 py-2.5 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
-            active ? "ring-2 ring-marca/25" : ""
-          }`}
+        className={`flex w-full flex-1 flex-col justify-between px-3 py-2.5 text-left transition hover:bg-carbon/[0.03] active:scale-[0.99] ${
+          showQr ? "pb-8" : ""
+        }`}
       >
         <span className="flex items-start justify-between gap-1">
           <span className="font-display text-2xl leading-none text-carbon">{row.tableNumber}</span>
@@ -105,7 +139,12 @@ export const FloorTableTile = ({
             {waiter}
           </span>
         ) : null}
-        <FloorStatusBadge status={row.status} />
+        <span className="flex flex-wrap items-center gap-x-1.5">
+          <FloorStatusBadge status={row.status} />
+          {chargingHint ? (
+            <span className="text-[10px] font-semibold text-alerta">{chargingHint}</span>
+          ) : null}
+        </span>
         {row.bill && row.consumption > 0 ? (
           <span
             className={`font-display text-sm tabular-nums leading-none ${
@@ -118,15 +157,15 @@ export const FloorTableTile = ({
           <span className="truncate text-[10px] text-carbon/50">{kitchenHint}</span>
         ) : (
           <span className="text-[10px] text-carbon/40">
-            {row.qrActive && !onShowQr ? t("mesas.verQrMesa") : "—"}
+            {row.bill ? t("mesas.estadoOp.sin-consumo") : t("mesas.estadoOp.libre")}
           </span>
         )}
       </button>
-      {onShowQr ? (
+      {showQr ? (
         <button
           type="button"
           onClick={onShowQr}
-          className="min-h-9 w-full rounded-xl border border-linea bg-surface text-xs font-semibold text-marca"
+          className="absolute bottom-2 left-3 text-[11px] font-semibold text-marca"
         >
           {t("mesas.verQrMesa")}
         </button>
