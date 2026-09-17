@@ -39,9 +39,47 @@ describe("mesa-asignacion-tramos", () => {
   it("el tablero deja marcar mesas, un color por persona y guardar la semana", () => {
     expect(board).toContain("guardarSemana");
     expect(board).toContain("elegiQuien");
-    expect(board).toContain("marcarCon");
-    expect(board).toContain("text-base font-bold");
     expect(board).toContain("markTable");
+    expect(board).toContain("saveShiftWeek");
+    expect(board).toContain("assignTableRange");
+    expect(board).toContain("assignTable(");
+    expect(board).toContain("WeekCalendar");
+    expect(board).toContain("DayShiftModal");
+    expect(board).toContain("RangeAssignModal");
     expect(board).not.toContain("line-clamp-3");
+    const day = readFileSync(
+      join(root, "src/components/panel/mesas/DayShiftModal.tsx"),
+      "utf8",
+    );
+    expect(day).toContain("marcarCon");
+    expect(day).toContain("text-base font-bold");
+    const week = readFileSync(
+      join(root, "src/components/panel/mesas/WeekCalendar.tsx"),
+      "utf8",
+    );
+    expect(week).toContain("grid-cols-7");
+    expect(week).not.toContain('from "@/components/ui/Select"');
+    expect(week).not.toContain("MesaChip");
+    const range = readFileSync(
+      join(root, "src/components/panel/mesas/RangeAssignModal.tsx"),
+      "utf8",
+    );
+    expect(range).toContain("scope");
+    expect(range).toContain('"week"');
+    expect(range).toContain("dayOpts");
+    expect(range).toContain("mesaDesde");
+  });
+});
+
+describe("helpers de la plantilla visual", () => {
+  it("uniqueIds y weekdaysInSpan no duplican gente y envuelven Vie→Lun", async () => {
+    const { uniqueIds, weekdaysInSpan, tablesOfOwners } = await import(
+      "@/components/panel/mesas/jornadaUi"
+    );
+    expect(uniqueIds({ 1: "a", 2: "a", 3: "b" })).toEqual(["a", "b"]);
+    expect(tablesOfOwners({ 1: "a", 2: "a", 5: "b" }, "a")).toEqual([1, 2]);
+    expect(weekdaysInSpan(1, 3)).toEqual([1, 2, 3]);
+    expect(weekdaysInSpan(5, 1)).toEqual([5, 6, 7, 1]);
+    expect(weekdaysInSpan(4, 4)).toEqual([4]);
   });
 });

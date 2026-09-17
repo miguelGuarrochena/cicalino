@@ -4,7 +4,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
 import { Select } from "@/components/ui/Select";
+import { ModalShell } from "@/components/ui/ModalShell";
+import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { DayShiftModal } from "@/components/panel/mesas/DayShiftModal";
+import { MesaChip } from "@/components/panel/mesas/MesaChip";
+import { RangeAssignModal } from "@/components/panel/mesas/RangeAssignModal";
+import { WeekCalendar } from "@/components/panel/mesas/WeekCalendar";
+import {
+  BTN,
+  MESAS,
+  allMesas,
+  draftKey,
+  parseRange,
+  weekdaysInSpan,
+} from "@/components/panel/mesas/jornadaUi";
 import type { EmployeeUI } from "@/lib/store/config-store";
 import {
   WEEKDAYS,
@@ -13,7 +27,6 @@ import {
   compactRanges,
   currentFloorTramo,
   firstName,
-  formatTableRange,
   nextFreeRange,
   ownersFromTemplate,
   rangesFromOwners,
@@ -31,39 +44,11 @@ import {
   setFloorTurnos,
 } from "@/lib/data/floorShift";
 
-const BTN =
-  "min-h-11 w-full rounded-full px-4 text-sm font-semibold disabled:opacity-50 sm:w-auto";
-const MESAS =
-  "grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8";
-const CHIP =
-  "relative flex aspect-square w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 text-center";
-const EMP_TONE = [
-  "bg-marca text-crema",
-  "bg-espera text-crema",
-  "bg-curso text-crema",
-  "bg-carbon text-crema",
-  "bg-[#5b4a8a] text-crema",
-  "bg-marca/65 text-crema",
-];
-
-const allMesas = (count: number) =>
-  Array.from({ length: Math.max(0, count) }, (_, i) => i + 1);
-
-const toneFor = (employeeId: string | null | undefined, ids: string[]) => {
-  if (!employeeId) {
-    return "bg-surface text-carbon/65 ring-1 ring-dashed ring-linea";
-  }
-  const i = Math.max(0, ids.indexOf(employeeId));
-  return EMP_TONE[i % EMP_TONE.length];
-};
-
-const parseRange = (from: string, to: string) => {
-  const a = Number(from);
-  const b = Number(to);
-  return { a, b, tables: tablesInRange(a, b) };
-};
-
-const draftKey = (tramo: FloorTramo, d: number) => `${tramo}-${d}`;
+type OpenUi =
+  | null
+  | { kind: "day" }
+  | { kind: "range"; scope: "today" | "week" }
+  | { kind: "mesa"; table: number };
 
 export const JornadaBoard = ({
   branchId,
@@ -94,7 +79,19 @@ export const JornadaBoard = ({
     () => mesas.map((n) => ({ value: String(n), label: String(n) })),
     [mesas],
   );
+  const dayOpts = useMemo(
+    () =>
+      WEEKDAYS.map((d) => ({
+        value: String(d),
+        label: t(`recepcion.diaCorto.${d}`),
+      })),
+    [t],
+  );
   const empIds = useMemo(() => employees.map((e) => e.id), [employees]);
+  const empOpts = useMemo(
+    () => employees.map((e) => ({ value: e.id, label: e.name })),
+    [employees],
+  );
   const empName = (id: string) =>
     employees.find((e) => e.id === id)?.name ?? "";
 
@@ -129,32 +126,25 @@ export const JornadaBoard = ({
     [tableCount, takenToday],
   );
 
-  const [from, setFrom] = useState<string | null>(null);
-  const [to, setTo] = useState<string | null>(null);
-  const [rangeEmp, setRangeEmp] = useState("");
-  const fromVal = from ?? String(freeToday?.from ?? mesas[0] ?? 1);
-  const toVal = to ?? String(freeToday?.to ?? mesas[0] ?? 1);
-  const [picked, setPicked] = useState<number | null>(null);
-  const [brush, setBrush] = useState(employees[0]?.id ?? "");
+  const [open, setOpen] = useState<OpenUi>(null);
+  const [brush, setBrush] = useState("");
   const [diaOverride, setDiaOverride] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<
     Partial<Record<string, Record<number, string>>>
   >({});
   const dia = diaOverride ?? (shift.weekday || 1);
-  const empId = rangeEmp || employees[0]?.id || "";
-  const rangePreview = parseRange(fromVal, toVal).tables.filter(
-    (n) => n <= tableCount,
-  );
 
   const ownersOf = (d: number) =>
     drafts[draftKey(activeTramo, d)] ??
     ownersFromTemplate(shift.template, d, activeTramo);
   const owners = ownersOf(dia);
 
-  const markTable = (n: number, employeeId: string | null) => {
+  const markTable = (n: number, employeeId: string | null, day = dia) => {
     setDrafts((prev) => {
-      const k = draftKey(activeTramo, dia);
-      const cur = { ...(prev[k] ?? ownersFromTemplate(shift.template, dia, activeTramo)) };
+      const k = draftKey(activeTramo, day);
+      const cur = {
+        ...(prev[k] ?? ownersFromTemplate(shift.template, day, activeTramo)),
+      };
       if (!employeeId) delete cur[n];
       else cur[n] = employeeId;
       return { ...prev, [k]: cur };
@@ -201,130 +191,127 @@ export const JornadaBoard = ({
       t("recepcion.asignado"),
     );
 
-  const mesaChip = (
-    n: number,
-    employeeId: string | null,
-    opts?: { onClick?: () => void; selected?: boolean },
-  ) => {
-    const busyMesa = occupied.has(n);
-    const selected = opts?.selected ?? picked === n;
-    const name =
-      employeeId
-        ? firstName(empName(employeeId) || byTable.get(n)?.employeeName)
-        : "";
-    const cls = `${CHIP} ${toneFor(employeeId, empIds)} ${
-      selected ? "ring-2 ring-marca ring-offset-2 ring-offset-surface" : ""
-    } ${busyMesa ? "ring-2 ring-rose-600" : ""}`;
-    const inner = (
-      <>
-        <span className="font-display text-lg leading-none">{n}</span>
-        {name ? (
-          <span className="line-clamp-2 max-w-full px-0.5 text-xs font-bold leading-tight">
-            {name}
-          </span>
-        ) : null}
-        {busyMesa ? (
-          <span className="absolute right-1 top-1 size-2 rounded-full bg-rose-600" />
-        ) : null}
-      </>
+  const tramoLabel =
+    turnos === 2
+      ? t(activeTramo === "noche" ? "recepcion.tramoNoche" : "recepcion.tramoManana")
+      : t("recepcion.tramoUnico");
+
+  const closeUi = () => setOpen(null);
+
+  const openDay = (d: number) => {
+    setDiaOverride(d);
+    setBrush("");
+    setOpen({ kind: "day" });
+  };
+
+  const openRange = (scope: "today" | "week") => {
+    setOpen({ kind: "range", scope });
+  };
+
+  const applyWeekRange = (payload: {
+    employeeId: string;
+    dayFrom: number;
+    dayTo: number;
+    mesaFrom: number;
+    mesaTo: number;
+  }) => {
+    const days = weekdaysInSpan(payload.dayFrom, payload.dayTo);
+    const tables = tablesInRange(payload.mesaFrom, payload.mesaTo).filter(
+      (n) => n <= tableCount,
     );
-    if (!opts?.onClick) {
-      return (
-        <div key={n} className={cls}>
-          {inner}
-        </div>
-      );
+    setDrafts((prev) => {
+      const next = { ...prev };
+      for (const d of days) {
+        const k = draftKey(activeTramo, d);
+        const cur = {
+          ...(next[k] ?? ownersFromTemplate(shift.template, d, activeTramo)),
+        };
+        for (const n of tables) cur[n] = payload.employeeId;
+        next[k] = cur;
+      }
+      return next;
+    });
+    closeUi();
+  };
+
+  const saveWeek = () => {
+    const rows: {
+      weekday: number;
+      employeeId: string;
+      from: number;
+      to: number;
+    }[] = [];
+    for (const d of WEEKDAYS) {
+      for (const r of rangesFromOwners(ownersOf(d))) {
+        rows.push({ weekday: d, ...r });
+      }
     }
-    return (
-      <button
-        key={n}
-        type="button"
-        disabled={busy != null}
-        onClick={opts.onClick}
-        className={cls}
-      >
-        {inner}
-      </button>
+    void run(
+      "semana",
+      async () => {
+        const res = await saveShiftWeek(branchId!, activeTramo, rows);
+        if (res.ok) {
+          setDrafts((p) => {
+            const n = { ...p };
+            for (const d of WEEKDAYS) delete n[draftKey(activeTramo, d)];
+            return n;
+          });
+        }
+        return res;
+      },
+      t("recepcion.plantillaGuardada"),
     );
   };
 
-  const empPicker = (onPick: (id: string | null) => void, selectedId?: string) => (
-    <div className="flex flex-col gap-2">
-      {employees.map((e) => (
-        <button
-          key={e.id}
-          type="button"
-          onClick={() => onPick(e.id)}
-          className={`flex min-h-12 items-center gap-3 rounded-2xl border-2 px-3 text-left ${
-            selectedId === e.id
-              ? "border-carbon"
-              : "border-transparent"
-          }`}
-        >
-          <span className={`size-8 shrink-0 rounded-full ${toneFor(e.id, empIds)}`} />
-          <span className="text-base font-bold text-carbon">{e.name}</span>
-        </button>
-      ))}
-      <button
-        type="button"
-        onClick={() => onPick(null)}
-        className="flex min-h-11 items-center gap-3 rounded-2xl px-3 text-left text-sm font-semibold text-carbon/55"
-      >
-        <span className="size-8 shrink-0 rounded-full bg-surface ring-1 ring-dashed ring-linea" />
-        {t("recepcion.sinAsignar")}
-      </button>
-    </div>
-  );
-
-  const tramoSwitch =
-    turnos === 2 ? (
-      <SegmentedTabs
-        ariaLabel={t("recepcion.plantilla")}
-        value={activeTramo}
-        onChange={(id) => {
-          setTramo(id);
-          setPicked(null);
-        }}
-        options={[
-          { id: "manana", label: t("recepcion.tramoManana") },
-          { id: "noche", label: t("recepcion.tramoNoche") },
-        ]}
-      />
-    ) : null;
+  const picked = open?.kind === "mesa" ? open.table : null;
+  const rangeScope = open?.kind === "range" ? open.scope : null;
+  const rangeMesaFrom = String(freeToday?.from ?? mesas[0] ?? 1);
+  const rangeMesaTo = String(freeToday?.to ?? mesas[0] ?? 1);
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-2">
-      {canManage && (
-        <SegmentedTabs
-          ariaLabel={t("recepcion.plantilla")}
-          value={String(turnos)}
-          onChange={(id) => {
-            const n = id === "2" ? 2 : 1;
-            setTurnos(n);
-            if (n === 1) setTramo("manana");
-            void run(
-              "turnos",
-              () => setFloorTurnos(branchId!, n),
-              n === 2 ? t("recepcion.dosTurnos") : t("recepcion.unTurno"),
-            );
-          }}
-          options={[
-            { id: "1", label: t("recepcion.unTurno") },
-            { id: "2", label: t("recepcion.dosTurnos") },
-          ]}
-        />
-      )}
-      {turnos === 2 ? tramoSwitch : null}
+        {canManage && (
+          <SegmentedTabs
+            ariaLabel={t("recepcion.plantilla")}
+            value={String(turnos)}
+            onChange={(id) => {
+              const n = id === "2" ? 2 : 1;
+              setTurnos(n);
+              if (n === 1) setTramo("manana");
+              void run(
+                "turnos",
+                () => setFloorTurnos(branchId!, n),
+                n === 2 ? t("recepcion.dosTurnos") : t("recepcion.unTurno"),
+              );
+            }}
+            options={[
+              { id: "1", label: t("recepcion.unTurno") },
+              { id: "2", label: t("recepcion.dosTurnos") },
+            ]}
+          />
+        )}
+        {turnos === 2 ? (
+          <SegmentedTabs
+            ariaLabel={t("recepcion.plantilla")}
+            value={activeTramo}
+            onChange={(id) => {
+              setTramo(id);
+              closeUi();
+            }}
+            options={[
+              { id: "manana", label: t("recepcion.tramoManana") },
+              { id: "noche", label: t("recepcion.tramoNoche") },
+            ]}
+          />
+        ) : null}
       </div>
 
       <section className="min-w-0 rounded-[24px] border border-marca/20 bg-surface p-4 shadow-sm sm:p-5">
         <header>
           <p className="text-xs font-semibold uppercase tracking-wide text-marca">
             {t("recepcion.jornadaHoy")}
-            {turnos === 2
-              ? ` · ${t(activeTramo === "noche" ? "recepcion.tramoNoche" : "recepcion.tramoManana")}`
-              : ` · ${t("recepcion.tramoUnico")}`}
+            {` · ${tramoLabel}`}
           </p>
           <h2 className="font-display text-2xl uppercase tracking-tight text-carbon">
             {t(`recepcion.dia.${shift.weekday || dia}`)}
@@ -348,134 +335,44 @@ export const JornadaBoard = ({
           <p className="mt-4 text-sm text-carbon/55">{t("recepcion.sinEmpleados")}</p>
         ) : (
           <>
-            <ul className="mt-4 flex flex-col gap-1.5">
-              {employees.map((e) => (
-                <li key={e.id} className="flex items-center gap-3">
-                  <span className={`size-7 shrink-0 rounded-full ${toneFor(e.id, empIds)}`} />
-                  <span className="text-base font-bold text-carbon">{e.name}</span>
-                  <span className="text-sm tabular-nums text-carbon/55">
-                    {formatTableRange(staff.find((s) => s.id === e.id)?.tables ?? []) || "—"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
             <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-carbon/50">
               {t("recepcion.todasLasMesas")}
             </p>
             <div className={`mt-2 ${MESAS}`}>
-              {mesas.map((n) =>
-                mesaChip(n, byTable.get(n)?.employeeId ?? null, {
-                  onClick: () => setPicked(n),
-                }),
-              )}
+              {mesas.map((n) => {
+                const row = byTable.get(n);
+                return (
+                  <MesaChip
+                    key={n}
+                    n={n}
+                    employeeId={row?.employeeId ?? null}
+                    empIds={empIds}
+                    name={
+                      row?.employeeId
+                        ? firstName(empName(row.employeeId) || row.employeeName)
+                        : ""
+                    }
+                    occupied={occupied.has(n)}
+                    selected={picked === n}
+                    disabled={busy != null}
+                    onClick={() => setOpen({ kind: "mesa", table: n })}
+                  />
+                );
+              })}
             </div>
           </>
         )}
 
-        {picked != null && (
-          <div className="mt-4 rounded-2xl border border-marca/25 bg-marca/5 p-3">
-            <p className="mb-2 text-sm font-bold text-carbon">
-              {t("mesa.mesaN", { n: picked })}
-              {" · "}
-              {t("recepcion.elegiQuien")}
-            </p>
-            {canManage
-              ? empPicker((id) => {
-                  const mesa = picked;
-                  setPicked(null);
-                  void assignOne(mesa, id);
-                }, byTable.get(picked)?.employeeId ?? undefined)
-              : actorId && !byTable.get(picked)?.employeeId ? (
-                <button
-                  type="button"
-                  disabled={busy != null}
-                  onClick={() => {
-                    const mesa = picked;
-                    setPicked(null);
-                    void assignOne(mesa, actorId);
-                  }}
-                  className={`${BTN} bg-marca text-crema`}
-                >
-                  {t("recepcion.tomar")}
-                </button>
-              ) : null}
-          </div>
-        )}
-
-        {canManage && employees.length > 0 && mesaOpts.length > 0 && (
-          <form
-            className="mt-5 border-t border-linea pt-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const { a, b } = parseRange(fromVal, toVal);
-              if (!empId || !parseRange(fromVal, toVal).tables.length) return;
-              void run(
-                "rango",
-                () =>
-                  assignTableRange(branchId!, a, b, empId, actorId, activeTramo),
-                t("recepcion.asignado"),
-              );
-            }}
+        {canManage && employees.length > 0 && mesaOpts.length > 0 ? (
+          <button
+            type="button"
+            disabled={busy != null}
+            onClick={() => openRange("today")}
+            className={`${BTN} mt-4 border border-linea bg-crema/60 text-carbon`}
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-carbon/50">
-              {t("recepcion.asignarRango")}
-            </p>
-            <div className="mt-2 flex flex-col gap-2">
-              <label className="flex flex-col gap-1 text-xs font-semibold text-carbon/55">
-                {t("recepcion.atiende")}
-                <Select
-                  value={empId}
-                  onChange={setRangeEmp}
-                  className="w-full"
-                  triggerClassName="min-h-11 w-full"
-                  ariaLabel={t("recepcion.atiende")}
-                  options={employees.map((e) => ({
-                    value: e.id,
-                    label: e.name,
-                  }))}
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="flex flex-col gap-1 text-xs font-semibold text-carbon/55">
-                  {t("recepcion.mesaDesde")}
-                  <Select
-                    value={fromVal}
-                    onChange={(v) => {
-                      setFrom(v);
-                      if (Number(v) > Number(toVal)) setTo(v);
-                    }}
-                    className="w-full"
-                    triggerClassName="min-h-11 w-full"
-                    ariaLabel={t("recepcion.mesaDesde")}
-                    options={mesaOpts}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-xs font-semibold text-carbon/55">
-                  {t("recepcion.mesaHasta")}
-                  <Select
-                    value={toVal}
-                    onChange={(v) => {
-                      setTo(v);
-                      if (Number(v) < Number(fromVal)) setFrom(v);
-                    }}
-                    className="w-full"
-                    triggerClassName="min-h-11 w-full"
-                    ariaLabel={t("recepcion.mesaHasta")}
-                    options={mesaOpts}
-                  />
-                </label>
-              </div>
-              <button
-                type="submit"
-                disabled={busy != null || !empId || !rangePreview.length}
-                className={`${BTN} bg-marca text-crema`}
-              >
-                {t("recepcion.asignar")}
-              </button>
-            </div>
-          </form>
-        )}
+            {t("recepcion.asignarRango")}
+          </button>
+        ) : null}
 
         {canManage && (
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -519,128 +416,29 @@ export const JornadaBoard = ({
           </h3>
           <p className="mt-1 text-sm text-carbon/55">{t("recepcion.plantillaSub")}</p>
 
-          <div className="mt-3 grid grid-cols-7 gap-1">
-            {WEEKDAYS.map((d) => {
-              const active = dia === d;
-              const has = Object.keys(ownersOf(d)).length > 0;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => {
-                    setDiaOverride(d);
-                    setPicked(null);
-                  }}
-                  className={`flex min-h-12 flex-col items-center justify-center rounded-2xl border-2 px-0.5 py-1.5 text-center text-[11px] font-bold uppercase tracking-wide ${
-                    active
-                      ? "border-marca bg-marca text-crema"
-                      : "border-linea text-carbon/70 hover:border-carbon/25"
-                  }`}
-                >
-                  {t(`recepcion.diaCorto.${d}`)}
-                  <span
-                    className={`mt-1 size-1.5 rounded-full ${
-                      has ? (active ? "bg-crema" : "bg-marca") : "bg-transparent"
-                    }`}
-                  />
-                </button>
-              );
-            })}
-          </div>
-
-          <p className="mt-4 font-display text-lg uppercase tracking-tight text-carbon">
-            {t(`recepcion.dia.${dia}`)}
-            {turnos === 2
-              ? ` · ${t(activeTramo === "noche" ? "recepcion.tramoNoche" : "recepcion.tramoManana")}`
-              : ""}
-          </p>
-
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-carbon/50">
-            {t("recepcion.marcarCon")}
-          </p>
-          <div className="mt-2 flex flex-col gap-1.5">
-            {employees.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                onClick={() => setBrush(e.id)}
-                className={`flex min-h-12 items-center gap-3 rounded-2xl border-2 px-3 text-left ${
-                  brush === e.id ? "border-carbon" : "border-transparent"
-                }`}
-              >
-                <span className={`size-8 shrink-0 rounded-full ${toneFor(e.id, empIds)}`} />
-                <span className="text-base font-bold text-carbon">{e.name}</span>
-                <span className="ml-auto text-sm tabular-nums text-carbon/55">
-                  {formatTableRange(
-                    Object.entries(owners)
-                      .filter(([, id]) => id === e.id)
-                      .map(([n]) => Number(n)),
-                  ) || "—"}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {mesas.length > 0 && (
-            <>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-carbon/50">
-                {t("recepcion.todasLasMesas")}
-              </p>
-              <div className={`mt-2 ${MESAS}`}>
-                {mesas.map((n) => {
-                  const owner = owners[n] || null;
-                  return mesaChip(n, owner, {
-                    selected: false,
-                    onClick: () => {
-                      if (!brush) {
-                        setBrush(employees[0]?.id ?? "");
-                      }
-                      markTable(n, owner === brush ? null : brush || employees[0]?.id || null);
-                    },
-                  });
-                })}
-              </div>
-            </>
-          )}
-
-          {!Object.keys(owners).length && (
-            <p className="mt-3 text-sm text-carbon/50">
-              {t("recepcion.sinPlantilla")}
-            </p>
-          )}
-
           <div className="mt-4">
+            <WeekCalendar
+              selected={open?.kind === "day" ? dia : null}
+              empIds={empIds}
+              ownersOf={ownersOf}
+              onSelectDay={openDay}
+              dayLabel={(d) => t(`recepcion.diaCorto.${d}`)}
+            />
+          </div>
+
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <button
+              type="button"
+              disabled={busy != null || !employees.length || !mesaOpts.length}
+              onClick={() => openRange("week")}
+              className={`${BTN} border border-linea bg-crema/60 text-carbon`}
+            >
+              {t("recepcion.asignarRango")}
+            </button>
             <button
               type="button"
               disabled={busy != null || !employees.length}
-              onClick={() => {
-                const rows: {
-                  weekday: number;
-                  employeeId: string;
-                  from: number;
-                  to: number;
-                }[] = [];
-                for (const d of WEEKDAYS) {
-                  for (const r of rangesFromOwners(ownersOf(d))) {
-                    rows.push({ weekday: d, ...r });
-                  }
-                }
-                void run(
-                  "semana",
-                  async () => {
-                    const res = await saveShiftWeek(branchId!, activeTramo, rows);
-                    if (res.ok) {
-                      setDrafts((p) => {
-                        const n = { ...p };
-                        for (const d of WEEKDAYS) delete n[draftKey(activeTramo, d)];
-                        return n;
-                      });
-                    }
-                    return res;
-                  },
-                  t("recepcion.plantillaGuardada"),
-                );
-              }}
+              onClick={saveWeek}
               className={`${BTN} bg-marca text-crema`}
             >
               {t("recepcion.guardarSemana")}
@@ -648,6 +446,119 @@ export const JornadaBoard = ({
           </div>
         </section>
       )}
+
+      {open?.kind === "day" ? (
+        <DayShiftModal
+          weekday={dia}
+          tramoLabel={tramoLabel}
+          owners={owners}
+          employees={employees}
+          empIds={empIds}
+          mesas={mesas}
+          brush={brush}
+          busy={busy != null}
+          onBrush={setBrush}
+          onMark={(n) => {
+            if (!brush) return;
+            const owner = owners[n] || null;
+            markTable(n, owner === brush ? null : brush);
+          }}
+          onClose={closeUi}
+        />
+      ) : null}
+
+      {rangeScope ? (
+        <RangeAssignModal
+          scope={rangeScope}
+          employees={empOpts}
+          mesaOpts={mesaOpts}
+          dayOpts={dayOpts}
+          defaultEmp={brush}
+          defaultDayFrom={String(dia)}
+          defaultDayTo={String(dia)}
+          defaultMesaFrom={rangeMesaFrom}
+          defaultMesaTo={rangeMesaTo}
+          busy={busy != null}
+          onClose={closeUi}
+          onAssign={(payload) => {
+            if (rangeScope === "today") {
+              const { a, b, tables } = parseRange(
+                String(payload.mesaFrom),
+                String(payload.mesaTo),
+              );
+              if (!payload.employeeId || !tables.length) return;
+              closeUi();
+              void run(
+                "rango",
+                () =>
+                  assignTableRange(
+                    branchId!,
+                    a,
+                    b,
+                    payload.employeeId,
+                    actorId,
+                    activeTramo,
+                  ),
+                t("recepcion.asignado"),
+              );
+              return;
+            }
+            applyWeekRange(payload);
+          }}
+        />
+      ) : null}
+
+      {picked != null ? (
+        <ModalShell onClose={closeUi} labelledBy="jornada-mesa-title">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <h2
+              id="jornada-mesa-title"
+              className="font-display text-2xl uppercase tracking-tight text-carbon"
+            >
+              {t("mesa.mesaN", { n: picked })}
+            </h2>
+            <ModalCloseBtn onClick={closeUi} label={t("mesa.cerrar")} />
+          </div>
+          <p className="mb-3 text-sm text-carbon/55">{t("recepcion.elegiQuien")}</p>
+          {canManage ? (
+            <Select
+              value={byTable.get(picked)?.employeeId ?? ""}
+              onChange={(id) => {
+                const mesa = picked;
+                closeUi();
+                const cur = byTable.get(mesa)?.employeeId ?? "";
+                if (id === cur) return;
+                void assignOne(mesa, id || null);
+              }}
+              placeholder="—"
+              className="w-full"
+              triggerClassName="min-h-11 w-full"
+              ariaLabel={t("recepcion.elegiQuien")}
+              options={[
+                { value: "", label: t("recepcion.sinAsignar") },
+                ...empOpts,
+              ]}
+            />
+          ) : actorId && !byTable.get(picked)?.employeeId ? (
+            <button
+              type="button"
+              disabled={busy != null}
+              onClick={() => {
+                const mesa = picked;
+                closeUi();
+                void assignOne(mesa, actorId);
+              }}
+              className={`${BTN} bg-marca text-crema`}
+            >
+              {t("recepcion.tomar")}
+            </button>
+          ) : (
+            <p className="text-base font-bold text-carbon">
+              {byTable.get(picked)?.employeeName || t("recepcion.sinAsignar")}
+            </p>
+          )}
+        </ModalShell>
+      ) : null}
     </div>
   );
 };
