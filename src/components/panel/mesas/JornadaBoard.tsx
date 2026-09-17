@@ -22,7 +22,13 @@ import {
 } from "@/lib/data/floorShift";
 
 const INPUT =
-  "min-h-11 w-20 rounded-xl border border-linea bg-crema/40 px-3 text-sm tabular-nums text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20";
+  "min-h-11 w-full rounded-xl border border-linea bg-crema/40 px-3 text-sm tabular-nums text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20 sm:w-20";
+const BTN =
+  "min-h-11 w-full rounded-full px-4 text-sm font-semibold disabled:opacity-50 sm:w-auto";
+const MESAS =
+  "grid grid-cols-6 gap-1.5 sm:flex sm:flex-wrap sm:gap-1";
+const CHIP =
+  "flex min-h-11 items-center justify-center rounded-lg px-2 text-sm font-semibold tabular-nums sm:min-h-9 sm:min-w-9";
 
 type DraftRange = { employeeId: string; from: string; to: string };
 
@@ -119,8 +125,8 @@ export const JornadaBoard = ({
     );
 
   return (
-    <div className="flex flex-col gap-4">
-      <section className="rounded-[24px] border border-marca/20 bg-surface p-4 shadow-sm sm:p-5">
+    <div className="flex min-w-0 flex-col gap-4">
+      <section className="min-w-0 rounded-[24px] border border-marca/20 bg-surface p-4 shadow-sm sm:p-5">
         <header className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-marca">
@@ -160,7 +166,7 @@ export const JornadaBoard = ({
                     {formatTableRange(s.tables)}
                   </p>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-1">
+                <div className={`mt-2 ${MESAS}`}>
                   {s.tables.map((n) => (
                     <button
                       key={n}
@@ -170,7 +176,7 @@ export const JornadaBoard = ({
                         setPicked(n);
                         setPickEmp(s.id);
                       }}
-                      className={`min-h-9 min-w-9 rounded-lg px-2 text-xs font-semibold tabular-nums ${
+                      className={`${CHIP} ${
                         occupied.has(n)
                           ? "bg-rose-600 text-crema"
                           : picked === n
@@ -192,7 +198,7 @@ export const JornadaBoard = ({
             <p className="text-xs font-semibold uppercase tracking-wide text-carbon/50">
               {t("recepcion.mesasLibres")}
             </p>
-            <div className="mt-2 flex flex-wrap gap-1">
+            <div className={`mt-2 ${MESAS}`}>
               {libres.map((n) => (
                 <button
                   key={n}
@@ -202,7 +208,7 @@ export const JornadaBoard = ({
                     setPicked(n);
                     setPickEmp(canManage ? empId : actorId ?? "");
                   }}
-                  className={`min-h-9 min-w-9 rounded-lg px-2 text-xs font-semibold tabular-nums ${
+                  className={`${CHIP} ${
                     occupied.has(n)
                       ? "bg-rose-600 text-crema"
                       : picked === n
@@ -231,8 +237,8 @@ export const JornadaBoard = ({
                 <Select
                   value={pickEmp}
                   onChange={setPickEmp}
-                  className="flex-1"
-                  triggerClassName="min-h-11"
+                  className="w-full sm:flex-1"
+                  triggerClassName="min-h-11 w-full"
                   ariaLabel={t("recepcion.asignar")}
                   options={[
                     { value: "", label: t("recepcion.sinAsignar") },
@@ -247,7 +253,7 @@ export const JornadaBoard = ({
                     setPicked(null);
                     void assignOne(mesa, pickEmp || null);
                   }}
-                  className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+                  className={`${BTN} bg-marca text-crema`}
                 >
                   {t("recepcion.asignar")}
                 </button>
@@ -261,7 +267,7 @@ export const JornadaBoard = ({
                   setPicked(null);
                   void assignOne(mesa, actorId);
                 }}
-                className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+                className={`${BTN} bg-marca text-crema`}
               >
                 {t("recepcion.tomar")}
               </button>
@@ -287,41 +293,43 @@ export const JornadaBoard = ({
             <p className="text-xs font-semibold uppercase tracking-wide text-carbon/50">
               {t("recepcion.asignarRango")}
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <label className="text-xs text-carbon/55">
-                {t("recepcion.desde")}
-                <input
-                  type="number"
-                  min={1}
-                  max={tableCount || undefined}
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className={`${INPUT} ml-1`}
-                />
-              </label>
-              <label className="text-xs text-carbon/55">
-                {t("recepcion.hasta")}
-                <input
-                  type="number"
-                  min={1}
-                  max={tableCount || undefined}
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className={`${INPUT} ml-1`}
-                />
-              </label>
+            <div className="mt-2 flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex flex-col gap-1 text-xs text-carbon/55">
+                  {t("recepcion.desde")}
+                  <input
+                    type="number"
+                    min={1}
+                    max={tableCount || undefined}
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                    className={INPUT}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-carbon/55">
+                  {t("recepcion.hasta")}
+                  <input
+                    type="number"
+                    min={1}
+                    max={tableCount || undefined}
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                    className={INPUT}
+                  />
+                </label>
+              </div>
               <Select
                 value={empId}
                 onChange={setRangeEmp}
-                className="min-w-[10rem] flex-1"
-                triggerClassName="min-h-11"
+                className="w-full"
+                triggerClassName="min-h-11 w-full"
                 ariaLabel={t("recepcion.asignar")}
                 options={employees.map((e) => ({ value: e.id, label: e.name }))}
               />
               <button
                 type="submit"
                 disabled={busy != null || !empId}
-                className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+                className={`${BTN} bg-marca text-crema`}
               >
                 {t("recepcion.asignar")}
               </button>
@@ -338,7 +346,7 @@ export const JornadaBoard = ({
                     t("recepcion.asignado"),
                   );
                 }}
-                className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70 disabled:opacity-50"
+                className={`${BTN} border border-linea text-carbon/70`}
               >
                 {t("recepcion.quitar")}
               </button>
@@ -347,14 +355,14 @@ export const JornadaBoard = ({
         )}
 
         {canManage && (
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
               type="button"
               disabled={busy != null}
               onClick={() =>
                 void run("fill", () => applyShiftTemplate(branchId!, false), t("recepcion.hoyCompletado"))
               }
-              className="min-h-10 text-sm font-semibold text-marca underline-offset-4 hover:underline disabled:opacity-50"
+              className="min-h-11 w-full text-sm font-semibold text-marca underline-offset-4 hover:underline disabled:opacity-50 sm:w-auto"
             >
               {t("recepcion.aplicarHoy")}
             </button>
@@ -365,7 +373,7 @@ export const JornadaBoard = ({
                 if (!window.confirm(t("recepcion.resetHoyConfirmar"))) return;
                 void run("reset", () => applyShiftTemplate(branchId!, true), t("recepcion.hoyReemplazado"));
               }}
-              className="min-h-10 text-sm font-semibold text-carbon/55 underline-offset-4 hover:underline disabled:opacity-50"
+              className="min-h-11 w-full text-sm font-semibold text-carbon/55 underline-offset-4 hover:underline disabled:opacity-50 sm:w-auto"
             >
               {t("recepcion.resetHoy")}
             </button>
@@ -374,16 +382,13 @@ export const JornadaBoard = ({
       </section>
 
       {canManage && (
-        <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-marca">
-            {t("recepcion.plantilla")}
-          </p>
+        <section className="min-w-0 rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-5">
           <h3 className="font-display text-xl uppercase tracking-tight text-carbon">
             {t("recepcion.plantilla")}
           </h3>
           <p className="mt-1 text-sm text-carbon/55">{t("recepcion.plantillaSub")}</p>
 
-          <div className="mt-3 flex gap-1 overflow-x-auto pb-0.5">
+          <div className="mt-3 grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap">
             {WEEKDAYS.map((d) => {
               const active = dia === d;
               return (
@@ -391,7 +396,7 @@ export const JornadaBoard = ({
                   key={d}
                   type="button"
                   onClick={() => setDiaOverride(d)}
-                  className={`min-h-10 shrink-0 rounded-full px-3 text-xs font-semibold ${
+                  className={`min-h-11 rounded-full px-2 text-xs font-semibold sm:min-h-10 sm:shrink-0 sm:px-3 ${
                     active ? "bg-marca text-crema" : "border border-linea text-carbon/60"
                   }`}
                 >
@@ -401,9 +406,9 @@ export const JornadaBoard = ({
             })}
           </div>
 
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="mt-3 flex flex-col gap-3">
             {drafts.map((row, i) => (
-              <li key={`${row.employeeId}-${i}`} className="flex flex-wrap items-center gap-2">
+              <li key={`${row.employeeId}-${i}`} className="flex flex-col gap-2 rounded-2xl border border-linea p-3">
                 <Select
                   value={row.employeeId}
                   onChange={(employeeId) =>
@@ -411,38 +416,41 @@ export const JornadaBoard = ({
                       rows.map((r, j) => (j === i ? { ...r, employeeId } : r)),
                     )
                   }
-                  className="min-w-[10rem] flex-1"
-                  triggerClassName="min-h-11"
+                  className="w-full"
+                  triggerClassName="min-h-11 w-full"
                   ariaLabel={t("recepcion.asignar")}
                   options={employees.map((emp) => ({ value: emp.id, label: emp.name }))}
                 />
-                <input
-                  type="number"
-                  min={1}
-                  value={row.from}
-                  onChange={(e) =>
-                    setDrafts((rows) =>
-                      rows.map((r, j) => (j === i ? { ...r, from: e.target.value } : r)),
-                    )
-                  }
-                  className={INPUT}
-                />
-                <span className="text-carbon/40">–</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={row.to}
-                  onChange={(e) =>
-                    setDrafts((rows) =>
-                      rows.map((r, j) => (j === i ? { ...r, to: e.target.value } : r)),
-                    )
-                  }
-                  className={INPUT}
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={row.from}
+                    onChange={(e) =>
+                      setDrafts((rows) =>
+                        rows.map((r, j) => (j === i ? { ...r, from: e.target.value } : r)),
+                      )
+                    }
+                    className={INPUT}
+                    aria-label={t("recepcion.desde")}
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    value={row.to}
+                    onChange={(e) =>
+                      setDrafts((rows) =>
+                        rows.map((r, j) => (j === i ? { ...r, to: e.target.value } : r)),
+                      )
+                    }
+                    className={INPUT}
+                    aria-label={t("recepcion.hasta")}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setDrafts((rows) => rows.filter((_, j) => j !== i))}
-                  className="min-h-11 text-sm font-semibold text-carbon/50 underline-offset-4 hover:underline"
+                  className="min-h-11 w-full text-sm font-semibold text-carbon/50 underline-offset-4 hover:underline sm:w-auto"
                 >
                   {t("recepcion.quitar")}
                 </button>
@@ -454,7 +462,7 @@ export const JornadaBoard = ({
             <p className="mt-3 text-sm text-carbon/50">{t("recepcion.sinPlantilla")}</p>
           )}
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
               type="button"
               onClick={() =>
@@ -467,7 +475,7 @@ export const JornadaBoard = ({
                   },
                 ])
               }
-              className="min-h-11 rounded-full border border-marca/40 px-4 text-sm font-semibold text-marca"
+              className={`${BTN} border border-marca/40 text-marca`}
             >
               {t("recepcion.agregarRango")}
             </button>
@@ -502,7 +510,7 @@ export const JornadaBoard = ({
                   t("recepcion.plantillaGuardada"),
                 );
               }}
-              className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+              className={`${BTN} bg-marca text-crema`}
             >
               {t("recepcion.guardarDia")}
             </button>
