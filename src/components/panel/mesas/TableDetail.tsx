@@ -332,6 +332,7 @@ export const TableDetail = ({
         {comanda.length > 0 && (
           <section className="mt-6 border-t border-linea pt-5">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-marca">{t("mesas.comanda")}</h3>
+            <p className="mt-1 text-xs text-carbon/55">{t("mesas.inboxAyuda")}</p>
             <p className="mt-1 text-sm text-carbon/70">
               {summarizeKitchen(comanda)
                 .map((l) => `${l.quantity} × ${l.name}`)
@@ -396,11 +397,15 @@ export const TableDetail = ({
                       type="button"
                       disabled={busy === o.id}
                       onClick={() => {
-                        if (window.confirm(t("mesas.cancelarPedidoConfirmar"))) {
+                        const msg =
+                          o.status === "creado"
+                            ? t("mesas.cancelarPedidoConfirmar")
+                            : t("mesas.cancelarPedidoAnotadoConfirmar");
+                        if (window.confirm(msg)) {
                           void moveOrder(o, "cancelado");
                         }
                       }}
-                      className="min-h-10 rounded-full border border-linea px-4 text-xs font-semibold text-carbon/70 disabled:opacity-50"
+                      className="min-h-10 rounded-full border border-transparent px-4 text-xs font-semibold text-red-600 hover:border-red-300 hover:bg-red-500/10 disabled:opacity-50"
                     >
                       {t("mesas.cancelarPedido")}
                     </button>

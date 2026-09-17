@@ -77,12 +77,12 @@ export const FloorTableTile = ({
         type="button"
         aria-current={active ? "true" : undefined}
         onClick={onOpen}
-        className={`flex min-h-[5.25rem] w-full flex-col justify-between rounded-2xl border border-linea border-l-[3px] bg-surface px-2.5 py-2 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
-          active ? "ring-2 ring-marca/25" : ""
-        }`}
+        className={`flex min-h-[6.5rem] w-full flex-col justify-between rounded-2xl border border-linea border-l-[3px] bg-surface px-3 py-2.5 text-left transition hover:border-marca/30 active:scale-[0.99] ${style.bar} ${
+            active ? "ring-2 ring-marca/25" : ""
+          }`}
       >
         <span className="flex items-start justify-between gap-1">
-          <span className="font-display text-xl leading-none text-carbon">{row.tableNumber}</span>
+          <span className="font-display text-2xl leading-none text-carbon">{row.tableNumber}</span>
           {row.people > 0 && (
             <span className="text-[10px] font-semibold tabular-nums text-carbon/45">
               {t("mesas.personasN", { n: row.people })}

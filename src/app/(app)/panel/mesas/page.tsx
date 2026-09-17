@@ -123,7 +123,11 @@ const MesasPage = () => {
     if (row.qrToken && row.qrActive) setQrRow(row);
   };
 
-  const moveRows = async (row: FloorTable, orders: FloorTable["newOrders"], to: "en_preparacion" | "listo" | "retirado") => {
+  const moveRows = async (
+    row: FloorTable,
+    orders: FloorTable["newOrders"],
+    to: "en_preparacion" | "listo" | "retirado" | "cancelado",
+  ) => {
     setKitchenBusy(row.key);
     let ok = true;
     for (const o of orders) {
@@ -149,7 +153,27 @@ const MesasPage = () => {
   }
 
   const emptyFloor = !tables.length && !floor.some((r) => r.bill);
-  const showInbox = filtro !== "cobrar";
+  const showInbox = filtro === "ahora" || filtro === "cocina";
+  const inboxCreated = showInbox ? inbox.created : [];
+  const inboxPrep = filtro === "cocina" ? inbox.prep : [];
+  const inboxReady = showInbox ? inbox.ready : [];
+  const inboxKeys = new Set(
+    [...inboxCreated, ...inboxPrep, ...inboxReady].map((r) => r.key),
+  );
+  const tiles = shown.filter((r) => !inboxKeys.has(r.key));
+  const hasInbox = inboxCreated.length + inboxPrep.length + inboxReady.length > 0;
+
+  const cancelInbox = (row: FloorTable, orders: FloorTable["newOrders"]) => {
+    const marched = orders.some((o) => o.status !== "creado");
+    if (
+      !window.confirm(
+        marched ? t("mesas.cancelarPedidoAnotadoConfirmar") : t("mesas.cancelarPedidoConfirmar"),
+      )
+    ) {
+      return;
+    }
+    void moveRows(row, orders, "cancelado");
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -225,26 +249,27 @@ const MesasPage = () => {
 
             {showInbox && (
               <KitchenInbox
-                created={inbox.created}
-                prep={filtro === "cocina" || filtro === "ahora" ? inbox.prep : []}
-                ready={inbox.ready}
+                created={inboxCreated}
+                prep={inboxPrep}
+                ready={inboxReady}
                 busy={kitchenBusy}
                 onOpen={openRow}
                 onPassToKitchen={(row) => void moveRows(row, row.newOrders, "en_preparacion")}
                 onReady={(row) => void moveRows(row, row.prepOrders, "listo")}
                 onServe={(row) => void moveRows(row, row.readyOrders, "retirado")}
+                onCancel={cancelInbox}
               />
             )}
 
-            {!shown.length ? (
+            {!tiles.length && !hasInbox ? (
               <EmptyState
                 title={query ? t("mesas.sinResultados") : t("mesas.sinAtencion")}
                 body={query ? undefined : t("mesas.sinAtencionBody")}
               />
-            ) : (
+            ) : tiles.length ? (
               <>
                 <ul className="grid grid-cols-1 gap-2 md:hidden">
-                  {shown.map((row) => (
+                  {tiles.map((row) => (
                     <FloorTableTile
                       key={row.key}
                       row={row}
@@ -257,11 +282,11 @@ const MesasPage = () => {
                 <ul
                   className={`hidden md:grid gap-2 ${
                     currentBill
-                      ? "grid-cols-3 xl:grid-cols-4"
-                      : "grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+                      ? "grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))]"
+                      : "grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))]"
                   }`}
                 >
-                  {shown.map((row) => (
+                  {tiles.map((row) => (
                     <FloorTableTile
                       key={row.key}
                       row={row}
@@ -271,7 +296,7 @@ const MesasPage = () => {
                   ))}
                 </ul>
               </>
-            )}
+            ) : null}
 
             <ClosedTodayList
               bills={closedBills}

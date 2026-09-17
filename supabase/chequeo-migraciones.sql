@@ -182,6 +182,7 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('mesa-asignacion-jornada.sql', 'function', 'mesa_jornada_leer', 72),
     ('mesa-asignacion-jornada.sql', 'function', 'mesa_jornada_asignar', 72),
     ('mesa-asignacion-jornada.sql', 'function', 'mesa_plantilla_guardar', 72),
+    ('mesa-pedido-comensal.sql', 'function', 'cancelar_pedido_comensal', 73),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -332,7 +333,8 @@ requisitos (archivo, necesita) as (
     ('staff-floor-guards.sql', 'staff-roles.sql, split-payments.sql, mesa-qr-activo.sql'),
     ('staff-floor-audit.sql', 'staff-floor-guards.sql'),
     ('menu-categorias.sql', 'split-payments.sql, staff-floor-audit.sql'),
-    ('mesa-asignacion-jornada.sql', 'staff-roles.sql, liberar-mesas-jornada.sql, modulo-espera.sql, split-payments-module.sql')
+    ('mesa-asignacion-jornada.sql', 'staff-roles.sql, liberar-mesas-jornada.sql, modulo-espera.sql, split-payments-module.sql'),
+    ('mesa-pedido-comensal.sql', 'split-payments.sql, pedidos-en-preparacion.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

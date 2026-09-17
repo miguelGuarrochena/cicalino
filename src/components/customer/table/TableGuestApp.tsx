@@ -190,6 +190,28 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
     }
   };
 
+  const cancelOrder = async (orderId: string) => {
+    if (sending || !window.confirm(t("mesa.cancelarPedidoConfirmar"))) return;
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/m/${token}/pedidos/${orderId}/cancelar`, { method: "POST" });
+      const data = (await res.json().catch(() => null)) as
+        | { ok: boolean; reason?: string; bill?: TableBill }
+        | null;
+      if (!data?.ok) {
+        setError(errorText(data?.reason));
+        return;
+      }
+      applyBill(data.bill ?? null);
+      setNotice(t("mesa.pedidoCancelado"));
+    } catch {
+      setError(t("mesa.error.red"));
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (!guest || !bill) {
     return (
       <JoinTable
@@ -348,7 +370,8 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
       )}
 
       {tab === "pedidos" && (
-        <section className="mt-4 flex flex-col gap-2">
+        <section className="mt-4 flex flex-col gap-3">
+          <p className="text-sm text-carbon/60">{t("mesa.pedidosAyuda")}</p>
           {!myOrders.length && (
             <p className="py-10 text-center text-sm text-carbon/55">{t("mesa.sinPedidos")}</p>
           )}
@@ -361,16 +384,25 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
                   {new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   <OrderStatusChip status={o.status} />
                 </p>
-                <ul className="mt-2 flex flex-col gap-1 text-sm">
+                <ul className="mt-2 flex flex-col gap-1 text-sm text-carbon/80">
                   {o.items.map((i) => (
-                    <li key={i.id} className="flex justify-between gap-2">
-                      <span className="text-carbon/80">
-                        {i.quantity} × {i.name}
-                      </span>
-                      <span className="tabular-nums text-carbon/70">{formatMoney(i.subtotal)}</span>
+                    <li key={i.id}>
+                      {i.quantity} × {i.name}
                     </li>
                   ))}
                 </ul>
+                {o.status === "creado" && open ? (
+                  <button
+                    type="button"
+                    disabled={sending}
+                    onClick={() => void cancelOrder(o.id)}
+                    className="mt-3 min-h-10 rounded-full border border-transparent px-4 text-sm font-semibold text-red-600 hover:border-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                  >
+                    {t("mesa.cancelarPedido")}
+                  </button>
+                ) : o.status === "en_preparacion" || o.status === "listo" ? (
+                  <p className="mt-3 text-xs text-carbon/55">{t("mesa.yaAnotadoAyuda")}</p>
+                ) : null}
               </article>
             ))}
         </section>
