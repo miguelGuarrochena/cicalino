@@ -12,6 +12,7 @@ import { CloseTableModal } from "@/components/panel/mesas/CloseTableModal";
 import { PrintableBill } from "@/components/panel/mesas/PrintableBill";
 import { TableHistory } from "@/components/panel/mesas/TableHistory";
 import { FloorStatusBadge } from "@/components/panel/mesas/FloorStatusBadge";
+import { Select } from "@/components/ui/Select";
 import { updateOrderStatus } from "@/lib/data/orders";
 import { cancelTablePayment, confirmTablePayment, acknowledgeWaiterCall } from "@/lib/data/tables";
 import {
@@ -292,18 +293,17 @@ export const TableDetail = ({
           </div>
           {reassignOpen && onAssign && staff && (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <select
+              <Select
                 value={reassignTo}
-                onChange={(e) => setReassignTo(e.target.value)}
-                className="min-h-11 flex-1 rounded-xl border border-linea bg-crema/40 px-3 text-sm text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20"
-              >
-                <option value="">{t("recepcion.sinAsignar")}</option>
-                {staff.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setReassignTo}
+                className="flex-1"
+                triggerClassName="min-h-11"
+                ariaLabel={t("recepcion.reasignar")}
+                options={[
+                  { value: "", label: t("recepcion.sinAsignar") },
+                  ...staff.map((e) => ({ value: e.id, label: e.name })),
+                ]}
+              />
               <button
                 type="button"
                 disabled={busy === "reasignar"}

@@ -5,6 +5,7 @@ import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
+import { Select } from "@/components/ui/Select";
 import { PaymentStatusBadge } from "@/components/tables/BillParts";
 import { confirmTablePayment, registerStaffPayment } from "@/lib/data/tables";
 import {
@@ -300,22 +301,19 @@ export const CobrarModal = ({
             {bill.guests.length > 0 && (
               <label className="flex flex-col gap-1">
                 <span className="text-carbon/60">{t("mesas.quienPagaOpcional")}</span>
-                <select
+                <Select
                   value={payer}
-                  onChange={(e) => {
-                    const next = e.target.value;
+                  ariaLabel={t("mesas.quienPagaOpcional")}
+                  triggerClassName="min-h-11"
+                  onChange={(next) => {
                     touch(setPayer)(next);
                     setAmount(String(remainingFor(next === ALL ? null : next) || ""));
                   }}
-                  className="min-h-11 rounded-xl border border-linea bg-crema/40 px-3"
-                >
-                  <option value={ALL}>{t("mesas.todaLaMesa")}</option>
-                  {bill.guests.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: ALL, label: t("mesas.todaLaMesa") },
+                    ...bill.guests.map((g) => ({ value: g.id, label: g.name })),
+                  ]}
+                />
               </label>
             )}
 

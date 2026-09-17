@@ -17,16 +17,30 @@ const moneyStatus = (status: FloorTable["status"]) =>
   status === "pagada";
 
 const tileTone = (row: FloorTable) => {
+  if (row.calledAt || row.status === "llamado") {
+    return "border-alerta-borde bg-alerta-fondo border-l-alerta";
+  }
+  if (row.status === "pedido-nuevo") {
+    return "border-marca/50 bg-marca/20 border-l-marca";
+  }
   if (row.pending > 0) {
-    return "border-alerta/40 bg-alerta/[0.09] border-l-alerta";
+    return "border-alerta-borde bg-alerta-fondo border-l-alerta";
   }
   if (hasOrder(row)) {
-    return "border-marca/35 bg-marca/[0.08] border-l-marca";
+    return "border-curso-borde bg-curso-fondo border-l-curso";
   }
   if (row.bill) {
-    return "border-carbon/20 bg-carbon/[0.04] border-l-carbon/35";
+    return "border-carbon/25 bg-carbon/[0.07] border-l-carbon/50";
   }
   return "border-linea bg-surface border-l-linea";
+};
+
+const numberTone = (row: FloorTable) => {
+  if (row.calledAt || row.status === "llamado") return "text-alerta";
+  if (row.status === "pedido-nuevo") return "text-marca";
+  if (row.pending > 0) return "text-alerta";
+  if (hasOrder(row)) return "text-curso";
+  return "text-carbon";
 };
 
 export const FloorTableTile = ({
@@ -44,6 +58,7 @@ export const FloorTableTile = ({
 }) => {
   const { t } = useApp();
   const tone = tileTone(row);
+  const numCls = numberTone(row);
   const ordered = hasOrder(row);
   const kitchen = summarizeKitchen([...row.newOrders, ...row.prepOrders, ...row.readyOrders]);
   const kitchenHint = kitchen
@@ -59,7 +74,7 @@ export const FloorTableTile = ({
   if (dense) {
     return (
       <li
-        className={`flex items-stretch overflow-hidden rounded-2xl border border-l-[3px] ${tone} ${
+        className={`flex items-stretch overflow-hidden rounded-2xl border border-l-[6px] ${tone} ${
           active ? "ring-2 ring-marca/25" : ""
         }`}
       >
@@ -69,7 +84,7 @@ export const FloorTableTile = ({
           onClick={onOpen}
           className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left transition hover:bg-carbon/[0.03] active:scale-[0.99]"
         >
-          <span className="w-10 shrink-0 font-display text-2xl leading-none text-carbon">
+          <span className={`w-10 shrink-0 font-display text-2xl leading-none ${numCls}`}>
             {row.tableNumber}
           </span>
           <span className="min-w-0 flex-1">
@@ -114,7 +129,7 @@ export const FloorTableTile = ({
 
   return (
     <li
-      className={`relative flex min-h-[6.5rem] flex-col overflow-hidden rounded-2xl border border-l-[3px] ${tone} ${
+      className={`relative flex min-h-[6.5rem] flex-col overflow-hidden rounded-2xl border border-l-[6px] ${tone} ${
         active ? "ring-2 ring-marca/25" : ""
       }`}
     >
@@ -127,7 +142,7 @@ export const FloorTableTile = ({
         }`}
       >
         <span className="flex items-start justify-between gap-1">
-          <span className="font-display text-2xl leading-none text-carbon">{row.tableNumber}</span>
+          <span className={`font-display text-2xl leading-none ${numCls}`}>{row.tableNumber}</span>
           {row.people > 0 && (
             <span className="text-[10px] font-semibold tabular-nums text-carbon/45">
               {t("mesas.personasN", { n: row.people })}
