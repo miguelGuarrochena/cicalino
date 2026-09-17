@@ -85,9 +85,11 @@ describe("Operación — jerarquía y layout", () => {
     for (const f of files) {
       expect(read(f), f).not.toMatch(/<select[\s>]/);
     }
+    /* Solid fill per state, like the floor map in Recepción. */
     const tile = read("src/components/panel/mesas/FloorTableTile.tsx");
-    expect(tile).toContain("bg-alerta-fondo");
-    expect(tile).toContain("bg-curso-fondo");
-    expect(tile).toContain("bg-marca/20");
+    expect(tile).toContain("bg-alerta text-crema");
+    expect(tile).toContain("bg-curso text-crema");
+    expect(tile).toContain("bg-marca text-crema");
+    expect(tile).not.toContain("border-l-[6px]");
   });
 });
