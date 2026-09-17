@@ -161,24 +161,26 @@ const InboxRow = ({
       >
         {actionLabel}
       </button>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {onAcknowledge && (
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {onAcknowledge && (
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() => onAcknowledge(row)}
+              className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70"
+            >
+              {t("mesas.yaVoy")}
+            </button>
+          )}
           <button
             type="button"
-            disabled={locked}
-            onClick={() => onAcknowledge(row)}
+            onClick={() => void copyTicket()}
             className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70"
           >
-            {t("mesas.yaVoy")}
+            {copied ? t("mesa.copiado") : t("mesas.copiarTicket")}
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => void copyTicket()}
-          className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70"
-        >
-          {copied ? t("mesa.copiado") : t("mesas.copiarTicket")}
-        </button>
+        </div>
         <button
           type="button"
           disabled={locked}

@@ -10,6 +10,14 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { useToast } from "@/components/ui/Toast";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { QrDownloadModal } from "@/components/panel/mesas/QrDownloadModal";
+import type { QrDownloadKind } from "@/components/panel/mesas/QrDownloadModal";
+import {
+  downloadDataUrl,
+  framedQrPng,
+  sheetPng,
+  type StickerCard,
+} from "@/lib/qrSticker";
 import {
   fetchTableQrs,
   regenerateTableQr,
@@ -46,6 +54,9 @@ const MesasQrPage = () => {
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [printIds, setPrintIds] = useState<Set<string> | null>(null);
+  const [download, setDownload] = useState<
+    null | { kind: "one"; table: WithImage } | { kind: "sheet"; tables: WithImage[] }
+  >(null);
 
   const load = useCallback(async () => {
     if (!branchId) return;
@@ -124,12 +135,66 @@ const MesasQrPage = () => {
     }
   };
 
-  const download = (m: WithImage) => {
-    if (!m.image) return;
-    const a = document.createElement("a");
-    a.href = m.image;
-    a.download = `cicalino-mesa-${m.number}.png`;
-    a.click();
+  const stickerOf = (m: WithImage): StickerCard | null => {
+    if (!m.image) return null;
+    return {
+      qrDataUrl: m.image,
+      venue: branchName.trim() || "Cicalino",
+      tableLabel: t("mesa.mesaN", { n: m.number }),
+      instruction: t("mesasQr.instruccion"),
+      number: m.number,
+    };
+  };
+
+  const openSheet = (fromSelected: boolean) => {
+    if (!tables) return;
+    const list = (
+      fromSelected && selected.size
+        ? tables.filter((m) => selected.has(m.id) && m.qrActive && m.image)
+        : tables.filter((m) => m.qrActive && m.image)
+    );
+    if (!list.length) {
+      toast(t("mesasQr.nadaParaDescargar"), "error");
+      return;
+    }
+    setDownload({ kind: "sheet", tables: list });
+  };
+
+  const runDownload = async (kind: QrDownloadKind) => {
+    if (!download) return;
+    setBusy(true);
+    try {
+      if (download.kind === "one") {
+        const card = stickerOf(download.table);
+        if (!card) return;
+        if (kind === "solo") {
+          downloadDataUrl(card.qrDataUrl, `cicalino-mesa-${card.number}.png`);
+        } else {
+          downloadDataUrl(
+            await framedQrPng(card),
+            `cicalino-mesa-${card.number}-marco.png`,
+          );
+        }
+      } else {
+        const cards = download.tables
+          .map(stickerOf)
+          .filter((c): c is StickerCard => c != null);
+        if (!cards.length) {
+          toast(t("mesasQr.nadaParaDescargar"), "error");
+          return;
+        }
+        const suffix = kind === "solo" ? "qr" : "marco";
+        downloadDataUrl(
+          await sheetPng(cards, kind),
+          `cicalino-plancha-${suffix}.png`,
+        );
+      }
+      setDownload(null);
+    } catch {
+      toast(t("mesasQr.errorDescarga"), "error");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const printSelected = () => {
@@ -204,6 +269,14 @@ const MesasQrPage = () => {
             className="min-h-11 text-sm font-semibold text-carbon/60"
           >
             {t("mesasQr.imprimir")}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => openSheet(false)}
+            className="min-h-11 text-sm font-semibold text-carbon/60 disabled:opacity-40"
+          >
+            {t("mesasQr.descargarPlancha")}
           </button>
         </div>
       )}
@@ -289,10 +362,10 @@ const MesasQrPage = () => {
                 </p>
               )}
               <div className="mt-4 flex flex-col gap-2 print:hidden sm:flex-row sm:flex-wrap">
-                {on && (
+                {on && m.image && (
                   <button
                     type="button"
-                    onClick={() => download(m)}
+                    onClick={() => setDownload({ kind: "one", table: m })}
                     className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/75"
                   >
                     {t("mesasQr.descargar")}
@@ -369,9 +442,45 @@ const MesasQrPage = () => {
             >
               {t("mesasQr.imprimirSeleccionados")}
             </button>
+            {selectedActive > 0 && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => openSheet(true)}
+                className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/75 disabled:opacity-50"
+              >
+                {t("mesasQr.descargarPlanchaSeleccion")}
+              </button>
+            )}
           </div>
         </div>
       )}
+
+      {download && (download.kind === "one" ? download.table.image : download.tables[0]?.image) ? (
+        <QrDownloadModal
+          title={
+            download.kind === "one"
+              ? t("mesa.mesaN", { n: download.table.number })
+              : t("mesasQr.planchaN", { n: download.tables.length })
+          }
+          previewSrc={
+            download.kind === "one"
+              ? download.table.image!
+              : download.tables[0]!.image!
+          }
+          venue={branchName.trim() || "Cicalino"}
+          tableLabel={
+            download.kind === "one"
+              ? t("mesa.mesaN", { n: download.table.number })
+              : t("mesa.mesaN", { n: download.tables[0]!.number })
+          }
+          busy={busy}
+          onPick={(kind) => void runDownload(kind)}
+          onClose={() => {
+            if (!busy) setDownload(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 };

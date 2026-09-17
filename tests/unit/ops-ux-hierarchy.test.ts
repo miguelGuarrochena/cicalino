@@ -11,6 +11,10 @@ describe("Operación — jerarquía y layout", () => {
     expect(qr).toContain("grid-cols-1");
     expect(qr).toContain("md:grid-cols-2");
     expect(qr).toContain("lg:grid-cols-3");
+    expect(qr).toContain("QrDownloadModal");
+    expect(qr).toContain("descargarSolo");
+    expect(qr).toContain("descargarMarco");
+    expect(qr).toContain("descargarPlancha");
     expect(qr).not.toContain("grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4");
   });
 
