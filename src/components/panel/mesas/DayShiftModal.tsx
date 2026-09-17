@@ -5,7 +5,9 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Select } from "@/components/ui/Select";
 import { MesaChip } from "@/components/panel/mesas/MesaChip";
+import { DayNavBtn } from "@/components/panel/mesas/DayNavBtn";
 import {
+  FREE_BRUSH,
   MESAS,
   tablesOfOwners,
   toneFor,
@@ -25,6 +27,7 @@ export const DayShiftModal = ({
   busy,
   onBrush,
   onMark,
+  onShiftDay,
   onClose,
 }: {
   weekday: number;
@@ -37,13 +40,18 @@ export const DayShiftModal = ({
   busy: boolean;
   onBrush: (id: string) => void;
   onMark: (n: number) => void;
+  onShiftDay: (delta: -1 | 1) => void;
   onClose: () => void;
 }) => {
   const { t } = useApp();
   const empName = (id: string) =>
     employees.find((e) => e.id === id)?.name ?? "";
   const assigned = uniqueIds(owners);
-  const empOpts = employees.map((e) => ({ value: e.id, label: e.name }));
+  const empOpts = [
+    { value: FREE_BRUSH, label: t("recepcion.dejarLibre") },
+    ...employees.map((e) => ({ value: e.id, label: e.name })),
+  ];
+  const canPaint = Boolean(brush);
 
   return (
     <ModalShell onClose={onClose} labelledBy="jornada-dia-title" wide>
@@ -103,7 +111,11 @@ export const DayShiftModal = ({
       ) : (
         <p className="mt-5 text-sm text-carbon/55">{t("recepcion.sinEmpleados")}</p>
       )}
-      {brush ? (
+      {brush === FREE_BRUSH ? (
+        <p className="mt-2 text-sm font-semibold text-carbon">
+          {t("recepcion.marcandoLibre")}
+        </p>
+      ) : brush ? (
         <p className="mt-2 text-sm font-semibold text-carbon">
           {t("recepcion.marcando", { n: firstName(empName(brush)) || empName(brush) })}
         </p>
@@ -111,7 +123,22 @@ export const DayShiftModal = ({
 
       {mesas.length > 0 ? (
         <>
-          <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-carbon/50">
+          <div className="mt-5 flex items-center justify-center gap-3">
+            <DayNavBtn
+              dir="prev"
+              label={t("recepcion.diaAnterior")}
+              onClick={() => onShiftDay(-1)}
+            />
+            <p className="min-w-[8rem] text-center font-display text-xl uppercase tracking-tight text-carbon">
+              {t(`recepcion.dia.${weekday}`)}
+            </p>
+            <DayNavBtn
+              dir="next"
+              label={t("recepcion.diaSiguiente")}
+              onClick={() => onShiftDay(1)}
+            />
+          </div>
+          <p className="mt-3 text-center text-xs font-semibold uppercase tracking-wide text-carbon/50">
             {t("recepcion.todasLasMesas")}
           </p>
           <div className={`mt-2 ${MESAS}`}>
@@ -125,7 +152,7 @@ export const DayShiftModal = ({
                   empIds={empIds}
                   name={owner ? firstName(empName(owner)) : ""}
                   disabled={busy}
-                  onClick={brush ? () => onMark(n) : undefined}
+                  onClick={canPaint ? () => onMark(n) : undefined}
                 />
               );
             })}

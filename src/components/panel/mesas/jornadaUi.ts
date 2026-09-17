@@ -14,6 +14,7 @@ export const EMP_TONE = [
   "bg-[#5b4a8a] text-crema",
   "bg-marca/65 text-crema",
 ];
+export const FREE_BRUSH = "__libre__";
 export const DOT_MAX = 5;
 
 export const allMesas = (count: number) =>
@@ -68,4 +69,16 @@ export const weekdaysInSpan = (from: number, to: number): number[] => {
     d = d === 7 ? 1 : d + 1;
   }
   return out;
+};
+
+export const weekdayFromOffset = (weekday: number, offset: number): number => {
+  const base = weekday >= 1 && weekday <= 7 ? weekday : 1;
+  return ((((base - 1 + offset) % 7) + 7) % 7) + 1;
+};
+
+export const shiftWeekday = (day: number, delta: -1 | 1): number => {
+  const i = WEEKDAYS.indexOf(day as (typeof WEEKDAYS)[number]);
+  const idx = i < 0 ? 0 : i;
+  const next = (idx + delta + WEEKDAYS.length) % WEEKDAYS.length;
+  return WEEKDAYS[next]!;
 };
