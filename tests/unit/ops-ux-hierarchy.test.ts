@@ -65,7 +65,7 @@ describe("Operación — jerarquía y layout", () => {
     expect(detalle).toContain("min-h-11 w-full rounded-full bg-ok");
     expect(detalle).toContain("flex w-full flex-col gap-2");
     expect(guest).toContain("mesa.verCuenta");
-    expect(guest).toContain("mesa.pagar");
+    expect(guest).toContain("mesa.pedirCuenta");
     expect(guest).toContain("mesa.seguirPidiendo");
     expect(guest).toContain("mesa.llamarMozo");
     expect(qr).toContain('"/p" | "/e" | "/m"');
@@ -113,6 +113,7 @@ describe("Operación — jerarquía y layout", () => {
     expect(tile).toContain("bg-alerta text-crema");
     expect(tile).toContain("bg-curso text-crema");
     expect(tile).toContain("bg-marca text-crema");
+    expect(tile).toContain("bg-ok text-crema");
     expect(tile).toContain("bg-black/15");
     expect(tile).not.toContain("mesas.porCobrar");
     expect(tile).not.toContain("border-l-[6px]");

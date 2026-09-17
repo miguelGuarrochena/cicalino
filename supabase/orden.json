@@ -75,5 +75,6 @@
   "mesa-pedido-comensal.sql",
   "mesa-llamado-mozo.sql",
   "mesa-asignacion-tramos.sql",
-  "empleados-pin-compartido.sql"
+  "empleados-pin-compartido.sql",
+  "mesa-pedir-cuenta.sql"
 ]

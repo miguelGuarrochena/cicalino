@@ -47,7 +47,7 @@ describe("Llamar mesero/a", () => {
     expect(guestFn).toContain("ya-llamado");
     expect(guestFn).toContain("mozo_llamado");
     expect(sql).toContain("pagar_como_comensal");
-    expect(sql).toContain("v_metodo <> 'mercado_pago'");
+    expect(sql).not.toContain("v_metodo <> 'mercado_pago'");
     expect(sql).toMatch(
       /grant execute on function public\.llamar_mozo_comensal\(uuid, text\)\s+to service_role/,
     );
@@ -66,10 +66,13 @@ describe("Llamar mesero/a", () => {
     expect(mesas).toContain("TOAST_AVISO_MS");
   });
 
-  it("elegir efectivo en el celular avisa al mozo", () => {
+  it("pedir la cuenta no prende Te llaman: eso va a Cobrar", () => {
     const pagos = readFileSync(join(root, "src/app/api/m/[token]/pagos/route.ts"), "utf8");
-    expect(pagos).toContain("callWaiter");
+    expect(pagos).not.toContain("callWaiter");
     expect(pagos).toContain("mercado_pago");
+    const pedir = readFileSync(join(root, "supabase/mesa-pedir-cuenta.sql"), "utf8");
+    expect(pedir).toContain("pagar_como_comensal");
+    expect(pedir).not.toContain("llamado_en");
     const detalle = readFileSync(
       join(root, "src/components/panel/mesas/TableDetail.tsx"),
       "utf8",

@@ -160,10 +160,10 @@ export const PaySheet = ({
     >
       {busy && <Spinner inline className="size-4" />}
       {preview?.ok
-        ? t(method === "mercado_pago" ? "mesa.pagarConMp" : "mesa.pagarN", {
+        ? t(method === "mercado_pago" ? "mesa.pagarConMp" : "mesa.pedirCuentaN", {
             n: formatMoney(preview.total),
           })
-        : t("mesa.pagar")}
+        : t("mesa.pedirCuenta")}
     </button>
   );
 
@@ -171,21 +171,23 @@ export const PaySheet = ({
     <ModalShell onClose={onClose} labelledBy="pay-title" busy={busy} footer={footer}>
       <div className="flex items-start justify-between gap-3">
         <h2 id="pay-title" className="font-display text-2xl uppercase text-marca">
-          {result ? t("mesa.pagoRegistrado") : t("mesa.comoPagar")}
+          {result
+            ? result.method === "mercado_pago"
+              ? t("mesa.pagoRegistrado")
+              : t("mesa.cuentaPedida")
+            : t("mesa.comoPagar")}
         </h2>
         <ModalCloseBtn onClick={onClose} disabled={busy} label={t("mesa.cerrar")} />
       </div>
 
       {result ? (
         <div className="mt-4 flex flex-col gap-3">
-          <p className="inline-flex items-center gap-2 self-start rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
-            ⏳ {t("mesa.pendienteConfirmacion")}
+          <p className="text-sm text-carbon/70">
+            {t("mesa.cuentaPedidaAyuda", { m: t(`mesa.metodo.${result.method}`) })}
           </p>
           {result.method === "transferencia" ? (
             <TransferDetails settings={settings} total={result.total} />
-          ) : (
-            <p className="text-sm text-carbon/70">{t("mesa.manualPendienteAyuda")}</p>
-          )}
+          ) : null}
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-5">

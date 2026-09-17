@@ -20,6 +20,9 @@ const tileTone = (row: FloorTable) => {
   if (row.status === "pedido-nuevo") {
     return "border-marca bg-marca text-crema";
   }
+  if (row.status === "pagada") {
+    return "border-ok bg-ok text-crema";
+  }
   if (row.pending > 0) {
     return "border-alerta bg-alerta text-crema";
   }

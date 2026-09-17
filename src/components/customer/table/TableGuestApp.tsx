@@ -527,7 +527,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
                   onClick={() => setPayOpen(true)}
                   className="min-h-12 flex-1 rounded-full bg-marca px-4 font-semibold text-crema"
                 >
-                  {t("mesa.pagar")}
+                  {t("mesa.pedirCuenta")}
                 </button>
               )}
             </>
@@ -546,7 +546,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
                   onClick={() => setPayOpen(true)}
                   className="min-h-12 flex-1 rounded-full bg-marca px-4 font-semibold text-crema"
                 >
-                  {t("mesa.pagar")}
+                  {t("mesa.pedirCuenta")}
                 </button>
               )}
             </>
