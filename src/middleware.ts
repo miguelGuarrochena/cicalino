@@ -12,8 +12,7 @@ const nuevoNonce = (): string => {
 
 export const middleware = async (req: NextRequest) => {
   const path = req.nextUrl.pathname;
-  const panel = path.startsWith("/panel");
-  const adminProtegido = path.startsWith("/admin");
+  const protegido = path.startsWith("/panel") || path.startsWith("/admin");
   const esLogin = path === "/login" || path === "/entrar";
 
   const nonce = nuevoNonce();
@@ -44,7 +43,7 @@ export const middleware = async (req: NextRequest) => {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if ((!url || !anon) && process.env.NODE_ENV === "production" && (panel || adminProtegido)) {
+  if ((!url || !anon) && process.env.NODE_ENV === "production" && protegido) {
     return conCsp(
       new NextResponse("Cicalino: faltan variables de Supabase en el deploy.", {
         status: 503,
@@ -53,12 +52,10 @@ export const middleware = async (req: NextRequest) => {
     );
   }
 
-  /* /panel is open without a session. Don't call getUser() here: it was the
-   * check that bounced visitors to /login. /admin still needs a superadmin.
-   *
-   * Customer screens poll every few seconds; skipping Auth on those routes
-   * (and now on /panel) keeps that traffic off Supabase Auth. */
-  if (!adminProtegido && !esLogin) return seguir();
+  /* /panel and /admin need a session. Public routes skip getUser(): it's a
+   * network call to Supabase Auth, and customer screens poll every few
+   * seconds, so keeping it off those routes keeps that traffic off Auth. */
+  if (!protegido && !esLogin) return seguir();
 
   if (!url || !anon) return seguir();
 
@@ -81,7 +78,7 @@ export const middleware = async (req: NextRequest) => {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (adminProtegido && !user) {
+  if (protegido && !user) {
     const login = req.nextUrl.clone();
     login.pathname = "/login";
     login.searchParams.set("next", path);

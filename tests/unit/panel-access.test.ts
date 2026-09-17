@@ -5,13 +5,16 @@ import { join } from "node:path";
 const root = process.cwd();
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 
-describe("Panel — acceso sin login", () => {
-  it("el middleware no redirige /panel a /login", () => {
+describe("Panel — acceso", () => {
+  it("el middleware manda /panel y /admin sin sesión a /login", () => {
     const src = read("src/middleware.ts");
-    expect(src).not.toMatch(/protegido && !user/);
-    expect(src).toMatch(/path\.startsWith\("\/panel"\)/);
-    expect(src).toContain('if (adminProtegido && !user)');
-    expect(src).toContain("if (!adminProtegido && !esLogin) return seguir()");
+    expect(src).toContain('const protegido = path.startsWith("/panel") || path.startsWith("/admin");');
+    expect(src).toContain("if (!protegido && !esLogin) return seguir();");
+    expect(src).toContain("if (protegido && !user)");
+  });
+
+  it("el login no tiene un atajo al panel", () => {
+    expect(read("src/app/login/page.tsx")).not.toContain('href="/panel"');
   });
 
   it("configuración no pide la contraseña del dueño", () => {
