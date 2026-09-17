@@ -11,6 +11,8 @@ import {
   floorStatus,
   guestAccountRows,
   kitchenInbox,
+  isPaidToday,
+  nextChargeAfter,
   summarizeKitchen,
 } from "@/lib/tableOps";
 
@@ -216,6 +218,32 @@ describe("buildFloor", () => {
     expect(floor[0]?.status).toBe("llamado");
     expect(filterFloor(floor, "pedido", "").map((r) => r.tableNumber)).toEqual([8]);
     expect(kitchenInbox(floor).called.map((r) => r.tableNumber)).toEqual([8]);
+  });
+
+  it("al pagar una mesa, Cobrar abre la primera que sigue en la lista", () => {
+    const two = mkBill({
+      session: { ...mkBill().session, id: "s2", tableId: "m2", tableNumber: 2 },
+    });
+    const four = mkBill({
+      session: { ...mkBill().session, id: "s4", tableId: "m4", tableNumber: 4 },
+    });
+    const five = mkBill({
+      session: { ...mkBill().session, id: "s5", tableId: "m5", tableNumber: 5 },
+      totals: { ...mkBill().totals, paid: 20000, paidBase: 20000, uncovered: 0, available: 0 },
+    });
+    const floor = buildFloor(
+      [
+        { id: "m2", number: 2, qrToken: "a", qrActive: true },
+        { id: "m4", number: 4, qrToken: "b", qrActive: true },
+        { id: "m5", number: 5, qrToken: "c", qrActive: true },
+      ],
+      [two, four, five],
+    );
+    const byN = new Map(floor.map((r) => [r.tableNumber, r]));
+    const list = [byN.get(4)!, byN.get(2)!, byN.get(5)!];
+    expect(isPaidToday(five)).toBe(true);
+    expect(nextChargeAfter(list, "s5")?.tableNumber).toBe(4);
+    expect(nextChargeAfter(list, "s4")?.tableNumber).toBe(2);
   });
 });
 

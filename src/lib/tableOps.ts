@@ -137,6 +137,21 @@ export const needsPedido = (row: FloorTable): boolean =>
 export const needsCharge = (row: FloorTable): boolean =>
   Boolean(row.bill && row.bill.session.status === "abierta" && row.pending > 0);
 
+export const isPaidToday = (bill: TableBill): boolean =>
+  bill.totals.consumption > 0 &&
+  (bill.session.status === "pagada" ||
+    bill.session.status === "cerrada" ||
+    (bill.session.status === "abierta" && billPending(bill) <= 0));
+
+/* After a table is paid in full, open the first one still in this list.
+ * The list order is what the waiter sees (urgency on Cobrar, number on Todas),
+ * not the table number. They can still tap any other table. */
+export const nextChargeAfter = (
+  rows: FloorTable[],
+  sessionId: string,
+): FloorTable | null =>
+  rows.find((r) => r.bill && r.pending > 0 && r.bill.session.id !== sessionId) ?? null;
+
 const NOW_ORDER: Record<FloorOpStatus, number> = {
   "pedido-nuevo": 0,
   llamado: 1,

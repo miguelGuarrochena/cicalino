@@ -23,6 +23,7 @@ import { fetchPaymentSettings, fetchTableQrs, acknowledgeWaiterCall, type TableQ
 import { updateOrderStatus } from "@/lib/data/orders";
 import {
   DEFAULT_PAYMENT_SETTINGS,
+  billPending,
   billStatus,
   formatMoney,
   type PaymentSettings,
@@ -31,9 +32,11 @@ import {
 import {
   buildFloor,
   filterFloor,
+  isPaidToday,
   kitchenInbox,
   needsCharge,
   needsPedido,
+  nextChargeAfter,
   type FloorFilter,
   type FloorTable,
 } from "@/lib/tableOps";
@@ -67,37 +70,68 @@ const MesasPage = () => {
   const [query, setQuery] = useState("");
   const [kitchenBusy, setKitchenBusy] = useState<string | null>(null);
   const seenCalls = useRef<Set<string> | null>(null);
+  const seenChecks = useRef<Set<string> | null>(null);
+  const seenMpPaid = useRef<Set<string> | null>(null);
+  const pendingBySession = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     seenCalls.current = null;
+    seenChecks.current = null;
+    seenMpPaid.current = null;
+    pendingBySession.current = new Map();
   }, [branchId]);
 
   useEffect(() => {
+    if (!ready) return;
     const calling = new Set(
       bills
         .filter((b) => b.session.status === "abierta" && b.session.calledAt)
         .map((b) => b.session.id),
     );
-    const prev = seenCalls.current;
-    if (prev == null) {
+    const checking = new Set(
+      bills
+        .filter(
+          (b) =>
+            b.session.status === "abierta" &&
+            b.payments.some((p) => p.status === "pendiente" && p.method !== "mercado_pago"),
+        )
+        .map((b) => b.session.id),
+    );
+    const mpPaid = new Set(
+      bills.flatMap((b) =>
+        b.payments
+          .filter((p) => p.status === "pagado" && p.method === "mercado_pago")
+          .map((p) => p.id),
+      ),
+    );
+    const prevCalls = seenCalls.current;
+    const prevChecks = seenChecks.current;
+    const prevMp = seenMpPaid.current;
+    if (prevCalls == null || prevChecks == null || prevMp == null) {
       seenCalls.current = calling;
+      seenChecks.current = checking;
+      seenMpPaid.current = mpPaid;
       return;
     }
     for (const b of bills) {
-      if (
-        b.session.status === "abierta" &&
-        b.session.calledAt &&
-        !prev.has(b.session.id)
-      ) {
-        toast(
-          t("mesas.teLlamanToast", { n: b.session.tableNumber }),
-          "info",
-          TOAST_AVISO_MS,
-        );
+      if (b.session.status !== "abierta") continue;
+      if (b.session.calledAt && !prevCalls.has(b.session.id)) {
+        toast(t("mesas.teLlamanToast", { n: b.session.tableNumber }), "info", TOAST_AVISO_MS);
+      } else if (checking.has(b.session.id) && !prevChecks.has(b.session.id)) {
+        toast(t("mesas.pidieronCuentaToast", { n: b.session.tableNumber }), "info", TOAST_AVISO_MS);
+      }
+    }
+    for (const b of bills) {
+      for (const p of b.payments) {
+        if (p.status === "pagado" && p.method === "mercado_pago" && !prevMp.has(p.id)) {
+          toast(t("mesas.mpPagoToast", { n: b.session.tableNumber }), "success", TOAST_AVISO_MS);
+        }
       }
     }
     seenCalls.current = calling;
-  }, [bills, t, toast]);
+    seenChecks.current = checking;
+    seenMpPaid.current = mpPaid;
+  }, [bills, ready, t, toast]);
 
   useEffect(() => {
     if (!branchId || !visibles.pagos) return;
@@ -137,7 +171,7 @@ const MesasPage = () => {
   const inbox = useMemo(() => kitchenInbox(floor), [floor]);
   const pedidoN = floor.filter(needsPedido).length;
   const chargeN = floor.filter(needsCharge).length;
-  const closedBills = bills.filter((b) => b.session.status !== "abierta");
+  const paidToday = bills.filter(isPaidToday);
   const currentBill = bills.find((b) => b.session.id === selected) ?? null;
   const showDetail = Boolean(currentBill) && tab !== "turno";
   const openPending = floor.reduce((s, r) => s + (r.bill ? r.pending : 0), 0);
@@ -150,6 +184,20 @@ const MesasPage = () => {
       ),
     [floor],
   );
+
+  useEffect(() => {
+    if (!selected || tab === "turno") return;
+    const current = bills.find((b) => b.session.id === selected);
+    if (!current) return;
+    const pending = billPending(current);
+    const prev = pendingBySession.current.get(selected);
+    pendingBySession.current.set(selected, pending);
+    if (prev == null || !(prev > 0 && pending <= 0 && current.totals.consumption > 0)) {
+      return;
+    }
+    const next = nextChargeAfter(shown, selected);
+    setSelected(next?.bill?.session.id ?? null);
+  }, [bills, selected, shown, tab]);
 
   const reload = () => {
     void refresh();
@@ -420,10 +468,11 @@ const MesasPage = () => {
             ) : null}
 
             <ClosedTodayList
-              bills={closedBills}
-              expanded={showClosed}
+              bills={paidToday}
+              expanded={tab === "cobrar" || showClosed}
               onToggle={() => setShowClosed((v) => !v)}
               onSelect={setSelected}
+              title={t("mesas.pagadasHoy", { n: paidToday.length })}
             />
               </>
             )}
@@ -483,11 +532,13 @@ const ClosedTodayList = ({
   expanded,
   onToggle,
   onSelect,
+  title,
 }: {
   bills: TableBill[];
   expanded: boolean;
   onToggle: () => void;
   onSelect: (id: string) => void;
+  title: string;
 }) => {
   const { t } = useApp();
   if (!bills.length) return null;
@@ -499,7 +550,7 @@ const ClosedTodayList = ({
         onClick={onToggle}
         className="min-h-10 text-xs font-semibold text-carbon/60 underline"
       >
-        {t("mesas.cerradasHoy", { n: bills.length })}
+        {title}
       </button>
       {expanded && (
         <ul className="mt-1 flex flex-col gap-1">

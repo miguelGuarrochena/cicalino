@@ -81,9 +81,8 @@ export const FLOOR_STYLE: Record<
   },
 };
 
-/* `sobrePleno` is for the floor tiles, which are filled with the state's own
- * colour: there the tinted chip would disappear, so it turns into a veil over
- * that fill. */
+/* On the filled floor tiles a tinted chip disappears and a veil-chip fights
+ * the amount. There the colour of the tile is the chip: just a caption. */
 export const FloorStatusBadge = ({
   status,
   sobrePleno,
@@ -93,18 +92,19 @@ export const FloorStatusBadge = ({
 }) => {
   const { t } = useApp();
   const style = FLOOR_STYLE[status];
-  const tono = sobrePleno
-    ? "bg-white/20 text-current"
-    : `${style.chip} ${style.text}`;
+  const label = t(`mesas.estadoOp.${status}`);
+  if (sobrePleno) {
+    return (
+      <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-semibold leading-tight">
+        <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current opacity-80" />
+        <span className="truncate">{label}</span>
+      </span>
+    );
+  }
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${tono}`}
-    >
-      <span
-        aria-hidden
-        className={`size-2 rounded-full ${sobrePleno ? "bg-current opacity-70" : style.dot}`}
-      />
-      {t(`mesas.estadoOp.${status}`)}
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${style.chip} ${style.text}`}>
+      <span aria-hidden className={`size-2 rounded-full ${style.dot}`} />
+      {label}
     </span>
   );
 };

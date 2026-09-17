@@ -56,5 +56,8 @@ describe("mesa-qr-activo", () => {
     expect(sticker).toContain('kind: "solo" | "marco"');
     expect(modal).toContain("descargarSoloHint");
     expect(modal).toContain("descargarMarcoHint");
+    expect(modal).toContain("sm:items-start");
+    const solo = modal.slice(modal.indexOf('onPick("solo")'));
+    expect(solo.indexOf("descargarSolo")).toBeLessThan(solo.indexOf("aspect-square"));
   });
 });

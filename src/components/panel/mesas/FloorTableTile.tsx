@@ -10,12 +10,6 @@ const hasOrder = (row: FloorTable) =>
   row.newOrders.length + row.prepOrders.length + row.readyOrders.length > 0 ||
   row.consumption > 0;
 
-const moneyStatus = (status: FloorTable["status"]) =>
-  status === "pendiente" ||
-  status === "parcial" ||
-  status === "esperando-pago" ||
-  status === "pagada";
-
 /* Solid fill per state, like the floor map in Recepción: the tile is the
  * colour and everything inside it reads in crema. Washed-out tints and the
  * thick left bar didn't survive a glance across the room. */
@@ -25,6 +19,9 @@ const tileTone = (row: FloorTable) => {
   }
   if (row.status === "pedido-nuevo") {
     return "border-marca bg-marca text-crema";
+  }
+  if (row.status === "pagada") {
+    return "border-ok bg-ok text-crema";
   }
   if (row.pending > 0) {
     return "border-alerta bg-alerta text-crema";
@@ -37,6 +34,9 @@ const tileTone = (row: FloorTable) => {
   }
   return "border-espera bg-espera text-crema";
 };
+
+const tileClass = (tone: string, active: boolean) =>
+  `flex overflow-hidden rounded-2xl border-2 ${tone} ${active ? "ring-2 ring-carbon/25" : ""}`;
 
 export const FloorTableTile = ({
   row,
@@ -58,16 +58,24 @@ export const FloorTableTile = ({
     .join(" · ");
   const waiter =
     firstName(row.waiterName) || (row.bill ? t("recepcion.sinAsignar") : "");
-  const chargingHint =
-    row.pending > 0 && !moneyStatus(row.status) ? t("mesas.porCobrar") : null;
+  const amount =
+    row.bill && row.consumption > 0
+      ? formatMoney(row.pending > 0 ? row.pending : row.paid)
+      : null;
+  /* "Pendiente de pago" + $ is the same story twice. Kitchen states still
+   * need their label: a new order is the action, the amount is just context. */
+  const showStatus = row.status !== "pendiente" || !amount;
+  const meta =
+    [
+      waiter,
+      kitchenHint || (row.people > 0 ? t("mesas.personasN", { n: row.people }) : null),
+    ]
+      .filter(Boolean)
+      .join(" · ") || (showStatus ? null : t("mesas.estadoOp.libre"));
 
   if (dense) {
     return (
-      <li
-        className={`flex items-stretch overflow-hidden rounded-2xl border-2 ${tone} ${
-          active ? "ring-2 ring-carbon/25" : ""
-        }`}
-      >
+      <li className={`items-stretch ${tileClass(tone, active)}`}>
         <button
           type="button"
           aria-current={active ? "true" : undefined}
@@ -78,26 +86,15 @@ export const FloorTableTile = ({
             {row.tableNumber}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="flex flex-wrap items-center gap-x-2">
-              <FloorStatusBadge status={row.status} sobrePleno />
-              {chargingHint ? (
-                <span className="text-[11px] font-semibold">{chargingHint}</span>
-              ) : null}
-            </span>
-            <span className="mt-0.5 block truncate text-[11px] opacity-75">
-              {[
-                waiter,
-                kitchenHint ||
-                  (row.people > 0 ? t("mesas.personasN", { n: row.people }) : null),
-              ]
-                .filter(Boolean)
-                .join(" · ") || t("mesas.estadoOp.libre")}
-            </span>
+            {showStatus ? <FloorStatusBadge status={row.status} sobrePleno /> : null}
+            {meta ? (
+              <span className={`block truncate text-[11px] opacity-75 ${showStatus ? "mt-0.5" : ""}`}>
+                {meta}
+              </span>
+            ) : null}
           </span>
-          {row.bill && row.consumption > 0 ? (
-            <span className="shrink-0 font-display text-lg tabular-nums leading-none">
-              {formatMoney(row.pending > 0 ? row.pending : row.paid)}
-            </span>
+          {amount ? (
+            <span className="shrink-0 font-display text-lg tabular-nums leading-none">{amount}</span>
           ) : null}
         </button>
       </li>
@@ -105,47 +102,38 @@ export const FloorTableTile = ({
   }
 
   return (
-    <li
-      className={`flex min-h-[6.5rem] flex-col overflow-hidden rounded-2xl border-2 ${tone} ${
-        active ? "ring-2 ring-carbon/25" : ""
-      }`}
-    >
+    <li className={`min-h-[6.5rem] flex-col ${tileClass(tone, active)}`}>
       <button
         type="button"
         aria-current={active ? "true" : undefined}
         onClick={onOpen}
-        className="flex w-full flex-1 flex-col justify-between px-3 py-2.5 text-left transition hover:brightness-95 active:scale-[0.99]"
+        className="flex w-full flex-1 flex-col text-left transition hover:brightness-95 active:scale-[0.99]"
       >
-        <span className="flex items-start justify-between gap-1">
-          <span className="font-display text-2xl leading-none">{row.tableNumber}</span>
-          {row.people > 0 && (
-            <span className="text-[10px] font-semibold tabular-nums opacity-75">
-              {t("mesas.personasN", { n: row.people })}
-            </span>
-          )}
-        </span>
-        {waiter ? (
-          <span className="truncate text-[10px] font-semibold leading-none opacity-80">
-            {waiter}
+        <span className="flex min-h-0 flex-1 flex-col gap-1 px-3 pt-2.5 pb-2">
+          <span className="flex items-start justify-between gap-1">
+            <span className="font-display text-2xl leading-none">{row.tableNumber}</span>
+            {row.people > 0 && (
+              <span className="text-[10px] font-semibold tabular-nums opacity-70">
+                {t("mesas.personasN", { n: row.people })}
+              </span>
+            )}
           </span>
-        ) : null}
-        <span className="flex flex-wrap items-center gap-x-1.5">
-          <FloorStatusBadge status={row.status} sobrePleno />
-          {chargingHint ? (
-            <span className="text-[10px] font-semibold">{chargingHint}</span>
+          {waiter ? (
+            <span className="truncate text-[10px] font-semibold leading-none opacity-80">
+              {waiter}
+            </span>
+          ) : null}
+          {showStatus ? (
+            <FloorStatusBadge status={row.status} sobrePleno />
+          ) : kitchenHint ? (
+            <span className="truncate text-[10px] opacity-75">{kitchenHint}</span>
           ) : null}
         </span>
-        {row.bill && row.consumption > 0 ? (
-          <span className="font-display text-sm tabular-nums leading-none">
-            {formatMoney(row.pending > 0 ? row.pending : row.paid)}
+        {amount ? (
+          <span className="mt-auto border-t border-white/20 bg-black/15 px-3 py-1.5 font-display text-[15px] tabular-nums leading-none">
+            {amount}
           </span>
-        ) : kitchenHint ? (
-          <span className="truncate text-[10px] opacity-75">{kitchenHint}</span>
-        ) : (
-          <span className="text-[10px] opacity-70">
-            {row.bill ? t("mesas.estadoOp.sin-consumo") : t("mesas.estadoOp.libre")}
-          </span>
-        )}
+        ) : null}
       </button>
     </li>
   );
