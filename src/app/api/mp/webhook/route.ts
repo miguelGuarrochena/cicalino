@@ -40,16 +40,31 @@ export const POST = async (req: Request) => {
     data?: { id?: string | number };
   } | null;
 
-  const dataId = url.searchParams.get("data.id") ?? (body?.data?.id != null ? String(body.data.id) : null);
+  const queryId = url.searchParams.get("data.id");
+  const bodyId = body?.data?.id != null ? String(body.data.id) : null;
+  const dataId = queryId ?? bodyId;
   const type = url.searchParams.get("type") ?? body?.type ?? url.searchParams.get("topic");
 
-  const firmaOk = verifyMercadoPagoSignature({
-    header: req.headers.get("x-signature"),
-    requestId: req.headers.get("x-request-id"),
-    dataId: url.searchParams.get("data.id"),
-    secret: webhookSecret(),
-  });
-  if (!firmaOk) return reply(401, { ok: false });
+  /* MP signs with data.id from the query string; when the URL doesn't carry
+   * it (e.g. the panel's "Simular notificación"), the body's id is what gets
+   * signed. Either way the id stays bound to the signature. */
+  const header = req.headers.get("x-signature");
+  const requestId = req.headers.get("x-request-id");
+  const secret = webhookSecret();
+  const firmaOk = verifyMercadoPagoSignature({ header, requestId, dataId, secret });
+  if (!firmaOk) {
+    /* Enough to tell which part of the manifest disagrees, without the
+     * secret or the signature itself. */
+    console.warn("mp.webhook.firma", {
+      header: Boolean(header),
+      requestId: Boolean(requestId),
+      queryId,
+      bodyId,
+      coincideSinId: verifyMercadoPagoSignature({ header, requestId, dataId: null, secret }),
+      coincideSinRequestId: verifyMercadoPagoSignature({ header, requestId: null, dataId, secret }),
+    });
+    return reply(401, { ok: false });
+  }
 
   if (type !== "payment" || !dataId) return reply(200, { ok: true, ignored: true });
 

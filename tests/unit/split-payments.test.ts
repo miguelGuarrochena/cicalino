@@ -59,6 +59,12 @@ describe("Mercado Pago — firma del webhook", () => {
     expect(verifyMercadoPagoSignature({ ...base, secret: "" })).toBe(false);
   });
 
+  it("la ruta firma con el id del cuerpo cuando la URL no lo trae", () => {
+    const route = read("src/app/api/mp/webhook/route.ts");
+    expect(route).toMatch(/const dataId = queryId \?\? bodyId;/);
+    expect(route).toMatch(/verifyMercadoPagoSignature\(\{ header, requestId, dataId, secret \}\)/);
+  });
+
   it("id alfanumérico en minúscula y partes ausentes fuera del manifest", () => {
     expect(signatureManifest({ dataId: "ABC123", requestId: null, ts: "1" })).toBe("id:abc123;ts:1;");
     expect(parseSignatureHeader("v1=abc")).toBeNull();
