@@ -52,19 +52,7 @@ export const POST = async (req: Request) => {
   const requestId = req.headers.get("x-request-id");
   const secret = webhookSecret();
   const firmaOk = verifyMercadoPagoSignature({ header, requestId, dataId, secret });
-  if (!firmaOk) {
-    /* Enough to tell which part of the manifest disagrees, without the
-     * secret or the signature itself. */
-    console.warn("mp.webhook.firma", {
-      header: Boolean(header),
-      requestId: Boolean(requestId),
-      queryId,
-      bodyId,
-      coincideSinId: verifyMercadoPagoSignature({ header, requestId, dataId: null, secret }),
-      coincideSinRequestId: verifyMercadoPagoSignature({ header, requestId: null, dataId, secret }),
-    });
-    return reply(401, { ok: false });
-  }
+  if (!firmaOk) return reply(401, { ok: false });
 
   if (type !== "payment" || !dataId) return reply(200, { ok: true, ignored: true });
 
