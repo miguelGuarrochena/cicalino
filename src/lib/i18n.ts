@@ -804,7 +804,7 @@ const dict = {
       empRolPh: "Mozo, cocina…",
       empPin: "PIN (4 dígitos)",
       empPinHint:
-        "Único por persona. Sirve para elegir quién atiende: tu nombre y después tu PIN.",
+        "Sirve para elegir quién atiende: tu nombre y después tu PIN. Puede ser el mismo que el de otra persona.",
       empNombreReq: "El nombre es obligatorio.",
       empNombreDup:
         "Ya hay alguien con ese nombre. Probá otro (ej. Lucía B, Lucy, Luli).",
@@ -2322,7 +2322,7 @@ const dict = {
       empRolPh: "Waiter, kitchen…",
       empPin: "PIN (4 digits)",
       empPinHint:
-        "Unique per person. Used to pick who's serving: your name, then your PIN.",
+        "Used to pick who's serving: your name, then your PIN. It can match someone else's.",
       empNombreReq: "Name is required.",
       empNombreDup:
         "Someone already has that name. Try another (e.g. Lucia B, Lucy, Luli).",
