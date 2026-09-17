@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { ReservasLandingPreview } from "@/components/landing/ReservasLandingPreview";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { TabGlyph } from "@/components/ui/TabGlyph";
 
 type Tab = "pedidos" | "espera";
 
@@ -51,37 +53,25 @@ export const FaqContent = ({
 
   return (
     <div className={className}>
-      <div
-        className="mb-6 flex rounded-2xl border border-linea bg-surface p-1 shadow-sm"
-        role="tablist"
-        aria-label="FAQ"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "pedidos"}
-          onClick={() => setTab("pedidos")}
-          className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-            tab === "pedidos"
-              ? "bg-marca text-crema"
-              : "text-carbon/55 hover:bg-carbon/5"
-          }`}
-        >
-          {t("faq.tabPedidos")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "espera"}
-          onClick={() => setTab("espera")}
-          className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-            tab === "espera"
-              ? "bg-espera text-crema"
-              : "text-carbon/55 hover:bg-carbon/5"
-          }`}
-        >
-          {t("faq.tabEspera")}
-        </button>
+      <div className="mb-6">
+        <SegmentedTabs
+          ariaLabel="FAQ"
+          accent={tab === "espera" ? "espera" : "marca"}
+          value={tab}
+          onChange={setTab}
+          options={[
+            {
+              id: "pedidos",
+              label: t("faq.tabPedidos"),
+              icon: <TabGlyph k="pedido" />,
+            },
+            {
+              id: "espera",
+              label: t("faq.tabEspera"),
+              icon: <TabGlyph k="espera" />,
+            },
+          ]}
+        />
       </div>
 
       {showFlow && (

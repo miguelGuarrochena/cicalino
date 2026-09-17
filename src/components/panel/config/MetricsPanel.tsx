@@ -20,6 +20,7 @@ import { useMyBranches } from "@/lib/hooks/useMyBranches";
 import { useConfigStore } from "@/lib/store/config-store";
 import { HelpLink } from "@/components/panel/HelpLink";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { TabGlyph } from "@/components/ui/TabGlyph";
 import { TRAMOS, type Tramo } from "@/lib/metricsChart";
 
 type Periodo = "dia" | "semana" | "mes" | "ano";
@@ -212,8 +213,16 @@ export const MetricsPanel = () => {
           onChange={setTab}
           accent={tab === "espera" ? "espera" : "marca"}
           options={[
-            { id: "pedidos", label: t("metricas.tabPedidos") },
-            { id: "espera", label: t("metricas.tabEspera") },
+            {
+              id: "pedidos",
+              label: t("metricas.tabPedidos"),
+              icon: <TabGlyph k="pedido" />,
+            },
+            {
+              id: "espera",
+              label: t("metricas.tabEspera"),
+              icon: <TabGlyph k="espera" />,
+            },
           ]}
         />
       )}

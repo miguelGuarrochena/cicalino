@@ -105,10 +105,15 @@ describe("Operación — jerarquía y layout", () => {
     expect(tile).not.toContain("border-l-[6px]");
     expect(tile).not.toContain("verQrMesa");
     const turno = read("src/components/panel/mesas/JornadaBoard.tsx");
-    expect(turno).toContain("grid-cols-6");
+    expect(turno).toContain("grid-cols-4");
     expect(turno).toContain("min-h-11 w-full");
     const tabs = read("src/components/ui/SegmentedTabs.tsx");
-    expect(tabs).toContain("flex-wrap");
-    expect(tabs).toContain("min-w-[calc(50%-0.125rem)]");
+    expect(tabs).toContain("min-h-[4.5rem]");
+    expect(tabs).toContain("grid-cols-2 sm:grid-cols-4");
+    const mesasPage = read("src/app/(app)/panel/mesas/page.tsx");
+    expect(mesasPage).toContain('k="pedido"');
+    expect(mesasPage).toContain('k="cobrar"');
+    expect(mesasPage).toContain('k="todas"');
+    expect(mesasPage).toContain('k="turno"');
   });
 });

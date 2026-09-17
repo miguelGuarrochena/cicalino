@@ -13,6 +13,8 @@ import { ThemedImg } from "@/components/ui/ThemedImg";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { HelpLink } from "@/components/panel/HelpLink";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { TabGlyph, type TabGlyphKey } from "@/components/ui/TabGlyph";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -41,6 +43,14 @@ const FILTROS: FiltroEstado[] = [
   "retirado",
   "cancelado",
 ];
+
+const FILTRO_ICON: Record<FiltroEstado, TabGlyphKey> = {
+  todos: "todas",
+  creado: "espera",
+  listo: "listo",
+  retirado: "retirado",
+  cancelado: "cancelado",
+};
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
@@ -267,31 +277,17 @@ const PanelOrdersPage = () => {
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          {FILTROS.map((f) => {
-            const active = filtro === f;
-            const n = countFiltro(f);
-            return (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFiltro(f)}
-                className={`flex min-h-11 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold transition sm:min-h-0 sm:px-3.5 sm:py-2 ${
-                  active
-                    ? "bg-marca text-crema"
-                    : "border border-linea bg-surface text-carbon/60 hover:bg-carbon/5"
-                }`}
-              >
-                {labelFiltro(f)}
-                <span
-                  className={`ml-1.5 ${active ? "opacity-80" : "opacity-50"}`}
-                >
-                  {n}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedTabs
+          ariaLabel={t("panel.titulo")}
+          value={filtro}
+          onChange={setFiltro}
+          options={FILTROS.map((f) => ({
+            id: f,
+            label: labelFiltro(f),
+            icon: <TabGlyph k={FILTRO_ICON[f]} />,
+            badge: countFiltro(f),
+          }))}
+        />
         <input
           type="search"
           value={q}

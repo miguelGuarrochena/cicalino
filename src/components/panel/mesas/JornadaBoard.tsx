@@ -25,10 +25,9 @@ const INPUT =
   "min-h-11 w-full rounded-xl border border-linea bg-crema/40 px-3 text-sm tabular-nums text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20 sm:w-20";
 const BTN =
   "min-h-11 w-full rounded-full px-4 text-sm font-semibold disabled:opacity-50 sm:w-auto";
-const MESAS =
-  "grid grid-cols-6 gap-1.5 sm:flex sm:flex-wrap sm:gap-1";
+const MESAS = "grid grid-cols-4 gap-2";
 const CHIP =
-  "flex min-h-11 items-center justify-center rounded-lg px-2 text-sm font-semibold tabular-nums sm:min-h-9 sm:min-w-9";
+  "flex min-h-14 items-center justify-center rounded-xl px-2 text-base font-semibold tabular-nums sm:min-h-12";
 
 type DraftRange = { employeeId: string; from: string; to: string };
 
