@@ -33,7 +33,7 @@ const tileTone = (row: FloorTable) => {
     return "border-curso bg-curso text-crema";
   }
   if (row.bill) {
-    return "border-carbon/60 bg-carbon/70 text-crema";
+    return "border-carbon bg-carbon text-crema";
   }
   return "border-espera bg-espera text-crema";
 };
