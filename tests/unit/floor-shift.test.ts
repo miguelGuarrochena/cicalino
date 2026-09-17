@@ -3,8 +3,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   compactRanges,
+  currentFloorTramo,
   formatTableRange,
   nextFreeRange,
+  ownersFromTemplate,
+  rangesFromOwners,
   rangesOverlap,
   staffOnShift,
   tablesInRange,
@@ -59,5 +62,34 @@ describe("rangos de mesas", () => {
         { tableNumber: 8, employeeId: "b", employeeName: "Pedro" },
       ]).map((s) => `${s.name}:${formatTableRange(s.tables)}`),
     ).toEqual(["Juan:1–2", "Pedro:8"]);
+    expect(currentFloorTramo(1, 20)).toBe("manana");
+    expect(currentFloorTramo(2, 11)).toBe("manana");
+    expect(currentFloorTramo(2, 18)).toBe("noche");
+    expect(
+      rangesFromOwners(
+        ownersFromTemplate(
+          [
+            {
+              weekday: 4,
+              employeeId: "a",
+              employeeName: "Lucia",
+              from: 1,
+              to: 3,
+              tramo: "manana",
+            },
+            {
+              weekday: 4,
+              employeeId: "b",
+              employeeName: "Ana",
+              from: 4,
+              to: 6,
+              tramo: "noche",
+            },
+          ],
+          4,
+          "manana",
+        ),
+      ),
+    ).toEqual([{ employeeId: "a", from: 1, to: 3 }]);
   });
 });

@@ -39,7 +39,7 @@ import {
 } from "@/lib/tableOps";
 import { useToast } from "@/components/ui/Toast";
 import { useFloorShift } from "@/lib/hooks/useFloorShift";
-import { assignmentByTable } from "@/lib/floorShift";
+import { assignmentByTable, assignmentsForTramo, currentFloorTramo } from "@/lib/floorShift";
 import { assignTable } from "@/lib/data/floorShift";
 
 const MesasPage = () => {
@@ -83,7 +83,12 @@ const MesasPage = () => {
 
   const floor = useMemo(() => {
     const rows = buildFloor(tables, bills);
-    const by = assignmentByTable(shift.assignments);
+    const by = assignmentByTable(
+      assignmentsForTramo(
+        shift.assignments,
+        currentFloorTramo(shift.turnosPiso),
+      ),
+    );
     return rows.map((r) => {
       const a = by.get(r.tableNumber);
       return {
@@ -92,7 +97,7 @@ const MesasPage = () => {
         waiterName: a?.employeeName ?? null,
       };
     });
-  }, [tables, bills, shift.assignments]);
+  }, [tables, bills, shift.assignments, shift.turnosPiso]);
   const shown = useMemo(
     () => filterFloor(floor, tab === "turno" ? "todas" : tab, query),
     [floor, tab, query],
@@ -126,7 +131,13 @@ const MesasPage = () => {
 
   const assignWaiter = async (tableNumber: number, employeeId: string | null) => {
     if (!branchId) return { ok: false, reason: "error" };
-    const res = await assignTable(branchId, tableNumber, employeeId, employee?.id ?? null);
+    const res = await assignTable(
+      branchId,
+      tableNumber,
+      employeeId,
+      employee?.id ?? null,
+      currentFloorTramo(shift.turnosPiso),
+    );
     if (res.ok) void refreshShift();
     return res;
   };

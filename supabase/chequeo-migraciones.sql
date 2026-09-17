@@ -186,6 +186,11 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('mesa-llamado-mozo.sql', 'column', 'mesa_sesiones.llamado_en', 74),
     ('mesa-llamado-mozo.sql', 'function', 'llamar_mozo_comensal', 74),
     ('mesa-llamado-mozo.sql', 'function', 'atender_llamado_mesa', 74),
+    ('mesa-asignacion-tramos.sql', 'column', 'locales.turnos_piso', 75),
+    ('mesa-asignacion-tramos.sql', 'column', 'mesa_plantilla_turno.tramo', 75),
+    ('mesa-asignacion-tramos.sql', 'column', 'mesa_asignacion.tramo', 75),
+    ('mesa-asignacion-tramos.sql', 'function', 'mesa_plantilla_guardar_semana', 75),
+    ('mesa-asignacion-tramos.sql', 'function', 'mesa_local_set_turnos', 75),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -338,7 +343,8 @@ requisitos (archivo, necesita) as (
     ('menu-categorias.sql', 'split-payments.sql, staff-floor-audit.sql'),
     ('mesa-asignacion-jornada.sql', 'staff-roles.sql, liberar-mesas-jornada.sql, modulo-espera.sql, split-payments-module.sql'),
     ('mesa-pedido-comensal.sql', 'split-payments.sql, pedidos-en-preparacion.sql'),
-    ('mesa-llamado-mozo.sql', 'split-payments.sql, mesa-pedido-comensal.sql')
+    ('mesa-llamado-mozo.sql', 'split-payments.sql, mesa-pedido-comensal.sql'),
+    ('mesa-asignacion-tramos.sql', 'mesa-asignacion-jornada.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

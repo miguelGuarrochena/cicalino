@@ -8,7 +8,7 @@ import type { DataError } from "@/lib/data/result";
 import { fetchFloorShift, subscribeFloorShift } from "@/lib/data/floorShift";
 import type { ShiftDay } from "@/lib/floorShift";
 
-const EMPTY: ShiftDay = { date: "", weekday: 1, assignments: [], template: [] };
+const EMPTY: ShiftDay = { date: "", weekday: 1, assignments: [], template: [], turnosPiso: 1 };
 const RESPALDO_MS = 20_000;
 
 export const useFloorShift = (branchId: string | null, enabled: boolean) => {

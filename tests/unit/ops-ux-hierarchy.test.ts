@@ -110,7 +110,9 @@ describe("Operación — jerarquía y layout", () => {
     expect(turno).toContain("aspect-square");
     expect(turno).toContain("grid-cols-7");
     expect(turno).toContain("todasLasMesas");
-    expect(turno).toContain("mesasRango");
+    expect(turno).toContain("guardarSemana");
+    expect(turno).toContain("marcarCon");
+    expect(turno).toContain("elegiQuien");
     expect(turno).toContain("diaCorto");
     expect(turno).toContain("min-h-11 w-full");
     const tabs = read("src/components/ui/SegmentedTabs.tsx");
