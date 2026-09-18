@@ -376,6 +376,7 @@ const MesasPage = () => {
                   icon: <TabGlyph k="pedido" />,
                   badge: pedidoN,
                   pulse: attention.tabPedidoPulse,
+                  tone: "marca",
                 },
                 {
                   id: "cobrar",
@@ -384,6 +385,7 @@ const MesasPage = () => {
                   badge: chargeN,
                   pulse: attention.tabCobrarPulse,
                   priority: attention.tabCobrarPulse,
+                  tone: "curso",
                 },
                 {
                   id: "todas",
@@ -503,7 +505,7 @@ const MesasPage = () => {
 
             <ClosedTodayList
               bills={paidToday}
-              expanded={tab === "cobrar" || showClosed}
+              expanded={showClosed}
               onToggle={() => setShowClosed((v) => !v)}
               onSelect={setSelected}
               title={t("mesas.pagadasHoy", { n: paidToday.length })}

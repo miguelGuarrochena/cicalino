@@ -19,10 +19,10 @@ export const ChargeInbox = ({
   const anyNew = rows.some((row) => row.billRequests.some((p) => newPaymentIds.has(p.id)));
 
   return (
-    <section className="rounded-2xl border border-alerta/30 bg-alerta/5 p-3 sm:p-4 print:hidden">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-alerta">
+    <section className="rounded-2xl border border-curso-borde bg-curso-fondo p-3 sm:p-4 print:hidden">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-curso">
         {t("mesas.cuentasInbox")}
-        <span className="ml-1.5 tabular-nums text-alerta/70">{rows.length}</span>
+        <span className="ml-1.5 tabular-nums text-curso/70">{rows.length}</span>
       </h2>
       {anyNew ? (
         <p className="mt-1 text-sm text-carbon/60">{t("mesas.cuentasAyuda")}</p>
@@ -37,7 +37,7 @@ export const ChargeInbox = ({
               </p>
               <p
                 className={`mt-2 text-sm font-semibold ${
-                  isNew ? "text-alerta" : "text-carbon/70"
+                  isNew ? "text-curso" : "text-carbon/70"
                 }`}
               >
                 {isNew ? t("mesas.solicitaCuenta") : t("mesas.cuentaSolicitada")}

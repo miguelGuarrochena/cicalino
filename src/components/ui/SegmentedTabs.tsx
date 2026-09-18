@@ -11,6 +11,7 @@ export type SegmentedTab<T extends string> = {
   badge?: string | number;
   pulse?: boolean;
   priority?: boolean;
+  tone?: "marca" | "curso";
 };
 
 export const SegmentedTabs = <T extends string>({
@@ -57,7 +58,7 @@ export const SegmentedTabs = <T extends string>({
               selected
                 ? active
                 : pulse && opt.priority
-                  ? "border-alerta/40 bg-alerta/10 text-carbon hover:border-alerta/50"
+                  ? "border-curso-borde bg-curso-fondo text-carbon hover:border-curso"
                   : pulse
                     ? "border-marca/35 bg-marca/10 text-carbon hover:border-marca/45"
                     : "border-linea bg-surface text-carbon/60 hover:border-carbon/25 hover:text-carbon"
@@ -81,10 +82,14 @@ export const SegmentedTabs = <T extends string>({
                   selected
                     ? "bg-crema/20 text-crema"
                     : pulse && opt.priority
-                      ? "bg-alerta text-crema"
+                      ? "bg-curso text-crema"
                       : pulse
                         ? "bg-marca text-crema"
-                        : "bg-carbon/10 text-carbon/70"
+                        : opt.tone === "curso"
+                          ? "bg-curso-fondo text-curso"
+                          : opt.tone === "marca"
+                            ? "bg-marca/15 text-marca"
+                            : "bg-carbon/10 text-carbon/70"
                 }`}
               >
                 {opt.badge}
@@ -93,7 +98,7 @@ export const SegmentedTabs = <T extends string>({
               <span
                 aria-hidden
                 className={`absolute right-2 top-2 size-2 rounded-full ${
-                  opt.priority ? "bg-alerta u-attention-dot" : "bg-marca u-attention-dot"
+                  opt.priority ? "bg-curso u-attention-dot" : "bg-marca u-attention-dot"
                 }`}
               />
             ) : null}

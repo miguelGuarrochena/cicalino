@@ -123,6 +123,8 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
     const open = bill({ payments: [pay()] });
     const unseen = floorAttention([open], emptyAttentionSeen(), null);
     expect(unseen.headerUnseen).toBe(2);
+    expect(unseen.headerPedido).toBe(1);
+    expect(unseen.headerCuenta).toBe(1);
     expect(unseen.tabPedidoPulse).toBe(true);
     expect(unseen.tabCobrarPulse).toBe(true);
 
@@ -132,6 +134,8 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
       "pedido",
     );
     expect(afterPedido.headerUnseen).toBe(1);
+    expect(afterPedido.headerPedido).toBe(0);
+    expect(afterPedido.headerCuenta).toBe(1);
     expect(afterPedido.headerPriority).toBe(true);
     expect(afterPedido.tabPedidoPulse).toBe(false);
     expect(afterPedido.tabCobrarPulse).toBe(true);
@@ -175,6 +179,41 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
 
   it("withIds no pisa lo ya visto", () => {
     expect([...withIds(new Set(["a"]), ["a", "b"])].sort()).toEqual(["a", "b"]);
+  });
+
+  it("un pedido nuevo posterior vuelve a ser novedad aunque la mesa ya se vio", () => {
+    const second = bill({
+      orders: [
+        order({ id: "beer", status: "en_preparacion" }),
+        order({ id: "pizza", createdAt: "2026-09-16T20:20:00Z" }),
+      ],
+    });
+    const seen = {
+      ...emptyAttentionSeen(),
+      navOrders: new Set(["beer"]),
+      cardOrders: new Set(["beer"]),
+    };
+    const next = floorAttention([second], seen, null);
+    expect(next.newOrderIds).toEqual(["pizza"]);
+    expect(next.headerUnseen).toBe(1);
+    expect(next.pendingOrders).toBe(1);
+  });
+
+  it("pedido nuevo y cuenta solicitada conviven en colas distintas", () => {
+    const open = bill({ payments: [pay()] });
+    const floor = buildFloor(
+      [{ id: "m8", number: 8, qrToken: "t", qrActive: true }],
+      [open],
+    );
+    const inbox = kitchenInbox(floor);
+    expect(inbox.created.map((r) => r.tableNumber)).toEqual([8]);
+    expect(inbox.bills.map((r) => r.tableNumber)).toEqual([8]);
+    const both = floorAttention([open], emptyAttentionSeen(), null);
+    expect(both.unseenOrders).toBe(1);
+    expect(both.unseenBills).toBe(1);
+    expect(both.headerUnseen).toBe(2);
+    expect(both.headerPedido).toBe(1);
+    expect(both.headerCuenta).toBe(1);
   });
 
   it("la cola de Cobrar lista la mesa que pidió la cuenta", () => {

@@ -330,13 +330,21 @@ export const TableDetail = ({
           <div className="mt-4 rounded-2xl border border-curso-borde bg-curso-fondo p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-curso">
               {waitingPayments.some((p) => p.createdBy === "comensal")
-                ? t("mesas.solicitaCuenta")
+                ? t("mesas.cuentaSolicitada")
                 : waitingPayments.length === 1
                   ? t("mesas.pagoElegido", {
                       m: t(`mesa.metodo.${waitingPayments[0]!.method}`),
                     })
                   : t("mesas.esperandoConfirmacion")}
             </p>
+            {waitingPayments.some((p) => p.createdBy === "comensal") &&
+            waitingPayments.length === 1 ? (
+              <p className="mt-1 text-xs text-carbon/55">
+                {t("mesas.pagoElegido", {
+                  m: t(`mesa.metodo.${waitingPayments[0]!.method}`),
+                })}
+              </p>
+            ) : null}
             <ul className="mt-2 flex flex-col gap-3">
               {waitingPayments.map((p) => (
                 <li key={p.id} className="flex flex-col gap-2">

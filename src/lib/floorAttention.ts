@@ -86,6 +86,8 @@ export interface FloorAttention {
   unseenOrders: number;
   unseenBills: number;
   headerUnseen: number;
+  headerPedido: number;
+  headerCuenta: number;
   headerPriority: boolean;
   tabPedidoPulse: boolean;
   tabCobrarPulse: boolean;
@@ -127,6 +129,8 @@ export const floorAttention = (
     unseenOrders: unseenOrderIds.length,
     unseenBills: unseenBillIds.length,
     headerUnseen: headerOrders + headerBills,
+    headerPedido: headerOrders,
+    headerCuenta: headerBills,
     headerPriority: headerBills > 0,
     tabPedidoPulse: !onPedido && (unseenOrderIds.length > 0 || calls.length > 0),
     tabCobrarPulse: !onCobrar && unseenBillIds.length > 0,

@@ -52,7 +52,7 @@ export const KitchenInbox = ({
         </InboxBlock>
       )}
       {called.length > 0 && (
-        <InboxBlock title={t("mesas.teLlaman")} rows={called}>
+        <InboxBlock title={t("mesas.teLlaman")} rows={called} tone="alerta">
           {(row) => (
             <li className="rounded-2xl bg-surface p-4">
               <button type="button" onClick={() => onOpen(row)} className="w-full text-left">
@@ -81,15 +81,33 @@ const InboxBlock = ({
   title,
   rows,
   children,
+  tone = "marca",
 }: {
   title: string;
   rows: FloorTable[];
   children: (row: FloorTable) => ReactNode;
+  tone?: "marca" | "alerta";
 }) => (
-  <section className="rounded-2xl border border-marca/25 bg-marca/5 p-3 sm:p-4">
-    <h2 className="text-xs font-semibold uppercase tracking-wide text-marca">
+  <section
+    className={`rounded-2xl border p-3 sm:p-4 ${
+      tone === "alerta"
+        ? "border-alerta/30 bg-alerta/5"
+        : "border-marca/25 bg-marca/5"
+    }`}
+  >
+    <h2
+      className={`text-xs font-semibold uppercase tracking-wide ${
+        tone === "alerta" ? "text-alerta" : "text-marca"
+      }`}
+    >
       {title}
-      <span className="ml-1.5 tabular-nums text-marca/70">{rows.length}</span>
+      <span
+        className={`ml-1.5 tabular-nums ${
+          tone === "alerta" ? "text-alerta/70" : "text-marca/70"
+        }`}
+      >
+        {rows.length}
+      </span>
     </h2>
     <ul className="mt-3 flex flex-col gap-3">
       {rows.map((row) => (
@@ -151,6 +169,9 @@ const InboxRow = ({
         {row.calledAt ? (
           <p className="mt-1 text-sm font-semibold text-alerta">{t("mesas.teLlaman")}</p>
         ) : null}
+        {row.billRequests.length > 0 ? (
+          <p className="mt-1 text-sm font-semibold text-curso">{t("mesas.solicitaCuenta")}</p>
+        ) : null}
         <ul className="mt-3 flex flex-col gap-3">
           {timed.map((o) => {
             const isNew = newOrderIds?.has(o.id) ?? o.status === "creado";
@@ -164,9 +185,12 @@ const InboxRow = ({
                     })}
                   </span>
                   <span
-                    className={`font-semibold ${
-                      isNew ? "text-marca" : "text-carbon/50"
-                    }`}
+                    className={
+                      isNew
+                        ? "font-semibold text-marca"
+                        : "font-normal text-carbon/45"
+                    }
+                    title={isNew ? undefined : t("mesas.vistoAyuda")}
                   >
                     {isNew ? t("mesas.nuevo") : t("mesas.visto")}
                   </span>

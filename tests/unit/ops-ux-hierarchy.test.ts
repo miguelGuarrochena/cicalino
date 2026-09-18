@@ -104,6 +104,9 @@ describe("Operación — jerarquía y layout", () => {
     const charge = read("src/components/panel/mesas/ChargeInbox.tsx");
     expect(layout).toContain("FloorAttentionWatch");
     expect(nav).toContain("headerUnseen");
+    expect(nav).toContain("headerPedido");
+    expect(nav).toContain("headerCuenta");
+    expect(nav).toContain("nav.pedidoYCuenta");
     expect(nav).toContain("u-attention-pulse");
     expect(nav).not.toContain("alert(");
     expect(css).toContain("u-attention-pulse");
@@ -111,9 +114,17 @@ describe("Operación — jerarquía y layout", () => {
     expect(css).toContain("u-attention-dot");
     expect(inbox).toContain("mesas.nuevo");
     expect(inbox).toContain("mesas.visto");
+    expect(inbox).toContain("mesas.vistoAyuda");
     expect(charge).toContain("mesas.solicitaCuenta");
     expect(charge).toContain("mesas.cuentaSolicitada");
     expect(charge).toContain("mesas.verMesa");
+    expect(charge).toContain("border-curso-borde");
+    expect(inbox).toContain("mesas.solicitaCuenta");
+    expect(inbox).toContain('tone="alerta"');
+    const mesas = read("src/app/(app)/panel/mesas/page.tsx");
+    expect(mesas).toContain("expanded={showClosed}");
+    expect(mesas).not.toContain("tab === \"cobrar\" || showClosed");
+    expect(nav).toContain("bg-curso");
   });
 
   it("el panel no usa el select nativo: las opciones van por el Select de la app", () => {
@@ -168,5 +179,8 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesasPage).toContain('k="cobrar"');
     expect(mesasPage).toContain('k="todas"');
     expect(mesasPage).toContain('k="turno"');
+    expect(mesasPage).toContain('tone: "marca"');
+    expect(mesasPage).toContain('tone: "curso"');
+    expect(tabs).toContain('tone?: "marca" | "curso"');
   });
 });
