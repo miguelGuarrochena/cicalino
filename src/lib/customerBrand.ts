@@ -37,18 +37,64 @@ export const brandFromLocal = (local: {
   color: parseBrandColor(local?.color_marca),
 });
 
-/* Cobalto oficial de Cicalino: no se guarda. null deja --brand del CSS. */
+/* Paleta del comensal: el color pinta el FONDO. Textos y botones contrastan.
+ * `bg-marca text-crema` = botón en `brand` con texto en `bg`.
+ * null = crema + cobalto oficial. No es el Light/Dark del panel. */
 export const BRAND_PRESETS: Record<
   BrandColorId,
-  { brand: string; strong: string }
+  {
+    bg: string;
+    surface: string;
+    text: string;
+    brand: string;
+    strong: string;
+    line: string;
+    scheme: "light" | "dark";
+  }
 > = {
-  negro: { brand: "#171717", strong: "#0a0a0a" },
-  bordo: { brand: "#7f1d1d", strong: "#5f1515" },
-  verde: { brand: "#15803d", strong: "#166534" },
-  terracota: { brand: "#c2410c", strong: "#9a3412" },
+  negro: {
+    bg: "#171717",
+    surface: "#242424",
+    text: "#f4efe0",
+    brand: "#f4efe0",
+    strong: "#ffffff",
+    line: "#3a3a3a",
+    scheme: "dark",
+  },
+  bordo: {
+    bg: "#7f1d1d",
+    surface: "#8f2a2a",
+    text: "#faf4ea",
+    brand: "#faf4ea",
+    strong: "#ffffff",
+    line: "#a34a4a",
+    scheme: "dark",
+  },
+  verde: {
+    bg: "#15803d",
+    surface: "#1a9148",
+    text: "#f4faf6",
+    brand: "#f4faf6",
+    strong: "#ffffff",
+    line: "#4ade80",
+    scheme: "dark",
+  },
+  terracota: {
+    bg: "#c2410c",
+    surface: "#d14e16",
+    text: "#fff7ed",
+    brand: "#fff7ed",
+    strong: "#ffffff",
+    line: "#fdba74",
+    scheme: "dark",
+  },
 };
 
-export const COBALT_SWATCH = "#2536d4";
+export const CICALINO_SWATCH = "#f4f1da";
+
+export const brandColorScheme = (
+  color: BrandColorId | null,
+): "light" | "dark" => (color ? BRAND_PRESETS[color].scheme : "light");
 
 export const brandCssVars = (
   color: BrandColorId | null,
@@ -56,10 +102,18 @@ export const brandCssVars = (
   if (!color) return undefined;
   const p = BRAND_PRESETS[color];
   return {
+    "--bg": p.bg,
+    "--surface": p.surface,
+    "--text": p.text,
     "--brand": p.brand,
     "--brand-strong": p.strong,
+    "--line": p.line,
+    "--color-crema": p.bg,
+    "--color-surface": p.surface,
+    "--color-carbon": p.text,
     "--color-marca": p.brand,
     "--color-marca-fuerte": p.strong,
+    "--color-linea": p.line,
   };
 };
 

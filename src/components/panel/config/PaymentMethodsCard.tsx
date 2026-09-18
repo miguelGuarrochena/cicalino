@@ -235,6 +235,7 @@ export const PaymentMethodsCard = ({
           onChange={(v) => set("debit", v)}
           label={t("mesa.metodo.tarjeta_debito")}
         >
+          <p className="text-xs text-carbon/55">{t("cobros.tarjetaAyuda")}</p>
           <SurchargeInput
             label={t("cobros.recargo")}
             value={s.debitSurchargePct}
@@ -248,6 +249,7 @@ export const PaymentMethodsCard = ({
           onChange={(v) => set("credit", v)}
           label={t("mesa.metodo.tarjeta_credito")}
         >
+          <p className="text-xs text-carbon/55">{t("cobros.tarjetaAyuda")}</p>
           <SurchargeInput
             label={t("cobros.recargo")}
             value={s.creditSurchargePct}

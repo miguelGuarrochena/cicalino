@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import {
   mapBill,
@@ -11,6 +12,7 @@ import {
 import { mercadoPagoConfigured } from "@/lib/server/mercadopago";
 import { orderForGuests } from "@/lib/menuView";
 import { brandFromLocal, emptyCustomerBrand, type CustomerBrand } from "@/lib/customerBrand";
+import { GUEST_COOKIE } from "@/lib/guestSession";
 
 /* Guest identity at a table.
  *
@@ -20,10 +22,11 @@ import { brandFromLocal, emptyCustomerBrand, type CustomerBrand } from "@/lib/cu
  * SQL function checks them, so a guest can't act as another one even knowing
  * their id. The name is display only.
  *
- * One cookie per browser: scanning another table's QR and joining replaces
- * it. Refresh and reconnection just work, because nothing lives in memory. */
+ * Set-Cookie must go on the JSON response (cookies().set() in a Route Handler
+ * is easy to drop). Camera browsers may still discard it; the client keeps a
+ * copy in localStorage and POST /restaurar puts the cookie back. */
 
-export const GUEST_COOKIE = "cicalino_comensal";
+export { GUEST_COOKIE };
 const COOKIE_MAX_AGE = 12 * 60 * 60;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,14 +41,29 @@ export const newGuestSecret = (): { secret: string; hash: string } => {
 };
 
 export type GuestCredentials = { guestId: string; tokenHash: string };
+export type GuestCookieValue = GuestCredentials & { secret: string };
 
-export const readGuestCookie = async (): Promise<GuestCredentials | null> => {
-  const raw = (await cookies()).get(GUEST_COOKIE)?.value ?? "";
+export const parseGuestCookieValue = (raw: string): GuestCookieValue | null => {
   const [guestId, secret] = raw.split(".");
   if (!guestId || !secret || !UUID_RE.test(guestId) || !SECRET_RE.test(secret)) {
     return null;
   }
-  return { guestId, tokenHash: hashSecret(secret) };
+  return { guestId, secret, tokenHash: hashSecret(secret) };
+};
+
+export const readGuestCookie = async (): Promise<GuestCredentials | null> => {
+  const parsed = parseGuestCookieValue((await cookies()).get(GUEST_COOKIE)?.value ?? "");
+  if (!parsed) return null;
+  return { guestId: parsed.guestId, tokenHash: parsed.tokenHash };
+};
+
+export const attachGuestCookie = <T extends NextResponse>(
+  res: T,
+  guestId: string,
+  secret: string,
+): T => {
+  res.cookies.set(GUEST_COOKIE, `${guestId}.${secret}`, guestCookieOptions());
+  return res;
 };
 
 export const guestCookieOptions = () => ({

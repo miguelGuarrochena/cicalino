@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { TableGuestApp } from "@/components/customer/table/TableGuestApp";
 import { TableNotFound } from "@/components/customer/table/TableNotFound";
 import { qrTokenSchema, uuid } from "@/lib/schemas";
+import { guestSessionHere } from "@/lib/guestSession";
 import {
   fetchGuestPaymentOptions,
   fetchGuestState,
@@ -92,12 +93,9 @@ const TablePage = async ({
     fetchBranchBrand(mesa.branchId),
   ]);
 
-  /* The cookie belongs to this table only if it points to it. A guest from
-   * yesterday's session or another table joins again. */
-  const here =
-    state.ok &&
-    state.tableToken === token &&
-    state.bill.session.tableId === mesa.tableId;
+  /* Same phone, same table, account still open: skip the name form. A paid
+   * or closed session (or a guest from another table) joins again. */
+  const here = state.ok && guestSessionHere(state.bill.session, mesa.tableId);
 
   return (
     <TableGuestApp

@@ -327,8 +327,18 @@ export type PaymentPreview =
       total: number;
       parts: number;
       totalParts: number | null;
+      /* Consumption still uncovered after this payment (not including tip). */
+      remaining: number;
     }
   | { ok: false; reason: PreviewReason; available?: number };
+
+/* "¿Entre cuántos?" / "¿Cuántas partes?": empty while typing is valid. */
+export const parsePartCount = (raw: string): number | null => {
+  if (!raw.trim()) return null;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isInteger(n) || n < 1 || n > 50) return null;
+  return n;
+};
 
 /* Postgres round() on numeric rounds half away from zero; every amount here
  * is positive, where Math.round does the same. */
@@ -480,6 +490,7 @@ export const previewPayment = (
     total: base + tip + surcharge,
     parts,
     totalParts,
+    remaining: available - base,
   };
 };
 
