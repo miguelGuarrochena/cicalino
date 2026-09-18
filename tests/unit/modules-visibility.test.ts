@@ -57,9 +57,9 @@ describe("modules — solo espera / dispositivo", () => {
     ).toEqual({ pedidos: true, espera: false, pagos: true });
   });
 
-  it("una sucursal con solo pagos divididos arranca en /panel/mesas", () => {
+  it("una sucursal con solo pagos divididos arranca en /panel/pagos", () => {
     const soloPagos = { pedidos: false, espera: false, pagos: true };
-    expect(panelHomePath(soloPagos)).toBe("/panel/mesas");
+    expect(panelHomePath(soloPagos)).toBe("/panel/pagos");
     expect(onlyModule(soloPagos)).toBe("pagos");
     expect(onlyModule({ pedidos: true, espera: false, pagos: true })).toBeNull();
   });

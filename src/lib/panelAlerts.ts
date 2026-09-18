@@ -54,21 +54,21 @@ interface KindMeta {
 export const ALERT_META: Record<PanelAlertKind, KindMeta> = {
   llamado: {
     source: "mesas",
-    href: "/panel/mesas",
+    href: "/panel/pagos",
     priority: 4,
     titleKey: "alertas.llamado",
     icon: "🔔",
   },
   cuenta: {
     source: "mesas",
-    href: "/panel/mesas",
+    href: "/panel/pagos",
     priority: 3,
     titleKey: "alertas.cuenta",
     icon: "💳",
   },
   "pedido-mesa": {
     source: "mesas",
-    href: "/panel/mesas",
+    href: "/panel/pagos",
     priority: 2,
     titleKey: "alertas.pedidoMesa",
     icon: "🍽️",
@@ -78,7 +78,7 @@ export const ALERT_META: Record<PanelAlertKind, KindMeta> = {
    * siempre contra una novedad que ya se resolvió sola. */
   "mp-pagado": {
     source: "mesas",
-    href: "/panel/mesas",
+    href: "/panel/pagos",
     priority: 1,
     titleKey: "alertas.mpPagado",
     icon: "💸",
@@ -211,7 +211,7 @@ export const topAlert = (alerts: PanelAlert[]): PanelAlert | null =>
   sortAlerts(alerts)[0] ?? null;
 
 /* La pantalla que ya está abierta no necesita que le griten: muestra el
- * detalle. Se compara exacto y no por prefijo a propósito — /panel/mesas/qr
+ * detalle. Se compara exacto y no por prefijo a propósito — /panel/pagos/qr
  * está "dentro de Mesas" pero es la pantalla de imprimir códigos, y ahí el
  * llamado de la mesa 4 no se ve por ningún lado. */
 export const alertIsElsewhere = (a: PanelAlert, path: string): boolean =>

@@ -7,7 +7,7 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 
 describe("Operación — jerarquía y layout", () => {
   it("QR: una columna en mobile, dos en tablet, tres o más en desktop", () => {
-    const qr = read("src/app/(app)/panel/mesas/qr/page.tsx");
+    const qr = read("src/app/(app)/panel/pagos/qr/page.tsx");
     const modal = read("src/components/panel/mesas/QrDownloadModal.tsx");
     expect(qr).toContain("grid-cols-1");
     expect(qr).toContain("md:grid-cols-2");
@@ -89,7 +89,7 @@ describe("Operación — jerarquía y layout", () => {
   });
 
   it("Pagos: grilla compacta, atención primero, Cobrar es el CTA de la mesa", () => {
-    const mesas = read("src/app/(app)/panel/mesas/page.tsx");
+    const mesas = read("src/app/(app)/panel/pagos/page.tsx");
     const detalle = read("src/components/panel/mesas/TableDetail.tsx");
     const guest = read("src/components/customer/table/TableGuestApp.tsx");
     const qr = read("src/components/panel/QrModal.tsx");
@@ -147,11 +147,11 @@ describe("Operación — jerarquía y layout", () => {
 
   it("Recepción sienta gente; el turno de quién atiende vive en Mesas", () => {
     const espera = read("src/app/(app)/panel/espera/page.tsx");
-    const mesas = read("src/app/(app)/panel/mesas/page.tsx");
+    const mesas = read("src/app/(app)/panel/pagos/page.tsx");
     const nav = read("src/lib/operation.ts");
     const pricing = read("src/lib/pricing.ts");
     expect(nav).toContain('key: "nav.espera"');
-    expect(nav).toContain('key: "nav.mesas"');
+    expect(nav).toContain('key: "nav.pagos"');
     expect(espera).not.toContain("JornadaBoard");
     expect(espera).not.toContain("recepcion.jornada");
     expect(espera).toContain('t("nav.espera")');
@@ -199,7 +199,7 @@ describe("Operación — jerarquía y layout", () => {
     expect(charge).toContain("border-curso-borde");
     expect(inbox).toContain("mesas.solicitaCuenta");
     expect(inbox).toContain('tone="alerta"');
-    const mesas = read("src/app/(app)/panel/mesas/page.tsx");
+    const mesas = read("src/app/(app)/panel/pagos/page.tsx");
     expect(mesas).toContain("expanded={showClosed}");
     expect(mesas).not.toContain("tab === \"cobrar\" || showClosed");
     expect(nav).toContain("bg-curso");
@@ -257,11 +257,15 @@ describe("Operación — jerarquía y layout", () => {
     const tabs = read("src/components/ui/SegmentedTabs.tsx");
     expect(tabs).toContain("min-h-[4.5rem]");
     expect(tabs).toContain("grid-cols-2 sm:grid-cols-4");
-    const mesasPage = read("src/app/(app)/panel/mesas/page.tsx");
+    const mesasPage = read("src/app/(app)/panel/pagos/page.tsx");
     expect(mesasPage).toContain('k="pedido"');
     expect(mesasPage).toContain('k="cobrar"');
     expect(mesasPage).toContain('k="todas"');
-    expect(mesasPage).toContain('k="turno"');
+    /* Turnos salió de las pestañas operativas: es administración, no algo que
+     * el mozo toque durante el servicio. Sigue llegándose desde la pantalla. */
+    expect(mesasPage).not.toContain('k="turno"');
+    expect(mesasPage).toContain("mesas.administracion");
+    expect(mesasPage).toContain('setTab(tab === "turno" ? "todas" : "turno")');
     expect(mesasPage).toContain('tone: "marca"');
     expect(mesasPage).toContain('tone: "curso"');
     expect(tabs).toContain('tone?: "marca" | "curso"');
@@ -335,7 +339,7 @@ describe("Impresión del QR", () => {
   });
 
   it("la descarga del PNG sigue siendo el otro camino", () => {
-    const qr = read("src/app/(app)/panel/mesas/qr/page.tsx");
+    const qr = read("src/app/(app)/panel/pagos/qr/page.tsx");
     expect(qr).toContain("QrDownloadModal");
     expect(read("src/components/panel/mesas/QrDownloadModal.tsx")).toContain("descargarSolo");
   });

@@ -174,11 +174,11 @@ describe("Capa global de avisos del panel", () => {
       { id: "p1", reference: "14", createdAt: "2026-09-16T20:01:00Z" },
     ]);
     expect(alertIsElsewhere(a, "/panel/pedidos")).toBe(false);
-    expect(alertIsElsewhere(a, "/panel/mesas")).toBe(true);
+    expect(alertIsElsewhere(a, "/panel/pagos")).toBe(true);
     expect(alertIsElsewhere(a, "/panel/config")).toBe(true);
     /* Mesas › QR no muestra ninguna bandeja: ahí el aviso sí tiene que salir. */
     const [m] = sortAlerts(alertaMesaLlamando());
-    expect(alertIsElsewhere(m, "/panel/mesas/qr")).toBe(true);
+    expect(alertIsElsewhere(m, "/panel/pagos/qr")).toBe(true);
   });
 });
 
@@ -250,8 +250,8 @@ describe("Tablero global — publicar, ver y dar por visto", () => {
     const enConfig = getLiveAlerts().filter((a) => alertIsElsewhere(a, "/panel/config"));
     expect(enConfig).toHaveLength(3);
     expect(enConfig[0].kind).toBe("llamado");
-    expect(enConfig[0].href).toBe("/panel/mesas");
-    const enMesas = getLiveAlerts().filter((a) => alertIsElsewhere(a, "/panel/mesas"));
+    expect(enConfig[0].href).toBe("/panel/pagos");
+    const enMesas = getLiveAlerts().filter((a) => alertIsElsewhere(a, "/panel/pagos"));
     expect(enMesas).toEqual([]);
   });
 
@@ -278,7 +278,7 @@ describe("Tablero global — publicar, ver y dar por visto", () => {
       "pedidos",
       "recepcion",
     ]);
-    expect(visiblesEn("/panel/mesas").sort()).toEqual(["pedidos", "recepcion"]);
+    expect(visiblesEn("/panel/pagos").sort()).toEqual(["pedidos", "recepcion"]);
     expect(visiblesEn("/panel/espera").sort()).toEqual([
       "mesas",
       "mesas",
@@ -357,7 +357,7 @@ describe("Cableado: una sola capa, montada en el layout", () => {
     expect(read("src/components/panel/mesas/KitchenInbox.tsx")).toContain("u-alert-beat");
     expect(read("src/components/panel/mesas/ChargeInbox.tsx")).toContain("u-alert-beat");
     expect(read("src/components/ui/SegmentedTabs.tsx")).toContain("u-alert-beat");
-    expect(read("src/app/(app)/panel/mesas/page.tsx")).toContain("tableAlert");
+    expect(read("src/app/(app)/panel/pagos/page.tsx")).toContain("tableAlert");
   });
 });
 
@@ -367,7 +367,7 @@ describe("Cableado: una sola capa, montada en el layout", () => {
  * tenía dos dueños y el mozo tenía que decidir en cuál tocarlo. El flujo de
  * Mesas es: lo piden → lo anoto → piden la cuenta → cobro. */
 describe("Mesas: atender y cobrar, no cocinar", () => {
-  const mesas = read("src/app/(app)/panel/mesas/page.tsx");
+  const mesas = read("src/app/(app)/panel/pagos/page.tsx");
   const detalle = read("src/components/panel/mesas/TableDetail.tsx");
   const inbox = read("src/components/panel/mesas/KitchenInbox.tsx");
 
@@ -673,12 +673,12 @@ describe("Cerrar mesa accesible", () => {
     expect(tile).not.toContain("CloseBtn");
     expect(tile).not.toContain("stopPropagation");
     expect(tile).not.toContain("cerrarMesaN");
-    const page = read("src/app/(app)/panel/mesas/page.tsx");
+    const page = read("src/app/(app)/panel/pagos/page.tsx");
     expect(page).not.toContain("cerrarDesdeMapa");
   });
 
   it("se cierra desde el detalle, con un solo modal", () => {
-    const page = read("src/app/(app)/panel/mesas/page.tsx");
+    const page = read("src/app/(app)/panel/pagos/page.tsx");
     const detail = read("src/components/panel/mesas/TableDetail.tsx");
     expect(page).toContain("CloseTableModal");
     expect(page).toContain("onCloseTable");

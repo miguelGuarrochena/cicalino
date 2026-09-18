@@ -5,6 +5,26 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Los service workers para Web Push se sirven desde /public.
   // Headers para permitir el registro del SW en la vista del cliente.
+  /* El módulo se llamaba "mesas" y pasó a llamarse "pagos", que es como se
+   * llama internamente desde siempre (`ModuleId`, `local_tiene_modulo`). La
+   * ruta vieja queda redirigiendo para siempre: en el salón hay tablets con la
+   * pantalla guardada en favoritos o en la pantalla de inicio, y ese link no
+   * lo vuelve a crear nadie. 308 conserva el método y lo cachea el navegador.
+   *
+   * Va en la config y no en el middleware a propósito: los redirects de
+   * `next.config` corren ANTES del middleware, así que la URL vieja llega a la
+   * protección de sesión ya convertida en la nueva. */
+  async redirects() {
+    return [
+      { source: "/panel/mesas", destination: "/panel/pagos", permanent: true },
+      {
+        source: "/panel/mesas/:resto*",
+        destination: "/panel/pagos/:resto*",
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     // Headers de seguridad para todas las rutas.
     const security = [

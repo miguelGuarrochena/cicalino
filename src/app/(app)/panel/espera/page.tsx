@@ -590,14 +590,6 @@ const EsperaPanelPage = () => {
           >
             {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
           </button>
-          {visibles.pagos && (
-            <Link
-              href="/panel/mesas"
-              className="flex w-full min-h-12 items-center justify-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema sm:w-auto sm:min-h-0 sm:py-2.5"
-            >
-              {t("nav.mesas")}
-            </Link>
-          )}
         </div>
       </div>
 

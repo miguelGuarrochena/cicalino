@@ -34,8 +34,8 @@ export const OPERATIONAL_NAV: OperationalNavLink[] = [
     module: "espera",
   },
   {
-    href: "/panel/mesas",
-    key: "nav.mesas",
+    href: "/panel/pagos",
+    key: "nav.pagos",
     roles: ["admin", "supervisor", "empleado"],
     icon: "mesas",
     module: "pagos",
@@ -48,7 +48,7 @@ export const hasAnyOperationalModule = (m: ModuleFlags): boolean =>
 /** Which contracted module a panel URL belongs to, if any. */
 export const moduleForPath = (path: string): ModuleId | null => {
   if (path.startsWith("/panel/espera")) return "espera";
-  if (path.startsWith("/panel/mesas")) return "pagos";
+  if (path.startsWith("/panel/pagos")) return "pagos";
   if (
     path.startsWith("/panel/config") ||
     path.startsWith("/panel/metrics") ||

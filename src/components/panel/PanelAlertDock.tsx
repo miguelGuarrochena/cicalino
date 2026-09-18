@@ -62,7 +62,7 @@ const TONE: Record<PanelAlertKind, { card: string; halo: string; chip: string }>
 };
 
 const SOURCE_KEY = {
-  mesas: "nav.mesas",
+  mesas: "nav.pagos",
   pedidos: "nav.pedidos",
   recepcion: "nav.espera",
 } as const;
