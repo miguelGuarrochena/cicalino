@@ -10,6 +10,7 @@ import {
   SPLIT_MODES,
   enabledMethods,
   formatMoney,
+  parsePartCount,
   previewPayment,
   splitModeLocked,
   type PaymentDraft,
@@ -55,10 +56,10 @@ export const PaySheet = ({
   const methods = enabledMethods(settings, { mercadoPagoConnected: mercadoPagoReady });
 
   const [mode, setMode] = useState<SplitMode>(bill.session.splitMode ?? "consumo");
-  const [totalParts, setTotalParts] = useState(
-    bill.session.parts ?? Math.max(bill.guests.length, 2),
+  const [totalPartsInput, setTotalPartsInput] = useState(
+    String(bill.session.parts ?? Math.max(bill.guests.length, 2)),
   );
-  const [parts, setParts] = useState(1);
+  const [partsInput, setPartsInput] = useState("1");
   const [amountKind, setAmountKind] = useState<"monto" | "porcentaje">("monto");
   const [amountInput, setAmountInput] = useState("");
   const [tip, setTip] = useState<TipChoice>(0);
@@ -72,17 +73,41 @@ export const PaySheet = ({
   const draft: PaymentDraft | null = useMemo(() => {
     if (!method) return null;
     const amount = Number(amountInput.replace(/[^\d.,]/g, "").replace(",", "."));
-    return {
-      mode,
+    const tipPercent = tip === "otro" ? null : tip;
+    const tipAmount = tip === "otro" ? Math.max(0, Math.trunc(Number(tipOther) || 0)) : null;
+    const common = {
       method,
-      parts: mode === "iguales" ? parts : undefined,
-      totalParts: mode === "iguales" && !locked ? totalParts : undefined,
       amount: mode === "monto" && amountKind === "monto" && amount > 0 ? Math.trunc(amount) : null,
       percent: mode === "monto" && amountKind === "porcentaje" && amount > 0 ? amount : null,
-      tipPercent: tip === "otro" ? null : tip,
-      tipAmount: tip === "otro" ? Math.max(0, Math.trunc(Number(tipOther) || 0)) : null,
+      tipPercent,
+      tipAmount,
     };
-  }, [method, mode, parts, totalParts, locked, amountKind, amountInput, tip, tipOther]);
+    if (mode === "iguales") {
+      const parts = parsePartCount(partsInput);
+      const totalParts = locked
+        ? (bill.session.parts ?? parsePartCount(totalPartsInput))
+        : parsePartCount(totalPartsInput);
+      if (parts == null || totalParts == null) return null;
+      return {
+        ...common,
+        mode,
+        parts,
+        totalParts: locked ? undefined : totalParts,
+      };
+    }
+    return { ...common, mode };
+  }, [
+    method,
+    mode,
+    partsInput,
+    totalPartsInput,
+    locked,
+    bill.session.parts,
+    amountKind,
+    amountInput,
+    tip,
+    tipOther,
+  ]);
 
   const preview = draft ? previewPayment(bill, guestId, draft, settings) : null;
 
@@ -221,25 +246,27 @@ export const PaySheet = ({
                 <label className="flex flex-col gap-1">
                   <span className="text-carbon/60">{t("mesa.partesTotales")}</span>
                   <input
-                    type="number"
                     inputMode="numeric"
-                    min={1}
-                    max={50}
-                    value={locked ? (bill.session.parts ?? totalParts) : totalParts}
+                    pattern="[0-9]*"
+                    maxLength={2}
+                    value={locked ? String(bill.session.parts ?? totalPartsInput) : totalPartsInput}
                     disabled={locked}
-                    onChange={(e) => touch(setTotalParts)(Number(e.target.value) || 1)}
+                    onChange={(e) =>
+                      touch(setTotalPartsInput)(e.target.value.replace(/\D/g, "").slice(0, 2))
+                    }
                     className="rounded-xl border border-linea bg-surface px-3 py-2 disabled:opacity-60"
                   />
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-carbon/60">{t("mesa.partesQuePago")}</span>
                   <input
-                    type="number"
                     inputMode="numeric"
-                    min={1}
-                    max={50}
-                    value={parts}
-                    onChange={(e) => touch(setParts)(Math.max(1, Number(e.target.value) || 1))}
+                    pattern="[0-9]*"
+                    maxLength={2}
+                    value={partsInput}
+                    onChange={(e) =>
+                      touch(setPartsInput)(e.target.value.replace(/\D/g, "").slice(0, 2))
+                    }
                     className="rounded-xl border border-linea bg-surface px-3 py-2"
                   />
                 </label>
@@ -269,12 +296,13 @@ export const PaySheet = ({
                   className="rounded-xl border border-linea bg-surface px-3 py-2"
                   aria-label={t(`mesa.por.${amountKind}`)}
                 />
-                <p className="text-xs text-carbon/55">
-                  {t("mesa.faltaCubrir", { n: formatMoney(bill.totals.available) })}
-                </p>
               </div>
             )}
           </fieldset>
+
+          <p className="text-sm font-semibold text-carbon">
+            {t("mesa.faltaCubrir", { n: formatMoney(bill.totals.available) })}
+          </p>
 
           <fieldset>
             <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
@@ -328,6 +356,7 @@ export const PaySheet = ({
           {preview && (
             <div className="rounded-2xl border border-linea bg-crema/50 p-4">
               {preview.ok ? (
+                <>
                 <dl className="flex flex-col gap-1 text-sm">
                   <div className="flex justify-between">
                     <dt className="text-carbon/65">
@@ -360,6 +389,12 @@ export const PaySheet = ({
                     </dd>
                   </div>
                 </dl>
+                <p className="mt-2 text-xs font-medium text-carbon/65">
+                  {preview.remaining > 0
+                    ? t("mesa.faltaDespues", { n: formatMoney(preview.remaining) })
+                    : t("mesa.cubreTodo")}
+                </p>
+                </>
               ) : (
                 <p className="text-sm text-carbon/65">
                   {preview.reason === "excede" && preview.available != null

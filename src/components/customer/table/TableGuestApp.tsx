@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import { Controls } from "@/components/ui/Controls";
@@ -629,17 +629,12 @@ const JoinTable = ({
   const [restoring, setRestoring] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const errorText = useErrorText();
-  const onJoinedRef = useRef(onJoined);
-  onJoinedRef.current = onJoined;
 
   useEffect(() => {
-    const cred = loadGuestCred(token);
-    if (!cred) {
-      setRestoring(false);
-      return;
-    }
     let cancelled = false;
     const restore = async () => {
+      const cred = loadGuestCred(token);
+      if (!cred) return;
       try {
         const res = await fetch(`/api/m/${token}/restaurar`, {
           method: "POST",
@@ -652,21 +647,21 @@ const JoinTable = ({
           | null;
         if (cancelled) return;
         if (data?.ok && data.guest && data.bill) {
-          onJoinedRef.current(data.guest, data.bill);
+          onJoined(data.guest, data.bill);
           return;
         }
         clearGuestCred(token);
       } catch {
         /* Offline: keep creds so the next scan can restore. */
-      } finally {
-        if (!cancelled) setRestoring(false);
       }
     };
-    void restore();
+    void restore().finally(() => {
+      if (!cancelled) setRestoring(false);
+    });
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, onJoined]);
 
   const join = async (e: React.FormEvent) => {
     e.preventDefault();

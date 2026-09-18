@@ -8,6 +8,7 @@ import {
   billPending,
   billStatus,
   previewPayment,
+  parsePartCount,
   splitModeLocked,
   type BillPayment,
   type PaymentSettings,
@@ -179,6 +180,31 @@ describe("previewPayment", () => {
     );
     expect(previewPayment(partly, "juan", { mode: "monto", method: "efectivo", amount: 18001 }, settings))
       .toEqual({ ok: false, reason: "excede", available: 18000 });
+  });
+
+  it("50% y 45% dejan el resto, y un monto parcial también", () => {
+    const bill = mkBill({ totals: { ...mkBill().totals, consumption: 40000 } });
+    expect(
+      previewPayment(bill, "juan", { mode: "monto", method: "efectivo", percent: 50 }, settings),
+    ).toMatchObject({ ok: true, base: 20000, remaining: 20000 });
+    const afterHalf = mkBill(
+      { totals: { ...mkBill().totals, consumption: 40000 } },
+      [payment({ mode: "monto", base: 20000 })],
+    );
+    expect(
+      previewPayment(afterHalf, "maria", { mode: "monto", method: "efectivo", percent: 45 }, settings),
+    ).toMatchObject({ ok: true, base: 18000, remaining: 2000 });
+    expect(
+      previewPayment(bill, "juan", { mode: "monto", method: "efectivo", amount: 24000 }, settings),
+    ).toMatchObject({ ok: true, base: 24000, remaining: 16000 });
+  });
+
+  it("parsePartCount permite borrar el 1 para escribir otro número", () => {
+    expect(parsePartCount("")).toBeNull();
+    expect(parsePartCount("0")).toBeNull();
+    expect(parsePartCount("1")).toBe(1);
+    expect(parsePartCount("12")).toBe(12);
+    expect(parsePartCount("51")).toBeNull();
   });
 
   it("un pago de Mercado Pago vencido libera su parte, como en SQL", () => {
