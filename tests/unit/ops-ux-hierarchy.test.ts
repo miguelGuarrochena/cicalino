@@ -251,3 +251,76 @@ describe("Operación — jerarquía y layout", () => {
     expect(tabs).toContain('tone?: "marca" | "curso"');
   });
 });
+
+/* El sticker del QR se imprime desde la app, no desde una ventana aparte.
+ *
+ * Antes esto abría un `window.open` en blanco y le escribía HTML a mano: el
+ * sticker salía en `system-ui` y `#111`, no se parecía a Cicalino, y si el
+ * navegador bloqueaba los emergentes el botón no hacía absolutamente nada. */
+describe("Impresión del QR", () => {
+  const modal = read("src/components/panel/QrModal.tsx");
+  const papel = read("src/components/panel/PrintableQr.tsx");
+  const css = read("src/app/globals.css");
+
+  it("no abre ninguna ventana ni escribe HTML a mano", () => {
+    expect(modal).not.toContain("window.open");
+    expect(modal).not.toContain("document.write");
+    expect(modal).toContain("window.print()");
+  });
+
+  it("el papel vive en el documento, oculto en pantalla", () => {
+    expect(papel).toContain("hidden");
+    expect(papel).toContain("print:block");
+    expect(modal).toContain("PrintableQr");
+    /* Va en su propio portal: el modal vive en otro y se esconde al imprimir. */
+    expect(modal).toContain("createPortal");
+  });
+
+  it("al imprimir no se cuela nada del panel", () => {
+    expect(modal).toContain('document.body.dataset.imprimiendo = "qr"');
+    /* Y se limpia tanto al volver del diálogo como al cerrar el modal. */
+    expect(modal).toContain('addEventListener("afterprint"');
+    expect(modal).toContain("delete document.body.dataset.imprimiendo");
+    const regla = css.slice(css.indexOf('body[data-imprimiendo="qr"]'));
+    expect(regla).toContain('*:not([data-imprimible="qr"])');
+    expect(regla).toContain("display: none");
+  });
+
+  it("la regla está atada a la marca, así no rompe otras impresiones", () => {
+    /* La cuenta de la mesa (PrintableBill) imprime por su cuenta con
+     * `print:hidden` en cada ancestro: esta regla no la tiene que tocar. */
+    const bloque = css.slice(
+      css.indexOf("---- Imprimir solo el sticker"),
+      css.indexOf("Scroll interno de modales"),
+    );
+    expect(bloque).toContain('body[data-imprimiendo="qr"]');
+    expect(bloque).not.toMatch(/^\s*body\s*>/m);
+  });
+
+  it("el papel imprime en negro sobre blanco aunque el panel esté en oscuro", () => {
+    /* Con tokens de tema, `text-carbon` en modo oscuro sale casi blanco.
+     * Se mira el JSX y no el archivo entero: el comentario los nombra. */
+    const jsx = papel.slice(papel.indexOf("return ("));
+    expect(jsx).toContain("bg-white");
+    expect(jsx).toContain("text-black");
+    expect(jsx).not.toContain("text-carbon");
+    expect(jsx).not.toContain("bg-crema");
+  });
+
+  it("el QR del papel es negro y de más resolución que el de pantalla", () => {
+    expect(modal).toContain("printUrl");
+    const i = modal.indexOf(".then(setPrintUrl)");
+    const paraPapel = modal.slice(modal.lastIndexOf("QRCode.toDataURL", i), i);
+    expect(paraPapel).toContain("width: 1024");
+    expect(paraPapel).toContain('dark: "#000000"');
+    expect(paraPapel).toContain('errorCorrectionLevel: "H"');
+    /* 68 mm: entra en un sticker y escanea desde el borde de la mesa. */
+    expect(papel).toContain("68mm");
+  });
+
+  it("la descarga del PNG sigue siendo el otro camino", () => {
+    const qr = read("src/app/(app)/panel/mesas/qr/page.tsx");
+    expect(qr).toContain("QrDownloadModal");
+    expect(read("src/components/panel/mesas/QrDownloadModal.tsx")).toContain("descargarSolo");
+  });
+});

@@ -19,18 +19,22 @@ type Persisted = {
   navOrders: string[];
   navPayments: string[];
   navCalls: string[];
+  navMp: string[];
   cardOrders: string[];
   cardPayments: string[];
   cardCalls: string[];
+  cardMp: string[];
 };
 
 const toPersist = (seen: AttentionSeen): Persisted => ({
   navOrders: [...seen.navOrders],
   navPayments: [...seen.navPayments],
   navCalls: [...seen.navCalls],
+  navMp: [...seen.navMp],
   cardOrders: [...seen.cardOrders],
   cardPayments: [...seen.cardPayments],
   cardCalls: [...seen.cardCalls],
+  cardMp: [...seen.cardMp],
 });
 
 const fromPersist = (raw: unknown): AttentionSeen => {
@@ -42,9 +46,11 @@ const fromPersist = (raw: unknown): AttentionSeen => {
     navOrders: set(r.navOrders),
     navPayments: set(r.navPayments),
     navCalls: set(r.navCalls),
+    navMp: set(r.navMp),
     cardOrders: set(r.cardOrders),
     cardPayments: set(r.cardPayments),
     cardCalls: set(r.cardCalls),
+    cardMp: set(r.cardMp),
   };
 };
 
@@ -142,6 +148,21 @@ export const navAckCalls = (ids: Iterable<string>) => {
   emit();
 };
 
+/* El cobro de Mercado Pago no tiene cola ni pestaña: se marca visto y listo.
+ * Por eso escribe los dos niveles de una — no hay un "abrí la mesa" aparte. */
+export const ackMpPaid = (ids: Iterable<string>) => {
+  const list = [...ids];
+  if (!list.length) return;
+  const next = withIds(state.seen.navMp, list);
+  if (next.size === state.seen.navMp.size) return;
+  state = {
+    ...state,
+    seen: { ...state.seen, navMp: next, cardMp: withIds(state.seen.cardMp, list) },
+  };
+  persist();
+  emit();
+};
+
 export const cardAckOrders = (ids: Iterable<string>) => {
   const list = [...ids];
   if (!list.length) return;
@@ -191,25 +212,30 @@ export const ackTableAttention = (
   orders: Iterable<string>,
   payments: Iterable<string>,
   calls: Iterable<string> = [],
+  mp: Iterable<string> = [],
 ) => {
   cardAckOrders(orders);
   cardAckPayments(payments);
   cardAckCalls(calls);
+  ackMpPaid(mp);
 };
 
 export const pruneFloorAttention = (
   orderIds: string[],
   paymentIds: string[],
   callIds: string[] = [],
+  mpIds: string[] = [],
 ) => {
-  const next = pruneSeen(state.seen, orderIds, paymentIds, callIds);
+  const next = pruneSeen(state.seen, orderIds, paymentIds, callIds, mpIds);
   if (
     next.navOrders.size === state.seen.navOrders.size &&
     next.navPayments.size === state.seen.navPayments.size &&
     next.navCalls.size === state.seen.navCalls.size &&
+    next.navMp.size === state.seen.navMp.size &&
     next.cardOrders.size === state.seen.cardOrders.size &&
     next.cardPayments.size === state.seen.cardPayments.size &&
-    next.cardCalls.size === state.seen.cardCalls.size
+    next.cardCalls.size === state.seen.cardCalls.size &&
+    next.cardMp.size === state.seen.cardMp.size
   ) {
     return;
   }

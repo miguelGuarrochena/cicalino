@@ -21,6 +21,11 @@ const dict = {
       privacidad: "Privacidad",
       terminos: "Términos",
     },
+    /* Botones de los carteles de confirmar (ui/Confirm). */
+    acciones: {
+      cancelar: "Cancelar",
+      confirmar: "Confirmar",
+    },
     /* Avisos globales del panel: se ven desde cualquier pantalla. */
     alertas: {
       titulo: "Novedades",
@@ -29,8 +34,11 @@ const dict = {
       pedidoMesa: "Mesa {n} hizo un pedido",
       pedidoMostrador: "Pedido {n} sin preparar",
       esperaNueva: "{n} entró a la lista",
+      mpPagado: "Mesa {n} pagó con Mercado Pago",
       visto: "Visto",
-      masN: "+{n} más",
+      pendientesN: "{n} pendientes",
+      verLasN: "Ver las {n} que faltan",
+      verMenos: "Ver menos",
     },
     footer: {
       creado: "Creado por",
@@ -667,6 +675,7 @@ const dict = {
     qr: {
       titulo: "QR del pedido",
       escanea: "El cliente lo escanea con la cámara del celular.",
+      impresoPor: "Cicalino",
       mesaEscanea: "Escaneá para ver la carta, pedir y pagar.",
       mesaShare: "{bar} · carta, pedidos y cuenta de la mesa",
       mesaWa: "{bar}: carta y cuenta de la mesa {url}",
@@ -1249,9 +1258,7 @@ const dict = {
       sinCobros: "Nada para cobrar.",
       sinCobrosBody: "Cuando haya saldo, aparece acá. El mapa está en Todas.",
       teLlaman: "Te llaman",
-      teLlamanToast: "Mesa {n} te llama",
-      pidieronCuentaToast: "Mesa {n} pidió la cuenta",
-      mpPagoToast: "Mesa {n} pagó con Mercado Pago",
+      mesaCerrada: "Mesa cerrada",
       nuevo: "Nuevo",
       visto: "Leído",
       vistoAyuda: "Ya lo viste en este dispositivo. Sigue pendiente de anotar.",
@@ -1533,6 +1540,7 @@ const dict = {
       categoriaCreada: "Categoría creada",
       categoriaGuardada: "Categoría guardada",
       categoriaBorrada: "Categoría borrada",
+      categoriaBorrar: "Eliminar categoría",
       categoriaBorrarConfirmar: "¿Borrar la categoría {n}? Los productos quedan sin categoría.",
       duplicada: "Ya existe una categoría con ese nombre.",
       subir: "Subir",
@@ -1628,6 +1636,10 @@ const dict = {
       privacidad: "Privacy",
       terminos: "Terms",
     },
+    acciones: {
+      cancelar: "Cancel",
+      confirmar: "Confirm",
+    },
     alertas: {
       titulo: "What's new",
       llamado: "Table {n} is calling you",
@@ -1635,8 +1647,11 @@ const dict = {
       pedidoMesa: "Table {n} placed an order",
       pedidoMostrador: "Order {n} not started",
       esperaNueva: "{n} joined the waitlist",
+      mpPagado: "Table {n} paid with Mercado Pago",
       visto: "Dismiss",
-      masN: "+{n} more",
+      pendientesN: "{n} pending",
+      verLasN: "See the other {n}",
+      verMenos: "See less",
     },
     footer: {
       creado: "Built by",
@@ -2266,6 +2281,7 @@ const dict = {
     qr: {
       titulo: "Order QR",
       escanea: "The customer scans it with their phone camera.",
+      impresoPor: "Cicalino",
       mesaEscanea: "Scan to see the menu, order and pay.",
       mesaShare: "{bar} · menu, orders and bill for this table",
       mesaWa: "{bar}: table menu and bill {url}",
@@ -2847,9 +2863,7 @@ const dict = {
       sinCobros: "Nothing to collect.",
       sinCobrosBody: "Tables with a balance show up here. The floor map is under All.",
       teLlaman: "They're calling you",
-      teLlamanToast: "Table {n} is calling you",
-      pidieronCuentaToast: "Table {n} asked for the bill",
-      mpPagoToast: "Table {n} paid with Mercado Pago",
+      mesaCerrada: "Table closed",
       nuevo: "New",
       visto: "Read",
       vistoAyuda: "You've seen it on this device. It still needs noting down.",
@@ -3130,6 +3144,7 @@ const dict = {
       categoriaCreada: "Category created",
       categoriaGuardada: "Category saved",
       categoriaBorrada: "Category deleted",
+      categoriaBorrar: "Delete category",
       categoriaBorrarConfirmar: "Delete the {n} category? Its items become uncategorized.",
       duplicada: "A category with that name already exists.",
       subir: "Move up",

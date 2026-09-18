@@ -62,8 +62,12 @@ describe("Llamar mesero/a", () => {
     expect(mesas).toContain("mesas.filtroPedido");
     expect(mesas).toContain("onAcknowledge");
     expect(mesas).toContain("onShowQr");
-    expect(mesas).toContain("teLlamanToast");
-    expect(mesas).toContain("TOAST_AVISO_MS");
+    /* El aviso ya no es un toast dentro de Mesas: lo da la capa global, que se
+     * ve desde cualquier sección y queda hasta que alguien lo atiende. */
+    expect(mesas).not.toContain("teLlamanToast");
+    const alertas = readFileSync(join(root, "src/lib/panelAlerts.ts"), "utf8");
+    expect(alertas).toContain('"llamado"');
+    expect(alertas).toContain("alertas.llamado");
   });
 
   it("pedir la cuenta no prende Te llaman: eso va a Cobrar", () => {

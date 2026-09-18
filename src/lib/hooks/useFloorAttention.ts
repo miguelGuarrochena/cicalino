@@ -9,6 +9,7 @@ import {
   emptyAttentionSeen,
   floorAttention,
   pendingBillIds,
+  mpPaidIds,
   pendingOrderIds,
   waiterCallSessionIds,
   type FloorAttention,
@@ -77,11 +78,12 @@ export const useFloorAttentionWatch = () => {
   const orderIds = useMemo(() => pendingOrderIds(bills), [bills]);
   const paymentIds = useMemo(() => pendingBillIds(bills), [bills]);
   const callIds = useMemo(() => waiterCallSessionIds(bills), [bills]);
+  const mpIds = useMemo(() => mpPaidIds(bills), [bills]);
 
   useEffect(() => {
     if (!ready) return;
-    pruneFloorAttention(orderIds, paymentIds, callIds);
-  }, [ready, orderIds, paymentIds, callIds]);
+    pruneFloorAttention(orderIds, paymentIds, callIds, mpIds);
+  }, [ready, orderIds, paymentIds, callIds, mpIds]);
 
   useEffect(() => {
     if (!ready) return;

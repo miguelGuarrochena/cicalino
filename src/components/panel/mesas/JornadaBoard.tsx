@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
 import { Select } from "@/components/ui/Select";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
@@ -78,6 +79,7 @@ export const JornadaBoard = ({
 }) => {
   const { t, locale } = useApp();
   const toast = useToast();
+  const confirmar = useConfirm();
   const [busy, setBusy] = useState<string | null>(null);
   const mesas = useMemo(() => allMesas(tableCount), [tableCount]);
   const mesaOpts = useMemo(
@@ -458,12 +460,20 @@ export const JornadaBoard = ({
               type="button"
               disabled={busy != null}
               onClick={() => {
-                if (!window.confirm(t("recepcion.resetHoyConfirmar"))) return;
-                void run(
-                  "reset",
-                  () => applyShiftTemplate(branchId!, true),
-                  t("recepcion.hoyReemplazado"),
-                );
+                void (async () => {
+                  const ok = await confirmar({
+                    title: t("recepcion.resetHoy"),
+                    body: t("recepcion.resetHoyConfirmar"),
+                    confirmLabel: t("recepcion.resetHoy"),
+                    tone: "peligro",
+                  });
+                  if (!ok) return;
+                  await run(
+                    "reset",
+                    () => applyShiftTemplate(branchId!, true),
+                    t("recepcion.hoyReemplazado"),
+                  );
+                })();
               }}
               className="min-h-11 w-full text-sm font-semibold text-carbon/55 underline-offset-4 hover:underline disabled:opacity-50 sm:w-auto"
             >

@@ -141,6 +141,7 @@ export const ackPanelAlerts = (alerts: PanelAlert[]) => {
   const mesaOrders: string[] = [];
   const mesaPayments: string[] = [];
   const mesaCalls: string[] = [];
+  const mesaMp: string[] = [];
   const propios: string[] = [];
 
   for (const a of alerts) {
@@ -148,11 +149,12 @@ export const ackPanelAlerts = (alerts: PanelAlert[]) => {
     if (a.kind === "pedido-mesa") mesaOrders.push(raw);
     else if (a.kind === "cuenta") mesaPayments.push(raw);
     else if (a.kind === "llamado") mesaCalls.push(raw);
+    else if (a.kind === "mp-pagado") mesaMp.push(raw);
     else propios.push(a.id);
   }
 
-  if (mesaOrders.length || mesaPayments.length || mesaCalls.length) {
-    ackTableAttention(mesaOrders, mesaPayments, mesaCalls);
+  if (mesaOrders.length || mesaPayments.length || mesaCalls.length || mesaMp.length) {
+    ackTableAttention(mesaOrders, mesaPayments, mesaCalls, mesaMp);
   }
   if (!propios.length) return;
 

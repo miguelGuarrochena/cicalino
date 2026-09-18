@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { useApp } from "@/components/providers/Providers";
 import { useBrowserValue } from "@/lib/hooks/useBrowserValue";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
+import { PrintableQr } from "@/components/panel/PrintableQr";
 
 interface Props {
   reference: string;
@@ -32,6 +34,14 @@ export const QrModal = ({
 }: Props) => {
   const { t, locale } = useApp();
   const [dataUrl, setDataUrl] = useState("");
+  /* El QR del papel no es el de la pantalla.
+   *
+   * En pantalla va en el color de la marca y a 320 px, que es lo que entra en
+   * el modal. Impreso, 320 px estirados a 68 mm quedan blandos —una impresora
+   * trabaja a 300 dpi o más— y el color lo convierte a grises punteados, que
+   * es justo lo que le cuesta leer a una cámara. Negro puro y 1024 px: el
+   * sticker tiene que escanear a la primera desde el borde de la mesa. */
+  const [printUrl, setPrintUrl] = useState("");
   const [copiado, setCopiado] = useState(false);
   const puedeCompartir = useBrowserValue(
     () => typeof navigator !== "undefined" && typeof navigator.share === "function",
@@ -61,6 +71,17 @@ export const QrModal = ({
       .then(setDataUrl)
       .catch(() => {});
   }, [url, darkColor]);
+
+  useEffect(() => {
+    QRCode.toDataURL(url, {
+      margin: 2,
+      width: 1024,
+      errorCorrectionLevel: "H",
+      color: { dark: "#000000", light: "#ffffff" },
+    })
+      .then(setPrintUrl)
+      .catch(() => {});
+  }, [url]);
 
   const venue = venueName?.trim() || "Cicalino";
 
@@ -101,32 +122,53 @@ export const QrModal = ({
         }
       };
 
+  /* Imprimir sin abrir nada.
+   *
+   * El papel ya está en el documento (PrintableQr, oculto en pantalla). Lo
+   * único que falta es que, mientras dure el diálogo de impresión, el resto
+   * del documento no exista para el papel: eso lo hace la marca en <body>,
+   * que la hoja de estilos usa para esconder todo lo que no sea el sticker.
+   *
+   * Va así y no con `print:hidden` en cada ancestro —como hace la cuenta de
+   * la mesa— porque este modal se abre desde varias pantallas y vive en un
+   * portal aparte: pedirle a cada página que se acuerde de marcarse sería
+   * pedirle a alguien que se olvide. */
   const imprimir = () => {
-    if (!dataUrl) return;
-    const esc = (s: string) =>
-      s.replace(/[&<>"']/g, (c) =>
-        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
-      );
-    const w = window.open("", "_blank", "noopener,noreferrer");
-    if (!w) return;
-    const hint = pathPrefix === "/m" ? t("qr.mesaEscanea") : t("qr.escanea");
-    const barLine = pathPrefix === "/m" ? `<p>${esc(venue)}</p>` : "";
-    w.document.write(
-      `<!doctype html><html><head><meta charset="utf-8"><title>${esc(venue)} · ${esc(etiqueta)} ${esc(reference)}</title>
-      <style>body{font-family:system-ui,sans-serif;text-align:center;padding:32px;color:#111}img{width:280px;height:280px}h1{font-size:28px;margin:8px 0}p{color:#555}</style>
-      </head><body>
-      ${barLine}
-      <p>${esc(etiqueta)}</p>
-      <h1>${esc(reference)}</h1>
-      <img src="${dataUrl}" alt="QR" />
-      <p>${esc(hint)}</p>
-      <script>window.onload=function(){window.print()}</script>
-      </body></html>`,
-    );
-    w.document.close();
+    if (!printUrl) return;
+    document.body.dataset.imprimiendo = "qr";
+    window.print();
   };
 
+  useEffect(() => {
+    const limpiar = () => {
+      delete document.body.dataset.imprimiendo;
+    };
+    /* `afterprint` cubre imprimir y cancelar. El desmontaje cubre al que
+     * cierra el modal con el diálogo todavía abierto. */
+    window.addEventListener("afterprint", limpiar);
+    return () => {
+      window.removeEventListener("afterprint", limpiar);
+      limpiar();
+    };
+  }, []);
+
+  const papel =
+    typeof document === "undefined"
+      ? null
+      : createPortal(
+          <PrintableQr
+            dataUrl={printUrl}
+            reference={reference}
+            etiqueta={etiqueta}
+            venueName={pathPrefix === "/m" ? venue : venueName}
+            hint={pathPrefix === "/m" ? t("qr.mesaEscanea") : t("qr.escanea")}
+          />,
+          document.body,
+        );
+
   return (
+    <>
+      {papel}
     <ModalShell onClose={onClose} labelledBy="qr-modal-title">
       <div className="mb-4 flex items-start justify-between">
           <div>
@@ -244,5 +286,6 @@ export const QrModal = ({
           </div>
         )}
     </ModalShell>
+    </>
   );
 };

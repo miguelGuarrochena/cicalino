@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
@@ -43,6 +44,11 @@ const TONE: Record<PanelAlertKind, { card: string; halo: string; chip: string }>
     halo: "u-alert-halo u-alert-halo-marca",
     chip: "bg-marca text-crema",
   },
+  "mp-pagado": {
+    card: "border-ok-borde bg-ok-fondo text-ok",
+    halo: "u-alert-halo u-alert-halo-ok",
+    chip: "bg-ok text-crema",
+  },
   "pedido-mostrador": {
     card: "border-marca bg-marca/10 text-marca",
     halo: "u-alert-halo u-alert-halo-marca",
@@ -65,12 +71,17 @@ export const PanelAlertDock = () => {
   const { t } = useApp();
   const path = usePathname();
   const alerts = usePanelAlerts();
+  const [abierto, setAbierto] = useState(false);
   const afuera = alerts.filter((a) => alertIsElsewhere(a, path));
 
   if (!afuera.length) return null;
 
-  const shown = afuera.slice(0, MAX_VISIBLE);
-  const resto = afuera.length - shown.length;
+  /* Desplegar la cola es mirar, no atender. Antes este botón daba por vistas
+   * todas las que no entraban: con seis mesas gritando, un toque apagaba
+   * cuatro que nadie había leído. Ahora lo único que marca visto es abrir la
+   * alerta o descartarla de a una. */
+  const visibles = abierto ? afuera : afuera.slice(0, MAX_VISIBLE);
+  const enCola = afuera.length - visibles.length;
 
   return (
     <div
@@ -79,16 +90,30 @@ export const PanelAlertDock = () => {
       aria-label={t("alertas.titulo")}
       className="fixed inset-x-3 bottom-[5.5rem] z-[210] flex flex-col items-stretch gap-2 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[22rem] print:hidden"
     >
-      {shown.map((a) => (
-        <AlertCard key={a.id} alert={a} />
-      ))}
-      {resto > 0 && (
+      {/* Cuánto hay en total, siempre, esté desplegado o no: el mozo tiene que
+          poder contar de un vistazo sin abrir nada. */}
+      {afuera.length > MAX_VISIBLE && (
+        <p className="self-end rounded-full bg-carbon px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-crema shadow-lg">
+          {t("alertas.pendientesN", { n: afuera.length })}
+        </p>
+      )}
+      <div
+        className={`flex flex-col items-stretch gap-2 ${
+          abierto ? "max-h-[60vh] overflow-y-auto overscroll-contain u-scroll pr-0.5" : ""
+        }`}
+      >
+        {visibles.map((a) => (
+          <AlertCard key={a.id} alert={a} />
+        ))}
+      </div>
+      {afuera.length > MAX_VISIBLE && (
         <button
           type="button"
-          onClick={() => ackPanelAlerts(afuera.slice(MAX_VISIBLE))}
-          className="self-end rounded-full bg-carbon/85 px-3 py-1.5 text-xs font-semibold text-crema shadow-lg backdrop-blur"
+          aria-expanded={abierto}
+          onClick={() => setAbierto((v) => !v)}
+          className="min-h-11 self-end rounded-full bg-carbon/90 px-4 text-xs font-semibold text-crema shadow-lg backdrop-blur transition hover:bg-carbon"
         >
-          {t("alertas.masN", { n: resto })}
+          {abierto ? t("alertas.verMenos") : t("alertas.verLasN", { n: enCola })}
         </button>
       )}
     </div>

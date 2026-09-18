@@ -8,6 +8,7 @@ import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { QrDownloadModal } from "@/components/panel/mesas/QrDownloadModal";
@@ -46,6 +47,7 @@ const QrMark = ({ on }: { on: boolean }) => (
 const MesasQrPage = () => {
   const { t } = useApp();
   const toast = useToast();
+  const confirmar = useConfirm();
   const branchId = useSessionStore((s) => s.sucursalId);
   const branchName = useConfigStore((s) => s.name);
   const { visibles, canManage, ready } = useOperationalAccess();
@@ -123,7 +125,13 @@ const MesasQrPage = () => {
   };
 
   const regenerate = async (m: WithImage) => {
-    if (!window.confirm(t("mesasQr.regenerarConfirmar", { n: m.number }))) return;
+    const ok = await confirmar({
+      title: t("mesasQr.regenerar"),
+      body: t("mesasQr.regenerarConfirmar", { n: m.number }),
+      confirmLabel: t("mesasQr.regenerar"),
+      tone: "peligro",
+    });
+    if (!ok) return;
     setBusy(true);
     const res = await regenerateTableQr(m.id);
     setBusy(false);

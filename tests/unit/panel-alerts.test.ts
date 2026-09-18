@@ -14,6 +14,7 @@ import {
 import {
   emptyAttentionSeen,
   floorAttention,
+  mpPaidIds,
   pendingBillIds,
   pendingOrderIds,
   waiterCallSessionIds,
@@ -519,5 +520,179 @@ describe("Una mesa, muchas novedades: la secuencia de un servicio", () => {
     expect(kitchenInbox([row]).bills.map((r) => r.tableNumber)).toEqual([8]);
     expect(kitchenInbox([row]).created).toEqual([]);
     expect(row.bill?.session.status).toBe("abierta");
+  });
+});
+
+
+/* Mercado Pago: cobro directo, no el QR presencial.
+ *
+ * Son dos métodos distintos y se confunden fácil. `mercado_pago` es el
+ * checkout que paga el cliente desde el celular y confirma el webhook — plata
+ * que entró sin que nadie del local tocara nada, y por eso hay que avisar.
+ * `qr_mercado_pago` es el QR/POS del mostrador: lo cobra el mozo en la mesa y
+ * lo confirma el personal, así que sigue el camino normal de Cobrar. */
+describe("Cobro de Mercado Pago confirmado", () => {
+  const conMp = (over: Partial<BillPayment> = {}) =>
+    bill({
+      orders: [order({ status: "en_preparacion" })],
+      payments: [pay({ id: "mp1", method: "mercado_pago", status: "pagado", ...over })],
+    });
+
+  beforeEach(() => {
+    localStorage.clear();
+    hydratePanelAlerts(null);
+    hydrateFloorAttention(null);
+    hydratePanelAlerts("local-1");
+    hydrateFloorAttention("local-1");
+    publishPanelAlerts("mesas", []);
+  });
+
+  it("el pago confirmado por Mercado Pago avisa; el QR presencial no", () => {
+    expect(mpPaidIds([conMp()])).toEqual(["mp1"]);
+    /* Presencial: lo cobra el mozo, no es una novedad que llegó sola. */
+    expect(mpPaidIds([conMp({ method: "qr_mercado_pago" })])).toEqual([]);
+    /* Todavía sin confirmar: no entró nada. */
+    expect(mpPaidIds([conMp({ status: "pendiente" })])).toEqual([]);
+  });
+
+  it("avisa aunque el pago haya cerrado la cuenta en el mismo movimiento", () => {
+    /* Cubrir el total pasa la sesión a `pagada`. Si el aviso exigiera sesión
+     * abierta, el caso más común no avisaría nunca. */
+    const pagada = conMp();
+    pagada.session.status = "pagada";
+    const alerts = mesaAlerts([pagada], floorAttention([pagada], emptyAttentionSeen(), null));
+    expect(alerts.map((a) => a.kind)).toEqual(["mp-pagado"]);
+    expect(alerts[0].table).toBe(8);
+  });
+
+  it("no se duplica con la cola de Cobrar", () => {
+    const b = conMp();
+    const att = floorAttention([b], emptyAttentionSeen(), null);
+    /* Un pago ya cobrado no es una solicitud de cuenta. */
+    expect(att.unseenBillIds).toEqual([]);
+    expect(mesaAlerts([b], att).filter((a) => a.kind === "cuenta")).toEqual([]);
+  });
+
+  it("es un visto propio: verlo no marca vistos los pedidos ni los llamados", () => {
+    const b = conMp();
+    const alerts = mesaAlerts([b], floorAttention([b], emptyAttentionSeen(), null));
+    publishPanelAlerts("mesas", alerts);
+    ackPanelAlerts(alerts);
+    const { seen } = getFloorAttentionState();
+    expect([...seen.navMp]).toEqual(["mp1"]);
+    expect([...seen.cardOrders]).toEqual([]);
+    expect([...seen.cardCalls]).toEqual([]);
+    /* Visto una vez, no vuelve a gritar. */
+    expect(mesaAlerts([b], floorAttention([b], seen, null))).toEqual([]);
+  });
+
+  it("no se pierde: el que llama gana, pero el cobro sigue en la cola", () => {
+    const llamando = bill({
+      session: { ...bill().session, calledAt: "2026-09-16T21:00:00Z" },
+      orders: [order({ status: "en_preparacion" })],
+      payments: [pay({ id: "mp1", method: "mercado_pago", status: "pagado" })],
+    });
+    const orden = sortAlerts(
+      mesaAlerts([llamando], floorAttention([llamando], emptyAttentionSeen(), null)),
+    );
+    expect(orden.map((a) => a.kind)).toEqual(["llamado", "mp-pagado"]);
+  });
+});
+
+/* El dock en hora pico: muchas mesas a la vez.
+ *
+ * La regla es una sola y es la que importa: nada se da por visto sin que
+ * alguien lo abra o lo descarte de a una. Desplegar la cola es mirar. */
+describe("Dock con muchas alertas simultáneas", () => {
+  const muchas = (n: number) =>
+    counterAlerts(
+      Array.from({ length: n }, (_, i) => ({
+        id: `p${i}`,
+        reference: String(i),
+        createdAt: `2026-09-16T20:${String(i).padStart(2, "0")}:00Z`,
+      })),
+    );
+
+  beforeEach(() => {
+    localStorage.clear();
+    hydratePanelAlerts(null);
+    hydratePanelAlerts("local-1");
+    publishPanelAlerts("pedidos", []);
+  });
+
+  it("las que no entran en las primeras siguen pendientes", () => {
+    publishPanelAlerts("pedidos", muchas(8));
+    expect(getLiveAlerts()).toHaveLength(8);
+    /* Ninguna se cae de la lista ni se marca sola. */
+    expect(getLiveAlertCounts().pedidos).toBe(8);
+  });
+
+  it("descartar una no toca a las otras siete", () => {
+    const todas = muchas(8);
+    publishPanelAlerts("pedidos", todas);
+    ackPanelAlerts([todas[0]]);
+    expect(getLiveAlerts()).toHaveLength(7);
+    expect(getLiveAlerts().some((a) => a.id === todas[0].id)).toBe(false);
+  });
+
+  it("desplegar la cola no marca nada como visto", () => {
+    const dock = read("src/components/panel/PanelAlertDock.tsx");
+    /* El botón de la cola solo abre y cierra: si volviera a llamar a
+     * ackPanelAlerts, un toque apagaría lo que nadie leyó. */
+    const i = dock.indexOf("aria-expanded");
+    const cola = dock.slice(i, dock.indexOf("</button>", i));
+    expect(cola).toContain("setAbierto");
+    expect(cola).not.toContain("ackPanelAlerts");
+    /* Y en todo el dock, lo único que marca visto son las dos acciones de la
+     * tarjeta: abrirla (va a la sección) y descartarla. Nada masivo. */
+    expect(dock.split("ackPanelAlerts([alert])").length - 1).toBe(2);
+    expect(dock).not.toContain("ackPanelAlerts(afuera");
+    expect(dock).toContain("alertas.pendientesN");
+    expect(dock).toContain("alertas.verLasN");
+    /* Y la cola desplegada tiene que seguir siendo usable en una tablet. */
+    expect(dock).toContain("overflow-y-auto");
+  });
+
+  it("el banner de instalar le cede la esquina al dock", () => {
+    const banner = read("src/components/pwa/InstallBanner.tsx");
+    expect(banner).toContain("usePanelAlerts");
+    expect(banner).toContain("alertas.length > 0");
+  });
+});
+
+/* Cerrar mesa: la acción se hace visible, las reglas no se tocan. */
+describe("Cerrar mesa accesible", () => {
+  it("se llega desde la baldosa y desde el detalle, con un solo modal", () => {
+    const page = read("src/app/(app)/panel/mesas/page.tsx");
+    const tile = read("src/components/panel/mesas/FloorTableTile.tsx");
+    const detail = read("src/components/panel/mesas/TableDetail.tsx");
+    expect(tile).toContain("onClose");
+    expect(tile).toContain("stopPropagation");
+    expect(page).toContain("CloseTableModal");
+    expect(page).toContain("cerrarDesdeMapa");
+    expect(page).toContain("onCloseTable");
+    /* El modal vive una sola vez, en la página. */
+    expect(detail).not.toContain("CloseTableModal");
+  });
+
+  it("solo se ofrece sobre una sesión abierta", () => {
+    const page = read("src/app/(app)/panel/mesas/page.tsx");
+    const bloque = page.slice(page.indexOf("const cerrarDesdeMapa"));
+    expect(bloque.slice(0, 220)).toContain('session.status === "abierta"');
+  });
+
+  it("las validaciones siguen donde estaban", () => {
+    const modal = read("src/components/panel/mesas/CloseTableModal.tsx");
+    const sql = read("supabase/split-payments.sql");
+    const fn = sql.slice(sql.indexOf("function public.cerrar_mesa"), sql.indexOf("function public.regenerar_qr_mesa"));
+    /* Servidor: pagos pendientes, encargado y motivo. Nada de esto se tocó. */
+    expect(fn).toContain("'pagos-pendientes'");
+    expect(fn).toContain("'requiere-encargado'");
+    expect(fn).toContain("'motivo-requerido'");
+    expect(fn).toContain("auth_gestiona_local");
+    expect(fn).toContain("repetido");
+    /* UI: el modal sigue bloqueando el envío y explicando por qué. */
+    expect(modal).toContain("pending || (uncovered > 0 && !reason.trim())");
+    expect(modal).toContain("mesas.error.pagos-pendientes");
   });
 });

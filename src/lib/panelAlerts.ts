@@ -24,6 +24,7 @@ export type PanelAlertKind =
   | "llamado"
   | "pedido-mesa"
   | "cuenta"
+  | "mp-pagado"
   | "pedido-mostrador"
   | "espera-nueva";
 
@@ -71,6 +72,16 @@ export const ALERT_META: Record<PanelAlertKind, KindMeta> = {
     priority: 2,
     titleKey: "alertas.pedidoMesa",
     icon: "🍽️",
+  },
+  /* Cobrado y confirmado por Mercado Pago: no hay nada que hacer, solo hay que
+   * enterarse. Por eso va último — el que está esperando en una mesa gana
+   * siempre contra una novedad que ya se resolvió sola. */
+  "mp-pagado": {
+    source: "mesas",
+    href: "/panel/mesas",
+    priority: 1,
+    titleKey: "alertas.mpPagado",
+    icon: "💸",
   },
   "pedido-mostrador": {
     source: "pedidos",
@@ -129,8 +140,12 @@ export const mesaAlerts = (
       out.push(build("pedido-mesa", o.id, o.createdAt, n, null));
     }
     for (const p of b.payments) {
-      if (!keys.has(`p:${p.id}`)) continue;
-      out.push(build("cuenta", p.id, p.createdAt, n, p.payerName));
+      if (keys.has(`p:${p.id}`)) {
+        out.push(build("cuenta", p.id, p.createdAt, n, p.payerName));
+      }
+      if (keys.has(`mp:${p.id}`)) {
+        out.push(build("mp-pagado", p.id, p.confirmedAt ?? p.createdAt, n, p.payerName));
+      }
     }
   }
   return out;

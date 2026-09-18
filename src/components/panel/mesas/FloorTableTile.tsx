@@ -55,18 +55,54 @@ const tileClass = (tone: string, active: boolean, alerta: TileAlert) =>
     alerta ? ALERT_CLASS[alerta] : ""
   }`;
 
+/* Cerrar la mesa desde la baldosa.
+ *
+ * La mesa la abre el comensal al escanear el QR, no el local: alcanza con que
+ * alguien escanee y escriba un nombre. La que se escaneó y no consumió no
+ * aparece en ninguna cola — no hay pedido ni cuenta — así que sin esto la
+ * única forma de cerrarla era entrar al detalle y encontrar un link de texto.
+ * El botón solo abre el modal; las validaciones siguen en `cerrar_mesa`. */
+const CloseBtn = ({ label, onClose }: { label: string; onClose: () => void }) => (
+  <button
+    type="button"
+    aria-label={label}
+    title={label}
+    onClick={(e) => {
+      e.stopPropagation();
+      onClose();
+    }}
+    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-black/20 text-current transition hover:bg-black/35"
+  >
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  </button>
+);
+
 export const FloorTableTile = ({
   row,
   active,
   dense,
   alerta = null,
   onOpen,
+  onClose,
 }: {
   row: FloorTable;
   active: boolean;
   dense?: boolean;
   alerta?: TileAlert;
   onOpen: () => void;
+  /* Solo se pasa cuando hay sesión abierta que cerrar. */
+  onClose?: () => void;
 }) => {
   const { t } = useApp();
   const tone = tileTone(row);
@@ -116,19 +152,35 @@ export const FloorTableTile = ({
             <span className="shrink-0 font-display text-lg tabular-nums leading-none">{amount}</span>
           ) : null}
         </button>
+        {onClose ? (
+          <span className="flex shrink-0 items-center pr-2">
+            <CloseBtn
+              label={t("mesas.cerrarMesaN", { n: row.tableNumber })}
+              onClose={onClose}
+            />
+          </span>
+        ) : null}
       </li>
     );
   }
 
   return (
-    <li className={`min-h-[6.5rem] flex-col ${tileClass(tone, active, alerta)}`}>
+    <li className={`relative min-h-[6.5rem] flex-col ${tileClass(tone, active, alerta)}`}>
+      {onClose ? (
+        <span className="absolute right-1.5 top-1.5 z-10">
+          <CloseBtn
+            label={t("mesas.cerrarMesaN", { n: row.tableNumber })}
+            onClose={onClose}
+          />
+        </span>
+      ) : null}
       <button
         type="button"
         aria-current={active ? "true" : undefined}
         onClick={onOpen}
         className="flex w-full flex-1 flex-col text-left transition hover:brightness-95 active:scale-[0.99]"
       >
-        <span className="flex min-h-0 flex-1 flex-col gap-1 px-3 pt-2.5 pb-2">
+        <span className={`flex min-h-0 flex-1 flex-col gap-1 px-3 pt-2.5 pb-2 ${onClose ? "pr-11" : ""}`}>
           <span className="flex items-start justify-between gap-1">
             <span className="font-display text-2xl leading-none">{row.tableNumber}</span>
             {row.people > 0 && (

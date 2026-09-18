@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
 import {
   ConsumptionTable,
   PaymentRows,
 } from "@/components/tables/BillParts";
 import { CobrarModal } from "@/components/panel/mesas/CobrarModal";
-import { CloseTableModal } from "@/components/panel/mesas/CloseTableModal";
 import { PrintableBill } from "@/components/panel/mesas/PrintableBill";
 import { TableHistory } from "@/components/panel/mesas/TableHistory";
 import { FloorStatusBadge } from "@/components/panel/mesas/FloorStatusBadge";
@@ -38,6 +38,7 @@ export const TableDetail = ({
   employeeId,
   employeeName,
   canManage,
+  onCloseTable,
   onChanged,
   onBack,
   onShowQr,
@@ -52,6 +53,9 @@ export const TableDetail = ({
   employeeId: string | null;
   employeeName?: string | null;
   canManage: boolean;
+  /* Lo abre la página: el modal de cerrar vive una sola vez, así la baldosa y
+   * el detalle no tienen cada uno su copia. */
+  onCloseTable?: () => void;
   onChanged: () => void;
   onBack?: () => void;
   onShowQr?: () => void;
@@ -62,9 +66,9 @@ export const TableDetail = ({
 }) => {
   const { t } = useApp();
   const toast = useToast();
+  const confirmar = useConfirm();
   const [busy, setBusy] = useState<string | null>(null);
   const [cobrarOpen, setCobrarOpen] = useState(false);
-  const [closeOpen, setCloseOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignTo, setReassignTo] = useState(waiterId ?? "");
   const open = bill.session.status === "abierta";
@@ -143,14 +147,38 @@ export const TableDetail = ({
             type="button"
             disabled={busy === p.id}
             onClick={() => {
-              let motivo: string | null = null;
-              if (p.status === "pagado") {
-                motivo = window.prompt(t("mesas.motivoAnular"))?.trim() || null;
-                if (!motivo) return;
-              } else if (!window.confirm(t("mesas.cancelarPagoConfirmar"))) {
-                return;
-              }
-              void run(p.id, () => cancelTablePayment(p.id, motivo, employeeId), t("mesas.pagoCancelado"));
+              void (async () => {
+                /* Anular un pago ya cobrado pide motivo; cancelar uno que
+                 * todavía está pendiente, solo confirmación. La regla es de
+                 * `cancelar_pago_mesa` y no cambió: acá solo se pregunta. */
+                let motivo: string | null = null;
+                if (p.status === "pagado") {
+                  motivo = await confirmar({
+                    title: t("mesas.anularPago"),
+                    input: {
+                      label: t("mesas.motivoAnular"),
+                      requerido: true,
+                      maxLength: 200,
+                    },
+                    confirmLabel: t("mesas.anularPago"),
+                    tone: "peligro",
+                  });
+                  if (!motivo) return;
+                } else {
+                  const ok = await confirmar({
+                    title: t("mesas.cancelarPago"),
+                    body: t("mesas.cancelarPagoConfirmar"),
+                    confirmLabel: t("mesas.cancelarPago"),
+                    tone: "peligro",
+                  });
+                  if (!ok) return;
+                }
+                await run(
+                  p.id,
+                  () => cancelTablePayment(p.id, motivo, employeeId),
+                  t("mesas.pagoCancelado"),
+                );
+              })();
             }}
             className="min-h-11 w-full rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70 disabled:opacity-50"
           >
@@ -279,11 +307,17 @@ export const TableDetail = ({
             >
               {t("mesas.imprimirCuenta")}
             </button>
-            {open && (pending <= 0 || canManage) && (
+            {/* Visible siempre que la mesa esté abierta, también con saldo y
+                también para el mozo. Esconderla no evitaba nada: dejaba la
+                mesa abierta para siempre y sin pista de cómo cerrarla. Las
+                reglas siguen donde estaban — el modal explica el saldo y pide
+                el motivo, y `cerrar_mesa` rechaza pagos pendientes y exige
+                encargado cuando falta cubrir. */}
+            {open && onCloseTable && (
               <button
                 type="button"
-                onClick={() => setCloseOpen(true)}
-                className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:text-carbon hover:underline"
+                onClick={onCloseTable}
+                className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70 transition hover:border-carbon/30 hover:text-carbon"
               >
                 {t("mesas.cerrarMesa")}
               </button>
@@ -410,9 +444,15 @@ export const TableDetail = ({
                         type="button"
                         disabled={busy === o.id}
                         onClick={() => {
-                          if (window.confirm(t("mesas.cancelarPedidoConfirmar"))) {
-                            void moveOrder(o, "cancelado");
-                          }
+                          void (async () => {
+                            const ok = await confirmar({
+                              title: t("mesas.cancelarPedido"),
+                              body: t("mesas.cancelarPedidoConfirmar"),
+                              confirmLabel: t("mesas.cancelarPedido"),
+                              tone: "peligro",
+                            });
+                            if (ok) await moveOrder(o, "cancelado");
+                          })();
                         }}
                         className="mt-2 min-h-11 w-full text-sm font-semibold text-red-600 disabled:opacity-50"
                       >
@@ -478,17 +518,6 @@ export const TableDetail = ({
             employeeId={employeeId}
             onClose={() => setCobrarOpen(false)}
             onDone={onChanged}
-          />
-        )}
-        {closeOpen && (
-          <CloseTableModal
-            bill={bill}
-            employeeId={employeeId}
-            onClose={() => setCloseOpen(false)}
-            onClosed={() => {
-              setCloseOpen(false);
-              onChanged();
-            }}
           />
         )}
       </section>

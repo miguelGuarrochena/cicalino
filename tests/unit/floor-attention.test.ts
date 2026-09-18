@@ -175,6 +175,7 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
       orders: ["o1"],
       payments: ["pay1"],
       calls: [],
+      mp: [],
     });
   });
 
