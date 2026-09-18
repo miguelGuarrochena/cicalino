@@ -10,7 +10,7 @@ import {
   withIds,
 } from "@/lib/floorAttention";
 import type { BillOrder, BillPayment, TableBill } from "@/lib/tableBill";
-import { kitchenInbox, buildFloor } from "@/lib/tableOps";
+import { kitchenInbox, buildFloor, tableAlert } from "@/lib/tableOps";
 
 const order = (over: Partial<BillOrder> = {}): BillOrder => ({
   id: over.id ?? "o1",
@@ -174,6 +174,7 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
     expect(idsForTable(bill({ payments: [pay()] }))).toEqual({
       orders: ["o1"],
       payments: ["pay1"],
+      calls: [],
     });
   });
 
@@ -224,6 +225,62 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
     expect(both.headerUnseen).toBe(2);
     expect(both.headerPedido).toBe(1);
     expect(both.headerCuenta).toBe(1);
+  });
+
+  it("el llamado también pasa de nuevo a visto: la pantalla no late para siempre", () => {
+    const llamando = bill({
+      session: { ...bill().session, calledAt: "2026-09-16T20:30:00Z" },
+      orders: [order({ status: "retirado" })],
+    });
+    const nuevo = floorAttention([llamando], emptyAttentionSeen(), null);
+    expect(nuevo.waiterCalls).toBe(1);
+    expect(nuevo.unseenCallIds).toEqual(["s1"]);
+    expect(nuevo.newCallIds).toEqual(["s1"]);
+    expect(nuevo.headerUnseen).toBe(1);
+    expect(nuevo.tabPedidoPulse).toBe(true);
+
+    const visto = floorAttention(
+      [llamando],
+      {
+        ...emptyAttentionSeen(),
+        navCalls: new Set(["s1"]),
+        cardCalls: new Set(["s1"]),
+      },
+      null,
+    );
+    /* Visto no es atendido: sigue llamando hasta que alguien toca "Ya voy". */
+    expect(visto.waiterCalls).toBe(1);
+    expect(visto.newCallIds).toEqual([]);
+    expect(visto.headerUnseen).toBe(0);
+    expect(visto.tabPedidoPulse).toBe(false);
+  });
+
+  it("tableAlert grita primero por el que levanta la mano", () => {
+    const llamando = bill({
+      session: { ...bill().session, calledAt: "2026-09-16T20:30:00Z" },
+      payments: [pay()],
+    });
+    const [row] = buildFloor(
+      [{ id: "m8", number: 8, qrToken: "t", qrActive: true }],
+      [llamando],
+    );
+    const todos = {
+      orders: new Set(["o1"]),
+      payments: new Set(["pay1"]),
+      calls: new Set(["s1"]),
+    };
+    expect(tableAlert(row, todos)).toBe("llamado");
+    expect(tableAlert(row, { ...todos, calls: new Set<string>() })).toBe("cuenta");
+    expect(
+      tableAlert(row, { ...todos, calls: new Set<string>(), payments: new Set<string>() }),
+    ).toBe("pedido");
+    expect(
+      tableAlert(row, {
+        orders: new Set<string>(),
+        payments: new Set<string>(),
+        calls: new Set<string>(),
+      }),
+    ).toBeNull();
   });
 
   it("la cola de Cobrar lista la mesa que pidió la cuenta", () => {

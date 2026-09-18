@@ -44,9 +44,10 @@ export const brandFromLocal = (local: {
   color: parseBrandColor(local?.color_marca),
 });
 
-/* Paleta del comensal: el color pinta el FONDO. Textos y botones contrastan.
- * `bg-marca text-crema` = botón en `brand` con texto en `bg`.
- * null = crema + cobalto oficial. No es el Light/Dark del panel. */
+/* Paleta del comensal: el color pinta el FONDO. Textos, botones e
+ * ilustraciones contrastan. `bg-marca text-crema` = botón en `brand` con
+ * texto en `bg`. null = crema + cobalto oficial. No es el Light/Dark del
+ * panel: scheme marca si la mascota va azul o crema. */
 export const BRAND_PRESETS: Record<
   BrandColorId,
   {

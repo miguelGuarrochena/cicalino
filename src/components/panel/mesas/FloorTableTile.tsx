@@ -35,18 +35,37 @@ const tileTone = (row: FloorTable) => {
   return "border-espera bg-espera text-crema";
 };
 
-const tileClass = (tone: string, active: boolean) =>
-  `flex overflow-hidden rounded-2xl border-2 ${tone} ${active ? "ring-2 ring-carbon/25" : ""}`;
+/* La mesa con algo que todavía nadie miró late y tira un halo.
+ *
+ * El color del tile ya dice en qué estado está, pero el estado no cambia
+ * cuando el evento es nuevo: una mesa consumiendo y una mesa que acaba de
+ * llamar se pintaban casi igual. El movimiento es lo único que se nota
+ * mirando de reojo desde tres metros. Se apaga al abrir la mesa — "visto" no
+ * es "resuelto", pero ya no hace falta gritar. */
+export type TileAlert = "llamado" | "pedido" | "cuenta" | null;
+
+const ALERT_CLASS: Record<"llamado" | "pedido" | "cuenta", string> = {
+  llamado: "u-alert-beat u-alert-halo",
+  pedido: "u-alert-beat u-alert-halo u-alert-halo-marca",
+  cuenta: "u-alert-beat u-alert-halo u-alert-halo-curso",
+};
+
+const tileClass = (tone: string, active: boolean, alerta: TileAlert) =>
+  `flex overflow-hidden rounded-2xl border-2 ${tone} ${active ? "ring-2 ring-carbon/25" : ""} ${
+    alerta ? ALERT_CLASS[alerta] : ""
+  }`;
 
 export const FloorTableTile = ({
   row,
   active,
   dense,
+  alerta = null,
   onOpen,
 }: {
   row: FloorTable;
   active: boolean;
   dense?: boolean;
+  alerta?: TileAlert;
   onOpen: () => void;
 }) => {
   const { t } = useApp();
@@ -75,7 +94,7 @@ export const FloorTableTile = ({
 
   if (dense) {
     return (
-      <li className={`items-stretch ${tileClass(tone, active)}`}>
+      <li className={`items-stretch ${tileClass(tone, active, alerta)}`}>
         <button
           type="button"
           aria-current={active ? "true" : undefined}
@@ -102,7 +121,7 @@ export const FloorTableTile = ({
   }
 
   return (
-    <li className={`min-h-[6.5rem] flex-col ${tileClass(tone, active)}`}>
+    <li className={`min-h-[6.5rem] flex-col ${tileClass(tone, active, alerta)}`}>
       <button
         type="button"
         aria-current={active ? "true" : undefined}

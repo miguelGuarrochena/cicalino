@@ -18,15 +18,19 @@ const storageKey = (branchId: string) => `cicalino-floor-seen:${branchId}`;
 type Persisted = {
   navOrders: string[];
   navPayments: string[];
+  navCalls: string[];
   cardOrders: string[];
   cardPayments: string[];
+  cardCalls: string[];
 };
 
 const toPersist = (seen: AttentionSeen): Persisted => ({
   navOrders: [...seen.navOrders],
   navPayments: [...seen.navPayments],
+  navCalls: [...seen.navCalls],
   cardOrders: [...seen.cardOrders],
   cardPayments: [...seen.cardPayments],
+  cardCalls: [...seen.cardCalls],
 });
 
 const fromPersist = (raw: unknown): AttentionSeen => {
@@ -37,8 +41,10 @@ const fromPersist = (raw: unknown): AttentionSeen => {
   return {
     navOrders: set(r.navOrders),
     navPayments: set(r.navPayments),
+    navCalls: set(r.navCalls),
     cardOrders: set(r.cardOrders),
     cardPayments: set(r.cardPayments),
+    cardCalls: set(r.cardCalls),
   };
 };
 
@@ -128,6 +134,14 @@ export const navAckPayments = (ids: Iterable<string>) => {
   emit();
 };
 
+export const navAckCalls = (ids: Iterable<string>) => {
+  const next = withIds(state.seen.navCalls, ids);
+  if (next.size === state.seen.navCalls.size) return;
+  state = { ...state, seen: { ...state.seen, navCalls: next } };
+  persist();
+  emit();
+};
+
 export const cardAckOrders = (ids: Iterable<string>) => {
   const list = [...ids];
   if (!list.length) return;
@@ -158,18 +172,44 @@ export const cardAckPayments = (ids: Iterable<string>) => {
   emit();
 };
 
-export const ackTableAttention = (orders: Iterable<string>, payments: Iterable<string>) => {
-  cardAckOrders(orders);
-  cardAckPayments(payments);
+export const cardAckCalls = (ids: Iterable<string>) => {
+  const list = [...ids];
+  if (!list.length) return;
+  state = {
+    ...state,
+    seen: {
+      ...state.seen,
+      navCalls: withIds(state.seen.navCalls, list),
+      cardCalls: withIds(state.seen.cardCalls, list),
+    },
+  };
+  persist();
+  emit();
 };
 
-export const pruneFloorAttention = (orderIds: string[], paymentIds: string[]) => {
-  const next = pruneSeen(state.seen, orderIds, paymentIds);
+export const ackTableAttention = (
+  orders: Iterable<string>,
+  payments: Iterable<string>,
+  calls: Iterable<string> = [],
+) => {
+  cardAckOrders(orders);
+  cardAckPayments(payments);
+  cardAckCalls(calls);
+};
+
+export const pruneFloorAttention = (
+  orderIds: string[],
+  paymentIds: string[],
+  callIds: string[] = [],
+) => {
+  const next = pruneSeen(state.seen, orderIds, paymentIds, callIds);
   if (
     next.navOrders.size === state.seen.navOrders.size &&
     next.navPayments.size === state.seen.navPayments.size &&
+    next.navCalls.size === state.seen.navCalls.size &&
     next.cardOrders.size === state.seen.cardOrders.size &&
-    next.cardPayments.size === state.seen.cardPayments.size
+    next.cardPayments.size === state.seen.cardPayments.size &&
+    next.cardCalls.size === state.seen.cardCalls.size
   ) {
     return;
   }

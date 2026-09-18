@@ -1,8 +1,13 @@
 "use client";
 
 import { SubscriptionCard } from "@/components/panel/SubscriptionCard";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  goToConfigSection,
+  readConfigSection,
+  subscribeConfigSection,
+} from "@/components/panel/config/configHash";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { EmployeeList } from "@/components/panel/EmployeeList";
@@ -41,27 +46,36 @@ const Accordion = ({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
-}) => (
-  <details
-    id={id}
-    className={`${ACCORDION} scroll-mt-28`}
-    open={open}
-    onToggle={(e) => {
-      const next = e.currentTarget.open;
-      if (next !== open) onOpenChange(next);
-    }}
-  >
-    <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 py-2 marker:content-none [&::-webkit-details-marker]:hidden">
-      <span className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-        {title}
-      </span>
-      <span className="shrink-0 text-lg leading-none text-carbon/30 transition group-open:rotate-45">
-        +
-      </span>
-    </summary>
-    <div className="pb-4">{children}</div>
-  </details>
-);
+}) => {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el && el.open !== open) el.open = open;
+  }, [open]);
+
+  return (
+    <details
+      ref={ref}
+      id={id}
+      className={`${ACCORDION} scroll-mt-40 sm:scroll-mt-32`}
+      open={open}
+      onToggle={(e) => {
+        const next = e.currentTarget.open;
+        if (next !== open) onOpenChange(next);
+      }}
+    >
+      <summary className="flex min-h-12 min-w-0 cursor-pointer list-none items-center justify-between gap-3 py-2 marker:content-none [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 text-sm font-semibold uppercase tracking-wide text-carbon/60">
+          {title}
+        </span>
+        <span className="shrink-0 text-lg leading-none text-carbon/30 transition group-open:rotate-45">
+          +
+        </span>
+      </summary>
+      <div className="min-w-0 pb-4">{children}</div>
+    </details>
+  );
+};
 
 const HORAS_CORTE = Array.from({ length: 24 }).map((_, h) => ({
   value: String(h),
@@ -170,20 +184,24 @@ const ConfigPage = () => {
   const [openId, setOpenId] = useState("");
 
   useEffect(() => {
-    const sync = () => setOpenId(window.location.hash.replace("#", ""));
+    const sync = () => setOpenId(readConfigSection());
     sync();
-    window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
+    return subscribeConfigSection(sync);
   }, []);
+
+  useEffect(() => {
+    if (!openId) return;
+    const el = document.getElementById(openId);
+    if (!el) return;
+    const frame = window.requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [openId]);
 
   const setOpenSection = (id: string) => {
     setOpenId(id);
-    const path = `${window.location.pathname}${window.location.search}`;
-    const next = id ? `${path}#${id}` : path;
-    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    if (next === current) return;
-    window.history.replaceState(null, "", next);
-    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    goToConfigSection(id, "replace");
   };
 
   const editar = <K extends keyof Draft>(campo: K, valor: Draft[K]) => {
@@ -290,7 +308,7 @@ const ConfigPage = () => {
   });
 
   return (
-    <div className="flex flex-col gap-3 sm:gap-4">
+    <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <div>

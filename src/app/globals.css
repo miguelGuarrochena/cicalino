@@ -282,6 +282,59 @@ button:disabled,
   animation: attentionDot 2.4s ease-in-out infinite;
 }
 
+/* Latido operativo: lo que todavía no vio nadie.
+ *
+ * El pulso de arriba (1.035 en dos segundos y medio) es para lo que ya está
+ * atendido y sigue en la lista. No sirve para avisar: en un salón lleno, con
+ * el mozo hablando con una mesa y mirando la tablet de reojo, un 3% de escala
+ * no existe. Este late dos veces y descansa, que es como se mueve algo que
+ * pide atención — y el halo hace el trabajo cuando la tablet está lejos. */
+@keyframes alertBeat {
+  0%,
+  46%,
+  100% {
+    transform: scale(1);
+  }
+  11% {
+    transform: scale(1.07);
+  }
+  23% {
+    transform: scale(1);
+  }
+  34% {
+    transform: scale(1.07);
+  }
+}
+
+@keyframes alertHalo {
+  0% {
+    box-shadow: 0 0 0 0 var(--halo);
+  }
+  60%,
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+
+.u-alert-beat {
+  animation: alertBeat 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.u-alert-halo {
+  --halo: color-mix(in srgb, var(--alerta) 60%, transparent);
+  animation: alertHalo 1.8s ease-out infinite;
+}
+
+.u-alert-halo-marca {
+  --halo: color-mix(in srgb, var(--brand) 60%, transparent);
+}
+
+.u-alert-halo-curso {
+  --halo: color-mix(in srgb, var(--curso) 60%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .u-in,
   .u-pop,
@@ -290,48 +343,81 @@ button:disabled,
   .u-alert-flash-espera,
   .u-attention-pulse,
   .u-attention-pulse-priority,
-  .u-attention-dot {
+  .u-attention-dot,
+  .u-alert-beat {
     animation: none;
     opacity: 1;
     transform: none;
   }
+
+  /* Sin movimiento el aviso no puede desaparecer: el halo se queda fijo, que
+   * es la misma señal contada con contraste en vez de con animación. */
+  .u-alert-halo {
+    animation: none;
+    box-shadow: 0 0 0 5px var(--halo);
+  }
 }
 
-/* ---- Swap de imagenes por tema (azul en claro, crema en oscuro) ---- */
+/* ---- Swap de imagenes por tema (azul en claro, crema en oscuro) ----
+ *
+ * La mascota es un PNG de un solo color, así que el contraste no se negocia:
+ * la azul sobre fondo oscuro y la crema sobre fondo claro desaparecen las dos.
+ * Por eso van las dos variantes en el HTML y decide el CSS — en JS habría
+ * desajuste de hidratación y parpadeo, porque el tema lo aplica un script
+ * bloqueante antes del primer pintado. */
+.on-light,
+.on-dark {
+  max-width: 100%;
+  width: auto;
+  object-fit: contain;
+  object-position: left center;
+  vertical-align: middle;
+}
 .on-dark {
   display: none;
 }
 .on-light {
   display: inline-block;
-  max-width: 100%;
-  width: auto;
-  object-fit: contain;
-  object-position: left center;
-  vertical-align: middle;
 }
+
+/* Oscuro forzado por el toggle del panel. */
 :root[data-theme="dark"] .on-light {
   display: none;
 }
 :root[data-theme="dark"] .on-dark {
   display: inline-block;
-  max-width: 100%;
-  width: auto;
-  object-fit: contain;
-  object-position: left center;
-  vertical-align: middle;
 }
+
+/* Oscuro por preferencia del sistema, si nadie forzó claro. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .on-light {
     display: none;
   }
   :root:not([data-theme="light"]) .on-dark {
     display: inline-block;
-    max-width: 100%;
-    width: auto;
-    object-fit: contain;
-    object-position: left center;
-    vertical-align: middle;
   }
+}
+
+/* En el comensal manda el fondo de marca y no el tema del dispositivo: la
+ * pantalla del cliente se pinta con los colores del local.
+ *
+ * Van las dos direcciones a propósito. Con solo la oscura, el caso claro
+ * dependía de que `theme-init.js` alcanzara a forzar `data-theme="light"`
+ * antes de pintar; si ese script no corre, un local de fondo blanco se queda
+ * con la campana crema sobre blanco, que es no ver nada. El `:root` de adelante
+ * es para empatarle en especificidad al tema del dispositivo y ganarle por
+ * orden: acá el fondo de marca es la autoridad. */
+:root [data-scheme="dark"] .on-light {
+  display: none;
+}
+:root [data-scheme="dark"] .on-dark {
+  display: inline-block;
+}
+:root [data-scheme="light"] .on-dark {
+  display: none;
+}
+:root [data-scheme="light"] .on-light {
+  display: inline-block;
 }
 
 /* Scroll interno de modales: sin barra visible (sigue scrolleable) */

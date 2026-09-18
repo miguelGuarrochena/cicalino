@@ -12,15 +12,19 @@ export type FloorView = "pedido" | "cobrar" | "todas" | "turno";
 export interface AttentionSeen {
   navOrders: ReadonlySet<string>;
   navPayments: ReadonlySet<string>;
+  navCalls: ReadonlySet<string>;
   cardOrders: ReadonlySet<string>;
   cardPayments: ReadonlySet<string>;
+  cardCalls: ReadonlySet<string>;
 }
 
 export const emptyAttentionSeen = (): AttentionSeen => ({
   navOrders: new Set(),
   navPayments: new Set(),
+  navCalls: new Set(),
   cardOrders: new Set(),
   cardPayments: new Set(),
+  cardCalls: new Set(),
 });
 
 export const openCreatedOrders = (bill: TableBill): BillOrder[] =>
@@ -65,16 +69,20 @@ export const pruneSeen = (
   seen: AttentionSeen,
   orderIds: string[],
   paymentIds: string[],
+  callIds: string[] = [],
 ): AttentionSeen => {
   const orders = new Set(orderIds);
   const payments = new Set(paymentIds);
+  const calls = new Set(callIds);
   const keep = (set: ReadonlySet<string>, live: Set<string>) =>
     new Set([...set].filter((id) => live.has(id)));
   return {
     navOrders: keep(seen.navOrders, orders),
     navPayments: keep(seen.navPayments, payments),
+    navCalls: keep(seen.navCalls, calls),
     cardOrders: keep(seen.cardOrders, orders),
     cardPayments: keep(seen.cardPayments, payments),
+    cardCalls: keep(seen.cardCalls, calls),
   };
 };
 
@@ -93,8 +101,10 @@ export interface FloorAttention {
   tabCobrarPulse: boolean;
   unseenOrderIds: string[];
   unseenBillIds: string[];
+  unseenCallIds: string[];
   newOrderIds: string[];
   newBillIds: string[];
+  newCallIds: string[];
   headerKeys: string[];
 }
 
@@ -108,16 +118,21 @@ export const floorAttention = (
   const calls = waiterCallSessionIds(bills);
   const unseenOrderIds = unseenIn(orderIds, seen.navOrders);
   const unseenBillIds = unseenIn(billIds, seen.navPayments);
+  /* Un llamado sigue pendiente hasta que alguien toca "Ya voy" (la base borra
+   * `llamado_en`). Lo que se marca acá es haberlo *mirado*, que es lo que
+   * apaga el latido fuerte: sin esto la pantalla late para siempre. */
+  const unseenCallIds = unseenIn(calls, seen.navCalls);
   const newOrderIds = unseenIn(orderIds, seen.cardOrders);
   const newBillIds = unseenIn(billIds, seen.cardPayments);
+  const newCallIds = unseenIn(calls, seen.cardCalls);
   const onPedido = view === "pedido";
   const onCobrar = view === "cobrar";
-  const headerOrders = onPedido ? 0 : unseenOrderIds.length + calls.length;
+  const headerOrders = onPedido ? 0 : unseenOrderIds.length + unseenCallIds.length;
   const headerBills = onCobrar ? 0 : unseenBillIds.length;
 
   const headerKeys = [
     ...(onPedido ? [] : unseenOrderIds.map((id) => `o:${id}`)),
-    ...(onPedido ? [] : calls.map((id) => `c:${id}`)),
+    ...(onPedido ? [] : unseenCallIds.map((id) => `c:${id}`)),
     ...(onCobrar ? [] : unseenBillIds.map((id) => `p:${id}`)),
   ];
 
@@ -132,22 +147,26 @@ export const floorAttention = (
     headerPedido: headerOrders,
     headerCuenta: headerBills,
     headerPriority: headerBills > 0,
-    tabPedidoPulse: !onPedido && (unseenOrderIds.length > 0 || calls.length > 0),
+    tabPedidoPulse:
+      !onPedido && (unseenOrderIds.length > 0 || unseenCallIds.length > 0),
     tabCobrarPulse: !onCobrar && unseenBillIds.length > 0,
     unseenOrderIds,
     unseenBillIds,
+    unseenCallIds,
     newOrderIds,
     newBillIds,
+    newCallIds,
     headerKeys,
   };
 };
 
 export const idsForTable = (
   bill: TableBill | null,
-): { orders: string[]; payments: string[] } => {
-  if (!bill) return { orders: [], payments: [] };
+): { orders: string[]; payments: string[]; calls: string[] } => {
+  if (!bill) return { orders: [], payments: [], calls: [] };
   return {
     orders: openCreatedOrders(bill).map((o) => o.id),
     payments: guestBillRequests(bill).map((p) => p.id),
+    calls: waiterCallSessionIds([bill]),
   };
 };

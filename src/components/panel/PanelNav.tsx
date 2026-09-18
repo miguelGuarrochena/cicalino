@@ -5,16 +5,34 @@ import { usePathname } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useFloorAttention } from "@/lib/hooks/useFloorAttention";
+import { usePanelAlertCounts } from "@/lib/hooks/usePanelAlerts";
 import { navLinkActive } from "@/lib/operation";
 import { NavIconSvg } from "@/components/panel/NavIcons";
+import type { PanelAlertSource } from "@/lib/panelAlerts";
+
+/* La pestaña de cada módulo lleva lo que ese módulo tiene sin mirar. Mesas
+ * sigue leyendo su propio detalle (pedido vs cuenta) porque muestra las dos
+ * cosas por separado; las otras alcanzan con el número. */
+const SOURCE_BY_HREF: Record<string, PanelAlertSource> = {
+  "/panel/pedidos": "pedidos",
+  "/panel/espera": "recepcion",
+  "/panel/mesas": "mesas",
+};
 
 export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) => {
   const path = usePathname();
   const { t } = useApp();
   const { links } = useOperationalAccess();
   const attention = useFloorAttention();
+  const counts = usePanelAlertCounts();
 
-  const mesasLabel = (base: string, pending: number, split: boolean) => {
+  const pendingFor = (href: string) => {
+    if (href === "/panel/mesas") return attention.headerUnseen;
+    const source = SOURCE_BY_HREF[href];
+    return source ? counts[source] : 0;
+  };
+
+  const navLabel = (base: string, pending: number, split: boolean) => {
     if (pending <= 0) return base;
     if (split) {
       return `${base}, ${t("nav.pedidoYCuenta", {
@@ -31,14 +49,14 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
         {links.map((l) => {
           const active = navLinkActive(l.href, path);
           const isMesas = l.href === "/panel/mesas";
-          const pending = isMesas ? attention.headerUnseen : 0;
+          const pending = pendingFor(l.href);
           const split = isMesas && attention.headerPedido > 0 && attention.headerCuenta > 0;
           const priority = isMesas && attention.headerPriority;
           return (
             <Link
               key={l.href}
               href={l.href}
-              aria-label={mesasLabel(t(l.key), pending, split)}
+              aria-label={navLabel(t(l.key), pending, split)}
               className={`relative flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-xs font-semibold transition ${
                 active ? "text-marca" : "text-carbon/50"
               }`}
@@ -65,14 +83,14 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
       {links.map((l) => {
         const active = navLinkActive(l.href, path);
         const isMesas = l.href === "/panel/mesas";
-        const pending = isMesas ? attention.headerUnseen : 0;
+        const pending = pendingFor(l.href);
         const split = isMesas && attention.headerPedido > 0 && attention.headerCuenta > 0;
         const priority = isMesas && attention.headerPriority;
         return (
           <Link
             key={l.href}
             href={l.href}
-            aria-label={mesasLabel(t(l.key), pending, split)}
+            aria-label={navLabel(t(l.key), pending, split)}
             className={`relative flex min-h-11 min-w-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
               active
                 ? "bg-marca text-crema"
@@ -85,12 +103,12 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
               <span className="flex shrink-0 items-center gap-1">
                 {split ? <CategoryDots pulse /> : null}
                 <span
-                  className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                  className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold tabular-nums u-alert-beat ${
                     split
-                      ? "bg-carbon/10 text-carbon/70 u-attention-pulse"
+                      ? "bg-carbon text-crema u-alert-halo u-alert-halo-marca"
                       : priority
-                        ? "bg-curso text-crema u-attention-pulse-priority"
-                        : "bg-marca/15 text-marca u-attention-pulse"
+                        ? "bg-curso text-crema u-alert-halo u-alert-halo-curso"
+                        : "bg-marca text-crema u-alert-halo u-alert-halo-marca"
                   }`}
                 >
                   {pending}
@@ -105,9 +123,9 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
 };
 
 const CategoryDots = ({ pulse }: { pulse?: boolean }) => (
-  <span className={`flex items-center ${pulse ? "u-attention-dot" : ""}`} aria-hidden>
-    <span className="size-1.5 rounded-full bg-marca" />
-    <span className="-ml-0.5 size-1.5 rounded-full bg-curso ring-1 ring-crema" />
+  <span className={`flex items-center ${pulse ? "u-alert-beat" : ""}`} aria-hidden>
+    <span className="size-2 rounded-full bg-marca" />
+    <span className="-ml-0.5 size-2 rounded-full bg-curso ring-1 ring-crema" />
   </span>
 );
 
@@ -123,32 +141,27 @@ const NavBadge = ({
   compact?: boolean;
 }) => {
   if (count <= 0) return null;
-  if (compact && (count === 1 || split)) {
+  if (compact && split) {
     return (
-      <span aria-hidden className="absolute -right-1 -top-0.5 flex items-center">
-        {split ? (
-          <>
-            <span className="size-2 rounded-full bg-marca u-attention-dot" />
-            <span className="-ml-0.5 size-2 rounded-full bg-curso ring-1 ring-surface u-attention-dot" />
-          </>
-        ) : (
-          <span
-            className={`size-2 rounded-full ${
-              priority ? "bg-curso u-attention-dot" : "bg-marca u-attention-dot"
-            }`}
-          />
-        )}
+      <span
+        aria-hidden
+        className="u-alert-beat absolute -right-1.5 -top-1 flex items-center"
+      >
+        <span className="size-2.5 rounded-full bg-marca u-alert-halo u-alert-halo-marca" />
+        <span className="-ml-0.5 size-2.5 rounded-full bg-curso ring-1 ring-surface u-alert-halo u-alert-halo-curso" />
       </span>
     );
   }
+  /* El número siempre, aunque sea uno. En la barra de abajo el puntito solo se
+   * confundía con un detalle del ícono; el 1 se lee de reojo. */
   return (
     <span
       aria-hidden
-      className={`absolute -right-2 -top-1.5 inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold tabular-nums leading-none ${
-        priority ? "bg-curso text-crema" : "bg-marca text-crema"
-      } ${compact ? "h-4" : ""} ${
-        priority ? "u-attention-pulse-priority" : "u-attention-pulse"
-      }`}
+      className={`u-alert-beat absolute -right-2 -top-1.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums leading-none ${
+        priority
+          ? "bg-curso text-crema u-alert-halo u-alert-halo-curso"
+          : "bg-marca text-crema u-alert-halo u-alert-halo-marca"
+      } ${compact ? "h-4.5" : ""}`}
     >
       {count}
     </span>

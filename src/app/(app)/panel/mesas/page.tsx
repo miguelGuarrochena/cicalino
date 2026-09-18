@@ -37,6 +37,7 @@ import {
   kitchenInbox,
   needsPedido,
   nextChargeAfter,
+  tableAlert,
   type FloorFilter,
   type FloorTable,
 } from "@/lib/tableOps";
@@ -234,7 +235,7 @@ const MesasPage = () => {
   const openRow = (row: FloorTable) => {
     if (row.bill) {
       const ids = idsForTable(row.bill);
-      ackTableAttention(ids.orders, ids.payments);
+      ackTableAttention(ids.orders, ids.payments, ids.calls);
       setSelected(row.bill.session.id);
       return;
     }
@@ -245,10 +246,13 @@ const MesasPage = () => {
     if (row.qrToken) setQrRow(row);
   };
 
+  /* Mesas mueve el pedido a dos lugares y nada más: "ya lo anoté" (pasa a la
+   * comanda del local) o "cancelado". Listo/entregado no viven acá: si Mesas
+   * también los gestionara, el mismo pedido tendría dos dueños. */
   const moveRows = async (
     row: FloorTable,
     orders: FloorTable["newOrders"],
-    to: "en_preparacion" | "listo" | "retirado" | "cancelado",
+    to: "en_preparacion" | "cancelado",
   ) => {
     setKitchenBusy(row.key);
     let ok = true;
@@ -291,6 +295,12 @@ const MesasPage = () => {
   const hasInbox = inboxCreated.length + inboxCalled.length + inboxBills.length > 0;
   const newOrderIds = new Set(attention.newOrderIds);
   const newPaymentIds = new Set(attention.newBillIds);
+  const newCallIds = new Set(attention.newCallIds);
+  const nuevos = {
+    orders: newOrderIds,
+    payments: newPaymentIds,
+    calls: newCallIds,
+  };
 
   const cancelInbox = (row: FloorTable, orders: FloorTable["newOrders"]) => {
     const marched = orders.some((o) => o.status !== "creado");
@@ -421,6 +431,7 @@ const MesasPage = () => {
                 called={inboxCalled}
                 busy={kitchenBusy}
                 newOrderIds={newOrderIds}
+                newCallIds={newCallIds}
                 onOpen={openRow}
                 onPassToKitchen={(row) => void moveRows(row, row.newOrders, "en_preparacion")}
                 onCancel={cancelInbox}
@@ -483,6 +494,7 @@ const MesasPage = () => {
                     <FloorTableTile
                       key={row.key}
                       row={row}
+                      alerta={tableAlert(row, nuevos)}
                       active={showDetail && currentBill?.session.id === row.bill?.session.id}
                       onOpen={() => openRow(row)}
                     />
@@ -495,6 +507,7 @@ const MesasPage = () => {
                       key={row.key}
                       row={row}
                       dense
+                      alerta={tableAlert(row, nuevos)}
                       active={showDetail && currentBill?.session.id === row.bill?.session.id}
                       onOpen={() => openRow(row)}
                     />

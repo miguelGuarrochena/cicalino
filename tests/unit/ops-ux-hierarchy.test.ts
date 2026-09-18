@@ -48,6 +48,14 @@ describe("Operación — jerarquía y layout", () => {
     expect(page).toContain("const Accordion");
     expect(page).toContain("setOpenSection");
     expect(page).toContain("openId === id");
+    expect(page).toContain("goToConfigSection");
+    expect(page).toContain("scrollIntoView");
+    expect(page).toContain("el.open = open");
+    expect(nav).toContain("flex-wrap");
+    expect(nav).not.toContain("min-w-max");
+    expect(nav).toContain("goToConfigSection");
+    expect(nav).toContain("preventDefault");
+    expect(read("src/components/panel/config/configHash.ts")).toContain("HashChangeEvent");
     expect(page).toContain("config.seccionLocal");
     expect(page).toContain("<SubscriptionCard embedded");
     expect(page).toContain("PedirSucursalCard embedded");
@@ -104,6 +112,14 @@ describe("Operación — jerarquía y layout", () => {
     expect(detalle).toContain("w-full rounded-full bg-marca");
     expect(detalle).toContain("mesas.cobrar");
     expect(detalle).toContain("mesas.comanda");
+    expect(detalle).toContain("mesas.pasarAComanda");
+    expect(detalle).toContain("mesas.cancelarPedido");
+    expect(detalle).toContain("mesas.pedidoMesaAyuda");
+    expect(detalle).not.toContain("mesas.inboxAyuda");
+    expect(detalle).not.toContain("mesas.marcarListo");
+    expect(detalle).not.toContain("mesas.marcarEntregado");
+    expect(detalle).not.toContain("mesa.estadoPedido.${o.status}");
+    expect(detalle).toContain('o.status === "creado"');
     expect(detalle).toContain("mesas.cuenta");
     expect(detalle).toContain("from \"@/components/ui/Select\"");
     expect(detalle).not.toContain("<select");
@@ -150,11 +166,19 @@ describe("Operación — jerarquía y layout", () => {
     expect(nav).toContain("headerPedido");
     expect(nav).toContain("headerCuenta");
     expect(nav).toContain("nav.pedidoYCuenta");
-    expect(nav).toContain("u-attention-pulse");
+    /* El aviso de la nav late fuerte: el pulso suave no se ve de reojo en un
+     * salón lleno, que es la única situación en la que importa. */
+    expect(nav).toContain("u-alert-beat");
+    expect(nav).toContain("u-alert-halo");
     expect(nav).not.toContain("alert(");
-    expect(css).toContain("u-attention-pulse");
+    expect(css).toContain("u-alert-beat");
+    expect(css).toContain("u-alert-halo");
     expect(css).toContain("prefers-reduced-motion");
     expect(css).toContain("u-attention-dot");
+    /* Sin movimiento el aviso no puede desaparecer: queda el halo fijo. */
+    const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced).toContain("u-alert-beat");
+    expect(reduced).toContain("box-shadow: 0 0 0 5px var(--halo)");
     expect(inbox).toContain("mesas.nuevo");
     expect(inbox).toContain("mesas.visto");
     expect(inbox).toContain("mesas.vistoAyuda");

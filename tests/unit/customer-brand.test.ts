@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { translate } from "@/lib/i18n";
 import {
+  brandColorScheme,
   brandCssVars,
   isCustomerPath,
   parseBrandColor,
@@ -32,6 +33,16 @@ describe("Identidad del comensal", () => {
     expect(vars?.["--brand"]).toBe(BRAND_PRESETS.negro.brand);
     expect(vars?.["--bg"]).not.toBe(vars?.["--text"]);
     expect(JSON.stringify(vars)).not.toMatch(/#10142f|#1a1f45/);
+  });
+
+  it("fondos oscuros piden mascota crema; crema y blanco quedan en azul", () => {
+    expect(brandColorScheme(null)).toBe("light");
+    expect(brandColorScheme("blanco")).toBe("light");
+    expect(brandColorScheme("azul")).toBe("dark");
+    expect(brandColorScheme("negro")).toBe("dark");
+    expect(brandColorScheme("bordo")).toBe("dark");
+    expect(brandColorScheme("verde")).toBe("dark");
+    expect(brandColorScheme("terracota")).toBe("dark");
   });
 
   it("blanco es fondo claro con botones cobalto; azul es la noche Cicalino", () => {
@@ -84,6 +95,14 @@ describe("Experiencia del comensal: Light fijo + identidad mínima", () => {
     expect(layout).toContain('root.setAttribute("data-theme", "light")');
     expect(layout).toContain("cicalino-theme");
     expect(providers).toContain("isCustomerPath");
+  });
+
+  it("la mascota sigue el contraste del fondo de marca, no el Light fijo", () => {
+    const shell = read("src/components/customer/CustomerBrandShell.tsx");
+    const css = read("src/app/globals.css");
+    expect(shell).toContain("data-scheme={scheme}");
+    expect(css).toContain('[data-scheme="dark"] .on-light');
+    expect(css).toContain('[data-scheme="dark"] .on-dark');
   });
 
   it("las pantallas /m /p /e no muestran el toggle de tema", () => {

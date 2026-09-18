@@ -12,6 +12,7 @@ export const KitchenInbox = ({
   called,
   busy,
   newOrderIds,
+  newCallIds,
   onOpen,
   onPassToKitchen,
   onCancel,
@@ -21,6 +22,7 @@ export const KitchenInbox = ({
   called: FloorTable[];
   busy: string | null;
   newOrderIds?: ReadonlySet<string>;
+  newCallIds?: ReadonlySet<string>;
   onOpen: (row: FloorTable) => void;
   onPassToKitchen: (row: FloorTable) => void;
   onCancel: (row: FloorTable, orders: BillOrder[]) => void;
@@ -41,6 +43,7 @@ export const KitchenInbox = ({
               row={row}
               orders={row.newOrders}
               newOrderIds={newOrderIds}
+              nuevo={row.newOrders.some((o) => newOrderIds?.has(o.id) ?? true)}
               actionLabel={t("mesas.pasarAComanda")}
               busy={busy}
               onOpen={onOpen}
@@ -54,7 +57,13 @@ export const KitchenInbox = ({
       {called.length > 0 && (
         <InboxBlock title={t("mesas.teLlaman")} rows={called} tone="alerta">
           {(row) => (
-            <li className="rounded-2xl bg-surface p-4">
+            <li
+              className={`rounded-2xl bg-surface p-4 ${
+                row.bill && (newCallIds?.has(row.bill.session.id) ?? true)
+                  ? "u-alert-beat u-alert-halo"
+                  : ""
+              }`}
+            >
               <button type="button" onClick={() => onOpen(row)} className="w-full text-left">
                 <span className="font-display text-2xl uppercase leading-none text-carbon">
                   {t("mesa.mesaN", { n: row.tableNumber })}
@@ -121,6 +130,7 @@ const InboxRow = ({
   row,
   orders,
   newOrderIds,
+  nuevo,
   actionLabel,
   busy,
   onOpen,
@@ -131,6 +141,8 @@ const InboxRow = ({
   row: FloorTable;
   orders: BillOrder[];
   newOrderIds?: ReadonlySet<string>;
+  /* Late mientras nadie lo haya mirado. Después sigue en la cola, quieto. */
+  nuevo?: boolean;
   actionLabel: string;
   busy: string | null;
   onOpen: (row: FloorTable) => void;
@@ -161,7 +173,11 @@ const InboxRow = ({
   };
 
   return (
-    <li className="rounded-2xl bg-surface p-4">
+    <li
+      className={`rounded-2xl bg-surface p-4 ${
+        nuevo ? "u-alert-beat u-alert-halo u-alert-halo-marca" : ""
+      }`}
+    >
       <button type="button" onClick={() => onOpen(row)} className="w-full text-left">
         <span className="font-display text-2xl uppercase leading-none text-carbon">
           {t("mesa.mesaN", { n: row.tableNumber })}

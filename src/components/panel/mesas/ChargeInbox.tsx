@@ -31,7 +31,12 @@ export const ChargeInbox = ({
         {rows.map((row) => {
           const isNew = row.billRequests.some((p) => newPaymentIds.has(p.id));
           return (
-            <li key={row.key} className="rounded-2xl bg-surface p-4">
+            <li
+              key={row.key}
+              className={`rounded-2xl bg-surface p-4 ${
+                isNew ? "u-alert-beat u-alert-halo u-alert-halo-curso" : ""
+              }`}
+            >
               <p className="font-display text-2xl uppercase leading-none text-carbon">
                 {t("mesa.mesaN", { n: row.tableNumber })}
               </p>

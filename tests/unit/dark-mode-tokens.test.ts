@@ -116,3 +116,52 @@ describe("Pantallas de trabajo sin pasteles solo-claros", () => {
     expect(src).toContain("bg-alerta-fondo text-alerta");
   });
 });
+
+/* La mascota es un PNG de un solo color: azul o crema. Si la variante no
+ * acompaña al fondo, desaparece — crema sobre blanco y azul sobre azul noche
+ * son el mismo bug visto de los dos lados.
+ *
+ * En el comensal el fondo lo elige el local, no el celular del cliente, así
+ * que ahí manda `data-scheme` y no el tema del dispositivo. Medido en
+ * Chromium sobre este mismo bloque de CSS:
+ *
+ *                       sin marca   marca clara   marca oscura
+ *   device light         azul         azul          crema
+ *   device dark          crema        azul          crema
+ *   panel data-theme     sigue        azul          crema
+ */
+describe("Mascota: contraste contra el fondo", () => {
+  const bloque = css.slice(
+    css.indexOf("/* ---- Swap de imagenes por tema"),
+    css.indexOf("/* Scroll interno de modales"),
+  );
+
+  it("el fondo de marca decide en las dos direcciones", () => {
+    expect(bloque).toContain(':root [data-scheme="dark"] .on-light');
+    expect(bloque).toContain(':root [data-scheme="dark"] .on-dark');
+    /* La clara es la que faltaba: sin ella, un local de fondo blanco depende
+     * de que theme-init.js alcance a forzar el tema antes de pintar. */
+    expect(bloque).toContain(':root [data-scheme="light"] .on-dark');
+    expect(bloque).toContain(':root [data-scheme="light"] .on-light');
+  });
+
+  it("la marca gana por orden, así que va después del tema del dispositivo", () => {
+    const tema = bloque.indexOf('[data-theme="dark"] .on-light');
+    const sistema = bloque.indexOf("prefers-color-scheme: dark");
+    const marca = bloque.indexOf('[data-scheme=');
+    expect(tema).toBeGreaterThan(-1);
+    expect(sistema).toBeGreaterThan(-1);
+    /* Misma especificidad (0,3,0): si la marca fuera antes, perdería. */
+    expect(marca).toBeGreaterThan(tema);
+    expect(marca).toBeGreaterThan(sistema);
+  });
+
+  it("las dos variantes se renderizan siempre y el CSS esconde una", () => {
+    const img = readFileSync(join(root, "src/components/ui/ThemedImg.tsx"), "utf8");
+    expect(img).toContain("on-light");
+    expect(img).toContain("on-dark");
+    /* Elegir en JS traería desajuste de hidratación y parpadeo. */
+    expect(img).not.toContain("useEffect");
+    expect(img).not.toContain("matchMedia");
+  });
+});

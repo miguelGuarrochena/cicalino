@@ -16,6 +16,8 @@ import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { EsperaCancelWatch } from "@/components/panel/EsperaCancelWatch";
 import { FloorAttentionWatch } from "@/components/panel/FloorAttentionWatch";
+import { PanelAlertsWatch } from "@/components/panel/PanelAlertsWatch";
+import { PanelAlertDock } from "@/components/panel/PanelAlertDock";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { SubscriptionGate } from "@/components/panel/SubscriptionGate";
@@ -95,6 +97,7 @@ const PanelLayout = ({
       <BannerImpersonacion />
       {role !== "superadmin" && <EsperaCancelWatch />}
       {role !== "superadmin" && <FloorAttentionWatch />}
+      {role !== "superadmin" && <PanelAlertsWatch />}
       <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md print:hidden">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 sm:flex-nowrap sm:justify-between sm:gap-3 sm:px-8 sm:py-3">
           <Logo href={homeHref} className="h-8 shrink-0 sm:h-12" />
@@ -109,7 +112,7 @@ const PanelLayout = ({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-6 pt-6 sm:px-6 sm:pb-8 sm:pt-8">
+      <main className="mx-auto w-full min-w-0 max-w-5xl flex-1 px-4 pb-6 pt-6 sm:px-6 sm:pb-8 sm:pt-8">
         {role === "superadmin" && !impersonating ? (
           <SuperadminRedirect />
         ) : (
@@ -118,6 +121,7 @@ const PanelLayout = ({
       </main>
 
       <SiteFooter className="pb-20 sm:pb-8 print:hidden" />
+      {role !== "superadmin" && <PanelAlertDock />}
       {role !== "superadmin" && <PanelNav variant="bottom" />}
       {role !== "superadmin" && <InstallBanner />}
     </div>

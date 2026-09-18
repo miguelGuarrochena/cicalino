@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { fetchPaymentSettings, savePaymentSettings } from "@/lib/data/tables";
 import { disconnectMercadoPago, mercadoPagoAvailable } from "@/lib/actions/mercadopago";
 import type { PaymentSettings } from "@/lib/tableBill";
+import { goToConfigSection } from "@/components/panel/config/configHash";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-3 py-2.5 text-sm text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20 disabled:opacity-60";
@@ -105,7 +106,7 @@ export const PaymentMethodsCard = ({
     const estado = new URLSearchParams(window.location.search).get("mp");
     if (estado) {
       toast(t(`cobros.mp.${estado}`), estado === "conectado" ? "success" : "error");
-      window.history.replaceState(null, "", window.location.pathname + "#pagos");
+      goToConfigSection("pagos", "replace");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId]);
