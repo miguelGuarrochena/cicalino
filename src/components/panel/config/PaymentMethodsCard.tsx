@@ -142,9 +142,10 @@ export const PaymentMethodsCard = ({
 
   const disconnect = async () => {
     const ok = await confirmar({
-      title: t("cobros.mp.desconectar"),
+      title: t("cobros.mp.desconectarTitulo"),
       body: t("cobros.mp.desconectarConfirmar"),
-      confirmLabel: t("cobros.mp.desconectar"),
+      confirmLabel: t("cobros.mp.desconectarSi"),
+      cancelLabel: t("acciones.volver"),
       tone: "peligro",
     });
     if (!ok) return;

@@ -209,9 +209,10 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   const cancelOrder = async (orderId: string) => {
     if (sending) return;
     const ok = await confirmar({
-      title: t("mesa.cancelarPedido"),
+      title: t("mesa.cancelarPedidoTitulo"),
       body: t("mesa.cancelarPedidoConfirmar"),
-      confirmLabel: t("mesa.cancelarPedido"),
+      confirmLabel: t("mesa.cancelarPedidoSi"),
+      cancelLabel: t("acciones.volver"),
       tone: "peligro",
     });
     if (!ok) return;
@@ -782,9 +783,10 @@ const PendingPaymentHelp = ({
   const cancel = async () => {
     if (busy) return;
     const ok = await confirmar({
-      title: t("mesa.cancelarPago"),
+      title: t("mesa.cancelarPagoTitulo"),
       body: t("mesa.cancelarPagoConfirmar"),
-      confirmLabel: t("mesa.cancelarPago"),
+      confirmLabel: t("mesa.cancelarPagoSi"),
+      cancelLabel: t("acciones.volver"),
       tone: "peligro",
     });
     if (!ok) return;

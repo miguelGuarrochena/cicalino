@@ -662,23 +662,29 @@ describe("Dock con muchas alertas simultáneas", () => {
 
 /* Cerrar mesa: la acción se hace visible, las reglas no se tocan. */
 describe("Cerrar mesa accesible", () => {
-  it("se llega desde la baldosa y desde el detalle, con un solo modal", () => {
-    const page = read("src/app/(app)/panel/mesas/page.tsx");
+  /* La baldosa hace una sola cosa: entrar a la mesa.
+   *
+   * Tuvo una ✕ para cerrar rápido y se sacó: 32 px pegados al área que el mozo
+   * toca todo el día, con el icono que en el resto de la app significa
+   * "descartar este aviso". Cerrar se decide mirando la cuenta. */
+  it("la baldosa no cierra mesas: solo entra", () => {
     const tile = read("src/components/panel/mesas/FloorTableTile.tsx");
-    const detail = read("src/components/panel/mesas/TableDetail.tsx");
-    expect(tile).toContain("onClose");
-    expect(tile).toContain("stopPropagation");
-    expect(page).toContain("CloseTableModal");
-    expect(page).toContain("cerrarDesdeMapa");
-    expect(page).toContain("onCloseTable");
-    /* El modal vive una sola vez, en la página. */
-    expect(detail).not.toContain("CloseTableModal");
+    expect(tile).not.toContain("onClose");
+    expect(tile).not.toContain("CloseBtn");
+    expect(tile).not.toContain("stopPropagation");
+    expect(tile).not.toContain("cerrarMesaN");
+    const page = read("src/app/(app)/panel/mesas/page.tsx");
+    expect(page).not.toContain("cerrarDesdeMapa");
   });
 
-  it("solo se ofrece sobre una sesión abierta", () => {
+  it("se cierra desde el detalle, con un solo modal", () => {
     const page = read("src/app/(app)/panel/mesas/page.tsx");
-    const bloque = page.slice(page.indexOf("const cerrarDesdeMapa"));
-    expect(bloque.slice(0, 220)).toContain('session.status === "abierta"');
+    const detail = read("src/components/panel/mesas/TableDetail.tsx");
+    expect(page).toContain("CloseTableModal");
+    expect(page).toContain("onCloseTable");
+    /* Solo con la mesa abierta, y el modal vive una sola vez, en la página. */
+    expect(detail).toContain("{open && onCloseTable && (");
+    expect(detail).not.toContain("CloseTableModal");
   });
 
   it("las validaciones siguen donde estaban", () => {

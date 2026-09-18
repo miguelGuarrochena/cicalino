@@ -154,21 +154,23 @@ export const TableDetail = ({
                 let motivo: string | null = null;
                 if (p.status === "pagado") {
                   motivo = await confirmar({
-                    title: t("mesas.anularPago"),
+                    title: t("mesas.anularPagoTitulo"),
                     input: {
                       label: t("mesas.motivoAnular"),
                       requerido: true,
                       maxLength: 200,
                     },
-                    confirmLabel: t("mesas.anularPago"),
+                    confirmLabel: t("mesas.anularPagoSi"),
+                    cancelLabel: t("acciones.volver"),
                     tone: "peligro",
                   });
                   if (!motivo) return;
                 } else {
                   const ok = await confirmar({
-                    title: t("mesas.cancelarPago"),
+                    title: t("mesas.cancelarPagoTitulo"),
                     body: t("mesas.cancelarPagoConfirmar"),
-                    confirmLabel: t("mesas.cancelarPago"),
+                    confirmLabel: t("mesas.cancelarPagoSi"),
+                    cancelLabel: t("acciones.volver"),
                     tone: "peligro",
                   });
                   if (!ok) return;
@@ -446,9 +448,10 @@ export const TableDetail = ({
                         onClick={() => {
                           void (async () => {
                             const ok = await confirmar({
-                              title: t("mesas.cancelarPedido"),
+                              title: t("mesas.cancelarPedidoTitulo"),
                               body: t("mesas.cancelarPedidoConfirmar"),
-                              confirmLabel: t("mesas.cancelarPedido"),
+                              confirmLabel: t("mesas.cancelarPedidoSi"),
+                              cancelLabel: t("acciones.volver"),
                               tone: "peligro",
                             });
                             if (ok) await moveOrder(o, "cancelado");

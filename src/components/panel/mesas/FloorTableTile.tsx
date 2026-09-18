@@ -6,13 +6,17 @@ import { formatMoney } from "@/lib/tableBill";
 import { firstName } from "@/lib/floorShift";
 import { summarizeKitchen, type FloorTable } from "@/lib/tableOps";
 
-const hasOrder = (row: FloorTable) =>
-  row.newOrders.length + row.prepOrders.length + row.readyOrders.length > 0 ||
-  row.consumption > 0;
-
 /* Solid fill per state, like the floor map in Recepción: the tile is the
  * colour and everything inside it reads in crema. Washed-out tints and the
- * thick left bar didn't survive a glance across the room. */
+ * thick left bar didn't survive a glance across the room.
+ *
+ * El color contesta "¿tengo que hacer algo ahora?" y nada más.
+ *
+ * Antes contestaba otra cosa. `row.pending > 0` —saldo sin cubrir— pintaba la
+ * baldosa de rojo, y eso es cierto para casi toda mesa ocupada: apenas piden
+ * una gaseosa ya hay saldo. La sala amanecía roja y el rojo de "te llaman" se
+ * perdía adentro. El saldo se sigue viendo, pero donde corresponde: en el
+ * número de abajo, no en el color de alarma. */
 const tileTone = (row: FloorTable) => {
   if (row.calledAt || row.status === "llamado") {
     return "border-alerta bg-alerta text-crema";
@@ -20,14 +24,20 @@ const tileTone = (row: FloorTable) => {
   if (row.status === "pedido-nuevo") {
     return "border-marca bg-marca text-crema";
   }
+  /* Plata esperando que alguien la confirme: eso sí es trabajo pendiente.
+   *
+   * Es la única baldosa clara del piso, y es a propósito. Contra la roja de
+   * "te llaman" el ámbar pleno no alcanzaba: mismo tono oscuro, ΔE 21 y apenas
+   * 4 puntos de luminosidad de diferencia — de lejos son la misma mancha, y
+   * para alguien que no distingue el rojo eran directamente iguales (ΔE 7).
+   * Invertir la baldosa lleva esa diferencia a ΔE 83, y son 62 puntos de
+   * luminosidad: eso es lo que sobrevive a la distancia, al movimiento y al
+   * daltonismo. No hay color nuevo, es el par claro que el tema ya trae. */
+  if (row.status === "esperando-pago" || row.billRequests.length > 0) {
+    return "border-curso bg-curso-fondo text-curso";
+  }
   if (row.status === "pagada") {
     return "border-ok bg-ok text-crema";
-  }
-  if (row.pending > 0) {
-    return "border-alerta bg-alerta text-crema";
-  }
-  if (hasOrder(row)) {
-    return "border-curso bg-curso text-crema";
   }
   if (row.bill) {
     return "border-carbon bg-carbon text-crema";
@@ -55,54 +65,24 @@ const tileClass = (tone: string, active: boolean, alerta: TileAlert) =>
     alerta ? ALERT_CLASS[alerta] : ""
   }`;
 
-/* Cerrar la mesa desde la baldosa.
+/* La baldosa hace una sola cosa: entrar a la mesa.
  *
- * La mesa la abre el comensal al escanear el QR, no el local: alcanza con que
- * alguien escanee y escriba un nombre. La que se escaneó y no consumió no
- * aparece en ninguna cola — no hay pedido ni cuenta — así que sin esto la
- * única forma de cerrarla era entrar al detalle y encontrar un link de texto.
- * El botón solo abre el modal; las validaciones siguen en `cerrar_mesa`. */
-const CloseBtn = ({ label, onClose }: { label: string; onClose: () => void }) => (
-  <button
-    type="button"
-    aria-label={label}
-    title={label}
-    onClick={(e) => {
-      e.stopPropagation();
-      onClose();
-    }}
-    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-black/20 text-current transition hover:bg-black/35"
-  >
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  </button>
-);
-
+ * Tuvo una ✕ en la esquina para cerrar la mesa rápido y se sacó: 32 px de
+ * objetivo pegados al área que el mozo toca todo el día, con el icono que en
+ * el resto de la app significa "descartar este aviso". Cerrar una mesa se
+ * decide mirando la cuenta, y para eso hay que entrar. El botón vive ahí. */
 export const FloorTableTile = ({
   row,
   active,
   dense,
   alerta = null,
   onOpen,
-  onClose,
 }: {
   row: FloorTable;
   active: boolean;
   dense?: boolean;
   alerta?: TileAlert;
   onOpen: () => void;
-  /* Solo se pasa cuando hay sesión abierta que cerrar. */
-  onClose?: () => void;
 }) => {
   const { t } = useApp();
   const tone = tileTone(row);
@@ -152,35 +132,19 @@ export const FloorTableTile = ({
             <span className="shrink-0 font-display text-lg tabular-nums leading-none">{amount}</span>
           ) : null}
         </button>
-        {onClose ? (
-          <span className="flex shrink-0 items-center pr-2">
-            <CloseBtn
-              label={t("mesas.cerrarMesaN", { n: row.tableNumber })}
-              onClose={onClose}
-            />
-          </span>
-        ) : null}
       </li>
     );
   }
 
   return (
-    <li className={`relative min-h-[6.5rem] flex-col ${tileClass(tone, active, alerta)}`}>
-      {onClose ? (
-        <span className="absolute right-1.5 top-1.5 z-10">
-          <CloseBtn
-            label={t("mesas.cerrarMesaN", { n: row.tableNumber })}
-            onClose={onClose}
-          />
-        </span>
-      ) : null}
+    <li className={`min-h-[6.5rem] flex-col ${tileClass(tone, active, alerta)}`}>
       <button
         type="button"
         aria-current={active ? "true" : undefined}
         onClick={onOpen}
         className="flex w-full flex-1 flex-col text-left transition hover:brightness-95 active:scale-[0.99]"
       >
-        <span className={`flex min-h-0 flex-1 flex-col gap-1 px-3 pt-2.5 pb-2 ${onClose ? "pr-11" : ""}`}>
+        <span className="flex min-h-0 flex-1 flex-col gap-1 px-3 pt-2.5 pb-2">
           <span className="flex items-start justify-between gap-1">
             <span className="font-display text-2xl leading-none">{row.tableNumber}</span>
             {row.people > 0 && (

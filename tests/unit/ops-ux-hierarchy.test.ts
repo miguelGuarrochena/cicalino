@@ -181,7 +181,12 @@ describe("Operación — jerarquía y layout", () => {
     expect(reduced).toContain("box-shadow: 0 0 0 5px var(--halo)");
     expect(inbox).toContain("mesas.nuevo");
     expect(inbox).toContain("mesas.visto");
-    expect(inbox).toContain("mesas.vistoAyuda");
+    /* El matiz "visto en este dispositivo" se lee en pantalla, no en un
+     * `title` que en el teléfono no aparece nunca. */
+    expect(inbox).toContain("mesas.vistoDispositivo");
+    /* Y se renderiza como texto, no como tooltip del navegador. */
+    expect(inbox).toContain("{nota}");
+    expect(inbox).not.toContain("mesas.vistoAyuda");
     expect(charge).toContain("mesas.solicitaCuenta");
     expect(charge).toContain("mesas.cuentaSolicitada");
     expect(charge).toContain("mesas.verMesa");
@@ -212,7 +217,12 @@ describe("Operación — jerarquía y layout", () => {
      * to "Por cobrar". */
     const tile = read("src/components/panel/mesas/FloorTableTile.tsx");
     expect(tile).toContain("bg-alerta text-crema");
-    expect(tile).toContain("bg-curso text-crema");
+    /* "Pago a confirmar" es la excepción y es a propósito: va con el par claro
+     * del tema. Contra la roja de "te llaman", el ámbar pleno tenía el mismo
+     * tono oscuro (ΔE 21, y ΔE 7 para quien no distingue el rojo). Invertir la
+     * luminosidad es lo único que sobrevive a mirar el piso desde lejos. */
+    expect(tile).toContain("bg-curso-fondo text-curso");
+    expect(tile).not.toContain("bg-curso text-crema");
     expect(tile).toContain("bg-marca text-crema");
     expect(tile).toContain("bg-ok text-crema");
     expect(tile).toContain("bg-black/15");

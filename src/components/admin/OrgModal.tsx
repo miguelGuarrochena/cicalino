@@ -325,6 +325,7 @@ export const OrgModal = ({
         body: "No se pudo copiar solo. Copialo de acá.",
         input: { label: "Link", valorInicial: r.url, maxLength: 500 },
         confirmLabel: "Listo",
+        cancelLabel: "Volver",
       });
     }
   };
@@ -466,7 +467,8 @@ export const OrgModal = ({
       const ok = await confirmar({
         title: "Activar sin condiciones aceptadas",
         body: "El cliente todavía no aceptó las condiciones. ¿Activar la cuenta de todas formas?",
-        confirmLabel: "Activar igual",
+        confirmLabel: "Sí, activar igual",
+        cancelLabel: "Volver",
         tone: "peligro",
       });
       if (!ok) return;

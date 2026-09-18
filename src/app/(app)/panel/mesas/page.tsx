@@ -192,12 +192,6 @@ const MesasPage = () => {
     if (row.qrToken && row.qrActive) setQrRow(row);
   };
 
-  /* Solo las que tienen sesión abierta: una mesa libre no se cierra. */
-  const cerrarDesdeMapa = (row: FloorTable) =>
-    row.bill && row.bill.session.status === "abierta"
-      ? () => setCloseBill(row.bill)
-      : undefined;
-
   const showQr = (row: FloorTable) => {
     if (row.qrToken) setQrRow(row);
   };
@@ -261,11 +255,12 @@ const MesasPage = () => {
   const cancelInbox = async (row: FloorTable, orders: FloorTable["newOrders"]) => {
     const marched = orders.some((o) => o.status !== "creado");
     const ok = await confirmar({
-      title: t("mesas.cancelarPedido"),
+      title: t("mesas.cancelarPedidoTitulo"),
       body: marched
         ? t("mesas.cancelarPedidoAnotadoConfirmar")
         : t("mesas.cancelarPedidoConfirmar"),
-      confirmLabel: t("mesas.cancelarPedido"),
+      confirmLabel: t("mesas.cancelarPedidoSi"),
+      cancelLabel: t("acciones.volver"),
       tone: "peligro",
     });
     if (!ok) return;
@@ -455,7 +450,6 @@ const MesasPage = () => {
                       alerta={tableAlert(row, nuevos)}
                       active={showDetail && currentBill?.session.id === row.bill?.session.id}
                       onOpen={() => openRow(row)}
-                      onClose={cerrarDesdeMapa(row)}
                     />
                   ))}
                 </ul>
@@ -469,7 +463,6 @@ const MesasPage = () => {
                       alerta={tableAlert(row, nuevos)}
                       active={showDetail && currentBill?.session.id === row.bill?.session.id}
                       onOpen={() => openRow(row)}
-                      onClose={cerrarDesdeMapa(row)}
                     />
                   ))}
                 </ul>

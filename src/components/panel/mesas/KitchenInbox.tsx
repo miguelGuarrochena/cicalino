@@ -37,7 +37,18 @@ export const KitchenInbox = ({
         <p className="text-sm text-carbon/60">{t("mesas.inboxAyuda")}</p>
       )}
       {created.length > 0 && (
-        <InboxBlock title={t("mesas.nuevosPedidos")} rows={created}>
+        <InboxBlock
+          title={t("mesas.nuevosPedidos")}
+          rows={created}
+          /* "Visto" es por dispositivo y eso hay que decirlo donde se lee: en
+           * un `title` el mozo del teléfono no lo ve nunca, y dos tablets
+           * pueden creer cada una que la otra ya se ocupó. */
+          nota={
+            created.some((r) => r.newOrders.some((o) => !(newOrderIds?.has(o.id) ?? true)))
+              ? t("mesas.vistoDispositivo")
+              : undefined
+          }
+        >
           {(row) => (
             <InboxRow
               row={row}
@@ -90,11 +101,13 @@ const InboxBlock = ({
   title,
   rows,
   children,
+  nota,
   tone = "marca",
 }: {
   title: string;
   rows: FloorTable[];
   children: (row: FloorTable) => ReactNode;
+  nota?: string;
   tone?: "marca" | "alerta";
 }) => (
   <section
@@ -118,6 +131,7 @@ const InboxBlock = ({
         {rows.length}
       </span>
     </h2>
+    {nota ? <p className="mt-1.5 text-xs text-carbon/55">{nota}</p> : null}
     <ul className="mt-3 flex flex-col gap-3">
       {rows.map((row) => (
         <Fragment key={row.key}>{children(row)}</Fragment>
@@ -206,7 +220,6 @@ const InboxRow = ({
                         ? "font-semibold text-marca"
                         : "font-normal text-carbon/45"
                     }
-                    title={isNew ? undefined : t("mesas.vistoAyuda")}
                   >
                     {isNew ? t("mesas.nuevo") : t("mesas.visto")}
                   </span>

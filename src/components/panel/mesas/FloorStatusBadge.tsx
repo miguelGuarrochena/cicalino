@@ -3,6 +3,21 @@
 import { useApp } from "@/components/providers/Providers";
 import type { FloorOpStatus } from "@/lib/tableOps";
 
+/* El color responde una sola pregunta: ¿tengo que hacer algo ahora?
+ *
+ * Antes no la respondía. "Pendiente de pago" —una mesa comiendo con la cuenta
+ * abierta, o sea casi todas— iba en rojo, el mismo rojo que "te llaman". Con
+ * media sala en rojo, el rojo dejaba de querer decir algo.
+ *
+ * Ahora hay tres colores de acción y el resto es fondo:
+ *
+ *   rojo (alerta) → te llaman, andá
+ *   azul (marca)  → comanda nueva para anotar
+ *   ámbar (curso) → hay plata esperando que la confirmes
+ *   verde (ok)    → cobrada, no debe nada
+ *   carbón        → ocupada y tranquila
+ *   teal (espera) → libre
+ */
 export const FLOOR_STYLE: Record<
   FloorOpStatus,
   { bar: string; dot: string; text: string; chip: string }
@@ -31,29 +46,32 @@ export const FLOOR_STYLE: Record<
     text: "text-curso",
     chip: "bg-curso-fondo",
   },
+  /* Comiendo con la cuenta abierta: no hay nada que hacer todavía. */
   pendiente: {
-    bar: "border-l-alerta",
-    dot: "bg-alerta",
-    text: "text-alerta",
-    chip: "bg-alerta-fondo",
+    bar: "border-l-carbon/40",
+    dot: "bg-carbon/45",
+    text: "text-carbon/70",
+    chip: "bg-carbon/10",
   },
+  /* Ya cobró una parte. Tampoco pide nada ahora, pero no es lo mismo que
+   * "no pagó nada": lleva el punto del dinero para distinguirse de un vistazo. */
   parcial: {
-    bar: "border-l-curso",
-    dot: "bg-curso",
-    text: "text-curso",
-    chip: "bg-curso-fondo",
+    bar: "border-l-ok",
+    dot: "bg-ok",
+    text: "text-carbon/70",
+    chip: "bg-ok-fondo",
   },
   preparando: {
-    bar: "border-l-curso",
-    dot: "bg-curso",
-    text: "text-curso",
-    chip: "bg-curso-fondo",
+    bar: "border-l-carbon/40",
+    dot: "bg-carbon/45",
+    text: "text-carbon/70",
+    chip: "bg-carbon/10",
   },
   consumiendo: {
-    bar: "border-l-curso",
-    dot: "bg-curso",
-    text: "text-curso",
-    chip: "bg-curso-fondo",
+    bar: "border-l-carbon/40",
+    dot: "bg-carbon/45",
+    text: "text-carbon/70",
+    chip: "bg-carbon/10",
   },
   pagada: {
     bar: "border-l-ok",

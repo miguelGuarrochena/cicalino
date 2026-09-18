@@ -126,9 +126,10 @@ const MesasQrPage = () => {
 
   const regenerate = async (m: WithImage) => {
     const ok = await confirmar({
-      title: t("mesasQr.regenerar"),
+      title: t("mesasQr.regenerarTitulo"),
       body: t("mesasQr.regenerarConfirmar", { n: m.number }),
-      confirmLabel: t("mesasQr.regenerar"),
+      confirmLabel: t("mesasQr.regenerarSi"),
+      cancelLabel: t("acciones.volver"),
       tone: "peligro",
     });
     if (!ok) return;

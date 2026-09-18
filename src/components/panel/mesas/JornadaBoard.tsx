@@ -462,9 +462,10 @@ export const JornadaBoard = ({
               onClick={() => {
                 void (async () => {
                   const ok = await confirmar({
-                    title: t("recepcion.resetHoy"),
+                    title: t("recepcion.resetHoyTitulo"),
                     body: t("recepcion.resetHoyConfirmar"),
-                    confirmLabel: t("recepcion.resetHoy"),
+                    confirmLabel: t("recepcion.resetHoySi"),
+                    cancelLabel: t("acciones.volver"),
                     tone: "peligro",
                   });
                   if (!ok) return;

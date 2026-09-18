@@ -270,9 +270,10 @@ export const MenuWorkspace = () => {
 
   const removeProduct = async (p: MenuProductView) => {
     const ok = await confirmar({
-      title: t("carta.borrarProducto"),
+      title: t("carta.borrarProductoTitulo"),
       body: t("carta.borrarConfirmar", { n: p.name }),
-      confirmLabel: t("carta.borrarProducto"),
+      confirmLabel: t("carta.borrarSi"),
+      cancelLabel: t("acciones.volver"),
       tone: "peligro",
     });
     if (!ok) return;
@@ -352,9 +353,10 @@ export const MenuWorkspace = () => {
       ? t("carta.categoriaBorrarConProductos", { n: c.name, cantidad: n })
       : t("carta.categoriaBorrarConfirmar", { n: c.name });
     const confirmado = await confirmar({
-      title: t("carta.categoriaBorrar"),
+      title: t("carta.categoriaBorrarTitulo"),
       body: msg,
-      confirmLabel: t("carta.categoriaBorrar"),
+      confirmLabel: t("carta.borrarSi"),
+      cancelLabel: t("acciones.volver"),
       tone: "peligro",
     });
     if (!confirmado) return;
