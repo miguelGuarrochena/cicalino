@@ -8,6 +8,7 @@ import { useFloorAttention } from "@/lib/hooks/useFloorAttention";
 import { usePanelAlertCounts } from "@/lib/hooks/usePanelAlerts";
 import { navLinkActive } from "@/lib/operation";
 import { NavIconSvg } from "@/components/panel/NavIcons";
+import { CountBadge } from "@/components/ui/CountBadge";
 import type { PanelAlertSource } from "@/lib/panelAlerts";
 
 /* La pestaña de cada módulo lleva lo que ese módulo tiene sin mirar. Mesas
@@ -63,11 +64,14 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
             >
               <span className="relative">
                 <NavIconSvg k={l.icon} size={22} />
-                <NavBadge
-                  count={active ? 0 : pending}
-                  priority={priority}
-                  split={split}
-                  compact
+                {/* Pegado a la esquina del ícono, pisándolo un cuarto: menos
+                    que eso no se lee como globo, más que eso tapa el ícono y
+                    el mozo pierde de qué sección es. */}
+                <CountBadge
+                  n={active ? 0 : pending}
+                  tone={priority ? "curso" : "marca"}
+                  pulse
+                  className="absolute -right-5 -top-4"
                 />
               </span>
               <span className="max-w-full truncate px-1">{t(l.key)}</span>
@@ -78,8 +82,10 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
     );
   }
 
+  /* gap-2: el globo asoma 8 px por el borde derecho, y ese hueco es justo para
+   * que caiga ahí y no encima de la píldora siguiente. */
   return (
-    <nav className="hidden items-center gap-1 rounded-full bg-crema/60 p-1 sm:flex">
+    <nav className="hidden items-center gap-2 rounded-full bg-crema/60 p-1 sm:flex">
       {links.map((l) => {
         const active = navLinkActive(l.href, path);
         const isMesas = l.href === "/panel/pagos";
@@ -99,71 +105,18 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
           >
             <NavIconSvg k={l.icon} size={18} />
             <span className="truncate">{t(l.key)}</span>
-            {pending > 0 && !active ? (
-              <span className="flex shrink-0 items-center gap-1">
-                {split ? <CategoryDots pulse /> : null}
-                <span
-                  className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold tabular-nums u-alert-beat ${
-                    split
-                      ? "bg-carbon text-crema u-alert-halo u-alert-halo-marca"
-                      : priority
-                        ? "bg-curso text-crema u-alert-halo u-alert-halo-curso"
-                        : "bg-marca text-crema u-alert-halo u-alert-halo-marca"
-                  }`}
-                >
-                  {pending}
-                </span>
-              </span>
-            ) : null}
+            {/* Asomado por el borde, como el globito de mensajes sin leer:
+                adentro del botón se lee como un detalle del botón, y afuera
+                se lee como "hay algo esperándote". */}
+            <CountBadge
+              n={active ? 0 : pending}
+              tone={priority ? "curso" : "marca"}
+              pulse
+              className="absolute -right-2 -top-2"
+            />
           </Link>
         );
       })}
     </nav>
-  );
-};
-
-const CategoryDots = ({ pulse }: { pulse?: boolean }) => (
-  <span className={`flex items-center ${pulse ? "u-alert-beat" : ""}`} aria-hidden>
-    <span className="size-2 rounded-full bg-marca" />
-    <span className="-ml-0.5 size-2 rounded-full bg-curso ring-1 ring-crema" />
-  </span>
-);
-
-const NavBadge = ({
-  count,
-  priority,
-  split,
-  compact,
-}: {
-  count: number;
-  priority: boolean;
-  split?: boolean;
-  compact?: boolean;
-}) => {
-  if (count <= 0) return null;
-  if (compact && split) {
-    return (
-      <span
-        aria-hidden
-        className="u-alert-beat absolute -right-1.5 -top-1 flex items-center"
-      >
-        <span className="size-2.5 rounded-full bg-marca u-alert-halo u-alert-halo-marca" />
-        <span className="-ml-0.5 size-2.5 rounded-full bg-curso ring-1 ring-surface u-alert-halo u-alert-halo-curso" />
-      </span>
-    );
-  }
-  /* El número siempre, aunque sea uno. En la barra de abajo el puntito solo se
-   * confundía con un detalle del ícono; el 1 se lee de reojo. */
-  return (
-    <span
-      aria-hidden
-      className={`u-alert-beat absolute -right-2 -top-1.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums leading-none ${
-        priority
-          ? "bg-curso text-crema u-alert-halo u-alert-halo-curso"
-          : "bg-marca text-crema u-alert-halo u-alert-halo-marca"
-      } ${compact ? "h-4.5" : ""}`}
-    >
-      {count}
-    </span>
   );
 };

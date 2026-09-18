@@ -3,6 +3,7 @@ export type TabGlyphKey =
   | "cobrar"
   | "todas"
   | "turno"
+  | "qr"
   | "carta"
   | "cuenta"
   | "espera"
@@ -58,6 +59,15 @@ export const TabGlyph = ({
       <svg {...common}>
         <circle cx="12" cy="8" r="3" />
         <path d="M5 20c1.2-4 12.8-4 14 0" />
+      </svg>
+    );
+  if (k === "qr")
+    return (
+      <svg {...common}>
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <path d="M14 14h3v3h-3zM20 14v.01M14 20v.01M20 20v.01M17 20v.01M20 17v.01" />
       </svg>
     );
   if (k === "carta")

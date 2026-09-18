@@ -1147,8 +1147,6 @@ const dict = {
     },
     mesas: {
       titulo: "Pagos",
-      /* Lo que no se toca durante el servicio va aparte y en voz baja. */
-      administracion: "Administración",
       cobrar: "Cobrar",
       cobrarMesa: "Cobrar {n}",
       pendienteN: "Pendiente: {n}",
@@ -2792,7 +2790,6 @@ const dict = {
     },
     mesas: {
       titulo: "Payments",
-      administracion: "Admin",
       cobrar: "Collect",
       cobrarMesa: "Collect {n}",
       pendienteN: "Pending: {n}",

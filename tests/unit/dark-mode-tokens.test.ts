@@ -23,6 +23,9 @@ const BLOQUES = [
 ];
 
 const TOKENS = [
+  /* El color de cada módulo también: si Pagos quedara definido solo en claro,
+   * en oscuro heredaría el ámbar oscuro y desaparecería contra el fondo. */
+  "--pagos",
   "--curso",
   "--curso-fondo",
   "--curso-borde",
