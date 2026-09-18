@@ -6,6 +6,9 @@ import { useApp } from "@/components/providers/Providers";
 import { Controls } from "@/components/ui/Controls";
 import { TabGlyph } from "@/components/ui/TabGlyph";
 import { Spinner } from "@/components/ui/Spinner";
+import { CustomerBrandHeader } from "@/components/customer/CustomerBrandHeader";
+import { CustomerBrandShell } from "@/components/customer/CustomerBrandShell";
+import type { BrandColorId } from "@/lib/customerBrand";
 import {
   BillTotals,
   ConsumptionTable,
@@ -34,6 +37,8 @@ export interface TableGuestInitial {
   token: string;
   tableNumber: number;
   branchName: string;
+  logoUrl: string | null;
+  colorMarca: BrandColorId | null;
   operational: boolean;
   menu: GuestMenuProduct[];
   settings: PaymentSettings;
@@ -237,16 +242,19 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
 
   if (!guest || !bill) {
     return (
-      <JoinTable
-        token={token}
-        tableNumber={initial.tableNumber}
-        branchName={initial.branchName}
-        operational={initial.operational}
-        onJoined={(g, b) => {
-          setGuest(g);
-          applyBill(b);
-        }}
-      />
+      <CustomerBrandShell color={initial.colorMarca}>
+        <JoinTable
+          token={token}
+          tableNumber={initial.tableNumber}
+          branchName={initial.branchName}
+          logoUrl={initial.logoUrl}
+          operational={initial.operational}
+          onJoined={(g, b) => {
+            setGuest(g);
+            applyBill(b);
+          }}
+        />
+      </CustomerBrandShell>
     );
   }
 
@@ -257,18 +265,21 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   const showBar = cartCount > 0 || hasConsumption || tab === "cuenta";
 
   return (
+    <CustomerBrandShell color={initial.colorMarca}>
     <main className={`mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-4 ${showBar ? "pb-32" : "pb-8"}`}>
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-carbon/50">
-            {initial.branchName}
-          </p>
+          <CustomerBrandHeader
+            name={initial.branchName}
+            logoUrl={initial.logoUrl}
+            align="start"
+          />
           <h1 className="font-display text-3xl uppercase text-marca">
             {t("mesa.mesaN", { n: bill.session.tableNumber })}
           </h1>
           <p className="text-sm text-carbon/60">{t("mesa.hola", { n: guest.name })}</p>
         </div>
-        <Controls />
+        <Controls showTheme={false} />
       </header>
 
       {open && (
@@ -571,6 +582,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
         />
       )}
     </main>
+    </CustomerBrandShell>
   );
 };
 
@@ -595,12 +607,14 @@ const JoinTable = ({
   token,
   tableNumber,
   branchName,
+  logoUrl,
   operational,
   onJoined,
 }: {
   token: string;
   tableNumber: number;
   branchName: string;
+  logoUrl: string | null;
   operational: boolean;
   onJoined: (g: { id: string; name: string }, b: TableBill) => void;
 }) => {
@@ -643,8 +657,8 @@ const JoinTable = ({
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-6 py-12">
-      <Controls className="absolute right-4 top-4" />
-      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-carbon/50">{branchName}</p>
+      <Controls showTheme={false} className="absolute right-4 top-4" />
+      <CustomerBrandHeader name={branchName} logoUrl={logoUrl} align="start" />
       <h1 className="mt-1 font-display text-4xl uppercase text-marca">
         {t("mesa.mesaN", { n: tableNumber })}
       </h1>

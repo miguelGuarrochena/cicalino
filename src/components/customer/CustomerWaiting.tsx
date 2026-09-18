@@ -17,6 +17,8 @@ import {
 } from "@/lib/customerLastVisit";
 import { CustomerAliasForm } from "@/components/customer/CustomerAliasForm";
 import { CustomerOtherTab } from "@/components/customer/CustomerOtherTab";
+import { CustomerBrandHeader } from "@/components/customer/CustomerBrandHeader";
+import { CustomerBrandShell } from "@/components/customer/CustomerBrandShell";
 import {
   showReadyNotice,
   requestNotificationPermission,
@@ -194,7 +196,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   if (!order) {
     return (
       <main className="relative flex min-h-dvh flex-col items-center justify-center px-6 py-14 text-center">
-        <Controls className="absolute right-4 top-4" />
+        <Controls showTheme={false} className="absolute right-4 top-4" />
         <ThemedImg name="bell" alt="" className="h-28 opacity-50" />
         <p className="mt-6 font-display text-2xl uppercase text-carbon">
           {t("cliente.noEncontradoTitulo")}
@@ -216,12 +218,13 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
   }
 
   return (
+    <CustomerBrandShell color={order.colorMarca}>
     <main
       className={`relative flex min-h-dvh flex-col items-center px-6 pb-14 pt-16 text-center transition-colors duration-500 ${
         flash ? "u-alert-flash" : "bg-crema"
       }`}
     >
-      <Controls className="absolute right-4 top-4 z-20" />
+      <Controls showTheme={false} className="absolute right-4 top-4 z-20" />
 
       {waiting && (
         <div className="u-in mb-6 w-full rounded-2xl border border-amber-300/80 bg-amber-100 px-3 py-2.5 text-amber-950 sm:max-w-sm">
@@ -243,12 +246,11 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
 
       <div className="u-in flex flex-1 flex-col items-center justify-center">
         <div className="flex w-full max-w-sm flex-col items-center gap-1">
-          {order.branchName && (
-            <span className="mb-1 max-w-[16rem] truncate font-display text-lg uppercase tracking-tight text-carbon/70 sm:max-w-xs sm:text-xl">
-              {order.branchName}
-            </span>
-          )}
-          <span className="text-xs uppercase tracking-widest text-carbon/40">
+          <CustomerBrandHeader
+            name={order.branchName}
+            logoUrl={order.logoUrl}
+          />
+          <span className="mt-1 text-xs uppercase tracking-widest text-carbon/40">
             {t(`modo.${order.modo}`)}
           </span>
           <span className="font-display text-7xl leading-none text-marca sm:text-8xl">
@@ -365,5 +367,6 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
         {t("cliente.espera")} · cicalino.net
       </p>
     </main>
+    </CustomerBrandShell>
   );
 };

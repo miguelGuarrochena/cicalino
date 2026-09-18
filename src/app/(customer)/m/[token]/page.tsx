@@ -7,7 +7,7 @@ import {
   fetchGuestPaymentOptions,
   fetchGuestState,
   fetchMenu,
-  fetchBranchName,
+  fetchBranchBrand,
   readGuestCookie,
   resolveTableQr,
 } from "@/lib/server/tableGuest";
@@ -58,17 +58,19 @@ const TablePage = async ({
         redirect(`/m/${state.tableToken}`);
       }
       if (state.tableToken === token && state.bill.session.tableId) {
-        const [menu, payment, branchName] = await Promise.all([
+        const [menu, payment, brand] = await Promise.all([
           fetchMenu(state.bill.session.branchId),
           fetchGuestPaymentOptions(state.bill.session.branchId),
-          fetchBranchName(state.bill.session.branchId),
+          fetchBranchBrand(state.bill.session.branchId),
         ]);
         return (
           <TableGuestApp
             initial={{
               token,
               tableNumber: state.bill.session.tableNumber,
-              branchName,
+              branchName: brand.name,
+              logoUrl: brand.logoUrl,
+              colorMarca: brand.color,
               operational: true,
               menu,
               settings: payment.settings,
@@ -84,9 +86,10 @@ const TablePage = async ({
     return <TableNotFound reason={mesa.reason} />;
   }
 
-  const [menu, payment] = await Promise.all([
+  const [menu, payment, brand] = await Promise.all([
     fetchMenu(mesa.branchId),
     fetchGuestPaymentOptions(mesa.branchId),
+    fetchBranchBrand(mesa.branchId),
   ]);
 
   /* The cookie belongs to this table only if it points to it. A guest from
@@ -101,7 +104,9 @@ const TablePage = async ({
       initial={{
         token,
         tableNumber: mesa.tableNumber,
-        branchName: mesa.branchName,
+        branchName: brand.name || mesa.branchName,
+        logoUrl: brand.logoUrl,
+        colorMarca: brand.color,
         operational: mesa.operational,
         menu,
         settings: payment.settings,

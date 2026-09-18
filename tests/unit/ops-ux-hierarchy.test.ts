@@ -73,7 +73,7 @@ describe("Operación — jerarquía y layout", () => {
     expect(qr).toContain("venueName");
     const guestPage = read("src/app/(customer)/m/[token]/page.tsx");
     expect(guestPage).toContain("generateMetadata");
-    expect(guestPage).toContain("fetchBranchName");
+    expect(guestPage).toContain("fetchBranchBrand");
     expect(guestPage).not.toContain('branchName: ""');
   });
 

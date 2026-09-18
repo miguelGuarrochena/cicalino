@@ -10,6 +10,7 @@ import {
 } from "@/lib/tableBill";
 import { mercadoPagoConfigured } from "@/lib/server/mercadopago";
 import { orderForGuests } from "@/lib/menuView";
+import { brandFromLocal, emptyCustomerBrand, type CustomerBrand } from "@/lib/customerBrand";
 
 /* Guest identity at a table.
  *
@@ -100,11 +101,20 @@ export const resolveTableQr = async (token: string): Promise<TableQr> => {
   };
 };
 
-export const fetchBranchName = async (branchId: string): Promise<string> => {
+export const fetchBranchName = async (branchId: string): Promise<string> =>
+  (await fetchBranchBrand(branchId)).name;
+
+export const fetchBranchBrand = async (
+  branchId: string,
+): Promise<CustomerBrand> => {
   const admin = createAdminSupabase();
-  if (!admin) return "";
-  const { data } = await admin.from("locales").select("nombre").eq("id", branchId).maybeSingle();
-  return String(data?.nombre ?? "");
+  if (!admin) return emptyCustomerBrand();
+  const { data } = await admin
+    .from("locales")
+    .select("nombre, logo_url, color_marca")
+    .eq("id", branchId)
+    .maybeSingle();
+  return brandFromLocal(data);
 };
 
 export interface MenuProduct {

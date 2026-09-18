@@ -18,6 +18,7 @@ import { syncTables } from "@/lib/data/waitlist";
 import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { HelpLink } from "@/components/panel/HelpLink";
 import { PaymentMethodsCard } from "@/components/panel/config/PaymentMethodsCard";
+import { BrandIdentityCard } from "@/components/panel/config/BrandIdentityCard";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { businessTypeLabel } from "@/lib/types";
@@ -317,6 +318,8 @@ const ConfigPage = () => {
           </div>
         </section>
       )}
+
+      <BrandIdentityCard />
 
       {role === "admin" && supabaseConfigured && isRealBranchId(branchId) && (
         <PedirSucursalCard />

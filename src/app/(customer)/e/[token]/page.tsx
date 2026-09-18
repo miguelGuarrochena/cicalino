@@ -3,8 +3,10 @@ import { after } from "next/server";
 import { CustomerEsperaWaiting } from "@/components/customer/CustomerEsperaWaiting";
 import {
   fetchCustomerEsperaSeen,
+  fetchCustomerEsperaBrand,
   markCustomerEsperaSeen,
 } from "@/lib/data/customer-espera";
+import { emptyCustomerBrand } from "@/lib/customerBrand";
 import { qrTokenSchema } from "@/lib/schemas";
 
 export const dynamic = "force-dynamic";
@@ -19,15 +21,20 @@ const CustomerEsperaPage = async ({
   params: Promise<{ token: string }>;
 }) => {
   const { token } = await params;
+  let brand = emptyCustomerBrand();
 
   if (qrTokenSchema.safeParse(token).success) {
-    const res = await fetchCustomerEsperaSeen(token);
+    const [res, nextBrand] = await Promise.all([
+      fetchCustomerEsperaSeen(token),
+      fetchCustomerEsperaBrand(token),
+    ]);
+    brand = nextBrand;
     if (res.ok) {
       after(() => markCustomerEsperaSeen(res.id, "visit"));
     }
   }
 
-  return <CustomerEsperaWaiting token={token} />;
+  return <CustomerEsperaWaiting token={token} brand={brand} />;
 };
 
 export default CustomerEsperaPage;

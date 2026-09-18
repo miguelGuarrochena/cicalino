@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { translate, type Locale } from "@/lib/i18n";
+import { isCustomerPath } from "@/lib/customerBrand";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useSuperadminStore } from "@/lib/store/superadmin-store";
@@ -50,7 +51,9 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
     /* eslint-disable-next-line react-hooks/set-state-in-effect -- ver arriba. */
     setThemeState(st);
     setLocaleState(sl);
-    applyTheme(st);
+    applyTheme(
+      isCustomerPath(window.location.pathname) ? "light" : st,
+    );
     useConfigStore.persist.rehydrate();
     useSessionStore.persist.rehydrate();
     useSuperadminStore.persist.rehydrate();
@@ -69,7 +72,9 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
   const setTheme = useCallback((t: ThemePref) => {
     setThemeState(t);
     localStorage.setItem("cicalino-theme", t);
-    applyTheme(t);
+    applyTheme(
+      isCustomerPath(window.location.pathname) ? "light" : t,
+    );
   }, []);
 
   const cycleTheme = useCallback(() => {
@@ -77,7 +82,9 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
       const next: ThemePref =
         prev === "light" ? "dark" : prev === "dark" ? "system" : "light";
       localStorage.setItem("cicalino-theme", next);
-      applyTheme(next);
+      applyTheme(
+        isCustomerPath(window.location.pathname) ? "light" : next,
+      );
       return next;
     });
   }, []);

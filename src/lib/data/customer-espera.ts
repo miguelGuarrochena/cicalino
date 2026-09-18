@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { brandFromLocal, emptyCustomerBrand, type CustomerBrand } from "@/lib/customerBrand";
 
 export type EsperaSeenResult =
   | { ok: true; id: string; seen: boolean }
@@ -48,4 +49,21 @@ export const markCustomerEsperaSeen = async (
     return;
   }
   await q;
+};
+
+export const fetchCustomerEsperaBrand = async (
+  token: string,
+): Promise<CustomerBrand> => {
+  const supabase = createAdminSupabase();
+  if (!supabase) return emptyCustomerBrand();
+
+  const { data, error } = await supabase
+    .from("esperas")
+    .select("locales(nombre, logo_url, color_marca)")
+    .eq("qr_token", token)
+    .maybeSingle();
+
+  if (error || !data) return emptyCustomerBrand();
+  const local = Array.isArray(data.locales) ? data.locales[0] : data.locales;
+  return brandFromLocal(local);
 };
