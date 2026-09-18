@@ -3,8 +3,10 @@ import {
   billPending,
   type BillGuest,
   type BillOrder,
+  type BillPayment,
   type TableBill,
 } from "@/lib/tableBill";
+import { guestBillRequests } from "@/lib/floorAttention";
 
 export interface FloorQr {
   id: string;
@@ -63,6 +65,7 @@ export interface FloorTable {
   prepOrders: BillOrder[];
   readyOrders: BillOrder[];
   waitingPayments: number;
+  billRequests: BillPayment[];
   waiterId: string | null;
   waiterName: string | null;
   calledAt: string | null;
@@ -187,6 +190,7 @@ const toRow = (
   prepOrders: bill ? kitchenOrders(bill, "en_preparacion") : [],
   readyOrders: bill ? kitchenOrders(bill, "listo") : [],
   waitingPayments: bill ? waitingStaffPayments(bill) : 0,
+  billRequests: bill ? guestBillRequests(bill) : [],
   waiterId: null,
   waiterName: null,
   calledAt: bill?.session.calledAt ?? null,
@@ -244,9 +248,16 @@ export const filterFloor = (
 
 export const kitchenInbox = (
   rows: FloorTable[],
-): { created: FloorTable[]; called: FloorTable[]; prep: FloorTable[]; ready: FloorTable[] } => ({
+): {
+  created: FloorTable[];
+  called: FloorTable[];
+  prep: FloorTable[];
+  ready: FloorTable[];
+  bills: FloorTable[];
+} => ({
   created: rows.filter((r) => r.newOrders.length > 0),
   called: rows.filter((r) => Boolean(r.calledAt) && r.newOrders.length === 0),
   prep: rows.filter((r) => r.prepOrders.length > 0 && r.newOrders.length === 0),
   ready: rows.filter((r) => r.readyOrders.length > 0),
+  bills: rows.filter((r) => r.billRequests.length > 0),
 });

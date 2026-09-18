@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BRAND_COLOR_IDS } from "@/lib/customerBrand";
 import {
   cuil,
   email,
@@ -220,7 +221,7 @@ export const branchBrandSchema = z.object({
       (v) => v === null || v.startsWith("data:image/"),
       "Logo inválido.",
     ),
-  colorMarca: z.enum(["negro", "bordo", "verde", "terracota"]).nullable(),
+  colorMarca: z.enum(BRAND_COLOR_IDS).nullable(),
 });
 export type BranchBrandInput = z.infer<typeof branchBrandSchema>;
 

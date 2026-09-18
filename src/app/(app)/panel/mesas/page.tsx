@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
@@ -16,6 +16,7 @@ import { TabGlyph } from "@/components/ui/TabGlyph";
 import { QrModal } from "@/components/panel/QrModal";
 import { TableDetail } from "@/components/panel/mesas/TableDetail";
 import { KitchenInbox } from "@/components/panel/mesas/KitchenInbox";
+import { ChargeInbox } from "@/components/panel/mesas/ChargeInbox";
 import { FloorTableTile } from "@/components/panel/mesas/FloorTableTile";
 import { JornadaBoard } from "@/components/panel/mesas/JornadaBoard";
 import { STATUS_STYLE } from "@/components/panel/mesas/BillStatusBadge";
@@ -34,7 +35,6 @@ import {
   filterFloor,
   isPaidToday,
   kitchenInbox,
-  needsCharge,
   needsPedido,
   nextChargeAfter,
   type FloorFilter,
@@ -44,6 +44,9 @@ import { TOAST_AVISO_MS, useToast } from "@/components/ui/Toast";
 import { useFloorShift } from "@/lib/hooks/useFloorShift";
 import { assignmentByTable, assignmentsForTramo, currentFloorTramo } from "@/lib/floorShift";
 import { assignTable } from "@/lib/data/floorShift";
+import { useFloorAttention } from "@/lib/hooks/useFloorAttention";
+import { idsForTable } from "@/lib/floorAttention";
+import { ackTableAttention, setFloorView } from "@/lib/store/attention-store";
 
 const MesasPage = () => {
   const { t } = useApp();
@@ -57,6 +60,7 @@ const MesasPage = () => {
   const { bills, ready, live, syncError, refresh } = useTableBills(
     visibles.pagos ? branchId : null,
   );
+  const attention = useFloorAttention();
   const { shift, live: shiftLive, refresh: refreshShift } = useFloorShift(
     visibles.pagos ? branchId : null,
     visibles.pagos,
@@ -80,6 +84,11 @@ const MesasPage = () => {
     seenMpPaid.current = null;
     pendingBySession.current = new Map();
   }, [branchId]);
+
+  useLayoutEffect(() => {
+    setFloorView(tab === "turno" ? "turno" : tab);
+    return () => setFloorView(null);
+  }, [tab]);
 
   useEffect(() => {
     if (!ready) return;
@@ -170,7 +179,7 @@ const MesasPage = () => {
   );
   const inbox = useMemo(() => kitchenInbox(floor), [floor]);
   const pedidoN = floor.filter(needsPedido).length;
-  const chargeN = floor.filter(needsCharge).length;
+  const chargeN = inbox.bills.length;
   const paidToday = bills.filter(isPaidToday);
   const currentBill = bills.find((b) => b.session.id === selected) ?? null;
   const showDetail = Boolean(currentBill) && tab !== "turno";
@@ -224,6 +233,8 @@ const MesasPage = () => {
 
   const openRow = (row: FloorTable) => {
     if (row.bill) {
+      const ids = idsForTable(row.bill);
+      ackTableAttention(ids.orders, ids.payments);
       setSelected(row.bill.session.id);
       return;
     }
@@ -265,11 +276,21 @@ const MesasPage = () => {
 
   const emptyFloor = !tables.length && !floor.some((r) => r.bill);
   const showInbox = tab === "pedido";
+  const showChargeInbox = tab === "cobrar";
   const inboxCreated = showInbox ? inbox.created : [];
   const inboxCalled = showInbox ? inbox.called : [];
-  const tiles = tab === "pedido" || tab === "turno" ? [] : shown;
+  const inboxBills = showChargeInbox ? inbox.bills : [];
+  const requestKeys = new Set(inboxBills.map((r) => r.key));
+  const tiles =
+    tab === "pedido" || tab === "turno"
+      ? []
+      : tab === "cobrar"
+        ? shown.filter((r) => !requestKeys.has(r.key))
+        : shown;
   const mapLayout = tab === "todas";
-  const hasInbox = inboxCreated.length + inboxCalled.length > 0;
+  const hasInbox = inboxCreated.length + inboxCalled.length + inboxBills.length > 0;
+  const newOrderIds = new Set(attention.newOrderIds);
+  const newPaymentIds = new Set(attention.newBillIds);
 
   const cancelInbox = (row: FloorTable, orders: FloorTable["newOrders"]) => {
     const marched = orders.some((o) => o.status !== "creado");
@@ -354,12 +375,17 @@ const MesasPage = () => {
                   label: t("mesas.filtroPedido"),
                   icon: <TabGlyph k="pedido" />,
                   badge: pedidoN,
+                  pulse: attention.tabPedidoPulse,
+                  tone: "marca",
                 },
                 {
                   id: "cobrar",
                   label: t("mesas.filtroCobrar"),
                   icon: <TabGlyph k="cobrar" />,
                   badge: chargeN,
+                  pulse: attention.tabCobrarPulse,
+                  priority: attention.tabCobrarPulse,
+                  tone: "curso",
                 },
                 {
                   id: "todas",
@@ -394,6 +420,7 @@ const MesasPage = () => {
                 created={inboxCreated}
                 called={inboxCalled}
                 busy={kitchenBusy}
+                newOrderIds={newOrderIds}
                 onOpen={openRow}
                 onPassToKitchen={(row) => void moveRows(row, row.newOrders, "en_preparacion")}
                 onCancel={cancelInbox}
@@ -410,6 +437,15 @@ const MesasPage = () => {
                     }
                   });
                 }}
+              />
+            )}
+
+            {showChargeInbox && (
+              <ChargeInbox
+                rows={inboxBills}
+                newPaymentIds={newPaymentIds}
+                busy={kitchenBusy}
+                onOpen={openRow}
               />
             )}
 
@@ -469,7 +505,7 @@ const MesasPage = () => {
 
             <ClosedTodayList
               bills={paidToday}
-              expanded={tab === "cobrar" || showClosed}
+              expanded={showClosed}
               onToggle={() => setShowClosed((v) => !v)}
               onSelect={setSelected}
               title={t("mesas.pagadasHoy", { n: paidToday.length })}
