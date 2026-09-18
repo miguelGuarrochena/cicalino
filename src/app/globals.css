@@ -248,14 +248,52 @@ button:disabled,
   animation: alertFlash 0.9s ease;
 }
 
+@keyframes attentionPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+@keyframes attentionDot {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.u-attention-pulse {
+  animation: attentionPulse 2.6s ease-in-out infinite;
+}
+
+.u-attention-pulse-priority {
+  animation: attentionPulse 2.2s ease-in-out infinite;
+}
+
+.u-attention-dot {
+  animation: attentionDot 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .u-in,
   .u-pop,
   .u-float,
   .u-alert-flash,
-  .u-alert-flash-espera {
+  .u-alert-flash-espera,
+  .u-attention-pulse,
+  .u-attention-pulse-priority,
+  .u-attention-dot {
     animation: none;
     opacity: 1;
+    transform: none;
   }
 }
 

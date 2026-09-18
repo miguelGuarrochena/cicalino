@@ -15,6 +15,7 @@ import { useSessionStore } from "@/lib/store/session-store";
 import { useApp } from "@/components/providers/Providers";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { EsperaCancelWatch } from "@/components/panel/EsperaCancelWatch";
+import { FloorAttentionWatch } from "@/components/panel/FloorAttentionWatch";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { SubscriptionGate } from "@/components/panel/SubscriptionGate";
@@ -93,6 +94,7 @@ const PanelLayout = ({
     <div className="flex min-h-dvh flex-col bg-crema">
       <BannerImpersonacion />
       {role !== "superadmin" && <EsperaCancelWatch />}
+      {role !== "superadmin" && <FloorAttentionWatch />}
       <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md print:hidden">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 sm:flex-nowrap sm:justify-between sm:gap-3 sm:px-8 sm:py-3">
           <Logo href={homeHref} className="h-8 shrink-0 sm:h-12" />

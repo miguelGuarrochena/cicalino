@@ -11,6 +11,7 @@ export const KitchenInbox = ({
   created,
   called,
   busy,
+  newOrderIds,
   onOpen,
   onPassToKitchen,
   onCancel,
@@ -19,6 +20,7 @@ export const KitchenInbox = ({
   created: FloorTable[];
   called: FloorTable[];
   busy: string | null;
+  newOrderIds?: ReadonlySet<string>;
   onOpen: (row: FloorTable) => void;
   onPassToKitchen: (row: FloorTable) => void;
   onCancel: (row: FloorTable, orders: BillOrder[]) => void;
@@ -38,6 +40,7 @@ export const KitchenInbox = ({
             <InboxRow
               row={row}
               orders={row.newOrders}
+              newOrderIds={newOrderIds}
               actionLabel={t("mesas.pasarAComanda")}
               busy={busy}
               onOpen={onOpen}
@@ -99,6 +102,7 @@ const InboxBlock = ({
 const InboxRow = ({
   row,
   orders,
+  newOrderIds,
   actionLabel,
   busy,
   onOpen,
@@ -108,6 +112,7 @@ const InboxRow = ({
 }: {
   row: FloorTable;
   orders: BillOrder[];
+  newOrderIds?: ReadonlySet<string>;
   actionLabel: string;
   busy: string | null;
   onOpen: (row: FloorTable) => void;
@@ -120,6 +125,7 @@ const InboxRow = ({
   const [copied, setCopied] = useState(false);
   const lines = summarizeKitchen(orders);
   const locked = busy === row.key;
+  const timed = [...orders].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   const copyTicket = async () => {
     const text = [
@@ -145,12 +151,36 @@ const InboxRow = ({
         {row.calledAt ? (
           <p className="mt-1 text-sm font-semibold text-alerta">{t("mesas.teLlaman")}</p>
         ) : null}
-        <ul className="mt-2 flex flex-col gap-0.5 text-base text-carbon/80">
-          {lines.map((l) => (
-            <li key={l.name}>
-              {l.quantity} × {l.name}
-            </li>
-          ))}
+        <ul className="mt-3 flex flex-col gap-3">
+          {timed.map((o) => {
+            const isNew = newOrderIds?.has(o.id) ?? o.status === "creado";
+            return (
+              <li key={o.id}>
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-carbon/55">
+                  <span>
+                    {new Date(o.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  <span
+                    className={`font-semibold ${
+                      isNew ? "text-marca" : "text-carbon/50"
+                    }`}
+                  >
+                    {isNew ? t("mesas.nuevo") : t("mesas.visto")}
+                  </span>
+                </p>
+                <ul className="mt-1 flex flex-col gap-0.5 text-base text-carbon/80">
+                  {o.items.map((item) => (
+                    <li key={item.id}>
+                      {item.quantity} × {item.name}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
         </ul>
       </button>
       <button
@@ -173,6 +203,14 @@ const InboxRow = ({
               {t("mesas.yaVoy")}
             </button>
           )}
+          <button
+            type="button"
+            disabled={locked}
+            onClick={() => onOpen(row)}
+            className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70"
+          >
+            {t("mesas.verPedido")}
+          </button>
           <button
             type="button"
             onClick={() => void copyTicket()}

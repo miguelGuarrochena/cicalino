@@ -46,6 +46,9 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesas).toContain("minmax(9.5rem,1fr)");
     expect(mesas).toContain("mesas.filtroPedido");
     expect(mesas).toContain("KitchenInbox");
+    expect(mesas).toContain("ChargeInbox");
+    expect(mesas).toContain("newOrderIds");
+    expect(mesas).toContain("tabCobrarPulse");
     expect(mesas).toMatch(/tab === "pedido" \|\| tab === "turno"/);
     expect(mesas).toContain("flex flex-col gap-2");
     expect(mesas).toContain("onShowQr");
@@ -91,6 +94,26 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesas).toContain("waiterName");
     expect(mesas).toContain("assignTable");
     expect(pricing).toContain('espera: "Recepción"');
+  });
+
+  it("el panel avisa en la nav sin bloquear y respeta reduced motion", () => {
+    const nav = read("src/components/panel/PanelNav.tsx");
+    const layout = read("src/app/(app)/panel/layout.tsx");
+    const css = read("src/app/globals.css");
+    const inbox = read("src/components/panel/mesas/KitchenInbox.tsx");
+    const charge = read("src/components/panel/mesas/ChargeInbox.tsx");
+    expect(layout).toContain("FloorAttentionWatch");
+    expect(nav).toContain("headerUnseen");
+    expect(nav).toContain("u-attention-pulse");
+    expect(nav).not.toContain("alert(");
+    expect(css).toContain("u-attention-pulse");
+    expect(css).toContain("prefers-reduced-motion");
+    expect(css).toContain("u-attention-dot");
+    expect(inbox).toContain("mesas.nuevo");
+    expect(inbox).toContain("mesas.visto");
+    expect(charge).toContain("mesas.solicitaCuenta");
+    expect(charge).toContain("mesas.cuentaSolicitada");
+    expect(charge).toContain("mesas.verMesa");
   });
 
   it("el panel no usa el select nativo: las opciones van por el Select de la app", () => {
