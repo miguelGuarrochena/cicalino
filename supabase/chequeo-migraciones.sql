@@ -193,6 +193,9 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('mesa-asignacion-tramos.sql', 'function', 'mesa_local_set_turnos', 75),
     ('empleados-pin-compartido.sql', 'function', 'set_empleado_pin', 76),
     ('mesa-pedir-cuenta.sql', 'function', 'pagar_como_comensal', 77),
+    ('locales-identidad.sql', 'column', 'locales.logo_url', 78),
+    ('locales-identidad.sql', 'column', 'locales.color_marca', 78),
+    ('locales-identidad.sql', 'constraint', 'locales.locales_color_marca_valido', 78),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -348,7 +351,8 @@ requisitos (archivo, necesita) as (
     ('mesa-llamado-mozo.sql', 'split-payments.sql, mesa-pedido-comensal.sql'),
     ('mesa-asignacion-tramos.sql', 'mesa-asignacion-jornada.sql'),
     ('empleados-pin-compartido.sql', 'staff-roles.sql'),
-    ('mesa-pedir-cuenta.sql', 'mesa-llamado-mozo.sql')
+    ('mesa-pedir-cuenta.sql', 'mesa-llamado-mozo.sql'),
+    ('locales-identidad.sql', 'setup.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

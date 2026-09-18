@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { IdentificationMode } from "@/lib/store/config-store";
+import { brandFromLocal, type BrandColorId } from "@/lib/customerBrand";
 import type { OrderStatus } from "@/lib/types";
 
 /* Lectura del pedido desde el lado del cliente final (pantalla /p/[token]).
@@ -22,6 +23,8 @@ export interface CustomerOrderSnapshot {
   alias: string | null;
   status: OrderStatus;
   branchName: string;
+  logoUrl: string | null;
+  colorMarca: BrandColorId | null;
   modo: IdentificationMode;
   notifiedAt: string | null;
 }
@@ -55,7 +58,7 @@ export const fetchCustomerOrderFull = async (
   const { data, error } = await supabase
     .from("pedidos")
     .select(
-      "id, referencia, alias_cliente, estado, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion)",
+      "id, referencia, alias_cliente, estado, qr_expira_en, visto_en, avisado_en, locales(nombre, modo_identificacion, logo_url, color_marca)",
     )
     .eq("qr_token", token)
     .single();
@@ -64,6 +67,7 @@ export const fetchCustomerOrderFull = async (
   if (expirado(data.qr_expira_en)) return { ok: false, reason: "expired" };
 
   const local = Array.isArray(data.locales) ? data.locales[0] : data.locales;
+  const brand = brandFromLocal(local);
 
   return {
     ok: true,
@@ -73,7 +77,9 @@ export const fetchCustomerOrderFull = async (
       reference: data.referencia,
       alias: (data.alias_cliente as string | null) ?? null,
       status: data.estado as OrderStatus,
-      branchName: local?.nombre ?? "",
+      branchName: brand.name,
+      logoUrl: brand.logoUrl,
+      colorMarca: brand.color,
       modo: (local?.modo_identificacion ?? "pedido") as IdentificationMode,
       notifiedAt: data.avisado_en ?? null,
     },

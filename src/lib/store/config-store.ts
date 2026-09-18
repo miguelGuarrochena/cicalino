@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { supabaseConfigured } from "@/lib/supabase/config";
 
 import type { BusinessType } from "@/lib/types";
+import type { BrandColorId } from "@/lib/customerBrand";
 export type { BusinessType };
 export { BUSINESS_TYPE_LABEL, BUSINESS_TYPES } from "@/lib/types";
 
@@ -40,6 +41,8 @@ interface ConfigState {
   moduloPedidos: boolean;
   moduloEspera: boolean;
   moduloPagos: boolean;
+  logoUrl: string | null;
+  colorMarca: BrandColorId | null;
   employees: EmployeeUI[];
 
   setCampo: (
@@ -70,6 +73,8 @@ interface ConfigState {
         | "moduloPedidos"
         | "moduloEspera"
         | "moduloPagos"
+        | "logoUrl"
+        | "colorMarca"
       >
     >,
   ) => void;
@@ -105,6 +110,8 @@ const INICIAL = supabaseConfigured
       moduloPedidos: true,
       moduloEspera: false,
       moduloPagos: false,
+      logoUrl: null as string | null,
+      colorMarca: null as BrandColorId | null,
       employees: [] as EmployeeUI[],
       branchConfigReady: false,
     }
@@ -122,6 +129,8 @@ const INICIAL = supabaseConfigured
       moduloPedidos: true,
       moduloEspera: true,
       moduloPagos: true,
+      logoUrl: null as string | null,
+      colorMarca: null as BrandColorId | null,
       employees: [
         { id: "emp-demo-1", name: "Lucía", rol: "Mozo", tienePin: false },
         { id: "emp-demo-2", name: "Marcos", rol: "Cocina", tienePin: false },
@@ -216,6 +225,8 @@ export const useConfigStore = create<ConfigState>()(
           tipo: s.tipo,
           whatsapp: s.whatsapp,
           direccion: s.direccion,
+          logoUrl: s.logoUrl,
+          colorMarca: s.colorMarca,
         };
       },
     },

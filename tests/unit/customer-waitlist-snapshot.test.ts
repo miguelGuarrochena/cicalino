@@ -22,6 +22,8 @@ const SAMPLE: CustomerWaitlist = {
   status: "esperando",
   tableNumber: null,
   branchName: "Local",
+  logoUrl: null,
+  colorMarca: null,
   notifiedAt: null,
   cola: {
     gruposDelante: 1,

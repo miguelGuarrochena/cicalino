@@ -1,13 +1,18 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { branchOperacionSchema, employeeSchema, parseInput } from "@/lib/schemas";
+import { branchOperacionSchema, branchBrandSchema, employeeSchema, parseInput } from "@/lib/schemas";
 import { isEmployeeNameTaken } from "@/lib/validations";
 import type {
   EmployeeUI,
   IdentificationMode,
   BusinessType,
 } from "@/lib/store/config-store";
+import {
+  parseBrandColor,
+  parseLogoUrl,
+  type BrandColorId,
+} from "@/lib/customerBrand";
 
 /* Los nombres son los del store, no los de la tabla: esto es lo que
  * useBranchConfigSync le pasa tal cual a hydrate(). El campo del nombre venía
@@ -28,6 +33,8 @@ export interface BranchConfig {
   moduloPedidos: boolean;
   moduloEspera: boolean;
   moduloPagos: boolean;
+  logoUrl: string | null;
+  colorMarca: BrandColorId | null;
 }
 
 const normalizeDiasCerrados = (raw: unknown): number[] => {
@@ -50,7 +57,7 @@ export const fetchBranchConfig = async (
   const { data, error } = await supabase
     .from("locales")
     .select(
-      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera, modulo_pagos",
+      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera, modulo_pagos, logo_url, color_marca",
     )
     .eq("id", branchId)
     .single();
@@ -69,6 +76,8 @@ export const fetchBranchConfig = async (
     moduloPedidos: data.modulo_pedidos !== false,
     moduloEspera: Boolean(data.modulo_espera),
     moduloPagos: Boolean(data.modulo_pagos),
+    logoUrl: parseLogoUrl(data.logo_url),
+    colorMarca: parseBrandColor(data.color_marca),
   };
 };
 
@@ -111,6 +120,32 @@ export const saveBranchConfig = async (
     })
     .eq("id", branchId);
   if (error) console.error("saveBranchConfig", error.message);
+  return !error;
+};
+
+export const saveBranchBrand = async (
+  branchId: string,
+  cfg: { logoUrl: string | null; colorMarca: BrandColorId | null },
+): Promise<boolean> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return false;
+  const v = parseInput(branchBrandSchema, {
+    logoUrl: cfg.logoUrl,
+    colorMarca: cfg.colorMarca,
+  });
+  if (!v.ok) {
+    console.error("saveBranchBrand", v.error);
+    return false;
+  }
+  const { error } = await supabase
+    .from("locales")
+    .update({
+      logo_url: v.data.logoUrl,
+      color_marca: v.data.colorMarca,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", branchId);
+  if (error) console.error("saveBranchBrand", error.message);
   return !error;
 };
 

@@ -210,6 +210,19 @@ export const branchOperacionSchema = z
   });
 export type BranchOperacionInput = z.infer<typeof branchOperacionSchema>;
 
+export const branchBrandSchema = z.object({
+  logoUrl: z
+    .string()
+    .max(120_000, "El logo es demasiado pesado.")
+    .nullable()
+    .refine(
+      (v) => v === null || v.startsWith("data:image/"),
+      "Logo inválido.",
+    ),
+  colorMarca: z.enum(["negro", "bordo", "verde", "terracota"]).nullable(),
+});
+export type BranchBrandInput = z.infer<typeof branchBrandSchema>;
+
 export const employeeSchema = z.object({
   name: textField(2, 80, "el nombre del empleado"),
   rol: optionalTextField(60, "el rol"),

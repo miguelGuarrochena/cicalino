@@ -21,7 +21,7 @@ export const Fichaje = () => {
   const { t } = useApp();
   const employees = useConfigStore((s) => s.employees);
   /* El vigente, no el guardado: un fichaje de ayer ya no cuenta y el botón
-   * tiene que volver a decir "Fichar". */
+   * tiene que volver a decir "Identificar empleado". */
   const activeEmployee = useActiveEmployee();
   const fichar = useSessionStore((s) => s.fichar);
   const leave = useSessionStore((s) => s.salir);
@@ -92,7 +92,7 @@ export const Fichaje = () => {
       <button
         type="button"
         onClick={() => (open ? cerrar() : setOpen(true))}
-        className="flex items-center gap-1.5 rounded-full border border-linea bg-surface/70 px-2.5 py-1.5 text-sm font-semibold text-carbon backdrop-blur transition hover:bg-carbon/5 sm:gap-2 sm:px-3"
+        className="flex items-center gap-1.5 rounded-full border border-linea bg-surface/70 px-2.5 py-1.5 text-xs font-semibold text-carbon backdrop-blur transition hover:bg-carbon/5 sm:gap-2 sm:px-3 sm:text-sm"
       >
         {activeEmployee ? (
           <>

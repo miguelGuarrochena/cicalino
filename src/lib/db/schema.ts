@@ -137,6 +137,9 @@ export const branches = pgTable("locales", {
   moduloEspera: boolean("modulo_espera").notNull().default(false),
   /* supabase/split-payments-module.sql. Superadmin only (trigger). */
   moduloPagos: boolean("modulo_pagos").notNull().default(false),
+  /* Guest identity only. null = Cicalino cobalt, no logo. */
+  logoUrl: text("logo_url"),
+  colorMarca: text("color_marca"),
   activa: boolean("activa").notNull().default(true),
   bajaEn: timestamp("baja_en", { withTimezone: true }),
   /* When this branch starts being billed. Null means from day one. */

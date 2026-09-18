@@ -14,6 +14,9 @@ import {
   clearLastVisitIfToken,
 } from "@/lib/customerLastVisit";
 import { CustomerOtherTab } from "@/components/customer/CustomerOtherTab";
+import { CustomerBrandHeader } from "@/components/customer/CustomerBrandHeader";
+import { CustomerBrandShell } from "@/components/customer/CustomerBrandShell";
+import { emptyCustomerBrand, type CustomerBrand } from "@/lib/customerBrand";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
@@ -33,6 +36,7 @@ const subscribeNoop = () => () => {};
 
 interface Props {
   token: string;
+  brand?: CustomerBrand;
 }
 
 const senalMesa = (opts?: {
@@ -59,9 +63,12 @@ const senalMesa = (opts?: {
   }
 };
 
-export const CustomerEsperaWaiting = ({ token }: Props) => {
+export const CustomerEsperaWaiting = ({
+  token,
+  brand = emptyCustomerBrand(),
+}: Props) => {
   const { t, locale } = useApp();
-  const { ready, found, espera } = useCustomerWaitlist(token);
+  const { ready, found, espera } = useCustomerWaitlist(token, brand);
   const duplicate = useCustomerTabLock(`e:${token}`);
   const demoCancelar = useWaitlistStore((s) => s.cambiarEstado);
   const pushDisponible = useSyncExternalStore(
@@ -199,7 +206,7 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   if (!found || !espera) {
     return (
       <main className="relative flex min-h-dvh flex-col items-center justify-center px-6 py-14 text-center">
-        <Controls className="absolute right-4 top-4" />
+        <Controls showTheme={false} className="absolute right-4 top-4" />
         <ThemedImg name="bell" alt="" className="h-28 opacity-50" />
         <p className="mt-6 font-display text-2xl uppercase text-carbon">
           {t("clienteMesa.noEncontradoTitulo")}
@@ -223,12 +230,13 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
   const esOk = avisado || sentado;
 
   return (
+    <CustomerBrandShell color={espera.colorMarca ?? brand.color}>
     <main
       className={`relative flex min-h-dvh flex-col items-center px-6 pb-14 pt-16 text-center transition-colors duration-500 ${
         flash ? "u-alert-flash-espera" : "bg-crema"
       }`}
     >
-      <Controls className="absolute right-4 top-4 z-20" />
+      <Controls showTheme={false} className="absolute right-4 top-4 z-20" />
 
       {waiting && (
         <div className="u-in mb-6 w-full rounded-2xl border border-espera/40 bg-espera/10 px-3 py-2.5 text-espera sm:max-w-sm">
@@ -248,12 +256,11 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
 
       <div className="u-in flex flex-1 flex-col items-center justify-center">
         <div className="flex flex-col items-center gap-1">
-          {espera.branchName && (
-            <span className="mb-1 max-w-[16rem] truncate font-display text-lg uppercase tracking-tight text-carbon/70 sm:max-w-xs sm:text-xl">
-              {espera.branchName}
-            </span>
-          )}
-          <span className="text-xs uppercase tracking-widest text-espera/70">
+          <CustomerBrandHeader
+            name={espera.branchName || brand.name}
+            logoUrl={espera.logoUrl ?? brand.logoUrl}
+          />
+          <span className="mt-1 text-xs uppercase tracking-widest text-espera/70">
             {t("clienteMesa.titulo")}
           </span>
           <span className="font-display text-6xl leading-none text-espera sm:text-7xl">
@@ -450,5 +457,6 @@ export const CustomerEsperaWaiting = ({ token }: Props) => {
         </ModalShell>
       )}
     </main>
+    </CustomerBrandShell>
   );
 };

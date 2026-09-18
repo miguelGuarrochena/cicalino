@@ -5,6 +5,7 @@ import { supabaseConfigured } from "@/lib/supabase/config";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import type { WaitlistStatus } from "@/lib/types";
+import type { BrandColorId, CustomerBrand } from "@/lib/customerBrand";
 import {
   attachCustomerVisit,
   attachCustomerWake,
@@ -28,6 +29,8 @@ export interface CustomerWaitlist {
   status: WaitlistStatus;
   tableNumber: number | null;
   branchName: string;
+  logoUrl: string | null;
+  colorMarca: BrandColorId | null;
   notifiedAt: string | null;
   cola: CustomerWaitlistQueue;
 }
@@ -118,6 +121,8 @@ export const interpretWaitlistPollResponse = (
         tableNumber:
           typeof data.tableNumber === "number" ? data.tableNumber : null,
         branchName: typeof data.branchName === "string" ? data.branchName : "",
+        logoUrl: null,
+        colorMarca: null,
         notifiedAt: typeof data.notifiedAt === "string" ? data.notifiedAt : null,
         cola: normalizeCola(
           data.cola as Partial<CustomerWaitlistQueue> | null | undefined,
@@ -171,7 +176,10 @@ const colaFromDemo = (
   };
 };
 
-export const useCustomerWaitlist = (token: string): Result => {
+export const useCustomerWaitlist = (
+  token: string,
+  brand?: CustomerBrand,
+): Result => {
   const live = supabaseConfigured;
   const seed = useWaitlistStore((s) => s.seedSiVacio);
   const demoEsperas = useWaitlistStore((s) => s.esperas);
@@ -265,7 +273,24 @@ export const useCustomerWaitlist = (token: string): Result => {
         if (decision.kind === "ok") {
           fallos = 0;
           estado = decision.espera.status;
-          setRemote(decision.espera);
+          setRemote((prev) => ({
+            ...decision.espera,
+            logoUrl:
+              prev?.logoUrl ??
+              decision.espera.logoUrl ??
+              brand?.logoUrl ??
+              null,
+            colorMarca:
+              prev?.colorMarca ??
+              decision.espera.colorMarca ??
+              brand?.color ??
+              null,
+            branchName:
+              decision.espera.branchName ||
+              prev?.branchName ||
+              brand?.name ||
+              "",
+          }));
           setRemoteFound(true);
           setReady(true);
           if (estado === "sentado" || estado === "cancelado") detenido = true;
@@ -330,7 +355,7 @@ export const useCustomerWaitlist = (token: string): Result => {
       detachWake();
       detachVisit();
     };
-  }, [live, token]);
+  }, [live, token, brand?.logoUrl, brand?.color, brand?.name]);
 
   if (live) {
     return { ready, found: remoteFound, espera: remote };
@@ -347,6 +372,8 @@ export const useCustomerWaitlist = (token: string): Result => {
           status: demo.status,
           tableNumber: demo.tableNumber,
           branchName: cfg.name || "Local",
+          logoUrl: cfg.logoUrl,
+          colorMarca: cfg.colorMarca,
           notifiedAt: demo.notifiedAt,
           cola: colaFromDemo(token, demoEsperas),
         }

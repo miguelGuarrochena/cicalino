@@ -28,6 +28,8 @@ const fila = {
   dias_cerrados: [1],
   modulo_pedidos: true,
   modulo_espera: true,
+  logo_url: null,
+  color_marca: null,
 };
 
 const supabaseCon = (data: unknown) =>
@@ -73,6 +75,8 @@ describe("fetchBranchConfig → hydrate", () => {
     expect(s.tableCount).toBe(12);
     expect(s.diasCerrados).toEqual([1]);
     expect(s.cutoffHour).toBe(9);
+    expect(s.logoUrl).toBeNull();
+    expect(s.colorMarca).toBeNull();
     expect(s.branchConfigReady).toBe(true);
   });
 
@@ -82,5 +86,22 @@ describe("fetchBranchConfig → hydrate", () => {
     const cfg = await fetchBranchConfig("local-1");
 
     expect(cfg?.name).toBe("");
+  });
+
+  it("trae logo y color de marca si el local los configuró", async () => {
+    createBrowserMock.mockReturnValue(
+      supabaseCon({
+        ...fila,
+        logo_url: "data:image/png;base64,aaa",
+        color_marca: "negro",
+      }),
+    );
+
+    const cfg = await fetchBranchConfig("local-1");
+    useConfigStore.getState().hydrate(cfg!);
+
+    expect(cfg?.logoUrl).toBe("data:image/png;base64,aaa");
+    expect(cfg?.colorMarca).toBe("negro");
+    expect(useConfigStore.getState().colorMarca).toBe("negro");
   });
 });

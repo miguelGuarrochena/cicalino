@@ -6,6 +6,7 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { orderByToken, useOrdersStore } from "@/lib/store/orders-store";
 import type { IdentificationMode } from "@/lib/store/config-store";
 import type { OrderStatus } from "@/lib/types";
+import type { BrandColorId } from "@/lib/customerBrand";
 import {
   attachCustomerVisit,
   attachCustomerWake,
@@ -21,6 +22,8 @@ export interface CustomerOrder {
   alias: string | null;
   status: OrderStatus;
   branchName: string;
+  logoUrl: string | null;
+  colorMarca: BrandColorId | null;
   modo: IdentificationMode;
   notifiedAt: string | null;
 }
@@ -187,6 +190,8 @@ export const useCustomerOrder = (
             // El nombre del local y el modo los trae el render del servidor y
             // no cambian mientras el cliente espera: el poll no los pide.
             branchName: data.branchName ?? prev?.branchName ?? "",
+            logoUrl: prev?.logoUrl ?? null,
+            colorMarca: prev?.colorMarca ?? null,
             modo: (data.modo ?? prev?.modo ?? "pedido") as IdentificationMode,
             reference: data.reference,
             alias:
@@ -286,6 +291,8 @@ export const useCustomerOrder = (
           alias: o.alias ?? null,
           status: o.status,
           branchName: cfg.name,
+          logoUrl: cfg.logoUrl,
+          colorMarca: cfg.colorMarca,
           modo: cfg.modo,
           notifiedAt: o.readyAt,
         }

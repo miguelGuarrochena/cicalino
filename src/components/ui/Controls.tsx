@@ -49,7 +49,13 @@ export const ThemeToggle = ({ className = "" }: { className?: string }) => {
   );
 };
 
-export const Controls = ({ className = "" }: { className?: string }) => {
+export const Controls = ({
+  className = "",
+  showTheme = true,
+}: {
+  className?: string;
+  showTheme?: boolean;
+}) => {
   const { locale, setLocale } = useApp();
 
   return (
@@ -70,7 +76,7 @@ export const Controls = ({ className = "" }: { className?: string }) => {
           </button>
         ))}
       </div>
-      <ThemeToggle />
+      {showTheme ? <ThemeToggle /> : null}
     </div>
   );
 };

@@ -76,5 +76,6 @@
   "mesa-llamado-mozo.sql",
   "mesa-asignacion-tramos.sql",
   "empleados-pin-compartido.sql",
-  "mesa-pedir-cuenta.sql"
+  "mesa-pedir-cuenta.sql",
+  "locales-identidad.sql"
 ]
