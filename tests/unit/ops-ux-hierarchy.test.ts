@@ -124,8 +124,14 @@ describe("Operación — jerarquía y layout", () => {
     expect(detalle).toContain("from \"@/components/ui/Select\"");
     expect(detalle).not.toContain("<select");
     expect(detalle).toContain("mesas.pagoElegido");
-    expect(detalle).toContain("min-h-11 w-full rounded-full bg-ok");
-    expect(detalle).toContain("flex w-full flex-col gap-2");
+    /* Confirmar y cancelar miden lo mismo al tacto (48 px, 44 en desktop) y se
+     * distinguen por peso visual: lleno vs. borde. Un "Cancelar" de letra
+     * chica se falla con el dedo, y fallar el de cancelar un cobro cuesta. */
+    expect(detalle).toContain("min-h-12 items-center justify-center rounded-full bg-ok");
+    expect(detalle).toContain("min-h-12 items-center justify-center rounded-full border border-linea");
+    /* Dos columnas si entran, apiladas si no, sin medir el ancho en JS. */
+    expect(detalle).toContain("grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]");
+    expect(detalle).toContain("flex w-full flex-col gap-1.5");
     expect(guest).toContain("mesa.verCuenta");
     expect(guest).toContain("mesa.pedirCuenta");
     expect(guest).toContain("mesa.seguirPidiendo");
@@ -332,5 +338,70 @@ describe("Impresión del QR", () => {
     const qr = read("src/app/(app)/panel/mesas/qr/page.tsx");
     expect(qr).toContain("QrDownloadModal");
     expect(read("src/components/panel/mesas/QrDownloadModal.tsx")).toContain("descargarSolo");
+  });
+});
+
+/* El bloque de cobros de una mesa: una acción por persona y una sola global.
+ *
+ * El mismo pago pendiente de Juan llegó a tener tres botones "Confirmar pago"
+ * en pantalla: el aviso de arriba, la cuenta de abajo y el modal de cobrar.
+ * Los tres llamaban a la misma RPC. */
+describe("Cobros de una mesa: sin acciones repetidas", () => {
+  const detalle = read("src/components/panel/mesas/TableDetail.tsx");
+  const modal = read("src/components/panel/mesas/CobrarModal.tsx");
+
+  it("cada pago tiene sus botones en un solo lugar, según su estado", () => {
+    /* Pendiente arriba (confirmar/cancelar), ya pagado abajo (anular). */
+    expect(detalle).toContain("const paymentActions = (p: BillPayment, soloRegistro = false)");
+    expect(detalle).toContain("actions={(p) => paymentActions(p, true)}");
+    expect(detalle).toContain('if (!soloRegistro && p.status !== "pendiente") return null;');
+  });
+
+  it("el modal de cobrar registra plata nueva; no confirma la que ya está anotada", () => {
+    expect(modal).not.toContain("confirmTablePayment");
+    expect(modal).not.toContain("confirmWaiting");
+    /* Los muestra, para que el mozo sepa por qué el monto es menor. */
+    expect(modal).toContain("waiting.map");
+    expect(modal).toContain("mesas.confirmarEnCuenta");
+    /* Y su botón dice lo que hace. */
+    expect(modal).toContain("mesas.registrarCobroN");
+    expect(modal).not.toContain("mesas.confirmarPagoN");
+  });
+
+  it("la acción global aparece solo cuando ahorra toques", () => {
+    /* Con un solo pago esperando, el botón de esa persona ya es la acción
+     * global: dos botones para el mismo pago es justo lo que había que sacar. */
+    expect(detalle).toContain("waitingPayments.length > 1 && (");
+    expect(detalle).toContain("mesas.confirmarTodos");
+    expect(detalle).toContain("confirmarPendientes");
+  });
+
+  it("confirmar todo no inventa un pago ni elige método por nadie", () => {
+    const fn = detalle.slice(
+      detalle.indexOf("const confirmarPendientes"),
+      detalle.indexOf("const moveOrder"),
+    );
+    expect(fn).toContain("for (const p of waitingPayments)");
+    expect(fn).toContain("confirmTablePayment(p.id, employeeId)");
+    /* Nada de registrar cobros nuevos por su cuenta: eso es "Cobrar". */
+    expect(fn).not.toContain("registerStaffPayment");
+    /* Si uno falla, corta y lo dice; los anteriores quedaron confirmados. */
+    expect(fn).toContain("break");
+    expect(fn).toContain("errorText(fallo)");
+  });
+
+  it("«Cobrar» solo aparece si queda algo por registrar", () => {
+    /* Con todo lo pendiente ya anotado, `available` es 0 y el modal solo podía
+     * decir "todo reservado": era un botón que abría un callejón. */
+    expect(detalle).toContain("open && bill.totals.available > 0 && (");
+    expect(detalle).not.toContain("open && pending > 0 && (");
+  });
+
+  it("el resumen dice cuántos pagos esperan antes de ofrecer nada", () => {
+    const i = detalle.indexOf("mesas.pagosEsperandoN");
+    const j = detalle.indexOf("mesas.confirmarTodos");
+    expect(i).toBeGreaterThan(-1);
+    /* El número va antes que el botón: primero qué pasa, después qué hacer. */
+    expect(i).toBeLessThan(j);
   });
 });

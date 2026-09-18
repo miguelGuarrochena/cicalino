@@ -7,7 +7,7 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Select } from "@/components/ui/Select";
 import { PaymentStatusBadge } from "@/components/tables/BillParts";
-import { confirmTablePayment, registerStaffPayment } from "@/lib/data/tables";
+import { registerStaffPayment } from "@/lib/data/tables";
 import {
   enabledMethods,
   formatMoney,
@@ -115,18 +115,6 @@ export const CobrarModal = ({
     setError(null);
   };
 
-  const confirmWaiting = async (id: string) => {
-    setBusy(id);
-    const res = await confirmTablePayment(id, employeeId);
-    setBusy(null);
-    if (res.ok) {
-      toast(t("mesas.pagoConfirmadoMesa", { n: mesa }), "success");
-      onDone();
-    } else {
-      setError(errorText(res.reason));
-    }
-  };
-
   const collect = async () => {
     if (!method || !preview?.ok || busy) return;
     setBusy("cobro");
@@ -175,7 +163,7 @@ export const CobrarModal = ({
             className="min-h-12 w-full rounded-full bg-marca px-6 font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98] disabled:opacity-50"
           >
             {preview?.ok
-              ? t(confirmed ? "mesas.confirmarPagoN" : "mesas.registrarTransferenciaN", {
+              ? t(confirmed ? "mesas.registrarCobroN" : "mesas.registrarTransferenciaN", {
                   n: formatMoney(preview.total),
                 })
               : t("mesas.cobrar")}
@@ -205,24 +193,23 @@ export const CobrarModal = ({
                 ? t("mesas.pagoElegido", { m: t(`mesa.metodo.${waiting[0]!.method}`) })
                 : t("mesas.esperandoConfirmacion")}
             </h3>
-            <ul className="mt-2 flex flex-col gap-3">
+            {/* Solo informa. Confirmar un pago que ya existe es una acción de
+                esa persona y vive con esa persona, en la cuenta: tenerlo
+                también acá eran dos botones idénticos para lo mismo, en dos
+                pantallas distintas. Este modal registra cobros nuevos. */}
+            <ul className="mt-2 flex flex-col gap-1.5">
               {waiting.map((p) => (
-                <li key={p.id} className="flex flex-col gap-2">
-                  <span className="min-w-0">
-                    <span className="font-semibold text-carbon">{p.payerName}</span>{" "}
-                    <span className="tabular-nums text-carbon/80">{formatMoney(p.total)}</span>
+                <li key={p.id} className="flex items-baseline justify-between gap-2">
+                  <span className="min-w-0 truncate font-semibold text-carbon">
+                    {p.payerName}
                   </span>
-                  <button
-                    type="button"
-                    disabled={busy !== null}
-                    onClick={() => void confirmWaiting(p.id)}
-                    className="min-h-11 w-full rounded-full bg-ok px-4 text-sm font-semibold text-crema disabled:opacity-50"
-                  >
-                    {p.method === "transferencia" ? t("mesas.confirmarRecibido") : t("mesas.confirmarPago")}
-                  </button>
+                  <span className="shrink-0 tabular-nums text-carbon/80">
+                    {formatMoney(p.total)}
+                  </span>
                 </li>
               ))}
             </ul>
+            <p className="mt-2 text-xs text-carbon/60">{t("mesas.confirmarEnCuenta")}</p>
           </section>
         )}
 

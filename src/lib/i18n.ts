@@ -1151,7 +1151,9 @@ const dict = {
       cobrarMesa: "Cobrar {n}",
       pendienteN: "Pendiente: {n}",
       pendienteTotal: "{n} pendientes de cobro",
-      confirmarPagoN: "Confirmar pago · {n}",
+      /* No dice "Confirmar pago" a propósito: no confirma nada que ya exista,
+       * registra un cobro nuevo por lo que el mozo acaba de recibir. */
+      registrarCobroN: "Registrar cobro · {n}",
       registrarTransferenciaN: "Registrar transferencia pendiente · {n}",
       pagoConfirmadoMesa: "Pago de {n} confirmado",
       transferenciaPendienteMesa: "Transferencia de {n} registrada: confirmala cuando llegue",
@@ -1315,6 +1317,15 @@ const dict = {
       sinModo: "La mesa todavía no eligió cómo pagar.",
       confirmarPago: "Confirmar pago",
       confirmarRecibido: "Confirmar pago recibido",
+      /* La acción global: "ya cobré todo lo que había anotado, dalo por
+       * bueno". Solo aparece con dos o más esperando — con uno solo, el botón
+       * de esa persona ya es la acción global. */
+      confirmarTodos: "Confirmar los {n} pagos",
+      pagosEsperandoN: "{n} pagos esperando que los confirmes",
+      todosConfirmados: "Pagos confirmados",
+      /* En el modal de cobrar los pagos anotados se ven, pero no se confirman:
+       * ese botón vive con la persona, en la cuenta. */
+      confirmarEnCuenta: "Ya están anotados. Se confirman abajo, en la cuenta de cada persona.",
       mpSoloWebhook: "Se confirma solo cuando Mercado Pago avisa.",
       cancelarPago: "Cancelar",
       cancelarPagoTitulo: "¿Cancelar el pago?",
@@ -2782,7 +2793,7 @@ const dict = {
       cobrarMesa: "Collect {n}",
       pendienteN: "Pending: {n}",
       pendienteTotal: "{n} left to collect",
-      confirmarPagoN: "Confirm payment · {n}",
+      registrarCobroN: "Record collection · {n}",
       registrarTransferenciaN: "Record pending transfer · {n}",
       pagoConfirmadoMesa: "{n} payment confirmed",
       transferenciaPendienteMesa: "{n} transfer recorded: confirm it when it arrives",
@@ -2940,6 +2951,10 @@ const dict = {
       sinModo: "The table hasn't chosen how to pay yet.",
       confirmarPago: "Confirm payment",
       confirmarRecibido: "Confirm payment received",
+      confirmarTodos: "Confirm the {n} payments",
+      pagosEsperandoN: "{n} payments waiting for you to confirm",
+      todosConfirmados: "Payments confirmed",
+      confirmarEnCuenta: "They're already recorded. Confirm them below, on each person's bill.",
       mpSoloWebhook: "Confirmed only when Mercado Pago notifies.",
       cancelarPago: "Cancel",
       cancelarPagoTitulo: "Cancel the payment?",
