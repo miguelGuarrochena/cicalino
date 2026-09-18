@@ -24,6 +24,8 @@ const INPUT =
 
 const SWATCHES: { id: BrandColorId | null; key: string; hex: string }[] = [
   { id: null, key: "config.colorCobalto", hex: CICALINO_SWATCH },
+  { id: "blanco", key: "config.colorBlanco", hex: BRAND_PRESETS.blanco.bg },
+  { id: "azul", key: "config.colorAzul", hex: BRAND_PRESETS.azul.bg },
   { id: "negro", key: "config.colorNegro", hex: BRAND_PRESETS.negro.bg },
   { id: "bordo", key: "config.colorBordo", hex: BRAND_PRESETS.bordo.bg },
   { id: "verde", key: "config.colorVerde", hex: BRAND_PRESETS.verde.bg },

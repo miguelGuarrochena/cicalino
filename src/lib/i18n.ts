@@ -789,6 +789,8 @@ const dict = {
       colorMarcaSub:
         "Pinta el fondo de la experiencia del comensal. Textos y botones se adaptan para contrastar. El panel de Cicalino no cambia.",
       colorCobalto: "Crema Cicalino",
+      colorBlanco: "Blanco",
+      colorAzul: "Azul Cicalino",
       colorNegro: "Negro",
       colorBordo: "Bordó",
       colorVerde: "Verde",
@@ -2356,6 +2358,8 @@ const dict = {
       colorMarcaSub:
         "Paints the guest experience background. Text and buttons adapt for contrast. The Cicalino panel does not change.",
       colorCobalto: "Cicalino cream",
+      colorBlanco: "White",
+      colorAzul: "Cicalino blue",
       colorNegro: "Black",
       colorBordo: "Burgundy",
       colorVerde: "Green",

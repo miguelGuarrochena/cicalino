@@ -1,4 +1,11 @@
-export const BRAND_COLOR_IDS = ["negro", "bordo", "verde", "terracota"] as const;
+export const BRAND_COLOR_IDS = [
+  "blanco",
+  "azul",
+  "negro",
+  "bordo",
+  "verde",
+  "terracota",
+] as const;
 
 export type BrandColorId = (typeof BRAND_COLOR_IDS)[number];
 
@@ -52,6 +59,24 @@ export const BRAND_PRESETS: Record<
     scheme: "light" | "dark";
   }
 > = {
+  blanco: {
+    bg: "#ffffff",
+    surface: "#f7f7f5",
+    text: "#20264f",
+    brand: "#2536d4",
+    strong: "#1b29b0",
+    line: "#e8e8e4",
+    scheme: "light",
+  },
+  azul: {
+    bg: "#10142f",
+    surface: "#1a1f45",
+    text: "#ede9ce",
+    brand: "#7d8bff",
+    strong: "#9aa4ff",
+    line: "#2a2f5c",
+    scheme: "dark",
+  },
   negro: {
     bg: "#171717",
     surface: "#242424",

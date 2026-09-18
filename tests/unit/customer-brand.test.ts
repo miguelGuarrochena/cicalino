@@ -19,6 +19,8 @@ describe("Identidad del comensal", () => {
     expect(parseBrandColor(null)).toBeNull();
     expect(parseBrandColor("cobalto")).toBeNull();
     expect(parseBrandColor("negro")).toBe("negro");
+    expect(parseBrandColor("blanco")).toBe("blanco");
+    expect(parseBrandColor("azul")).toBe("azul");
     expect(brandCssVars(null)).toBeUndefined();
     expect(CICALINO_SWATCH).toBe("#f4f1da");
   });
@@ -30,6 +32,17 @@ describe("Identidad del comensal", () => {
     expect(vars?.["--brand"]).toBe(BRAND_PRESETS.negro.brand);
     expect(vars?.["--bg"]).not.toBe(vars?.["--text"]);
     expect(JSON.stringify(vars)).not.toMatch(/#10142f|#1a1f45/);
+  });
+
+  it("blanco es fondo claro con botones cobalto; azul es la noche Cicalino", () => {
+    const blanco = brandCssVars("blanco");
+    expect(blanco?.["--bg"]).toBe("#ffffff");
+    expect(blanco?.["--brand"]).toBe("#2536d4");
+    expect(blanco?.["--text"]).toBe("#20264f");
+    const azul = brandCssVars("azul");
+    expect(azul?.["--bg"]).toBe("#10142f");
+    expect(azul?.["--surface"]).toBe("#1a1f45");
+    expect(azul?.["--brand"]).toBe("#7d8bff");
   });
 
   it("solo acepta data URL de imagen como logo", () => {
@@ -97,6 +110,9 @@ describe("Experiencia del comensal: Light fijo + identidad mínima", () => {
     expect(config).toContain("BrandIdentityCard");
     expect(card).toContain("config.seccionIdentidad");
     expect(card).toContain("config.colorCobalto");
+    expect(card).toContain("config.colorBlanco");
+    expect(card).toContain("config.colorAzul");
+    expect(sql).toContain("'blanco', 'azul'");
     expect(sql).toContain("logo_url");
     expect(sql).toContain("color_marca");
     expect(orden).toContain("locales-identidad.sql");

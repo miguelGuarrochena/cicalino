@@ -4,9 +4,8 @@
 -- Requiere: setup.sql
 --
 -- El nombre sigue en locales.nombre. Estos dos campos son opcionales y solo
--- afectan la experiencia del comensal (/m, /p, /e). null = estética oficial
--- de Cicalino (sin logo, azul cobalto). El negro es un color de marca, no
--- dark mode.
+-- afectan la experiencia del comensal (/m, /p, /e). null = crema Cicalino.
+-- blanco y azul son fondos explícitos (panadería / noche Cicalino).
 -- ===========================================================================
 
 alter table public.locales
@@ -22,11 +21,11 @@ alter table public.locales
   add constraint locales_color_marca_valido
   check (
     color_marca is null
-    or color_marca in ('negro', 'bordo', 'verde', 'terracota')
+    or color_marca in ('blanco', 'azul', 'negro', 'bordo', 'verde', 'terracota')
   );
 
 comment on column public.locales.logo_url is
   'Logo opcional del local para la experiencia del comensal. null = solo el nombre.';
 
 comment on column public.locales.color_marca is
-  'Acento de marca del comensal: negro, bordo, verde o terracota. null = cobalto oficial de Cicalino. No es dark mode.';
+  'Fondo del comensal: blanco, azul (noche Cicalino), negro, bordo, verde o terracota. null = crema Cicalino. No es el Light/Dark del panel.';
