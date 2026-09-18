@@ -28,6 +28,7 @@ import { isEmail, isCuil, isWhatsapp, formatCuil } from "@/lib/validations";
 import { Select } from "@/components/ui/Select";
 import { PackPicker } from "@/components/admin/PackPicker";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   createOrganization,
@@ -172,6 +173,7 @@ export const OrgModal = ({
 }) => {
   const { t } = useApp();
   const toast = useToast();
+  const confirmar = useConfirm();
   const {
     altaOrg: createOrg,
     actualizarOrg,
@@ -316,7 +318,15 @@ export const OrgModal = ({
       await navigator.clipboard.writeText(r.url);
       toast("Link copiado", "success");
     } catch {
-      window.prompt("Copiá el link de condiciones:", r.url);
+      /* Sin permiso de portapapeles (Safari, http, permiso denegado): al
+       * menos que el link quede a mano para copiarlo de una. */
+      await confirmar({
+        title: "Link de condiciones",
+        body: "No se pudo copiar solo. Copialo de acá.",
+        input: { label: "Link", valorInicial: r.url, maxLength: 500 },
+        confirmLabel: "Listo",
+        cancelLabel: "Volver",
+      });
     }
   };
 
@@ -453,14 +463,15 @@ export const OrgModal = ({
   const toggleActivo = async () => {
     if (!vista || busy) return;
     const next = !vista.activo;
-    if (
-      next &&
-      isContractPending(vista) &&
-      !window.confirm(
-        "El cliente todavía no aceptó las condiciones. ¿Activar la cuenta de todas formas?",
-      )
-    ) {
-      return;
+    if (next && isContractPending(vista)) {
+      const ok = await confirmar({
+        title: "Activar sin condiciones aceptadas",
+        body: "El cliente todavía no aceptó las condiciones. ¿Activar la cuenta de todas formas?",
+        confirmLabel: "Sí, activar igual",
+        cancelLabel: "Volver",
+        tone: "peligro",
+      });
+      if (!ok) return;
     }
     await conBusy(
       next ? "Activando e invitando…" : "Pausando cuenta…",

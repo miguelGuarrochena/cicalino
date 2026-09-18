@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ConfirmProvider } from "@/components/ui/Confirm";
 
 /* Auto-hospedadas por next/font: se descargan en el build y salen de nuestro
  * dominio. Antes venían de Google con dos preconnect y una hoja de estilos que
@@ -78,7 +79,9 @@ const RootLayout = ({
         </a>
         <Providers>
           <ToastProvider>
-            <div id="contenido">{children}</div>
+            <ConfirmProvider>
+              <div id="contenido">{children}</div>
+            </ConfirmProvider>
           </ToastProvider>
         </Providers>
         <Analytics />

@@ -335,6 +335,10 @@ button:disabled,
   --halo: color-mix(in srgb, var(--curso) 60%, transparent);
 }
 
+.u-alert-halo-ok {
+  --halo: color-mix(in srgb, var(--ok) 60%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .u-in,
   .u-pop,
@@ -418,6 +422,25 @@ button:disabled,
 }
 :root [data-scheme="light"] .on-light {
   display: inline-block;
+}
+
+/* ---- Imprimir solo el sticker del QR ----
+ *
+ * El QR se imprime desde un modal que vive en su propio portal, así que no
+ * alcanza con que cada página marque su contenido `print:hidden`: habría que
+ * acordarse en todas las pantallas desde las que se abre. Mientras dura el
+ * diálogo de impresión, `QrModal` marca el <body> y acá desaparece del papel
+ * todo lo que no sea el sticker — el modal, la página de atrás, el dock de
+ * alertas y los toasts incluidos. */
+@media print {
+  /* Papel blanco aunque el panel esté en oscuro y el que imprime tenga
+   * activado "gráficos de fondo": si no, el sticker sale sobre azul noche. */
+  body[data-imprimiendo="qr"] {
+    background: #fff;
+  }
+  body[data-imprimiendo="qr"] > *:not([data-imprimible="qr"]) {
+    display: none !important;
+  }
 }
 
 /* Scroll interno de modales: sin barra visible (sigue scrolleable) */

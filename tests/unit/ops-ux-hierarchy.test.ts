@@ -124,8 +124,14 @@ describe("Operación — jerarquía y layout", () => {
     expect(detalle).toContain("from \"@/components/ui/Select\"");
     expect(detalle).not.toContain("<select");
     expect(detalle).toContain("mesas.pagoElegido");
-    expect(detalle).toContain("min-h-11 w-full rounded-full bg-ok");
-    expect(detalle).toContain("flex w-full flex-col gap-2");
+    /* Confirmar y cancelar miden lo mismo al tacto (48 px, 44 en desktop) y se
+     * distinguen por peso visual: lleno vs. borde. Un "Cancelar" de letra
+     * chica se falla con el dedo, y fallar el de cancelar un cobro cuesta. */
+    expect(detalle).toContain("min-h-12 items-center justify-center rounded-full bg-ok");
+    expect(detalle).toContain("min-h-12 items-center justify-center rounded-full border border-linea");
+    /* Dos columnas si entran, apiladas si no, sin medir el ancho en JS. */
+    expect(detalle).toContain("grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]");
+    expect(detalle).toContain("flex w-full flex-col gap-1.5");
     expect(guest).toContain("mesa.verCuenta");
     expect(guest).toContain("mesa.pedirCuenta");
     expect(guest).toContain("mesa.seguirPidiendo");
@@ -181,7 +187,12 @@ describe("Operación — jerarquía y layout", () => {
     expect(reduced).toContain("box-shadow: 0 0 0 5px var(--halo)");
     expect(inbox).toContain("mesas.nuevo");
     expect(inbox).toContain("mesas.visto");
-    expect(inbox).toContain("mesas.vistoAyuda");
+    /* El matiz "visto en este dispositivo" se lee en pantalla, no en un
+     * `title` que en el teléfono no aparece nunca. */
+    expect(inbox).toContain("mesas.vistoDispositivo");
+    /* Y se renderiza como texto, no como tooltip del navegador. */
+    expect(inbox).toContain("{nota}");
+    expect(inbox).not.toContain("mesas.vistoAyuda");
     expect(charge).toContain("mesas.solicitaCuenta");
     expect(charge).toContain("mesas.cuentaSolicitada");
     expect(charge).toContain("mesas.verMesa");
@@ -212,7 +223,12 @@ describe("Operación — jerarquía y layout", () => {
      * to "Por cobrar". */
     const tile = read("src/components/panel/mesas/FloorTableTile.tsx");
     expect(tile).toContain("bg-alerta text-crema");
-    expect(tile).toContain("bg-curso text-crema");
+    /* "Pago a confirmar" es la excepción y es a propósito: va con el par claro
+     * del tema. Contra la roja de "te llaman", el ámbar pleno tenía el mismo
+     * tono oscuro (ΔE 21, y ΔE 7 para quien no distingue el rojo). Invertir la
+     * luminosidad es lo único que sobrevive a mirar el piso desde lejos. */
+    expect(tile).toContain("bg-curso-fondo text-curso");
+    expect(tile).not.toContain("bg-curso text-crema");
     expect(tile).toContain("bg-marca text-crema");
     expect(tile).toContain("bg-ok text-crema");
     expect(tile).toContain("bg-black/15");
@@ -249,5 +265,143 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesasPage).toContain('tone: "marca"');
     expect(mesasPage).toContain('tone: "curso"');
     expect(tabs).toContain('tone?: "marca" | "curso"');
+  });
+});
+
+/* El sticker del QR se imprime desde la app, no desde una ventana aparte.
+ *
+ * Antes esto abría un `window.open` en blanco y le escribía HTML a mano: el
+ * sticker salía en `system-ui` y `#111`, no se parecía a Cicalino, y si el
+ * navegador bloqueaba los emergentes el botón no hacía absolutamente nada. */
+describe("Impresión del QR", () => {
+  const modal = read("src/components/panel/QrModal.tsx");
+  const papel = read("src/components/panel/PrintableQr.tsx");
+  const css = read("src/app/globals.css");
+
+  it("no abre ninguna ventana ni escribe HTML a mano", () => {
+    expect(modal).not.toContain("window.open");
+    expect(modal).not.toContain("document.write");
+    expect(modal).toContain("window.print()");
+  });
+
+  it("el papel vive en el documento, oculto en pantalla", () => {
+    expect(papel).toContain("hidden");
+    expect(papel).toContain("print:block");
+    expect(modal).toContain("PrintableQr");
+    /* Va en su propio portal: el modal vive en otro y se esconde al imprimir. */
+    expect(modal).toContain("createPortal");
+  });
+
+  it("al imprimir no se cuela nada del panel", () => {
+    expect(modal).toContain('document.body.dataset.imprimiendo = "qr"');
+    /* Y se limpia tanto al volver del diálogo como al cerrar el modal. */
+    expect(modal).toContain('addEventListener("afterprint"');
+    expect(modal).toContain("delete document.body.dataset.imprimiendo");
+    const regla = css.slice(css.indexOf('body[data-imprimiendo="qr"]'));
+    expect(regla).toContain('*:not([data-imprimible="qr"])');
+    expect(regla).toContain("display: none");
+  });
+
+  it("la regla está atada a la marca, así no rompe otras impresiones", () => {
+    /* La cuenta de la mesa (PrintableBill) imprime por su cuenta con
+     * `print:hidden` en cada ancestro: esta regla no la tiene que tocar. */
+    const bloque = css.slice(
+      css.indexOf("---- Imprimir solo el sticker"),
+      css.indexOf("Scroll interno de modales"),
+    );
+    expect(bloque).toContain('body[data-imprimiendo="qr"]');
+    expect(bloque).not.toMatch(/^\s*body\s*>/m);
+  });
+
+  it("el papel imprime en negro sobre blanco aunque el panel esté en oscuro", () => {
+    /* Con tokens de tema, `text-carbon` en modo oscuro sale casi blanco.
+     * Se mira el JSX y no el archivo entero: el comentario los nombra. */
+    const jsx = papel.slice(papel.indexOf("return ("));
+    expect(jsx).toContain("bg-white");
+    expect(jsx).toContain("text-black");
+    expect(jsx).not.toContain("text-carbon");
+    expect(jsx).not.toContain("bg-crema");
+  });
+
+  it("el QR del papel es negro y de más resolución que el de pantalla", () => {
+    expect(modal).toContain("printUrl");
+    const i = modal.indexOf(".then(setPrintUrl)");
+    const paraPapel = modal.slice(modal.lastIndexOf("QRCode.toDataURL", i), i);
+    expect(paraPapel).toContain("width: 1024");
+    expect(paraPapel).toContain('dark: "#000000"');
+    expect(paraPapel).toContain('errorCorrectionLevel: "H"');
+    /* 68 mm: entra en un sticker y escanea desde el borde de la mesa. */
+    expect(papel).toContain("68mm");
+  });
+
+  it("la descarga del PNG sigue siendo el otro camino", () => {
+    const qr = read("src/app/(app)/panel/mesas/qr/page.tsx");
+    expect(qr).toContain("QrDownloadModal");
+    expect(read("src/components/panel/mesas/QrDownloadModal.tsx")).toContain("descargarSolo");
+  });
+});
+
+/* El bloque de cobros de una mesa: una acción por persona y una sola global.
+ *
+ * El mismo pago pendiente de Juan llegó a tener tres botones "Confirmar pago"
+ * en pantalla: el aviso de arriba, la cuenta de abajo y el modal de cobrar.
+ * Los tres llamaban a la misma RPC. */
+describe("Cobros de una mesa: sin acciones repetidas", () => {
+  const detalle = read("src/components/panel/mesas/TableDetail.tsx");
+  const modal = read("src/components/panel/mesas/CobrarModal.tsx");
+
+  it("cada pago tiene sus botones en un solo lugar, según su estado", () => {
+    /* Pendiente arriba (confirmar/cancelar), ya pagado abajo (anular). */
+    expect(detalle).toContain("const paymentActions = (p: BillPayment, soloRegistro = false)");
+    expect(detalle).toContain("actions={(p) => paymentActions(p, true)}");
+    expect(detalle).toContain('if (!soloRegistro && p.status !== "pendiente") return null;');
+  });
+
+  it("el modal de cobrar registra plata nueva; no confirma la que ya está anotada", () => {
+    expect(modal).not.toContain("confirmTablePayment");
+    expect(modal).not.toContain("confirmWaiting");
+    /* Los muestra, para que el mozo sepa por qué el monto es menor. */
+    expect(modal).toContain("waiting.map");
+    expect(modal).toContain("mesas.confirmarEnCuenta");
+    /* Y su botón dice lo que hace. */
+    expect(modal).toContain("mesas.registrarCobroN");
+    expect(modal).not.toContain("mesas.confirmarPagoN");
+  });
+
+  it("la acción global aparece solo cuando ahorra toques", () => {
+    /* Con un solo pago esperando, el botón de esa persona ya es la acción
+     * global: dos botones para el mismo pago es justo lo que había que sacar. */
+    expect(detalle).toContain("waitingPayments.length > 1 && (");
+    expect(detalle).toContain("mesas.confirmarTodos");
+    expect(detalle).toContain("confirmarPendientes");
+  });
+
+  it("confirmar todo no inventa un pago ni elige método por nadie", () => {
+    const fn = detalle.slice(
+      detalle.indexOf("const confirmarPendientes"),
+      detalle.indexOf("const moveOrder"),
+    );
+    expect(fn).toContain("for (const p of waitingPayments)");
+    expect(fn).toContain("confirmTablePayment(p.id, employeeId)");
+    /* Nada de registrar cobros nuevos por su cuenta: eso es "Cobrar". */
+    expect(fn).not.toContain("registerStaffPayment");
+    /* Si uno falla, corta y lo dice; los anteriores quedaron confirmados. */
+    expect(fn).toContain("break");
+    expect(fn).toContain("errorText(fallo)");
+  });
+
+  it("«Cobrar» solo aparece si queda algo por registrar", () => {
+    /* Con todo lo pendiente ya anotado, `available` es 0 y el modal solo podía
+     * decir "todo reservado": era un botón que abría un callejón. */
+    expect(detalle).toContain("open && bill.totals.available > 0 && (");
+    expect(detalle).not.toContain("open && pending > 0 && (");
+  });
+
+  it("el resumen dice cuántos pagos esperan antes de ofrecer nada", () => {
+    const i = detalle.indexOf("mesas.pagosEsperandoN");
+    const j = detalle.indexOf("mesas.confirmarTodos");
+    expect(i).toBeGreaterThan(-1);
+    /* El número va antes que el botón: primero qué pasa, después qué hacer. */
+    expect(i).toBeLessThan(j);
   });
 });

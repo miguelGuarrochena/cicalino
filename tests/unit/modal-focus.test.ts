@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { globSync } from "node:fs";
 import { SELECTOR_ENFOCABLE, siguienteFoco } from "@/lib/ui/focusTrap";
+
+const root = process.cwd();
 
 /* ModalShell ya hacía lo difícil —role=dialog, aria-modal, Escape, bloqueo del
  * scroll— pero no atrapaba el Tab: con un teclado bluetooth en la tablet del
@@ -110,5 +113,88 @@ describe("ModalShell: cableado", () => {
 
   it("el diálogo puede recibir foco si no hay controles adentro", () => {
     expect(shell).toContain("tabIndex={-1}");
+  });
+});
+
+/* Confirmaciones con la cara de la app, no con la del navegador.
+ *
+ * `window.confirm` y `window.prompt` andaban, pero son del sistema: otra
+ * tipografía, otro idioma en los botones, ignoran el tema oscuro, avisan
+ * "localhost dice" y no distinguen "Aceptar" de "Cancelar este pedido". En una
+ * tablet de salón eso rompe el hilo de lo que el mozo está haciendo. */
+describe("Confirmaciones: componentes propios, no diálogos del navegador", () => {
+  const src = (rel: string) => readFileSync(join(root, rel), "utf8");
+
+  it("no queda ningún diálogo nativo usado como UI de la app", () => {
+    const archivos = globSync("src/**/*.{ts,tsx}", { cwd: root });
+    const ofensores = archivos.filter((f) => {
+      const txt = src(f);
+      if (f.endsWith("ui/Confirm.tsx")) return false; /* lo nombra en su comentario */
+      return /window\.(confirm|alert|prompt)\s*\(/.test(txt);
+    });
+    expect(ofensores, `usan diálogos nativos: ${ofensores.join(", ")}`).toEqual([]);
+  });
+
+  it("el cartel propio hereda el foco atrapado y el Escape de ModalShell", () => {
+    const confirm = src("src/components/ui/Confirm.tsx");
+    expect(confirm).toContain("ModalShell");
+    expect(confirm).toContain("labelledBy");
+    /* Promesa: el que llama conserva el `if (!await …) return` del nativo. */
+    expect(confirm).toContain("Promise<boolean | string | null>");
+  });
+
+  it("fuera del provider responde que no, nunca que sí", () => {
+    const confirm = src("src/components/ui/Confirm.tsx");
+    const fallback = confirm.slice(confirm.indexOf("const sinProvider"));
+    expect(fallback).toContain("opts.input ? null : false");
+  });
+
+  it("está montado para toda la app, panel y comensal", () => {
+    const layout = src("src/app/layout.tsx");
+    expect(layout).toContain("ConfirmProvider");
+    /* Adentro de Providers: usa `t` para los botones por defecto. */
+    expect(layout.indexOf("<Providers>")).toBeLessThan(layout.indexOf("<ConfirmProvider>"));
+  });
+
+  it("salir por cualquier puerta es «no»; solo el botón confirma", () => {
+    const confirm = src("src/components/ui/Confirm.tsx");
+    /* Escape, fondo, ✕ y Cancelar pasan por el mismo cierre negativo. Un
+     * cartel que confirmara al apretar Escape borraría un pedido por un
+     * teclazo. */
+    const negativos = confirm.split("cerrar(esperaTexto ? null : false)").length - 1;
+    expect(negativos).toBe(3); /* botón Cancelar, ✕ y onClose (Escape + fondo) */
+    expect(confirm.split("cerrar(esperaTexto ? texto.trim() : true)").length - 1).toBe(1);
+  });
+
+  it("el campo obligatorio bloquea el botón en vez de que lo rebote el servidor", () => {
+    const confirm = src("src/components/ui/Confirm.tsx");
+    expect(confirm).toContain("faltaTexto");
+    expect(confirm).toContain("disabled={faltaTexto}");
+    /* El motivo de anulación es el caso: `cancelar_pago_mesa` lo exige. */
+    expect(src("src/components/panel/mesas/TableDetail.tsx")).toContain("requerido: true");
+  });
+
+  it("los dos botones se distinguen y entran en un dedo", () => {
+    const confirm = src("src/components/ui/Confirm.tsx");
+    /* Confirmar va lleno, cancelar va con borde. */
+    expect(confirm).toContain("border border-linea");
+    expect(confirm).toContain("text-crema");
+    /* 48px de alto y, en mobile, el que confirma arriba. */
+    expect(confirm).toContain("min-h-12");
+    expect(confirm).toContain("flex-col-reverse");
+  });
+
+  it("lo destructivo se ve destructivo", () => {
+    const confirm = src("src/components/ui/Confirm.tsx");
+    expect(confirm).toContain('tone === "peligro"');
+    expect(confirm).toContain("bg-alerta");
+    /* Y los que borran o cancelan lo piden. */
+    for (const f of [
+      "src/components/panel/mesas/TableDetail.tsx",
+      "src/components/panel/menu/MenuWorkspace.tsx",
+      "src/components/customer/table/TableGuestApp.tsx",
+    ]) {
+      expect(src(f), f).toContain('tone: "peligro"');
+    }
   });
 });

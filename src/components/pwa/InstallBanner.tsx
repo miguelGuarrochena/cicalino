@@ -6,6 +6,7 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { useBrowserValue } from "@/lib/hooks/useBrowserValue";
 import { usePwaInstall } from "@/lib/hooks/usePwaInstall";
+import { usePanelAlerts } from "@/lib/hooks/usePanelAlerts";
 import {
   INSTALL_IOS_DELAY_MS,
   dismissActivo,
@@ -50,6 +51,7 @@ const Paso = ({ n, children }: { n: number; children: React.ReactNode }) => (
 export const InstallBanner = () => {
   const { t } = useApp();
   const { instalada, promptDisponible, iosManual, instalar } = usePwaInstall();
+  const alertas = usePanelAlerts();
   const [descartado, setDescartado] = useState(false);
   const [ayudaIOS, setAyudaIOS] = useState(false);
   const [iosEnTiempo, setIosEnTiempo] = useState(false);
@@ -93,7 +95,11 @@ export const InstallBanner = () => {
     setDescartado(true);
   };
 
-  if (!visible) return null;
+  /* El dock de alertas usa la misma esquina y tiene prioridad: son cosas que
+   * están pasando en el salón ahora. Instalar la app puede esperar al rato en
+   * que no haya nada pendiente; al revés, taparle una mesa que llama al mozo
+   * con un cartel de instalación, no. */
+  if (!visible || alertas.length > 0) return null;
 
   return (
     <>

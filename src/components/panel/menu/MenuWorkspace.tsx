@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
@@ -90,6 +91,7 @@ const byOrder = <T extends { order: number; name: string }>(a: T, b: T) =>
 export const MenuWorkspace = () => {
   const { t } = useApp();
   const toast = useToast();
+  const confirmar = useConfirm();
   const branchId = useSessionStore((s) => s.sucursalId);
   const branchName = useConfigStore((s) => s.name);
   const { visibles, canManage, ready } = useOperationalAccess();
@@ -267,7 +269,14 @@ export const MenuWorkspace = () => {
   };
 
   const removeProduct = async (p: MenuProductView) => {
-    if (!window.confirm(t("carta.borrarConfirmar", { n: p.name }))) return;
+    const ok = await confirmar({
+      title: t("carta.borrarProductoTitulo"),
+      body: t("carta.borrarConfirmar", { n: p.name }),
+      confirmLabel: t("carta.borrarSi"),
+      cancelLabel: t("acciones.volver"),
+      tone: "peligro",
+    });
+    if (!ok) return;
     if (await deleteMenuProduct(p.id)) {
       setProducts((list) => (list ?? []).filter((x) => x.id !== p.id));
       setProductDraft(null);
@@ -343,7 +352,14 @@ export const MenuWorkspace = () => {
     const msg = n
       ? t("carta.categoriaBorrarConProductos", { n: c.name, cantidad: n })
       : t("carta.categoriaBorrarConfirmar", { n: c.name });
-    if (!window.confirm(msg)) return;
+    const confirmado = await confirmar({
+      title: t("carta.categoriaBorrarTitulo"),
+      body: msg,
+      confirmLabel: t("carta.borrarSi"),
+      cancelLabel: t("acciones.volver"),
+      tone: "peligro",
+    });
+    if (!confirmado) return;
     setBusy(true);
     const ok = await deleteMenuCategory(branchId, c);
     setBusy(false);

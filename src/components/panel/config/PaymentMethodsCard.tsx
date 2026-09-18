@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
 import { fetchPaymentSettings, savePaymentSettings } from "@/lib/data/tables";
 import { disconnectMercadoPago, mercadoPagoAvailable } from "@/lib/actions/mercadopago";
 import type { PaymentSettings } from "@/lib/tableBill";
@@ -80,6 +81,7 @@ export const PaymentMethodsCard = ({
 }) => {
   const { t } = useApp();
   const toast = useToast();
+  const confirmar = useConfirm();
   const [s, setS] = useState<PaymentSettings | null>(null);
   const [saved, setSaved] = useState<PaymentSettings | null>(null);
   const [mp, setMp] = useState<{ connected: boolean; userId: string | null } | null>(null);
@@ -139,7 +141,14 @@ export const PaymentMethodsCard = ({
   };
 
   const disconnect = async () => {
-    if (!window.confirm(t("cobros.mp.desconectarConfirmar"))) return;
+    const ok = await confirmar({
+      title: t("cobros.mp.desconectarTitulo"),
+      body: t("cobros.mp.desconectarConfirmar"),
+      confirmLabel: t("cobros.mp.desconectarSi"),
+      cancelLabel: t("acciones.volver"),
+      tone: "peligro",
+    });
+    if (!ok) return;
     const res = await disconnectMercadoPago(branchId);
     if (res.ok) {
       toast(t("cobros.mp.desconectado"), "info");

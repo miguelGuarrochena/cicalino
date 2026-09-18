@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
+import { useConfirm } from "@/components/ui/Confirm";
 import { Controls } from "@/components/ui/Controls";
 import { TabGlyph } from "@/components/ui/TabGlyph";
 import { Spinner } from "@/components/ui/Spinner";
@@ -57,6 +58,7 @@ const newKey = () => crypto.randomUUID();
 
 export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   const { t } = useApp();
+  const confirmar = useConfirm();
   const router = useRouter();
   const { token } = initial;
 
@@ -205,7 +207,15 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   };
 
   const cancelOrder = async (orderId: string) => {
-    if (sending || !window.confirm(t("mesa.cancelarPedidoConfirmar"))) return;
+    if (sending) return;
+    const ok = await confirmar({
+      title: t("mesa.cancelarPedidoTitulo"),
+      body: t("mesa.cancelarPedidoConfirmar"),
+      confirmLabel: t("mesa.cancelarPedidoSi"),
+      cancelLabel: t("acciones.volver"),
+      tone: "peligro",
+    });
+    if (!ok) return;
     setSending(true);
     setError(null);
     try {
@@ -767,10 +777,19 @@ const PendingPaymentHelp = ({
   onChanged: (b: TableBill | null) => void;
 }) => {
   const { t } = useApp();
+  const confirmar = useConfirm();
   const [busy, setBusy] = useState(false);
 
   const cancel = async () => {
-    if (busy || !window.confirm(t("mesa.cancelarPagoConfirmar"))) return;
+    if (busy) return;
+    const ok = await confirmar({
+      title: t("mesa.cancelarPagoTitulo"),
+      body: t("mesa.cancelarPagoConfirmar"),
+      confirmLabel: t("mesa.cancelarPagoSi"),
+      cancelLabel: t("acciones.volver"),
+      tone: "peligro",
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/m/${token}/pagos/${paymentId}/cancelar`, { method: "POST" });

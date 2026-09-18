@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
 import {
   ConsumptionTable,
   PaymentRows,
 } from "@/components/tables/BillParts";
 import { CobrarModal } from "@/components/panel/mesas/CobrarModal";
-import { CloseTableModal } from "@/components/panel/mesas/CloseTableModal";
 import { PrintableBill } from "@/components/panel/mesas/PrintableBill";
 import { TableHistory } from "@/components/panel/mesas/TableHistory";
 import { FloorStatusBadge } from "@/components/panel/mesas/FloorStatusBadge";
@@ -38,6 +38,7 @@ export const TableDetail = ({
   employeeId,
   employeeName,
   canManage,
+  onCloseTable,
   onChanged,
   onBack,
   onShowQr,
@@ -52,6 +53,9 @@ export const TableDetail = ({
   employeeId: string | null;
   employeeName?: string | null;
   canManage: boolean;
+  /* Lo abre la página: el modal de cerrar vive una sola vez, así la baldosa y
+   * el detalle no tienen cada uno su copia. */
+  onCloseTable?: () => void;
   onChanged: () => void;
   onBack?: () => void;
   onShowQr?: () => void;
@@ -62,9 +66,9 @@ export const TableDetail = ({
 }) => {
   const { t } = useApp();
   const toast = useToast();
+  const confirmar = useConfirm();
   const [busy, setBusy] = useState<string | null>(null);
   const [cobrarOpen, setCobrarOpen] = useState(false);
-  const [closeOpen, setCloseOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignTo, setReassignTo] = useState(waiterId ?? "");
   const open = bill.session.status === "abierta";
@@ -98,6 +102,31 @@ export const TableDetail = ({
     }
   };
 
+  /* La acción global del resumen: "ya cobré todo lo que estaba anotado".
+   *
+   * Confirma de una los pagos que el comensal dejó pendientes desde el
+   * celular. No inventa un pago nuevo ni elige método por nadie: cada pago ya
+   * trae el suyo. Lo que no está anotado se cobra con "Cobrar", que es otra
+   * cosa y lo dice.
+   *
+   * Va de a uno y en orden: si el tercero falla, los dos primeros quedaron
+   * confirmados de verdad y el error nombra lo que faltó. */
+  const confirmarPendientes = async () => {
+    setBusy("todos");
+    let fallo: string | undefined;
+    for (const p of waitingPayments) {
+      const res = await confirmTablePayment(p.id, employeeId);
+      if (!res.ok) {
+        fallo = res.reason;
+        break;
+      }
+    }
+    setBusy(null);
+    if (fallo) toast(errorText(fallo), "error");
+    else toast(t("mesas.todosConfirmados"), "success");
+    onChanged();
+  };
+
   const moveOrder = (o: BillOrder, to: OrderStatus) =>
     run(
       o.id,
@@ -108,8 +137,26 @@ export const TableDetail = ({
       t(`mesas.pedidoMovido.${to}`),
     );
 
-  const paymentActions = (p: BillPayment) => {
+  /* Los botones de un pago viven en un solo lugar según lo que sea el pago.
+   *
+   * Antes esto se renderizaba dos veces —en el aviso de arriba y otra vez en
+   * la cuenta de abajo— así que el mismo pago de Juan tenía dos "Confirmar
+   * pago" en la misma pantalla, más un tercero dentro del modal de cobrar.
+   *
+   * El reparto ahora es por estado, y no se pisan:
+   *
+   *  · pendiente → arriba, en el aviso, que es donde el mozo lo está mirando
+   *    cuando entra a la mesa. Ahí confirma o cancela.
+   *  · ya pagado → abajo, en la cuenta, que es el registro. Ahí el encargado
+   *    puede anularlo.
+   *  · Mercado Pago pendiente → abajo también, sin botón: se confirma solo.
+   */
+  const paymentActions = (p: BillPayment, soloRegistro = false) => {
     if (!open || p.status === "cancelado") return null;
+    if (soloRegistro && p.status === "pendiente" && p.method !== "mercado_pago") {
+      return null;
+    }
+    if (!soloRegistro && p.status !== "pendiente") return null;
     const canConfirm = p.status === "pendiente" && p.method !== "mercado_pago";
     const canCancel =
       p.status === "pendiente" ||
@@ -117,8 +164,17 @@ export const TableDetail = ({
     if (!canConfirm && !canCancel && !(p.status === "pendiente" && p.method === "mercado_pago")) {
       return null;
     }
+    /* Las dos acciones entran en una fila si hay lugar y se apilan si no, sin
+     * consultar el ancho en JS: `auto-fit` con un mínimo de 9rem por columna
+     * hace las dos cuentas solo. En un teléfono de 375 px entran las dos; en
+     * uno angosto, o con el detalle en una columna finita, se apilan.
+     *
+     * Las dos miden lo mismo al tacto (48 px, 44 en desktop donde se apunta
+     * con el mouse). Lo que las diferencia es el peso visual, no el tamaño:
+     * un "Cancelar" de letra chica se falla con el dedo, y fallar el botón de
+     * cancelar un cobro en hora pico no es gratis. */
     return (
-      <div className="mt-2 flex w-full flex-col gap-2 sm:mt-0">
+      <div className="mt-2 flex w-full flex-col gap-1.5 sm:mt-0">
         {canConfirm && (
           <button
             type="button"
@@ -130,7 +186,7 @@ export const TableDetail = ({
                 t("mesas.pagoConfirmadoMesa", { n: t("mesa.mesaN", { n: bill.session.tableNumber }) }),
               )
             }
-            className="min-h-11 w-full rounded-full bg-ok px-4 text-sm font-semibold text-crema disabled:opacity-50"
+            className="flex min-h-12 items-center justify-center rounded-full bg-ok px-3 text-sm font-semibold leading-tight text-crema transition hover:opacity-90 active:scale-[0.98] disabled:opacity-50 sm:min-h-11"
           >
             {p.method === "transferencia" ? t("mesas.confirmarRecibido") : t("mesas.confirmarPago")}
           </button>
@@ -138,24 +194,54 @@ export const TableDetail = ({
         {p.status === "pendiente" && p.method === "mercado_pago" && (
           <span className="text-[11px] text-carbon/55">{t("mesas.mpSoloWebhook")}</span>
         )}
+        {(canConfirm || canCancel) && (
+        <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]">
         {canCancel && (
           <button
             type="button"
             disabled={busy === p.id}
             onClick={() => {
-              let motivo: string | null = null;
-              if (p.status === "pagado") {
-                motivo = window.prompt(t("mesas.motivoAnular"))?.trim() || null;
-                if (!motivo) return;
-              } else if (!window.confirm(t("mesas.cancelarPagoConfirmar"))) {
-                return;
-              }
-              void run(p.id, () => cancelTablePayment(p.id, motivo, employeeId), t("mesas.pagoCancelado"));
+              void (async () => {
+                /* Anular un pago ya cobrado pide motivo; cancelar uno que
+                 * todavía está pendiente, solo confirmación. La regla es de
+                 * `cancelar_pago_mesa` y no cambió: acá solo se pregunta. */
+                let motivo: string | null = null;
+                if (p.status === "pagado") {
+                  motivo = await confirmar({
+                    title: t("mesas.anularPagoTitulo"),
+                    input: {
+                      label: t("mesas.motivoAnular"),
+                      requerido: true,
+                      maxLength: 200,
+                    },
+                    confirmLabel: t("mesas.anularPagoSi"),
+                    cancelLabel: t("acciones.volver"),
+                    tone: "peligro",
+                  });
+                  if (!motivo) return;
+                } else {
+                  const ok = await confirmar({
+                    title: t("mesas.cancelarPagoTitulo"),
+                    body: t("mesas.cancelarPagoConfirmar"),
+                    confirmLabel: t("mesas.cancelarPagoSi"),
+                    cancelLabel: t("acciones.volver"),
+                    tone: "peligro",
+                  });
+                  if (!ok) return;
+                }
+                await run(
+                  p.id,
+                  () => cancelTablePayment(p.id, motivo, employeeId),
+                  t("mesas.pagoCancelado"),
+                );
+              })();
             }}
-            className="min-h-11 w-full rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70 disabled:opacity-50"
+            className="flex min-h-12 items-center justify-center rounded-full border border-linea bg-surface px-3 text-sm font-semibold leading-tight text-carbon/70 transition hover:border-carbon/30 hover:text-carbon active:scale-[0.98] disabled:opacity-50 sm:min-h-11"
           >
             {p.status === "pagado" ? t("mesas.anularPago") : t("mesas.cancelarPago")}
           </button>
+        )}
+        </div>
         )}
       </div>
     );
@@ -228,14 +314,40 @@ export const TableDetail = ({
           ))}
         </dl>
 
+        {open && waitingPayments.length > 0 && (
+          <p className="mt-3 text-center text-sm font-semibold text-curso">
+            {t("mesas.pagosEsperandoN", { n: waitingPayments.length })}
+          </p>
+        )}
+
         <div className="mt-4 flex flex-col gap-2">
-          {open && pending > 0 && (
+          {/* Una sola acción global, y solo con dos o más esperando: con uno
+              solo, el botón de esa persona ya es la acción global y dos
+              botones para el mismo pago es justo lo que había que sacar. */}
+          {open && waitingPayments.length > 1 && (
+            <button
+              type="button"
+              disabled={busy === "todos"}
+              onClick={() => void confirmarPendientes()}
+              className="min-h-12 w-full rounded-full bg-ok px-6 text-base font-semibold text-crema transition hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+            >
+              {t("mesas.confirmarTodos", { n: waitingPayments.length })}
+            </button>
+          )}
+          {/* Cobrar registra plata nueva. Con todo lo pendiente ya anotado no
+              queda nada por registrar, y antes abría un modal que decía
+              justamente eso: "todo reservado". */}
+          {open && bill.totals.available > 0 && (
             <button
               type="button"
               onClick={() => setCobrarOpen(true)}
-              className="min-h-12 w-full rounded-full bg-marca px-6 text-base font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.98]"
+              className={`min-h-12 w-full rounded-full px-6 text-base font-semibold transition active:scale-[0.98] ${
+                waitingPayments.length > 1
+                  ? "border border-marca text-marca hover:bg-marca/5"
+                  : "bg-marca text-crema hover:bg-marca-fuerte"
+              }`}
             >
-              {t("mesas.cobrar")} · {formatMoney(pending)}
+              {t("mesas.cobrar")} · {formatMoney(bill.totals.available)}
             </button>
           )}
           {onShowQr && (
@@ -279,11 +391,17 @@ export const TableDetail = ({
             >
               {t("mesas.imprimirCuenta")}
             </button>
-            {open && (pending <= 0 || canManage) && (
+            {/* Visible siempre que la mesa esté abierta, también con saldo y
+                también para el mozo. Esconderla no evitaba nada: dejaba la
+                mesa abierta para siempre y sin pista de cómo cerrarla. Las
+                reglas siguen donde estaban — el modal explica el saldo y pide
+                el motivo, y `cerrar_mesa` rechaza pagos pendientes y exige
+                encargado cuando falta cubrir. */}
+            {open && onCloseTable && (
               <button
                 type="button"
-                onClick={() => setCloseOpen(true)}
-                className="min-h-11 text-sm font-semibold text-carbon/60 underline-offset-4 hover:text-carbon hover:underline"
+                onClick={onCloseTable}
+                className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/70 transition hover:border-carbon/30 hover:text-carbon"
               >
                 {t("mesas.cerrarMesa")}
               </button>
@@ -345,10 +463,20 @@ export const TableDetail = ({
             ) : null}
             <ul className="mt-2 flex flex-col gap-3">
               {waitingPayments.map((p) => (
-                <li key={p.id} className="flex flex-col gap-2">
-                  <span className="min-w-0 text-sm">
-                    <span className="font-semibold text-carbon">{p.payerName}</span>{" "}
-                    <span className="tabular-nums">{formatMoney(p.total)}</span>
+                <li
+                  key={p.id}
+                  className="flex flex-col gap-2 border-t border-curso-borde/60 pt-2.5 first:border-t-0 first:pt-0"
+                >
+                  <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
+                    <span className="min-w-0 truncate font-semibold text-carbon">
+                      {p.payerName}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-carbon">
+                      {formatMoney(p.total)}
+                    </span>
+                    <span className="w-full text-xs text-carbon/60">
+                      {t(`mesa.metodo.${p.method}`)}
+                    </span>
                   </span>
                   {paymentActions(p)}
                 </li>
@@ -410,9 +538,16 @@ export const TableDetail = ({
                         type="button"
                         disabled={busy === o.id}
                         onClick={() => {
-                          if (window.confirm(t("mesas.cancelarPedidoConfirmar"))) {
-                            void moveOrder(o, "cancelado");
-                          }
+                          void (async () => {
+                            const ok = await confirmar({
+                              title: t("mesas.cancelarPedidoTitulo"),
+                              body: t("mesas.cancelarPedidoConfirmar"),
+                              confirmLabel: t("mesas.cancelarPedidoSi"),
+                              cancelLabel: t("acciones.volver"),
+                              tone: "peligro",
+                            });
+                            if (ok) await moveOrder(o, "cancelado");
+                          })();
                         }}
                         className="mt-2 min-h-11 w-full text-sm font-semibold text-red-600 disabled:opacity-50"
                       >
@@ -463,7 +598,7 @@ export const TableDetail = ({
                 ? ` · ${t("mesa.partesN", { n: bill.session.parts })}`
                 : ""}
             </p>
-            <PaymentRows bill={bill} actions={paymentActions} />
+            <PaymentRows bill={bill} actions={(p) => paymentActions(p, true)} />
           </div>
         </section>
 
@@ -478,17 +613,6 @@ export const TableDetail = ({
             employeeId={employeeId}
             onClose={() => setCobrarOpen(false)}
             onDone={onChanged}
-          />
-        )}
-        {closeOpen && (
-          <CloseTableModal
-            bill={bill}
-            employeeId={employeeId}
-            onClose={() => setCloseOpen(false)}
-            onClosed={() => {
-              setCloseOpen(false);
-              onChanged();
-            }}
           />
         )}
       </section>

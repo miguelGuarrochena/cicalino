@@ -15,6 +15,7 @@ import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { TabGlyph } from "@/components/ui/TabGlyph";
 import { QrModal } from "@/components/panel/QrModal";
 import { TableDetail } from "@/components/panel/mesas/TableDetail";
+import { CloseTableModal } from "@/components/panel/mesas/CloseTableModal";
 import { KitchenInbox } from "@/components/panel/mesas/KitchenInbox";
 import { ChargeInbox } from "@/components/panel/mesas/ChargeInbox";
 import { FloorTableTile } from "@/components/panel/mesas/FloorTableTile";
@@ -41,7 +42,8 @@ import {
   type FloorFilter,
   type FloorTable,
 } from "@/lib/tableOps";
-import { TOAST_AVISO_MS, useToast } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
 import { useFloorShift } from "@/lib/hooks/useFloorShift";
 import { assignmentByTable, assignmentsForTramo, currentFloorTramo } from "@/lib/floorShift";
 import { assignTable } from "@/lib/data/floorShift";
@@ -52,6 +54,7 @@ import { ackTableAttention, setFloorView } from "@/lib/store/attention-store";
 const MesasPage = () => {
   const { t } = useApp();
   const toast = useToast();
+  const confirmar = useConfirm();
   const branchId = useSessionStore((s) => s.sucursalId);
   const { visibles, canManage, ready: branchReady } = useOperationalAccess();
   const branchName = useConfigStore((s) => s.name);
@@ -74,15 +77,14 @@ const MesasPage = () => {
   const [tab, setTab] = useState<FloorFilter | "turno">("pedido");
   const [query, setQuery] = useState("");
   const [kitchenBusy, setKitchenBusy] = useState<string | null>(null);
-  const seenCalls = useRef<Set<string> | null>(null);
-  const seenChecks = useRef<Set<string> | null>(null);
-  const seenMpPaid = useRef<Set<string> | null>(null);
+  /* Llamado, pedido, cuenta y cobro de Mercado Pago los avisa la capa global
+   * (PanelAlertDock), que se ve desde cualquier pantalla y queda hasta que
+   * alguien la atiende. Acá había tres toasts que contaban lo mismo y se iban
+   * solos a los cinco segundos. */
+  const [closeBill, setCloseBill] = useState<TableBill | null>(null);
   const pendingBySession = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    seenCalls.current = null;
-    seenChecks.current = null;
-    seenMpPaid.current = null;
     pendingBySession.current = new Map();
   }, [branchId]);
 
@@ -90,58 +92,6 @@ const MesasPage = () => {
     setFloorView(tab === "turno" ? "turno" : tab);
     return () => setFloorView(null);
   }, [tab]);
-
-  useEffect(() => {
-    if (!ready) return;
-    const calling = new Set(
-      bills
-        .filter((b) => b.session.status === "abierta" && b.session.calledAt)
-        .map((b) => b.session.id),
-    );
-    const checking = new Set(
-      bills
-        .filter(
-          (b) =>
-            b.session.status === "abierta" &&
-            b.payments.some((p) => p.status === "pendiente" && p.method !== "mercado_pago"),
-        )
-        .map((b) => b.session.id),
-    );
-    const mpPaid = new Set(
-      bills.flatMap((b) =>
-        b.payments
-          .filter((p) => p.status === "pagado" && p.method === "mercado_pago")
-          .map((p) => p.id),
-      ),
-    );
-    const prevCalls = seenCalls.current;
-    const prevChecks = seenChecks.current;
-    const prevMp = seenMpPaid.current;
-    if (prevCalls == null || prevChecks == null || prevMp == null) {
-      seenCalls.current = calling;
-      seenChecks.current = checking;
-      seenMpPaid.current = mpPaid;
-      return;
-    }
-    for (const b of bills) {
-      if (b.session.status !== "abierta") continue;
-      if (b.session.calledAt && !prevCalls.has(b.session.id)) {
-        toast(t("mesas.teLlamanToast", { n: b.session.tableNumber }), "info", TOAST_AVISO_MS);
-      } else if (checking.has(b.session.id) && !prevChecks.has(b.session.id)) {
-        toast(t("mesas.pidieronCuentaToast", { n: b.session.tableNumber }), "info", TOAST_AVISO_MS);
-      }
-    }
-    for (const b of bills) {
-      for (const p of b.payments) {
-        if (p.status === "pagado" && p.method === "mercado_pago" && !prevMp.has(p.id)) {
-          toast(t("mesas.mpPagoToast", { n: b.session.tableNumber }), "success", TOAST_AVISO_MS);
-        }
-      }
-    }
-    seenCalls.current = calling;
-    seenChecks.current = checking;
-    seenMpPaid.current = mpPaid;
-  }, [bills, ready, t, toast]);
 
   useEffect(() => {
     if (!branchId || !visibles.pagos) return;
@@ -235,7 +185,7 @@ const MesasPage = () => {
   const openRow = (row: FloorTable) => {
     if (row.bill) {
       const ids = idsForTable(row.bill);
-      ackTableAttention(ids.orders, ids.payments, ids.calls);
+      ackTableAttention(ids.orders, ids.payments, ids.calls, ids.mp);
       setSelected(row.bill.session.id);
       return;
     }
@@ -302,15 +252,18 @@ const MesasPage = () => {
     calls: newCallIds,
   };
 
-  const cancelInbox = (row: FloorTable, orders: FloorTable["newOrders"]) => {
+  const cancelInbox = async (row: FloorTable, orders: FloorTable["newOrders"]) => {
     const marched = orders.some((o) => o.status !== "creado");
-    if (
-      !window.confirm(
-        marched ? t("mesas.cancelarPedidoAnotadoConfirmar") : t("mesas.cancelarPedidoConfirmar"),
-      )
-    ) {
-      return;
-    }
+    const ok = await confirmar({
+      title: t("mesas.cancelarPedidoTitulo"),
+      body: marched
+        ? t("mesas.cancelarPedidoAnotadoConfirmar")
+        : t("mesas.cancelarPedidoConfirmar"),
+      confirmLabel: t("mesas.cancelarPedidoSi"),
+      cancelLabel: t("acciones.volver"),
+      tone: "peligro",
+    });
+    if (!ok) return;
     void moveRows(row, orders, "cancelado");
   };
 
@@ -434,7 +387,7 @@ const MesasPage = () => {
                 newCallIds={newCallIds}
                 onOpen={openRow}
                 onPassToKitchen={(row) => void moveRows(row, row.newOrders, "en_preparacion")}
-                onCancel={cancelInbox}
+                onCancel={(row, orders) => void cancelInbox(row, orders)}
                 onAcknowledge={(row) => {
                   if (!row.bill) return;
                   setKitchenBusy(row.key);
@@ -537,6 +490,7 @@ const MesasPage = () => {
                 employeeId={employee?.id ?? null}
                 employeeName={employee?.name ?? null}
                 canManage={canManage}
+                onCloseTable={() => setCloseBill(currentBill)}
                 onChanged={reload}
                 onBack={() => setSelected(null)}
                 waiterName={
@@ -560,6 +514,20 @@ const MesasPage = () => {
             ) : null}
           </div>
         </div>
+      )}
+
+      {closeBill && (
+        <CloseTableModal
+          bill={closeBill}
+          employeeId={employee?.id ?? null}
+          onClose={() => setCloseBill(null)}
+          onClosed={() => {
+            setCloseBill(null);
+            if (selected === closeBill.session.id) setSelected(null);
+            toast(t("mesas.mesaCerrada"), "success");
+            reload();
+          }}
+        />
       )}
 
       {qrRow?.qrToken && (
