@@ -358,55 +358,66 @@ button:disabled,
   }
 }
 
-/* ---- Swap de imagenes por tema (azul en claro, crema en oscuro) ---- */
+/* ---- Swap de imagenes por tema (azul en claro, crema en oscuro) ----
+ *
+ * La mascota es un PNG de un solo color, así que el contraste no se negocia:
+ * la azul sobre fondo oscuro y la crema sobre fondo claro desaparecen las dos.
+ * Por eso van las dos variantes en el HTML y decide el CSS — en JS habría
+ * desajuste de hidratación y parpadeo, porque el tema lo aplica un script
+ * bloqueante antes del primer pintado. */
+.on-light,
+.on-dark {
+  max-width: 100%;
+  width: auto;
+  object-fit: contain;
+  object-position: left center;
+  vertical-align: middle;
+}
 .on-dark {
   display: none;
 }
 .on-light {
   display: inline-block;
-  max-width: 100%;
-  width: auto;
-  object-fit: contain;
-  object-position: left center;
-  vertical-align: middle;
 }
+
+/* Oscuro forzado por el toggle del panel. */
 :root[data-theme="dark"] .on-light {
   display: none;
 }
 :root[data-theme="dark"] .on-dark {
   display: inline-block;
-  max-width: 100%;
-  width: auto;
-  object-fit: contain;
-  object-position: left center;
-  vertical-align: middle;
 }
+
+/* Oscuro por preferencia del sistema, si nadie forzó claro. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .on-light {
     display: none;
   }
   :root:not([data-theme="light"]) .on-dark {
     display: inline-block;
-    max-width: 100%;
-    width: auto;
-    object-fit: contain;
-    object-position: left center;
-    vertical-align: middle;
   }
 }
 
-/* El comensal fuerza Light: el contraste de la mascota lo marca el fondo
- * de marca, no el toggle del panel. */
-[data-scheme="dark"] .on-light {
+/* En el comensal manda el fondo de marca y no el tema del dispositivo: la
+ * pantalla del cliente se pinta con los colores del local.
+ *
+ * Van las dos direcciones a propósito. Con solo la oscura, el caso claro
+ * dependía de que `theme-init.js` alcanzara a forzar `data-theme="light"`
+ * antes de pintar; si ese script no corre, un local de fondo blanco se queda
+ * con la campana crema sobre blanco, que es no ver nada. El `:root` de adelante
+ * es para empatarle en especificidad al tema del dispositivo y ganarle por
+ * orden: acá el fondo de marca es la autoridad. */
+:root [data-scheme="dark"] .on-light {
   display: none;
 }
-[data-scheme="dark"] .on-dark {
+:root [data-scheme="dark"] .on-dark {
   display: inline-block;
-  max-width: 100%;
-  width: auto;
-  object-fit: contain;
-  object-position: left center;
-  vertical-align: middle;
+}
+:root [data-scheme="light"] .on-dark {
+  display: none;
+}
+:root [data-scheme="light"] .on-light {
+  display: inline-block;
 }
 
 /* Scroll interno de modales: sin barra visible (sigue scrolleable) */
