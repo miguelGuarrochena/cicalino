@@ -288,3 +288,57 @@ export const tableAlert = (
   if (row.newOrders.some((o) => nuevos.orders.has(o.id))) return "pedido";
   return null;
 };
+
+/* Lo que hace falta para revisar una mesa ya terminada.
+ *
+ * La lista de abajo decía "Mesa 2 · $21.000" cuatro veces y no había forma de
+ * saber cuál era cuál. Lo que distingue una mesa de otra cuando ya se fueron
+ * es a qué hora se cerró, quién la atendió y con qué se pagó.
+ *
+ * Y "Pagadas hoy" contaba de más: `isPaidToday` incluye las cerradas con saldo
+ * sin cubrir —invitación de la casa, saldo perdonado— que aparecían con $0 y
+ * el mismo título que las cobradas. Acá se separan, porque revisar el día es
+ * justamente encontrar esas. */
+export type CierreEstado = "pagada" | "sin-cobrar";
+
+export interface HistorialEntry {
+  bill: TableBill;
+  /* Cuándo terminó: el cierre manda, si no la hora en que quedó cubierta. */
+  at: string;
+  estado: CierreEstado;
+  consumo: number;
+  cobrado: number;
+  /* Con qué se cobró, sin repetir. Vacío = no se cobró nada. */
+  metodos: string[];
+}
+
+export const historialEntry = (bill: TableBill): HistorialEntry => ({
+  bill,
+  at: bill.session.closedAt ?? bill.session.paidAt ?? bill.session.updatedAt,
+  estado: bill.totals.uncovered <= 0 ? "pagada" : "sin-cobrar",
+  consumo: bill.totals.consumption,
+  cobrado: bill.totals.paid,
+  metodos: [
+    ...new Set(
+      bill.payments.filter((p) => p.status === "pagado").map((p) => p.method),
+    ),
+  ],
+});
+
+/* Lo último primero: revisar el día casi siempre es mirar lo que acaba de
+ * pasar, no lo de la hora del almuerzo. */
+export const historialDelDia = (bills: TableBill[]): HistorialEntry[] =>
+  bills.filter(isPaidToday).map(historialEntry).sort((a, b) => b.at.localeCompare(a.at));
+
+export const buscarHistorial = (
+  filas: HistorialEntry[],
+  q: string,
+): HistorialEntry[] => {
+  const t = q.trim().toLowerCase();
+  if (!t) return filas;
+  return filas.filter(
+    (f) =>
+      String(f.bill.session.tableNumber).includes(t) ||
+      f.bill.guests.some((g) => g.name.toLowerCase().includes(t)),
+  );
+};

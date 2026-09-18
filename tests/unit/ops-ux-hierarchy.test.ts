@@ -209,8 +209,12 @@ describe("Operación — jerarquía y layout", () => {
     expect(inbox).toContain("mesas.solicitaCuenta");
     expect(inbox).toContain('tone="alerta"');
     const mesas = read("src/app/(app)/panel/pagos/page.tsx");
-    expect(mesas).toContain("expanded={showClosed}");
-    expect(mesas).not.toContain("tab === \"cobrar\" || showClosed");
+    /* El día cerrado salió del pie de la lista —donde desaparece justo la
+     * noche que hay treinta mesas— y subió a su propio botón. */
+    expect(mesas).toContain("HistorialModal");
+    expect(mesas).toContain("mesas.historial");
+    expect(mesas).not.toContain("ClosedTodayList");
+    expect(mesas).not.toContain("showClosed");
     /* El tono lo elige quien lo usa; los colores viven en el globo. */
     expect(nav).toContain('tone={priority ? "curso" : "marca"}');
     expect(read("src/components/ui/CountBadge.tsx")).toContain("bg-curso");

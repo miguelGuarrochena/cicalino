@@ -20,13 +20,12 @@ import { KitchenInbox } from "@/components/panel/mesas/KitchenInbox";
 import { ChargeInbox } from "@/components/panel/mesas/ChargeInbox";
 import { FloorTableTile } from "@/components/panel/mesas/FloorTableTile";
 import { JornadaBoard } from "@/components/panel/mesas/JornadaBoard";
-import { STATUS_STYLE } from "@/components/panel/mesas/BillStatusBadge";
+import { HistorialModal } from "@/components/panel/mesas/HistorialModal";
 import { fetchPaymentSettings, fetchTableQrs, acknowledgeWaiterCall, type TableQrView } from "@/lib/data/tables";
 import { updateOrderStatus } from "@/lib/data/orders";
 import {
   DEFAULT_PAYMENT_SETTINGS,
   billPending,
-  billStatus,
   formatMoney,
   type PaymentSettings,
   type TableBill,
@@ -34,7 +33,6 @@ import {
 import {
   buildFloor,
   filterFloor,
-  isPaidToday,
   kitchenInbox,
   needsPedido,
   nextChargeAfter,
@@ -73,7 +71,6 @@ const MesasPage = () => {
   const [selected, setSelected] = useState<string | null>(null);
   const [qrRow, setQrRow] = useState<FloorTable | null>(null);
   const [settings, setSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
-  const [showClosed, setShowClosed] = useState(false);
   const [tab, setTab] = useState<FloorFilter | "turno">("pedido");
   const [query, setQuery] = useState("");
   const [kitchenBusy, setKitchenBusy] = useState<string | null>(null);
@@ -82,6 +79,7 @@ const MesasPage = () => {
    * alguien la atiende. Acá había tres toasts que contaban lo mismo y se iban
    * solos a los cinco segundos. */
   const [closeBill, setCloseBill] = useState<TableBill | null>(null);
+  const [historialOpen, setHistorialOpen] = useState(false);
   const pendingBySession = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
@@ -131,7 +129,6 @@ const MesasPage = () => {
   const inbox = useMemo(() => kitchenInbox(floor), [floor]);
   const pedidoN = floor.filter(needsPedido).length;
   const chargeN = inbox.bills.length;
-  const paidToday = bills.filter(isPaidToday);
   const currentBill = bills.find((b) => b.session.id === selected) ?? null;
   const showDetail = Boolean(currentBill) && tab !== "turno";
   const openPending = floor.reduce((s, r) => s + (r.bill ? r.pending : 0), 0);
@@ -293,6 +290,17 @@ const MesasPage = () => {
               {t("mesas.qrGestion")}
             </Link>
           )}
+          {/* El día que ya pasó vivía al pie de la lista, donde desaparece
+              justo la noche en que hay treinta mesas y alguien necesita
+              revisar una. Acá arriba está siempre. */}
+          <button
+            type="button"
+            onClick={() => setHistorialOpen(true)}
+            className="flex min-h-11 items-center gap-2 rounded-full border border-linea bg-surface px-4 text-sm font-semibold text-carbon/70 transition hover:border-carbon/25 hover:text-carbon"
+          >
+            <TabGlyph k="historial" size={18} />
+            {t("mesas.historial")}
+          </button>
           <button
             type="button"
             aria-pressed={tab === "turno"}
@@ -483,14 +491,6 @@ const MesasPage = () => {
                 </ul>
               )
             ) : null}
-
-            <ClosedTodayList
-              bills={paidToday}
-              expanded={showClosed}
-              onToggle={() => setShowClosed((v) => !v)}
-              onSelect={setSelected}
-              title={t("mesas.pagadasHoy", { n: paidToday.length })}
-            />
               </>
             )}
           </div>
@@ -531,6 +531,18 @@ const MesasPage = () => {
         </div>
       )}
 
+      {historialOpen && (
+        <HistorialModal
+          bills={bills}
+          waiterFor={(n) => floor.find((r) => r.tableNumber === n)?.waiterName ?? null}
+          onSelect={(id) => {
+            setHistorialOpen(false);
+            setSelected(id);
+          }}
+          onClose={() => setHistorialOpen(false)}
+        />
+      )}
+
       {closeBill && (
         <CloseTableModal
           bill={closeBill}
@@ -554,54 +566,6 @@ const MesasPage = () => {
           venueName={branchName}
           onClose={() => setQrRow(null)}
         />
-      )}
-    </div>
-  );
-};
-
-const ClosedTodayList = ({
-  bills,
-  expanded,
-  onToggle,
-  onSelect,
-  title,
-}: {
-  bills: TableBill[];
-  expanded: boolean;
-  onToggle: () => void;
-  onSelect: (id: string) => void;
-  title: string;
-}) => {
-  const { t } = useApp();
-  if (!bills.length) return null;
-  return (
-    <div>
-      <button
-        type="button"
-        aria-expanded={expanded}
-        onClick={onToggle}
-        className="min-h-10 text-xs font-semibold text-carbon/60 underline"
-      >
-        {title}
-      </button>
-      {expanded && (
-        <ul className="mt-1 flex flex-col gap-1">
-          {bills.map((b) => (
-            <li key={b.session.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(b.session.id)}
-                className="flex min-h-10 w-full items-center justify-between rounded-xl px-2 text-left text-sm text-carbon/70 hover:bg-carbon/5"
-              >
-                <span className="flex items-center gap-2">
-                  <span aria-hidden className={`size-2 rounded-full ${STATUS_STYLE[billStatus(b)].dot}`} />
-                  {t("mesa.mesaN", { n: b.session.tableNumber })}
-                </span>
-                <span className="tabular-nums">{formatMoney(b.totals.paid)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
       )}
     </div>
   );
