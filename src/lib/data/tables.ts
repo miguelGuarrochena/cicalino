@@ -63,7 +63,9 @@ export const fetchTableBills = async (
 };
 
 /* Every write to a bill bumps mesa_sesiones.version, so one table is enough
- * to hear about orders, payments and webhook confirmations. */
+ * to hear about orders, payments, waiter calls and webhook confirmations.
+ * The Realtime filter is local_id: mesa-sesiones-realtime.sql sets replica
+ * identity FULL so UPDATE events include that column. */
 export const subscribeTableBills = (
   branchId: string,
   onChange: () => void,
@@ -223,7 +225,7 @@ export const fetchPaymentSettings = async (
     supabase
       .from("local_cobros")
       .select(
-        "acepta_mercado_pago, acepta_transferencia, acepta_efectivo, acepta_debito, acepta_credito, transferencia_alias, transferencia_titular, transferencia_cbu, recargo_debito_pct, recargo_credito_pct, recargo_declarado, recargo_declarado_en",
+        "acepta_mercado_pago, acepta_transferencia, acepta_efectivo, acepta_qr_mercado_pago, acepta_debito, acepta_credito, transferencia_alias, transferencia_titular, transferencia_cbu, recargo_debito_pct, recargo_credito_pct, recargo_declarado, recargo_declarado_en",
       )
       .eq("local_id", branchId)
       .maybeSingle(),
@@ -262,6 +264,7 @@ export const savePaymentSettings = async (
       acepta_mercado_pago: v.data.mercadoPago,
       acepta_transferencia: v.data.transfer,
       acepta_efectivo: v.data.cash,
+      acepta_qr_mercado_pago: v.data.mpQr,
       acepta_debito: v.data.debit,
       acepta_credito: v.data.credit,
       transferencia_alias: v.data.transferAlias ?? null,

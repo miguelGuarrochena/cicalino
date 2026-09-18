@@ -6,7 +6,7 @@ vi.mock("@/lib/supabase/client", () => ({
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { fetchBranchConfig } from "@/lib/data/branch";
-import { useConfigStore } from "@/lib/store/config-store";
+import { livePersistWithoutFicha, useConfigStore } from "@/lib/store/config-store";
 
 const createBrowserMock = vi.mocked(createBrowserSupabase);
 
@@ -103,5 +103,22 @@ describe("fetchBranchConfig → hydrate", () => {
     expect(cfg?.logoUrl).toBe("data:image/png;base64,aaa");
     expect(cfg?.colorMarca).toBe("negro");
     expect(useConfigStore.getState().colorMarca).toBe("negro");
+  });
+});
+
+describe("persistencia live no pisa la ficha del local", () => {
+  it("tira name vacío que un localStorage viejo todavía trae", () => {
+    const kept = livePersistWithoutFicha({
+      name: "",
+      logoUrl: null,
+      colorMarca: "negro",
+      tableCount: 8,
+      modo: "mesa",
+    });
+    expect(kept).not.toHaveProperty("name");
+    expect(kept).not.toHaveProperty("logoUrl");
+    expect(kept).not.toHaveProperty("colorMarca");
+    expect(kept.tableCount).toBe(8);
+    expect(kept.modo).toBe("mesa");
   });
 });

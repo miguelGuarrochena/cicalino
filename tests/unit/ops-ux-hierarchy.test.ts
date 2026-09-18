@@ -27,6 +27,34 @@ describe("Operación — jerarquía y layout", () => {
     expect(espera).not.toContain('f === "libre" ? "todas"');
   });
 
+  it("Configuración separa restaurante, pagos, mesas, personal, dispositivo y avanzado", () => {
+    const nav = read("src/components/panel/config/ConfigNav.tsx");
+    const page = read("src/app/(app)/panel/config/page.tsx");
+    expect(nav).toContain('id: "restaurante"');
+    expect(nav).toContain('id: "pagos"');
+    expect(nav).toContain('id: "mesas"');
+    expect(nav).toContain('id: "empleados"');
+    expect(nav).toContain('id: "dispositivo"');
+    expect(nav).toContain('id: "avanzado"');
+    expect(nav).not.toContain('id: "modulos"');
+    expect(nav).not.toContain('id: "general"');
+    expect(page).toContain('id="restaurante"');
+    expect(page).toContain('id="pagos"');
+    expect(page).toContain('id="mesas"');
+    expect(page).toContain('id="avanzado"');
+    expect(page).toContain('id="dispositivo"');
+    expect(page).toContain("config.seccionRecepcion");
+    expect(page).toContain("PaymentMethodsCard");
+    expect(page).toContain("BrandIdentityCard");
+    expect(read("src/components/panel/config/PaymentMethodsCard.tsx")).toContain("qr_mercado_pago");
+    /* Reservation hours are not inside the salon-tables card. */
+    const mesasBlock = page.slice(page.indexOf('id="mesas"'), page.indexOf("config.seccionRecepcion"));
+    expect(mesasBlock).toContain("config.tableCount");
+    expect(mesasBlock).toContain("config.mesasQrCta");
+    expect(mesasBlock).not.toContain("config.reservaHorario");
+    expect(mesasBlock).not.toContain("config.diasCerrados");
+  });
+
   it("Configuración vive en el menú ··· y el tema está afuera, como en la landing", () => {
     const menu = read("src/components/panel/PanelMenu.tsx");
     const layout = read("src/app/(app)/panel/layout.tsx");

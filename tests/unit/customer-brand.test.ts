@@ -108,7 +108,11 @@ describe("Experiencia del comensal: Light fijo + identidad mínima", () => {
     const orden = read("supabase/orden.json");
     const chequeo = read("supabase/chequeo-migraciones.sql");
     expect(config).toContain("BrandIdentityCard");
+    expect(config).not.toContain('c.name.trim() || "—"');
     expect(card).toContain("config.seccionIdentidad");
+    expect(card).toContain("draftName");
+    expect(card).toContain("listedName");
+    expect(card).toContain("branchConfigReady");
     expect(card).toContain("config.colorCobalto");
     expect(card).toContain("config.colorBlanco");
     expect(card).toContain("config.colorAzul");

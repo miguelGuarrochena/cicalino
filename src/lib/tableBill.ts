@@ -15,6 +15,7 @@ export type PaymentMethod =
   | "mercado_pago"
   | "transferencia"
   | "efectivo"
+  | "qr_mercado_pago"
   | "tarjeta_debito"
   | "tarjeta_credito";
 export type PaymentStatus = "pendiente" | "pagado" | "cancelado";
@@ -25,6 +26,7 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
   "mercado_pago",
   "transferencia",
   "efectivo",
+  "qr_mercado_pago",
   "tarjeta_debito",
   "tarjeta_credito",
 ];
@@ -224,6 +226,7 @@ export interface PaymentSettings {
   mercadoPago: boolean;
   transfer: boolean;
   cash: boolean;
+  mpQr: boolean;
   debit: boolean;
   credit: boolean;
   transferAlias: string | null;
@@ -239,6 +242,7 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   mercadoPago: false,
   transfer: false,
   cash: true,
+  mpQr: false,
   debit: true,
   credit: true,
   transferAlias: null,
@@ -255,6 +259,7 @@ export const mapPaymentSettings = (row: Json | null | undefined): PaymentSetting
         mercadoPago: Boolean(row.acepta_mercado_pago),
         transfer: Boolean(row.acepta_transferencia),
         cash: Boolean(row.acepta_efectivo),
+        mpQr: Boolean(row.acepta_qr_mercado_pago),
         debit: Boolean(row.acepta_debito),
         credit: Boolean(row.acepta_credito),
         transferAlias: strOrNull(row.transferencia_alias),
@@ -276,6 +281,7 @@ export const enabledMethods = (
     }
     if (m === "transferencia") return s.transfer;
     if (m === "efectivo") return s.cash;
+    if (m === "qr_mercado_pago") return s.mpQr;
     if (m === "tarjeta_debito") return s.debit;
     return s.credit;
   });

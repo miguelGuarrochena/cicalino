@@ -410,7 +410,10 @@ export const PaySheet = ({
               {method === "mercado_pago" && preview.ok && (
                 <p className="mt-3 text-xs text-carbon/60">{t("mesa.mpAviso")}</p>
               )}
-              {(method === "efectivo" || method === "tarjeta_debito" || method === "tarjeta_credito") &&
+              {(method === "efectivo" ||
+                method === "qr_mercado_pago" ||
+                method === "tarjeta_debito" ||
+                method === "tarjeta_credito") &&
                 preview.ok && (
                   <p className="mt-3 text-xs text-carbon/60">{t("mesa.manualAviso")}</p>
                 )}

@@ -5,7 +5,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
-import { NoAccess } from "@/components/ui/NoAccess";
 import { EmployeeList } from "@/components/panel/EmployeeList";
 import {
   useConfigStore,
@@ -232,14 +231,10 @@ const ConfigPage = () => {
     }
   };
 
-  if (role === "empleado" || role === "superadmin") {
-    return <NoAccess />;
-  }
-
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <SubscriptionCard />
-      <div id="general" className="flex scroll-mt-28 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div id="restaurante" className="flex scroll-mt-28 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <div>
             <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
@@ -274,23 +269,17 @@ const ConfigPage = () => {
         </div>
       </div>
 
+      <BrandIdentityCard />
+
       {role === "admin" && (
         <section className={`${CARD} scroll-mt-28`}>
           <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-carbon/60">
             {t("config.seccionLocal")}
           </h2>
           <p className="mb-4 text-sm text-carbon/55">
-{t("config.datosLocalSub")}
+            {t("config.datosLocalSub")}
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-carbon/70">
-                {t("config.nombre")}
-              </span>
-              <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
-                {c.name.trim() || "—"}
-              </p>
-            </div>
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-carbon/70">
                 {t("config.tipo")}
@@ -307,7 +296,7 @@ const ConfigPage = () => {
                 {c.whatsapp.trim() || "—"}
               </p>
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
               <span className="text-sm font-medium text-carbon/70">
                 {t("config.direccion")}
               </span>
@@ -319,67 +308,144 @@ const ConfigPage = () => {
         </section>
       )}
 
-      <BrandIdentityCard />
-
       {role === "admin" && supabaseConfigured && isRealBranchId(branchId) && (
         <PedirSucursalCard />
       )}
 
-      <section id="modulos" className={`${CARD} scroll-mt-28`}>
+      <section className={`${CARD} scroll-mt-28`}>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
           {t("config.seccionModulos")}
         </h2>
-        <p className="mb-4 mt-1 text-sm text-carbon/55">
+        <p className="mb-3 mt-1 text-sm text-carbon/55">
           {t("config.seccionModulosSub")}
         </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div
-            className={`rounded-2xl border p-4 ${
-              c.moduloPedidos
-                ? "border-marca bg-marca/10 ring-2 ring-marca/30"
-                : "border-linea bg-crema/30 opacity-55"
-            }`}
-          >
-            <span className="font-semibold text-carbon">{t("config.moduloPedidos")}</span>
-            <span className="mt-1 block text-xs text-carbon/55">
-              {c.moduloPedidos
-                ? t("config.moduloIncluido")
-                : t("config.moduloNo")}
-            </span>
+        <ul className="flex flex-wrap gap-2">
+          {(
+            [
+              ["pedidos", c.moduloPedidos, t("config.moduloPedidos")],
+              ["espera", c.moduloEspera, t("config.moduloEspera")],
+              ["pagos", c.moduloPagos, t("config.moduloPagos")],
+            ] as const
+          ).map(([id, on, label]) => (
+            <li
+              key={id}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                on
+                  ? "border-marca/40 bg-marca/10 text-carbon"
+                  : "border-linea bg-crema/40 text-carbon/45"
+              }`}
+            >
+              {label}
+              <span className="ml-1.5 font-medium text-carbon/50">
+                {on ? t("config.moduloIncluido") : t("config.moduloNo")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {c.moduloPagos && isRealBranchId(branchId) && (
+        <section className={`${CARD} scroll-mt-28`} id="pagos">
+          <PaymentMethodsCard branchId={branchId} canEdit={role === "admin"} />
+        </section>
+      )}
+
+      {(c.moduloEspera || c.moduloPagos || modo === "mesa") && (
+        <section id="mesas" className={`${CARD} scroll-mt-28`}>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
+            {t("config.tab.mesas")}
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-carbon/55">
+            {t("config.seccionMesasSub")}
+          </p>
+          <div className="max-w-xs">
+            <Campo label={t("config.tableCount")} error={errors.mesas}>
+              <input
+                type="number"
+                min={1}
+                className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
+                value={tableCount ?? ""}
+                onChange={(e) => {
+                  editar("tableCount", parseMesas(e.target.value));
+                  setErrors((er) => ({ ...er, mesas: undefined }));
+                }}
+              />
+            </Campo>
+            <p className="mt-1.5 text-xs text-carbon/50">
+              {c.moduloPagos ? t("config.mesasAplicarQr") : t("config.mesasAplicar")}
+            </p>
           </div>
-          <div
-            className={`rounded-2xl border p-4 ${
-              c.moduloEspera
-                ? "border-espera bg-espera/10 ring-2 ring-espera/30"
-                : "border-linea bg-crema/30 opacity-55"
-            }`}
-          >
-            <span className="font-semibold text-carbon">{t("config.moduloEspera")}</span>
-            <span className="mt-1 block text-xs text-carbon/55">
-              {c.moduloEspera
-                ? t("config.moduloIncluido")
-                : t("config.moduloNo")}
-            </span>
+          {c.moduloPagos && isRealBranchId(branchId) && (
+            <div className="mt-5 border-t border-linea pt-5">
+              <h3 className="text-sm font-semibold text-carbon">{t("mesasQr.titulo")}</h3>
+              <p className="mt-1 text-sm text-carbon/55">{t("config.mesasQrCtaSub")}</p>
+              <Link
+                href="/panel/mesas/qr"
+                className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-[0.98]"
+              >
+                {t("config.mesasQrCta")}
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
+
+      {c.moduloEspera && (
+        <section className={`${CARD} scroll-mt-28`}>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
+            {t("config.seccionRecepcion")}
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-carbon/55">
+            {t("config.seccionRecepcionSub")}
+          </p>
+          <p className="text-sm font-medium text-carbon/70">
+            {t("config.reservaHorario")}
+          </p>
+          <p className="mt-1 text-xs text-carbon/50">
+            {t("config.reservaHorarioSub")}
+          </p>
+          <div className="mt-3 grid max-w-md grid-cols-2 gap-3">
+            <Campo label={t("config.reservaAbre")}>
+              <Select
+                value={String(reservaAbreMin)}
+                onChange={(v) => {
+                  editar("reservaAbreMin", parseInt(v, 10));
+                  setErrors((er) => ({
+                    ...er,
+                    reservaHorario: undefined,
+                  }));
+                }}
+                options={HORAS_RESERVA}
+                triggerClassName="px-4 py-3"
+              />
+            </Campo>
+            <Campo
+              label={t("config.reservaCierra")}
+              error={errors.reservaHorario}
+            >
+              <Select
+                value={String(reservaCierraMin)}
+                onChange={(v) => {
+                  editar("reservaCierraMin", parseInt(v, 10));
+                  setErrors((er) => ({
+                    ...er,
+                    reservaHorario: undefined,
+                  }));
+                }}
+                options={HORAS_RESERVA}
+                triggerClassName="px-4 py-3"
+              />
+            </Campo>
           </div>
-          <div
-            className={`rounded-2xl border p-4 ${
-              c.moduloPagos
-                ? "border-marca bg-marca/10 ring-2 ring-marca/30"
-                : "border-linea bg-crema/30 opacity-55"
-            }`}
-          >
-            <span className="font-semibold text-carbon">{t("config.moduloPagos")}</span>
-            <span className="mt-1 block text-xs text-carbon/55">
-              {c.moduloPagos
-                ? t("config.moduloIncluido")
-                : t("config.moduloNo")}
-            </span>
-          </div>
-        </div>
+        </section>
+      )}
+
+      <section id="empleados" className={`${CARD} scroll-mt-28`}>
+        <EmployeeList />
       </section>
 
       {c.moduloPedidos && c.moduloEspera && (
-        <section className={CARD}>
+        <section id="dispositivo" className={`${CARD} scroll-mt-28`}>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
             {t("config.seccionDispositivo")}
           </h2>
@@ -416,13 +482,15 @@ const ConfigPage = () => {
         </section>
       )}
 
-      <section className={CARD}>
+      <section id="avanzado" className={`${CARD} scroll-mt-28`}>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-          {t("config.seccionId")}
+          {t("config.seccionAvanzado")}
         </h2>
         <p className="mb-4 mt-1 text-sm text-carbon/55">
-          {t("config.seccionIdSub")}
+          {t("config.seccionAvanzadoSub")}
         </p>
+        <p className="text-sm font-medium text-carbon/70">{t("config.seccionId")}</p>
+        <p className="mb-3 mt-1 text-xs text-carbon/50">{t("config.seccionIdSub")}</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {modes.map((m) => {
             const active = modo === m.id;
@@ -446,7 +514,7 @@ const ConfigPage = () => {
           })}
         </div>
 
-        <div className="mt-4 max-w-xs border-t border-linea pt-4">
+        <div className="mt-5 max-w-xs border-t border-linea pt-5">
           <Campo label={t("config.corte")}>
             <Select
               value={String(cutoffHour)}
@@ -459,136 +527,44 @@ const ConfigPage = () => {
             {t("config.corteSub")}
           </p>
         </div>
-      </section>
 
-      {(c.moduloEspera || c.moduloPagos || modo === "mesa") && (
-        <section id="mesas" className={`${CARD} scroll-mt-28`}>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-            {t("config.tab.mesas")}
-          </h2>
-          <p className="mb-4 mt-1 text-sm text-carbon/55">
-            {t("config.seccionMesasSub")}
-          </p>
-          <div className="max-w-xs">
-            <Campo label={t("config.tableCount")} error={errors.mesas}>
-              <input
-                type="number"
-                min={1}
-                className={`${INPUT} ${errors.mesas ? "border-red-400" : ""}`}
-                value={tableCount ?? ""}
-                onChange={(e) => {
-                  editar("tableCount", parseMesas(e.target.value));
-                  setErrors((er) => ({ ...er, mesas: undefined }));
-                }}
-              />
-            </Campo>
-            <p className="mt-1.5 text-xs text-carbon/50">
-              {c.moduloPagos ? t("config.mesasAplicarQr") : t("config.mesasAplicar")}
+        {c.moduloEspera && (
+          <div className="mt-5 border-t border-linea pt-5">
+            <p className="text-sm font-medium text-carbon/70">
+              {t("config.diasCerrados")}
             </p>
-          </div>
-          {c.moduloEspera && (
-            <div className="mt-5 flex flex-col gap-5">
-              <div>
-                <p className="text-sm font-medium text-carbon/70">
-                  {t("config.reservaHorario")}
-                </p>
-                <p className="mt-1 text-xs text-carbon/50">
-                  {t("config.reservaHorarioSub")}
-                </p>
-                <div className="mt-3 grid max-w-md grid-cols-2 gap-3">
-                  <Campo label={t("config.reservaAbre")}>
-                    <Select
-                      value={String(reservaAbreMin)}
-                      onChange={(v) => {
-                        editar("reservaAbreMin", parseInt(v, 10));
-                        setErrors((er) => ({
-                          ...er,
-                          reservaHorario: undefined,
-                        }));
-                      }}
-                      options={HORAS_RESERVA}
-                      triggerClassName="px-4 py-3"
-                    />
-                  </Campo>
-                  <Campo
-                    label={t("config.reservaCierra")}
-                    error={errors.reservaHorario}
+            <p className="mt-1 text-xs text-carbon/50">
+              {t("config.diasCerradosSub")}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {DIAS_SEMANA.map((d) => {
+                const cerrado = diasCerrados.includes(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() =>
+                      editar(
+                        "diasCerrados",
+                        cerrado
+                          ? diasCerrados.filter((x) => x !== d.id)
+                          : [...diasCerrados, d.id],
+                      )
+                    }
+                    className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+                      cerrado
+                        ? "bg-alerta text-crema"
+                        : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
+                    }`}
                   >
-                    <Select
-                      value={String(reservaCierraMin)}
-                      onChange={(v) => {
-                        editar("reservaCierraMin", parseInt(v, 10));
-                        setErrors((er) => ({
-                          ...er,
-                          reservaHorario: undefined,
-                        }));
-                      }}
-                      options={HORAS_RESERVA}
-                      triggerClassName="px-4 py-3"
-                    />
-                  </Campo>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-carbon/70">
-                  {t("config.diasCerrados")}
-                </p>
-                <p className="mt-1 text-xs text-carbon/50">
-                  {t("config.diasCerradosSub")}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {DIAS_SEMANA.map((d) => {
-                    const cerrado = diasCerrados.includes(d.id);
-                    return (
-                      <button
-                        key={d.id}
-                        type="button"
-                        onClick={() =>
-                          editar(
-                            "diasCerrados",
-                            cerrado
-                              ? diasCerrados.filter((x) => x !== d.id)
-                              : [...diasCerrados, d.id],
-                          )
-                        }
-                        className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
-                          cerrado
-                            ? "bg-alerta text-crema"
-                            : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
-                        }`}
-                      >
-                        {locale === "en" ? d.en : d.es}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                    {locale === "en" ? d.en : d.es}
+                  </button>
+                );
+              })}
             </div>
-          )}
-          {c.moduloPagos && isRealBranchId(branchId) && (
-            <div className="mt-5 border-t border-linea pt-5">
-              <h3 className="text-sm font-semibold text-carbon">{t("mesasQr.titulo")}</h3>
-              <p className="mt-1 text-sm text-carbon/55">{t("config.mesasQrCtaSub")}</p>
-              <Link
-                href="/panel/mesas/qr"
-                className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-[0.98]"
-              >
-                {t("config.mesasQrCta")}
-              </Link>
-            </div>
-          )}
-        </section>
-      )}
-
-      <section id="empleados" className={`${CARD} scroll-mt-28`}>
-        <EmployeeList />
+          </div>
+        )}
       </section>
-
-      {c.moduloPagos && isRealBranchId(branchId) && (
-        <section className={`${CARD} scroll-mt-28`} id="pagos">
-          <PaymentMethodsCard branchId={branchId} canEdit={role === "admin"} />
-        </section>
-      )}
 
       {dirty && (
         <div className="sticky bottom-20 z-20 -mx-4 mt-4 border-t border-linea bg-crema/95 px-4 py-3 sm:hidden">

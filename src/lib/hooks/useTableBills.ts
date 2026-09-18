@@ -4,14 +4,13 @@ import { useCallback, useSyncExternalStore } from "react";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import { fetchTableBills, subscribeTableBills } from "@/lib/data/tables";
-import { coalesced } from "@/lib/realtime";
+import { attachLiveRefresh, coalesced } from "@/lib/realtime";
 import type { DataError } from "@/lib/data/result";
 import type { TableBill } from "@/lib/tableBill";
 
 /* One live subscription per branch. The header needs the same bills as
  * Mesas, and two `table-bills-${id}` channels would fight each other. */
 
-const RESPALDO_MS = 15_000;
 const RELEASE_MS = 200;
 
 type Shared = {
@@ -52,14 +51,16 @@ const start = (branchId: string): Shared => {
     emit(shared);
   });
 
-  const sub = subscribeTableBills(branchId, () => void reload());
-  const tick = window.setInterval(() => {
-    if (!sub.isHealthy() && document.visibilityState === "visible") void reload();
-  }, RESPALDO_MS);
-  const onVisible = () => {
-    if (document.visibilityState === "visible") void reload();
-  };
-  document.addEventListener("visibilitychange", onVisible);
+  /* Same live path as Pedidos and Recepción: Realtime first, then a visible
+   * poll so a missed session UPDATE (waiter call, guest order, bill request)
+   * does not wait for a staff click. */
+  const stopLive = attachLiveRefresh({
+    subscribe: (onChange) => subscribeTableBills(branchId, onChange),
+    reload: () => {
+      if (!stopped) void reload();
+    },
+    ticksSano: 4,
+  });
   void reload();
 
   const slot: Shared = {
@@ -74,9 +75,7 @@ const start = (branchId: string): Shared => {
     refresh: () => reload(),
     stop: () => {
       stopped = true;
-      sub.unsubscribe();
-      window.clearInterval(tick);
-      document.removeEventListener("visibilitychange", onVisible);
+      stopLive();
     },
   };
   return slot;
