@@ -544,6 +544,7 @@ export const tablePaymentMethodEnum = pgEnum("metodo_pago_mesa", [
   "mercado_pago",
   "transferencia",
   "efectivo",
+  "qr_mercado_pago",
   "tarjeta_debito",
   "tarjeta_credito",
 ]);
@@ -584,6 +585,7 @@ export const branchPaymentSettings = pgTable("local_cobros", {
   aceptaMercadoPago: boolean("acepta_mercado_pago").notNull().default(false),
   aceptaTransferencia: boolean("acepta_transferencia").notNull().default(false),
   aceptaEfectivo: boolean("acepta_efectivo").notNull().default(true),
+  aceptaQrMercadoPago: boolean("acepta_qr_mercado_pago").notNull().default(false),
   aceptaDebito: boolean("acepta_debito").notNull().default(true),
   aceptaCredito: boolean("acepta_credito").notNull().default(true),
   transferenciaAlias: text("transferencia_alias"),

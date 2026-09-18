@@ -99,21 +99,24 @@ for (const archivo of pendientes) {
     continue;
   }
   process.stdout.write(`→ ${archivo} ... `);
+  const sqlText = fs.readFileSync(full, "utf8");
+  /* ADD VALUE IF NOT EXISTS cannot run inside a transaction. */
+  const fueraDeTx = /add value if not exists/i.test(sqlText);
   try {
-    await client.query("begin");
+    if (!fueraDeTx) await client.query("begin");
     if (mode === "migrate" && archivo !== tracker) {
-      await client.query(fs.readFileSync(full, "utf8"));
+      await client.query(sqlText);
     }
     await client.query(
       `insert into public.cicalino_schema_migrations (archivo)
        values ($1) on conflict (archivo) do nothing`,
       [archivo],
     );
-    await client.query("commit");
+    if (!fueraDeTx) await client.query("commit");
     await client.query("notify pgrst, 'reload schema'");
     console.log(mode === "baseline" ? "MARKED" : "OK");
   } catch (e) {
-    await client.query("rollback");
+    if (!fueraDeTx) await client.query("rollback");
     console.log("FAIL");
     console.error(e instanceof Error ? e.message : e);
     await client.end();

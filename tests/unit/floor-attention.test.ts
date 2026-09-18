@@ -199,6 +199,16 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
     expect(next.pendingOrders).toBe(1);
   });
 
+  it("un pago MP no entra a Cobrar; QR de Mercado Pago sí, como efectivo", () => {
+    expect(guestBillRequests(bill({ payments: [pay({ method: "mercado_pago" })] }))).toEqual([]);
+    expect(
+      guestBillRequests(bill({ payments: [pay({ method: "qr_mercado_pago" })] })).map((p) => p.method),
+    ).toEqual(["qr_mercado_pago"]);
+    expect(
+      guestBillRequests(bill({ payments: [pay({ method: "efectivo" })] })).map((p) => p.method),
+    ).toEqual(["efectivo"]);
+  });
+
   it("pedido nuevo y cuenta solicitada conviven en colas distintas", () => {
     const open = bill({ payments: [pay()] });
     const floor = buildFloor(

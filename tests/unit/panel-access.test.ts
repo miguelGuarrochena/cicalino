@@ -17,11 +17,20 @@ describe("Panel — acceso", () => {
     expect(read("src/app/login/page.tsx")).not.toContain('href="/panel"');
   });
 
-  it("configuración no pide la contraseña del dueño", () => {
+  it("configuración no pide clave ni bloquea a quien ya está en Cicalino", () => {
     const gate = read("src/components/panel/AdminGate.tsx");
+    const page = read("src/app/(app)/panel/config/page.tsx");
+    const menu = read("src/components/panel/PanelMenu.tsx");
+    const store = read("src/lib/store/session-store.ts");
     expect(gate).not.toContain("verifyPasswordDueño");
     expect(gate).not.toContain("adminDesbloqueado");
-    expect(gate).toContain("NoAccess");
+    expect(gate).not.toContain("NoAccess");
+    expect(page).not.toContain("NoAccess");
+    expect(page).not.toContain('role === "empleado"');
+    expect(menu).toContain('href="/panel/config"');
+    expect(menu).not.toContain("canManage &&");
+    expect(store).not.toContain("adminDesbloqueado");
+    expect(store).not.toContain("desbloquearAdmin");
   });
 
   it("Entrar de la landing y el marketing va al panel", () => {

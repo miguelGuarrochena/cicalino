@@ -417,6 +417,7 @@ export const paymentMethodSchema = z.enum([
   "mercado_pago",
   "transferencia",
   "efectivo",
+  "qr_mercado_pago",
   "tarjeta_debito",
   "tarjeta_credito",
 ]);
@@ -517,6 +518,7 @@ export const paymentSettingsSchema = z
     mercadoPago: z.boolean(),
     transfer: z.boolean(),
     cash: z.boolean(),
+    mpQr: z.boolean(),
     debit: z.boolean(),
     credit: z.boolean(),
     transferAlias: optionalTextField(60, "el alias"),

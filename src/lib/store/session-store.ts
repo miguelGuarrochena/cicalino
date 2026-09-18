@@ -35,16 +35,10 @@ interface SessionState {
   empleadoActivo: ActiveEmployee | null;
   fichar: (emp: ActiveEmployee) => void;
   salir: () => void;
-  adminDesbloqueado: boolean;
-  adminDesbloqueadoHasta: number | null;
-  desbloquearAdmin: () => void;
-  bloquearAdmin: () => void;
   impersonando: Impersonation | null;
   entrarComoDueño: (data: Impersonation) => void;
   salirImpersonacion: () => void;
 }
-
-export const ADMIN_UNLOCK_MS = 15 * 60_000;
 
 export const useSessionStore = create<SessionState>()(
   persist(
@@ -77,15 +71,6 @@ export const useSessionStore = create<SessionState>()(
       fichar: (emp) =>
         set({ empleadoActivo: { ...emp, fichadoEn: emp.fichadoEn ?? Date.now() } }),
       salir: () => set({ empleadoActivo: null }),
-      adminDesbloqueado: false,
-      adminDesbloqueadoHasta: null,
-      desbloquearAdmin: () =>
-        set({
-          adminDesbloqueado: true,
-          adminDesbloqueadoHasta: Date.now() + ADMIN_UNLOCK_MS,
-        }),
-      bloquearAdmin: () =>
-        set({ adminDesbloqueado: false, adminDesbloqueadoHasta: null }),
       impersonando: null,
       entrarComoDueño: (data) =>
         set({
@@ -94,7 +79,6 @@ export const useSessionStore = create<SessionState>()(
           sucursalId: data.sucursalId,
           impersonando: data,
           empleadoActivo: null,
-          adminDesbloqueado: false,
         }),
       salirImpersonacion: () =>
         set({
@@ -103,8 +87,6 @@ export const useSessionStore = create<SessionState>()(
           sucursalId: null,
           impersonando: null,
           empleadoActivo: null,
-          adminDesbloqueado: false,
-          adminDesbloqueadoHasta: null,
         }),
     }),
     {
@@ -116,7 +98,6 @@ export const useSessionStore = create<SessionState>()(
         sucursalId: s.sucursalId,
         empleadoActivo: s.empleadoActivo,
         impersonando: s.impersonando,
-        adminDesbloqueadoHasta: s.adminDesbloqueadoHasta,
       }),
     },
   ),
@@ -124,9 +105,9 @@ export const useSessionStore = create<SessionState>()(
 
 /* ¿El fichaje sigue siendo de esta jornada?
  *
- * El desbloqueo de admin ya vencía (ADMIN_UNLOCK_MS); el fichaje no. Se ancla
- * al corte del día del local, que es la unidad con la que el local piensa: el
- * turno de la noche sigue siendo "hoy" hasta las 6, y a las 6 arranca otro.
+ * Se ancla al corte del día del local, que es la unidad con la que el local
+ * piensa: el turno de la noche sigue siendo "hoy" hasta las 6, y a las 6
+ * arranca otro.
  *
  * No borra nada del historial: `pedidos.empleado_id` y `esperas.empleado_id`
  * quedan como estaban. Lo único que caduca es a quién se le atribuyen los
@@ -150,8 +131,6 @@ export const clearSessionLocal = () => {
     sucursalId: supabaseConfigured ? null : "suc-centro",
     empleadoActivo: null,
     impersonando: null,
-    adminDesbloqueado: false,
-    adminDesbloqueadoHasta: null,
   });
   try {
     useSessionStore.persist.clearStorage();

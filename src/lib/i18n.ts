@@ -721,15 +721,24 @@ const dict = {
       seccionModulosSub: "Lo contratado para este local. Si necesitás sumar o quitar un módulo, pedilo al administrador.",
       tab: {
         general: "General",
+        restaurante: "Restaurante",
         mesas: "Mesas",
-        empleados: "Empleados",
+        empleados: "Personal",
         carta: "Menú",
         pagos: "Pagos",
         modulos: "Módulos",
+        dispositivo: "Este dispositivo",
+        avanzado: "Avanzado",
         metricas: "Métricas",
       },
       seccionMesasSub:
-        "Las mesas reales de esta sucursal. Una sola cantidad: vale para el mapa, las reservas y los QR de Pagos.",
+        "Las mesas reales de esta sucursal. Una sola cantidad: vale para el mapa y los QR de Pagos.",
+      seccionRecepcion: "Recepción",
+      seccionRecepcionSub:
+        "Horario en el que se pueden hacer reservas. No cambia las mesas del salón.",
+      seccionAvanzado: "Avanzado",
+      seccionAvanzadoSub:
+        "Cómo se identifican los pedidos, a qué hora corta la jornada y qué días el local no toma reservas.",
       mesasQrCta: "Gestionar QR de mesas",
       mesasQrCtaSub:
         "Acá no se crean mesas. Elegís cuáles de las mesas ya definidas tienen QR para pedir y pagar.",
@@ -757,7 +766,7 @@ const dict = {
         supervisor: "Encargado",
       },
       empAccesoRolDet: {
-        empleado: "Pedidos, recepción, reservas, mesas y cobros. No entra a Configuración.",
+        empleado: "Pedidos, recepción, reservas, mesas, cobros y Configuración.",
         supervisor: "Todo lo del mozo, más mesas del local, carta y empleados. Alias, Mercado Pago y facturación siguen siendo solo tuyos.",
       },
       empInvitado: "Le mandamos la invitación por mail",
@@ -1024,6 +1033,7 @@ const dict = {
         mercado_pago: "Mercado Pago",
         transferencia: "Transferencia / Alias",
         efectivo: "Efectivo",
+        qr_mercado_pago: "QR de Mercado Pago",
         tarjeta_debito: "Tarjeta de débito",
         tarjeta_credito: "Tarjeta de crédito",
       },
@@ -1570,6 +1580,7 @@ const dict = {
       cbu: "CBU/CVU (opcional)",
       transferenciaAyuda: "Sirve cualquier alias o CBU/CVU de banco o billetera. El comensal transfiere desde su app y vos confirmás el cobro en Mesas. No es Mercado Pago Checkout.",
       manualAyuda: "El comensal lo elige en el celular y le pide a quien atiende. Confirmás el cobro en Mesas.",
+      qrMpAyuda: "El comensal lo elige en el celular. El personal acerca el QR o el POS de Mercado Pago. Confirmás el cobro en Mesas. Cicalino no genera un QR ni abre el checkout.",
       tarjetaAyuda: "El comensal lo elige y le pide a quien atiende (Posnet, QR presencial de Mercado Pago, etc.). Confirmás el cobro en Mesas.",
       recargo: "Recargo",
       recargoLegal: "Antes de cobrar recargo, verificá que la normativa aplicable a tu comercio y al medio de pago lo permita. En Argentina hay reglas que limitan cobrar distinto por pagar con tarjeta. Cicalino no puede verificarlo por vos.",
@@ -2300,15 +2311,24 @@ const dict = {
       seccionModulosSub: "What this branch has. To add or drop a module, ask the admin.",
       tab: {
         general: "General",
+        restaurante: "Restaurant",
         mesas: "Tables",
         empleados: "Staff",
         carta: "Menu",
         pagos: "Payments",
         modulos: "Modules",
+        dispositivo: "This device",
+        avanzado: "Advanced",
         metricas: "Metrics",
       },
       seccionMesasSub:
-        "The real tables of this branch. One count: it drives the floor map, reservations and payment QRs.",
+        "The real tables of this branch. One count: it drives the floor map and payment QRs.",
+      seccionRecepcion: "Reception",
+      seccionRecepcionSub:
+        "Hours when guests can book. It does not change the dining-room tables.",
+      seccionAvanzado: "Advanced",
+      seccionAvanzadoSub:
+        "How orders are identified, when the business day cuts over, and which days the venue does not take bookings.",
       mesasQrCta: "Manage table QR codes",
       mesasQrCtaSub:
         "Tables are not created here. You choose which of the existing tables have a QR to order and pay.",
@@ -2336,7 +2356,7 @@ const dict = {
         supervisor: "Manager",
       },
       empAccesoRolDet: {
-        empleado: "Orders, reception, reservations, tables and payments. No access to Settings.",
+        empleado: "Orders, reception, reservations, tables, payments and Settings.",
         supervisor: "Everything a waiter does, plus tables, menu and employees. Alias, Mercado Pago and billing stay yours only.",
       },
       empInvitado: "We emailed them the invitation",
@@ -2603,6 +2623,7 @@ const dict = {
         mercado_pago: "Mercado Pago",
         transferencia: "Bank transfer / Alias",
         efectivo: "Cash",
+        qr_mercado_pago: "Mercado Pago QR",
         tarjeta_debito: "Debit card",
         tarjeta_credito: "Credit card",
       },
@@ -3149,6 +3170,7 @@ const dict = {
       cbu: "CBU/CVU (optional)",
       transferenciaAyuda: "Any bank or wallet alias or CBU/CVU works. The guest transfers from their own app and you confirm it from Tables. This is not Mercado Pago Checkout.",
       manualAyuda: "The guest picks it on their phone and asks whoever is serving. You confirm the payment from Tables.",
+      qrMpAyuda: "The guest picks it on their phone. Staff bring the Mercado Pago QR or POS. You confirm the payment from Tables. Cicalino does not generate a QR or open checkout.",
       tarjetaAyuda: "The guest picks it and asks whoever is serving (Posnet, an in-person Mercado Pago QR, etc.). You confirm the payment from Tables.",
       recargo: "Surcharge",
       recargoLegal: "Before charging a surcharge, check that the rules for your business and payment method allow it. In Argentina there are rules limiting different prices for card payments. Cicalino can't check this for you.",

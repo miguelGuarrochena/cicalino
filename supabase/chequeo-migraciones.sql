@@ -196,6 +196,9 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('locales-identidad.sql', 'column', 'locales.logo_url', 78),
     ('locales-identidad.sql', 'column', 'locales.color_marca', 78),
     ('locales-identidad.sql', 'constraint', 'locales.locales_color_marca_valido', 78),
+    ('mesa-sesiones-realtime.sql', 'replica', 'mesa_sesiones', 79),
+    ('mesa-pago-qr-mp-enum.sql', 'enum_value', 'metodo_pago_mesa.qr_mercado_pago', 80),
+    ('mesa-pago-qr-mp.sql', 'column', 'local_cobros.acepta_qr_mercado_pago', 81),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -352,7 +355,10 @@ requisitos (archivo, necesita) as (
     ('mesa-asignacion-tramos.sql', 'mesa-asignacion-jornada.sql'),
     ('empleados-pin-compartido.sql', 'staff-roles.sql'),
     ('mesa-pedir-cuenta.sql', 'mesa-llamado-mozo.sql'),
-    ('locales-identidad.sql', 'setup.sql')
+    ('locales-identidad.sql', 'setup.sql'),
+    ('mesa-sesiones-realtime.sql', 'split-payments.sql'),
+    ('mesa-pago-qr-mp-enum.sql', 'split-payments.sql'),
+    ('mesa-pago-qr-mp.sql', 'mesa-pago-qr-mp-enum.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre
@@ -377,6 +383,19 @@ requisitos (archivo, necesita) as (
     union all
     select 'column', c.table_name || '.' || c.column_name
       from information_schema.columns c where c.table_schema = 'public'
+    union all
+    select 'replica', c.relname
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public'
+       and c.relkind = 'r'
+       and c.relreplident = 'f'
+    union all
+    select 'enum_value', t.typname || '.' || e.enumlabel
+      from pg_type t
+      join pg_enum e on e.enumtypid = t.oid
+      join pg_namespace n on n.oid = t.typnamespace
+     where n.nspname = 'public'
   )
 select
   min(e.orden)                                as orden,

@@ -317,9 +317,17 @@ describe("métodos de pago", () => {
     expect(enabledMethods(s, { mercadoPagoConnected: true, forStaff: true })).not.toContain("mercado_pago");
   });
 
+  it("QR de Mercado Pago se habilita aparte y el personal también lo ve", () => {
+    const off = { ...DEFAULT_PAYMENT_SETTINGS, mpQr: false };
+    const on = { ...DEFAULT_PAYMENT_SETTINGS, mpQr: true };
+    expect(enabledMethods(off, { mercadoPagoConnected: true })).not.toContain("qr_mercado_pago");
+    expect(enabledMethods(on, { mercadoPagoConnected: false })).toContain("qr_mercado_pago");
+    expect(enabledMethods(on, { mercadoPagoConnected: true, forStaff: true })).toContain("qr_mercado_pago");
+  });
+
   it("cada método, modo y estado tiene texto en los dos idiomas", () => {
     const keys = [
-      ...["mercado_pago", "transferencia", "efectivo", "tarjeta_debito", "tarjeta_credito"].map((m) => `mesa.metodo.${m}`),
+      ...["mercado_pago", "transferencia", "efectivo", "qr_mercado_pago", "tarjeta_debito", "tarjeta_credito"].map((m) => `mesa.metodo.${m}`),
       ...["consumo", "iguales", "uno", "monto"].flatMap((m) => [`mesa.modo.${m}`, `mesa.modoAyuda.${m}`]),
       ...["pendiente", "pagado", "cancelado"].map((s) => `mesa.estadoPago.${s}`),
       ...["creado", "en_preparacion", "listo", "retirado", "cancelado"].map((s) => `mesa.estadoPedido.${s}`),

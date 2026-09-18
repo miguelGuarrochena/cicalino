@@ -95,6 +95,26 @@ interface ConfigState {
 const clampMin = (n: number) =>
   Math.min(1439, Math.max(0, Math.floor(Number.isFinite(n) ? n : 0)));
 
+/* En live, nombre/logo/color salen de la base. Un localStorage viejo guardaba
+ * `name: ""` y al rehidratar pisaba el valor que acababa de traer el fetch:
+ * Identidad del local quedaba vacía aunque el local ya tenía nombre. */
+const FICHA_KEYS = [
+  "name",
+  "tipo",
+  "whatsapp",
+  "direccion",
+  "logoUrl",
+  "colorMarca",
+] as const;
+
+export const livePersistWithoutFicha = (
+  persisted: Record<string, unknown>,
+): Record<string, unknown> => {
+  const next = { ...persisted };
+  for (const k of FICHA_KEYS) delete next[k];
+  return next;
+};
+
 const INICIAL = supabaseConfigured
   ? {
       name: "",
@@ -228,6 +248,11 @@ export const useConfigStore = create<ConfigState>()(
           logoUrl: s.logoUrl,
           colorMarca: s.colorMarca,
         };
+      },
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Record<string, unknown>;
+        const fromDisk = supabaseConfigured ? livePersistWithoutFicha(p) : p;
+        return { ...current, ...fromDisk };
       },
     },
   ),

@@ -230,6 +230,14 @@ export const PaymentMethodsCard = ({
           <p className="text-xs text-carbon/55">{t("cobros.manualAyuda")}</p>
         </MethodBox>
         <MethodBox
+          checked={s.mpQr}
+          disabled={!canEdit}
+          onChange={(v) => set("mpQr", v)}
+          label={t("mesa.metodo.qr_mercado_pago")}
+        >
+          <p className="text-xs text-carbon/55">{t("cobros.qrMpAyuda")}</p>
+        </MethodBox>
+        <MethodBox
           checked={s.debit}
           disabled={!canEdit}
           onChange={(v) => set("debit", v)}

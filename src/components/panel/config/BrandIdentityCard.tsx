@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
 import { saveBranchBrand } from "@/lib/data/branch";
+import { useMyBranches } from "@/lib/hooks/useMyBranches";
 import { branchBrandSchema, parseInput } from "@/lib/schemas";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
@@ -39,9 +40,13 @@ export const BrandIdentityCard = () => {
   const storedName = useConfigStore((s) => s.name);
   const storedLogo = useConfigStore((s) => s.logoUrl);
   const storedColor = useConfigStore((s) => s.colorMarca);
+  const ready = useConfigStore((s) => s.branchConfigReady);
   const hydrate = useConfigStore((s) => s.hydrate);
+  const { branches } = useMyBranches();
+  const listedName =
+    branches.find((b) => b.id === branchId)?.name?.trim() ?? "";
   const fileRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState<string | undefined>(undefined);
+  const [draftName, setDraftName] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null | undefined>(undefined);
   const [color, setColor] = useState<BrandColorId | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -50,13 +55,22 @@ export const BrandIdentityCard = () => {
   const [nameError, setNameError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const nombre = name === undefined ? storedName : name;
+  const fromStore = storedName.trim() || listedName;
+  const nombre = draftName ?? fromStore;
   const logo = logoUrl === undefined ? storedLogo : logoUrl;
   const colorMarca = color === undefined ? storedColor : color;
   const dirty =
-    nombre.trim() !== storedName.trim() ||
+    nombre.trim() !== fromStore ||
     logo !== storedLogo ||
     colorMarca !== storedColor;
+
+  useEffect(() => {
+    setDraftName(null);
+    setLogoUrl(undefined);
+    setColor(undefined);
+    setNameError(null);
+    setSaved(false);
+  }, [branchId]);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
@@ -101,7 +115,7 @@ export const BrandIdentityCard = () => {
       }
     }
     hydrate(next);
-    setName(undefined);
+    setDraftName(null);
     setLogoUrl(undefined);
     setColor(undefined);
     setSaved(true);
@@ -126,11 +140,12 @@ export const BrandIdentityCard = () => {
           <input
             value={nombre}
             onChange={(e) => {
-              setName(e.target.value);
+              setDraftName(e.target.value);
               setNameError(null);
               setSaved(false);
             }}
             maxLength={80}
+            disabled={busy || (!ready && !fromStore)}
             className={INPUT}
             autoComplete="organization"
           />

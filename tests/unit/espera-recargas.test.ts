@@ -125,11 +125,18 @@ describe("useWaitlist usa la versión unida", () => {
 
 describe("attachLiveRefresh conserva el comportamiento de cada módulo", () => {
   const orders = readFileSync(join(root, "src/lib/hooks/useOrders.ts"), "utf8");
+  const bills = readFileSync(join(root, "src/lib/hooks/useTableBills.ts"), "utf8");
   const realtime = readFileSync(join(root, "src/lib/realtime.ts"), "utf8");
 
   it("pedidos refresca cada 6 ticks y sala cada 4, como antes", () => {
     expect(orders).toContain("ticksSano: 6");
     expect(hook).toContain("ticksSano: 4");
+  });
+
+  it("mesas usa el mismo piso que la sala, no espera un click del personal", () => {
+    expect(bills).toContain("attachLiveRefresh");
+    expect(bills).toContain("ticksSano: 4");
+    expect(bills).not.toContain("RESPALDO_MS");
   });
 
   it("mantiene los tres despertadores y el piso de 5 s", () => {

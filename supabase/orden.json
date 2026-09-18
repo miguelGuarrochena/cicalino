@@ -77,5 +77,8 @@
   "mesa-asignacion-tramos.sql",
   "empleados-pin-compartido.sql",
   "mesa-pedir-cuenta.sql",
-  "locales-identidad.sql"
+  "locales-identidad.sql",
+  "mesa-sesiones-realtime.sql",
+  "mesa-pago-qr-mp-enum.sql",
+  "mesa-pago-qr-mp.sql"
 ]

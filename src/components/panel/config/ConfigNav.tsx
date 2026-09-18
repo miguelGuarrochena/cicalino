@@ -19,24 +19,33 @@ export const ConfigNav = () => {
   const path = usePathname();
   const { isOwner, visibles } = useOperationalAccess();
   const modo = useConfigStore((s) => s.modo);
+  const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
+  const moduloEspera = useConfigStore((s) => s.moduloEspera);
   const showMesas = visibles.espera || visibles.pagos || modo === "mesa";
   const onMetrics = path.startsWith("/panel/config/metricas");
-  const [hash, setHash] = useState("general");
+  const [hash, setHash] = useState("restaurante");
 
   useEffect(() => {
-    const sync = () => setHash(window.location.hash.replace("#", "") || "general");
+    const sync = () =>
+      setHash(window.location.hash.replace("#", "") || "restaurante");
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, [path]);
 
   const tabs: Tab[] = [
-    { id: "general", href: "/panel/config#general", key: "config.tab.general", show: true },
-    { id: "carta", href: "/panel/menu", key: "config.tab.carta", show: visibles.pagos },
+    { id: "restaurante", href: "/panel/config#restaurante", key: "config.tab.restaurante", show: true },
+    { id: "pagos", href: "/panel/config#pagos", key: "config.tab.pagos", show: visibles.pagos },
     { id: "mesas", href: "/panel/config#mesas", key: "config.tab.mesas", show: showMesas },
     { id: "empleados", href: "/panel/config#empleados", key: "config.tab.empleados", show: true },
-    { id: "pagos", href: "/panel/config#pagos", key: "config.tab.pagos", show: visibles.pagos },
-    { id: "modulos", href: "/panel/config#modulos", key: "config.tab.modulos", show: true },
+    {
+      id: "dispositivo",
+      href: "/panel/config#dispositivo",
+      key: "config.tab.dispositivo",
+      show: moduloPedidos && moduloEspera,
+    },
+    { id: "avanzado", href: "/panel/config#avanzado", key: "config.tab.avanzado", show: true },
+    { id: "carta", href: "/panel/menu", key: "config.tab.carta", show: visibles.pagos },
     { id: "metricas", href: "/panel/config/metricas", key: "config.tab.metricas", show: isOwner },
   ];
 
