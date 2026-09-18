@@ -246,18 +246,45 @@ export const filterFloor = (
   return searched;
 };
 
+/* Las tres colas de Mesas, que son las tres cosas que el mozo puede hacer:
+ * anotar un pedido, ir a la mesa que llama y cobrar. Preparar y entregar no
+ * están acá a propósito — eso pasa en la comanda del local, fuera de
+ * Cicalino. Mesas se ocupa del cliente, no de la cocina.
+ *
+ * Sale de las colas el pedido, no la mesa: anotar el pedido 1 no termina nada.
+ * La misma mesa puede pedir de nuevo, llamar y pedir la cuenta las veces que
+ * haga falta, y cada una vuelve a entrar acá por su cuenta. */
 export const kitchenInbox = (
   rows: FloorTable[],
 ): {
   created: FloorTable[];
   called: FloorTable[];
-  prep: FloorTable[];
-  ready: FloorTable[];
   bills: FloorTable[];
 } => ({
   created: rows.filter((r) => r.newOrders.length > 0),
   called: rows.filter((r) => Boolean(r.calledAt) && r.newOrders.length === 0),
-  prep: rows.filter((r) => r.prepOrders.length > 0 && r.newOrders.length === 0),
-  ready: rows.filter((r) => r.readyOrders.length > 0),
   bills: rows.filter((r) => r.billRequests.length > 0),
 });
+
+/* Qué grita esta mesa, si es que grita algo.
+ *
+ * "Nuevo" es lo que todavía no vio nadie en esta tablet (attention-store), no
+ * lo que está sin resolver: un pedido sigue pendiente después de abrirlo, pero
+ * ya no hace falta que la baldosa salte. El orden es el mismo que el de la
+ * capa global: primero el que está levantando la mano. */
+export type TableAlert = "llamado" | "cuenta" | "pedido" | null;
+
+export const tableAlert = (
+  row: FloorTable,
+  nuevos: {
+    orders: ReadonlySet<string>;
+    payments: ReadonlySet<string>;
+    calls: ReadonlySet<string>;
+  },
+): TableAlert => {
+  const sesion = row.bill?.session.id;
+  if (sesion && row.calledAt && nuevos.calls.has(sesion)) return "llamado";
+  if (row.billRequests.some((p) => nuevos.payments.has(p.id))) return "cuenta";
+  if (row.newOrders.some((o) => nuevos.orders.has(o.id))) return "pedido";
+  return null;
+};

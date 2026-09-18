@@ -151,6 +151,36 @@ export const markInPreparation = async (branchId: string): Promise<void> => {
   if (error) console.error("markInPreparation", error.message);
 };
 
+/* Lo mínimo para el aviso global: qué pedidos del mostrador siguen sin que
+ * nadie los toque. Es una lectura chica a propósito — corre en todo el panel,
+ * no solo en la pantalla de Pedidos, así que no se trae la página entera ni
+ * los contadores. Los de mesa (`sesion_id`) quedan afuera: esos son de Mesas
+ * y ya avisan por su lado. */
+export const fetchPendingCounterOrders = async (
+  branchId: string,
+): Promise<DataResult<{ id: string; reference: string; createdAt: string }[]>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok([]);
+  const { data, error } = await supabase
+    .from("pedidos")
+    .select("id, referencia, creado_en")
+    .eq("local_id", branchId)
+    .eq("estado", "creado")
+    .is("sesion_id", null)
+    .gte("creado_en", startOfBusinessDay())
+    .order("creado_en", { ascending: false })
+    .limit(30);
+  if (error) {
+    reportError("panel.pedidos.pendientes", error, { branchId });
+    return fail(desdeSupabase(error));
+  }
+  return ok(
+    ((data as { id: string; referencia: string; creado_en: string }[] | null) ?? []).map(
+      (r) => ({ id: r.id, reference: r.referencia, createdAt: r.creado_en }),
+    ),
+  );
+};
+
 export const fetchBranchName = async (
   branchId: string,
 ): Promise<string | null> => {
@@ -280,6 +310,10 @@ export const updateOrderStatus = async (
 export const subscribeOrders = (
   branchId: string,
   onChange: () => void,
+  /* El aviso global del panel escucha la misma tabla que la pantalla de
+   * Pedidos. Con el mismo nombre de canal las dos suscripciones se pisan, así
+   * que el que llega segundo pide el suyo, igual que hace Recepción. */
+  channelSuffix = "",
 ): { unsubscribe: () => void; isHealthy: () => boolean } => {
   const supabase = createBrowserSupabase();
   if (!supabase) return { unsubscribe: () => {}, isHealthy: () => false };
@@ -294,7 +328,7 @@ export const subscribeOrders = (
     if (disposed) return;
     if (channel) void supabase.removeChannel(channel);
     watcher?.dispose();
-    channel = supabase.channel(`orders-${branchId}`).on(
+    channel = supabase.channel(`orders-${branchId}${channelSuffix}`).on(
       "postgres_changes",
       {
         event: "*",

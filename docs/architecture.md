@@ -96,6 +96,29 @@ Ver `src/lib/db/schema.ts` y los scripts en `supabase/`:
 3. Fallback: polling a `GET /api/p/[token]` (y `/api/e/[token]` en espera),
    con intervalos adaptativos.
 
+## Flujo del aviso al personal (capa global)
+
+El panel avisa lo mismo esté abierta la sección que esté: la navegación no
+decide si el empleado se entera.
+
+1. **Fuentes** — cada módulo publica su lista de novedades vivas en
+   `lib/store/panel-alert-store` (pisa la anterior, no manda eventos sueltos):
+   - Mesas → `useFloorAttentionWatch` (llamado al mozo, pedido del comensal,
+     pedir la cuenta), derivado de `mesa_sesiones`.
+   - Pedidos → `usePanelAlerts` lee los `creado` del mostrador.
+   - Recepción → `useWaitlistCancelWatch`, que ya escuchaba `esperas`.
+2. **Normalización** — `lib/panelAlerts` las lleva a una forma común
+   (`kind`, `source`, `href`, `at`). Sumar un evento es agregar un `kind` y su
+   función `...Alerts`, no otro mecanismo de aviso.
+3. **Salida** — `PanelAlertDock` (visible en cualquier pantalla, menos sobre la
+   que muestra ese detalle), los badges de `PanelNav` y un solo `dingNew`, que
+   respeta el silenciador del header.
+4. **Visto ≠ resuelto** — el "visto" es por dispositivo. Mesas lo lleva en
+   `attention-store` (entrar a la sección / abrir la mesa); el resto, en el
+   tablero global. El trabajo sigue pendiente hasta que se procesa.
+5. **Transporte** — Realtime primero (`attachLiveRefresh` + `watchChannel`),
+   con el poll visible como piso si la suscripción se cae.
+
 ## Seguridad (resumen)
 
 - QR: `crypto.randomUUID()`, único, expira a fin de jornada (`qr_expira_en`).

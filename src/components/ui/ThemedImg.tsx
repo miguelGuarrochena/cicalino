@@ -2,9 +2,11 @@ import Image from "next/image";
 import { IMAGENES, type NombreImagen } from "./imagenes";
 
 /* Renderiza las dos variantes y deja que el CSS muestre la que corresponde
- * (`.on-light` / `.on-dark`). Se hace así, y no eligiendo en JS, porque el
- * tema lo aplica un script bloqueante antes del primer pintado: decidirlo en
- * React traería un desajuste de hidratación y un parpadeo. */
+ * (`.on-light` / `.on-dark`). El swap sigue el tema del panel y, en el
+ * comensal, el `data-scheme` del fondo de marca. Se hace así, y no eligiendo
+ * en JS, porque el tema lo aplica un script bloqueante antes del primer
+ * pintado: decidirlo en React traería un desajuste de hidratación y un
+ * parpadeo. */
 export const ThemedImg = ({
   name,
   alt = "",

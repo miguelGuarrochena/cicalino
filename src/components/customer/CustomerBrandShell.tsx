@@ -16,13 +16,15 @@ export const CustomerBrandShell = ({
   className?: string;
   children: ReactNode;
 }) => {
+  const scheme = brandColorScheme(color);
   const vars = brandCssVars(color);
   return (
     <div
       className={`min-h-dvh bg-crema text-carbon ${className}`.trim()}
+      data-scheme={scheme}
       style={
         {
-          colorScheme: brandColorScheme(color),
+          colorScheme: scheme,
           ...(vars ?? {}),
         } as CSSProperties
       }

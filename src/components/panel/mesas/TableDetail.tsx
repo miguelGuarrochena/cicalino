@@ -75,9 +75,7 @@ export const TableDetail = ({
     (p) => p.status === "pendiente" && p.method !== "mercado_pago",
   );
   const created = kitchenOrders(bill, "creado");
-  const prep = kitchenOrders(bill, "en_preparacion");
-  const ready = kitchenOrders(bill, "listo");
-  const comanda = [...created, ...prep, ...ready];
+  const comanda = bill.orders.filter((o) => o.status !== "cancelado");
   const accountRows = guestAccountRows(bill);
 
   const errorText = (reason?: string) => {
@@ -362,86 +360,68 @@ export const TableDetail = ({
         {comanda.length > 0 && (
           <section className="mt-6 border-t border-linea pt-5">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-marca">{t("mesas.comanda")}</h3>
-            <p className="mt-1 text-xs text-carbon/55">{t("mesas.inboxAyuda")}</p>
+            {created.length > 0 && (
+              <p className="mt-1 text-xs text-carbon/55">{t("mesas.pedidoMesaAyuda")}</p>
+            )}
             <p className="mt-1 text-sm text-carbon/70">
               {summarizeKitchen(comanda)
                 .map((l) => `${l.quantity} × ${l.name}`)
                 .join(" · ")}
             </p>
             <ul className="mt-3 flex flex-col gap-2">
-              {comanda.map((o) => (
-                <li key={o.id} className="rounded-2xl border border-linea p-3">
-                  <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <span className="font-semibold text-carbon">
-                      {o.guestId ? names.get(o.guestId) : "—"}
-                    </span>
-                    <span className="text-xs text-carbon/55">
-                      {new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      {" · "}
-                      {t(`mesa.estadoPedido.${o.status}`)}
-                    </span>
-                  </p>
-                  <ul className="mt-1.5 text-sm text-carbon/75">
-                    {o.items.map((i) => (
-                      <li key={i.id}>
-                        {i.quantity} × {i.name}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-3 flex flex-col gap-2">
-                    {o.status === "creado" && (
+              {comanda.map((o) => {
+                const porAnotar = o.status === "creado";
+                return (
+                  <li key={o.id} className="rounded-2xl border border-linea p-3">
+                    <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span className="font-semibold text-carbon">
+                        {o.guestId ? names.get(o.guestId) : "—"}
+                      </span>
+                      <span className="text-xs text-carbon/55">
+                        {new Date(o.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {" · "}
+                        {porAnotar
+                          ? t("mesa.estadoPedido.creado")
+                          : t("mesa.estadoPedido.en_preparacion")}
+                      </span>
+                    </p>
+                    <ul className="mt-1.5 text-sm text-carbon/75">
+                      {o.items.map((i) => (
+                        <li key={i.id}>
+                          {i.quantity} × {i.name}
+                        </li>
+                      ))}
+                    </ul>
+                    {open && porAnotar && (
                       <button
                         type="button"
                         disabled={busy === o.id}
                         onClick={() => void moveOrder(o, "en_preparacion")}
-                        className="min-h-12 w-full rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+                        className="mt-3 min-h-12 w-full rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
                       >
                         {t("mesas.pasarAComanda")}
                       </button>
                     )}
-                    {(o.status === "creado" || o.status === "en_preparacion") && (
+                    {open && porAnotar && (
                       <button
                         type="button"
                         disabled={busy === o.id}
-                        onClick={() => void moveOrder(o, "listo")}
-                        className={`min-h-12 w-full rounded-full px-4 text-sm font-semibold disabled:opacity-50 ${
-                          o.status === "creado"
-                            ? "border border-linea text-carbon/70"
-                            : "bg-marca text-crema"
-                        }`}
+                        onClick={() => {
+                          if (window.confirm(t("mesas.cancelarPedidoConfirmar"))) {
+                            void moveOrder(o, "cancelado");
+                          }
+                        }}
+                        className="mt-2 min-h-11 w-full text-sm font-semibold text-red-600 disabled:opacity-50"
                       >
-                        {t("mesas.marcarListo")}
+                        {t("mesas.cancelarPedido")}
                       </button>
                     )}
-                    {o.status === "listo" && (
-                      <button
-                        type="button"
-                        disabled={busy === o.id}
-                        onClick={() => void moveOrder(o, "retirado")}
-                        className="min-h-12 w-full rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
-                      >
-                        {t("mesas.marcarEntregado")}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={busy === o.id}
-                      onClick={() => {
-                        const msg =
-                          o.status === "creado"
-                            ? t("mesas.cancelarPedidoConfirmar")
-                            : t("mesas.cancelarPedidoAnotadoConfirmar");
-                        if (window.confirm(msg)) {
-                          void moveOrder(o, "cancelado");
-                        }
-                      }}
-                      className="min-h-11 w-full rounded-full border border-transparent px-4 text-sm font-semibold text-red-600 hover:border-red-300 hover:bg-red-500/10 disabled:opacity-50"
-                    >
-                      {t("mesas.cancelarPedido")}
-                    </button>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}

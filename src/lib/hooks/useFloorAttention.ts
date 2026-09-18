@@ -1,37 +1,32 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useTableBills } from "@/lib/hooks/useTableBills";
 import {
+  emptyAttentionSeen,
   floorAttention,
   pendingBillIds,
   pendingOrderIds,
+  waiterCallSessionIds,
   type FloorAttention,
 } from "@/lib/floorAttention";
 import {
   getFloorAttentionState,
   getFloorAttentionVersion,
   hydrateFloorAttention,
+  navAckCalls,
   navAckOrders,
   navAckPayments,
   pruneFloorAttention,
   subscribeFloorAttention,
 } from "@/lib/store/attention-store";
-import { dingNew } from "@/lib/sound";
+import { mesaAlerts } from "@/lib/panelAlerts";
+import { publishPanelAlerts } from "@/lib/store/panel-alert-store";
 
-const EMPTY: FloorAttention = floorAttention(
-  [],
-  {
-    navOrders: new Set(),
-    navPayments: new Set(),
-    cardOrders: new Set(),
-    cardPayments: new Set(),
-  },
-  null,
-);
+const EMPTY: FloorAttention = floorAttention([], emptyAttentionSeen(), null);
 
 export const useFloorAttention = (): FloorAttention => {
   const branchId = useSessionStore((s) => s.sucursalId);
@@ -54,7 +49,9 @@ export const useFloorAttention = (): FloorAttention => {
 };
 
 /* Side effects live in one place so the header can read the same snapshot
- * without double-dinging or double-acking. */
+ * without double-acking. El sonido ya no vive acá: lo hace la capa global
+ * (usePanelAlertsWatch) para que Mesas, Pedidos y Recepción suenen igual y una
+ * sola vez. */
 export const useFloorAttentionWatch = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const { visibles } = useOperationalAccess();
@@ -79,39 +76,26 @@ export const useFloorAttentionWatch = () => {
 
   const orderIds = useMemo(() => pendingOrderIds(bills), [bills]);
   const paymentIds = useMemo(() => pendingBillIds(bills), [bills]);
+  const callIds = useMemo(() => waiterCallSessionIds(bills), [bills]);
 
   useEffect(() => {
     if (!ready) return;
-    pruneFloorAttention(orderIds, paymentIds);
-  }, [ready, orderIds, paymentIds]);
+    pruneFloorAttention(orderIds, paymentIds, callIds);
+  }, [ready, orderIds, paymentIds, callIds]);
 
   useEffect(() => {
     if (!ready) return;
-    if (view === "pedido") navAckOrders(orderIds);
+    /* La pestaña Pedido muestra los pedidos nuevos y los llamados; Cobrar, las
+     * cuentas. Mirar la cola cuenta como haberlas visto. */
+    if (view === "pedido") {
+      navAckOrders(orderIds);
+      navAckCalls(callIds);
+    }
     if (view === "cobrar") navAckPayments(paymentIds);
-  }, [ready, view, orderIds, paymentIds]);
+  }, [ready, view, orderIds, paymentIds, callIds]);
 
-  const primed = useRef(false);
-  const prevHeader = useRef<Set<string>>(new Set());
-
+  /* Lo de Mesas entra a la capa global igual que cualquier otro módulo. */
   useEffect(() => {
-    if (!ready) return;
-    const keys = new Set(attention.headerKeys);
-    if (!primed.current) {
-      primed.current = true;
-      prevHeader.current = keys;
-      return;
-    }
-    let arrived = false;
-    for (const id of keys) {
-      if (!prevHeader.current.has(id)) arrived = true;
-    }
-    prevHeader.current = keys;
-    if (arrived) dingNew();
-  }, [ready, attention.headerKeys]);
-
-  useEffect(() => {
-    primed.current = false;
-    prevHeader.current = new Set();
-  }, [billsBranch]);
+    publishPanelAlerts("mesas", ready ? mesaAlerts(bills, attention) : []);
+  }, [ready, bills, attention]);
 };

@@ -267,7 +267,11 @@ describe("comanda", () => {
     ]);
   });
 
-  it("inbox separa nuevos, en comanda y listos", () => {
+  /* Mesas tiene tres colas y son las tres cosas que el mozo puede hacer:
+   * anotar, ir a la mesa que llama y cobrar. El pedido ya anotado sale de la
+   * cola — de ahí en adelante es de la comanda del local — pero la mesa sigue
+   * activa y lo que pida después vuelve a entrar. */
+  it("inbox separa lo que hay que anotar, quién llama y qué cobrar", () => {
     const floor = buildFloor(
       [
         { id: "m8", number: 8, qrToken: "a", qrActive: true },
@@ -277,13 +281,16 @@ describe("comanda", () => {
         mkBill(),
         mkBill({
           session: { ...mkBill().session, id: "s2", tableId: "m12", tableNumber: 12 },
-          orders: [order({ status: "listo" })],
+          orders: [order({ status: "en_preparacion" })],
         }),
       ],
     );
     const inbox = kitchenInbox(floor);
     expect(inbox.created.map((r) => r.tableNumber)).toEqual([8]);
-    expect(inbox.ready.map((r) => r.tableNumber)).toEqual([12]);
+    expect(Object.keys(inbox).sort()).toEqual(["bills", "called", "created"]);
+    /* La 12 ya está anotada: no la lista ninguna cola. */
+    expect(inbox.called).toEqual([]);
+    expect(inbox.bills).toEqual([]);
   });
 });
 

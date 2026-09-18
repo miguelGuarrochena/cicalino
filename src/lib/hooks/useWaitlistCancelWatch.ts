@@ -16,6 +16,8 @@ import { isRealBranchId } from "@/lib/data/orders";
 import { fetchTodayWaitlist } from "@/lib/data/waitlist";
 import { dingCancelled } from "@/lib/sound";
 import { watchChannel } from "@/lib/realtime";
+import { receptionAlerts } from "@/lib/panelAlerts";
+import { publishPanelAlerts } from "@/lib/store/panel-alert-store";
 import type { WaitlistStatus } from "@/lib/types";
 
 const POLL_MS = 5_000;
@@ -63,6 +65,12 @@ const announceCancel = (args: {
   });
 };
 
+/* Recepción, mirada desde todo el panel.
+ *
+ * Este vigilante ya existía para el popup de "el cliente canceló" y ya leía la
+ * lista del día cada pocos segundos desde cualquier pantalla. En vez de montar
+ * una segunda suscripción para el aviso global, publica acá lo que ya tiene
+ * cargado: mismo realtime, mismo poll, una lectura sola. */
 export const useWaitlistCancelWatch = () => {
   const { locale } = useApp();
   const toast = useToast();
@@ -76,12 +84,16 @@ export const useWaitlistCancelWatch = () => {
   const seen = useRef(new Set<string>());
 
   useEffect(() => {
-    if (!moduloEspera || !branchId) return;
+    if (!moduloEspera || !branchId) {
+      publishPanelAlerts("recepcion", []);
+      return;
+    }
 
     if (!live) {
       ready.current = false;
       const apply = () => {
         const rows = useWaitlistStore.getState().esperas;
+        publishPanelAlerts("recepcion", receptionAlerts(rows));
         const next = new Map(rows.map((e) => [e.id, e.status]));
         if (!ready.current) {
           for (const e of rows) {
@@ -119,6 +131,7 @@ export const useWaitlistCancelWatch = () => {
       return () => {
         unsub();
         window.removeEventListener("storage", onStorage);
+        publishPanelAlerts("recepcion", []);
       };
     }
 
@@ -135,6 +148,7 @@ export const useWaitlistCancelWatch = () => {
        * entry as newly cancelled once the connection came back. */
       if (!res.ok) return;
       const rows = res.data;
+      publishPanelAlerts("recepcion", receptionAlerts(rows));
       const next = new Map(rows.map((e) => [e.id, e.status]));
       if (!ready.current) {
         for (const e of rows) {
@@ -198,6 +212,18 @@ export const useWaitlistCancelWatch = () => {
             });
             void tick();
           },
+        )
+        /* Un alta nueva no es una cancelación, pero sí una novedad: en vez de
+         * esperar al poll, el mismo canal la trae al toque. */
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "esperas",
+            filter: `local_id=eq.${branchId}`,
+          },
+          () => void tick(),
         );
       pgWatcher = watchChannel(pgChannel, connectPg, () => void tick());
     };
@@ -230,6 +256,7 @@ export const useWaitlistCancelWatch = () => {
       pgWatcher?.dispose();
       if (pgChannel) void supabase.removeChannel(pgChannel);
       void supabase.removeChannel(broadcastCh);
+      publishPanelAlerts("recepcion", []);
     };
   }, [moduloEspera, branchId, live, toast, locale]);
 };

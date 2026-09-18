@@ -65,8 +65,8 @@ export const SegmentedTabs = <T extends string>({
             } ${
               pulse && !selected
                 ? opt.priority
-                  ? "u-attention-pulse-priority"
-                  : "u-attention-pulse"
+                  ? "u-alert-beat u-alert-halo u-alert-halo-curso"
+                  : "u-alert-beat u-alert-halo u-alert-halo-marca"
                 : ""
             }`}
           >
@@ -79,6 +79,8 @@ export const SegmentedTabs = <T extends string>({
             {showBadge ? (
               <span
                 className={`absolute right-2 top-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+                  pulse && !selected ? "min-w-7 px-2 py-0.5 text-sm" : ""
+                } ${
                   selected
                     ? "bg-crema/20 text-crema"
                     : pulse && opt.priority
@@ -97,8 +99,10 @@ export const SegmentedTabs = <T extends string>({
             ) : pulse && !selected ? (
               <span
                 aria-hidden
-                className={`absolute right-2 top-2 size-2 rounded-full ${
-                  opt.priority ? "bg-curso u-attention-dot" : "bg-marca u-attention-dot"
+                className={`absolute right-2 top-2 size-3 rounded-full ${
+                  opt.priority
+                    ? "bg-curso u-alert-halo u-alert-halo-curso"
+                    : "bg-marca u-alert-halo u-alert-halo-marca"
                 }`}
               />
             ) : null}
