@@ -27,10 +27,10 @@ describe("Operación — jerarquía y layout", () => {
     expect(espera).not.toContain('f === "libre" ? "todas"');
   });
 
-  it("Configuración separa restaurante, pagos, mesas, personal, dispositivo y avanzado", () => {
+  it("Configuración separa identidad, pagos, mesas, personal, dispositivo y avanzado", () => {
     const nav = read("src/components/panel/config/ConfigNav.tsx");
     const page = read("src/app/(app)/panel/config/page.tsx");
-    expect(nav).toContain('id: "restaurante"');
+    expect(nav).toContain('id: "identidad"');
     expect(nav).toContain('id: "pagos"');
     expect(nav).toContain('id: "mesas"');
     expect(nav).toContain('id: "empleados"');
@@ -38,17 +38,32 @@ describe("Operación — jerarquía y layout", () => {
     expect(nav).toContain('id: "avanzado"');
     expect(nav).not.toContain('id: "modulos"');
     expect(nav).not.toContain('id: "general"');
-    expect(page).toContain('id="restaurante"');
-    expect(page).toContain('id="pagos"');
-    expect(page).toContain('id="mesas"');
-    expect(page).toContain('id="avanzado"');
-    expect(page).toContain('id="dispositivo"');
+    expect(nav).not.toContain('id: "restaurante"');
+    expect(page).toContain('acc("identidad")');
+    expect(page).toContain('acc("pagos")');
+    expect(page).toContain('acc("mesas")');
+    expect(page).toContain('acc("avanzado")');
+    expect(page).toContain('acc("dispositivo")');
+    expect(page).toContain('acc("local")');
+    expect(page).toContain("const Accordion");
+    expect(page).toContain("setOpenSection");
+    expect(page).toContain("openId === id");
+    expect(page).toContain("config.seccionLocal");
+    expect(page).toContain("<SubscriptionCard embedded");
+    expect(page).toContain("PedirSucursalCard embedded");
+    expect(page).toContain("BrandIdentityCard embedded");
+    expect(page).toContain("hideHeading");
     expect(page).toContain("config.seccionRecepcion");
     expect(page).toContain("PaymentMethodsCard");
     expect(page).toContain("BrandIdentityCard");
     expect(read("src/components/panel/config/PaymentMethodsCard.tsx")).toContain("qr_mercado_pago");
+    /* Subscription, venue type and modules live in Datos de local, not Identidad. */
+    const identidad = page.slice(page.indexOf('acc("identidad")'), page.indexOf('acc("pagos")'));
+    expect(identidad).toContain("BrandIdentityCard");
+    expect(identidad).not.toContain("config.seccionLocal");
+    expect(identidad).not.toContain("config.seccionModulos");
     /* Reservation hours are not inside the salon-tables card. */
-    const mesasBlock = page.slice(page.indexOf('id="mesas"'), page.indexOf("config.seccionRecepcion"));
+    const mesasBlock = page.slice(page.indexOf('acc("mesas")'), page.indexOf("config.seccionRecepcion"));
     expect(mesasBlock).toContain("config.tableCount");
     expect(mesasBlock).toContain("config.mesasQrCta");
     expect(mesasBlock).not.toContain("config.reservaHorario");

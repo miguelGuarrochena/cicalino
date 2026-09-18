@@ -555,7 +555,11 @@ const AccessModal = ({
   );
 };
 
-export const EmployeeList = () => {
+export const EmployeeList = ({
+  hideHeading = false,
+}: {
+  hideHeading?: boolean;
+}) => {
   const { t } = useApp();
   const toast = useToast();
   const employees = useConfigStore((s) => s.employees);
@@ -596,10 +600,12 @@ export const EmployeeList = () => {
     <>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-            {t("config.seccionEmp")}
-          </h2>
-          <p className="mt-1 text-sm text-carbon/55">{t("config.seccionEmpSub")}</p>
+          {!hideHeading && (
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
+              {t("config.seccionEmp")}
+            </h2>
+          )}
+          <p className={`${hideHeading ? "" : "mt-1 "}text-sm text-carbon/55`}>{t("config.seccionEmpSub")}</p>
         </div>
         <button
           type="button"

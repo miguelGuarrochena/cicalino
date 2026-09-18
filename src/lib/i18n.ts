@@ -722,6 +722,7 @@ const dict = {
       tab: {
         general: "General",
         restaurante: "Restaurante",
+        identidad: "Identidad",
         mesas: "Mesas",
         empleados: "Personal",
         carta: "Menú",
@@ -786,7 +787,7 @@ const dict = {
       subtitulo: "Ajustes del local. Durante el servicio usá Pedidos, Recepción o Mesas.",
       guardar: "Guardar cambios",
       guardado: "Cambios guardados",
-      seccionLocal: "Datos del local",
+      seccionLocal: "Datos de local",
       seccionIdentidad: "Identidad del local",
       seccionIdentidadSub:
         "Cómo te ve el comensal en el QR. El panel de Cicalino no cambia.",
@@ -2312,6 +2313,7 @@ const dict = {
       tab: {
         general: "General",
         restaurante: "Restaurant",
+        identidad: "Identity",
         mesas: "Tables",
         empleados: "Staff",
         carta: "Menu",
@@ -2376,7 +2378,7 @@ const dict = {
       subtitulo: "Branch settings. During service use Orders, Reception or Tables.",
       guardar: "Save changes",
       guardado: "Changes saved",
-      seccionLocal: "Business details",
+      seccionLocal: "Venue details",
       seccionIdentidad: "Venue identity",
       seccionIdentidadSub:
         "How guests see you on the QR. The Cicalino panel does not change.",

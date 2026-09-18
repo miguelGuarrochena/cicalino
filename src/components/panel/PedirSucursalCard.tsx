@@ -22,7 +22,11 @@ const money = new Intl.NumberFormat("es-AR", {
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 
-export const PedirSucursalCard = () => {
+export const PedirSucursalCard = ({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) => {
   const { t } = useApp();
   const toast = useToast();
   const rol = useSessionStore((s) => s.rol);
@@ -49,7 +53,7 @@ export const PedirSucursalCard = () => {
 
   if (resumen === undefined) {
     return (
-      <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6">
+      <section className={embedded ? "" : "rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6"}>
         <p className="text-sm text-carbon/45">Cargando sucursales…</p>
       </section>
     );
@@ -82,7 +86,7 @@ export const PedirSucursalCard = () => {
   };
 
   return (
-    <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6">
+    <section className={embedded ? "border-t border-linea pt-4" : "rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6"}>
       <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
         Sucursales contratadas
       </h2>
