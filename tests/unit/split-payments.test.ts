@@ -228,6 +228,7 @@ describe("Pagos divididos — superficie de seguridad del SQL", () => {
     expect(guard).toContain("sameOrigin");
     for (const rel of [
       "src/app/api/m/[token]/unirse/route.ts",
+      "src/app/api/m/[token]/restaurar/route.ts",
       "src/app/api/m/[token]/pedidos/route.ts",
       "src/app/api/m/[token]/pagos/route.ts",
       "src/app/api/m/[token]/pagos/[pagoId]/cancelar/route.ts",

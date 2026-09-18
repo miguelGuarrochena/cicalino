@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import {
+  brandColorScheme,
   brandCssVars,
   type BrandColorId,
 } from "@/lib/customerBrand";
@@ -18,10 +19,10 @@ export const CustomerBrandShell = ({
   const vars = brandCssVars(color);
   return (
     <div
-      className={className}
+      className={`min-h-dvh bg-crema text-carbon ${className}`.trim()}
       style={
         {
-          colorScheme: "light",
+          colorScheme: brandColorScheme(color),
           ...(vars ?? {}),
         } as CSSProperties
       }

@@ -125,11 +125,12 @@ export const saveBranchConfig = async (
 
 export const saveBranchBrand = async (
   branchId: string,
-  cfg: { logoUrl: string | null; colorMarca: BrandColorId | null },
+  cfg: { name: string; logoUrl: string | null; colorMarca: BrandColorId | null },
 ): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
   const v = parseInput(branchBrandSchema, {
+    name: cfg.name,
     logoUrl: cfg.logoUrl,
     colorMarca: cfg.colorMarca,
   });
@@ -140,6 +141,7 @@ export const saveBranchBrand = async (
   const { error } = await supabase
     .from("locales")
     .update({
+      nombre: v.data.name,
       logo_url: v.data.logoUrl,
       color_marca: v.data.colorMarca,
       updated_at: new Date().toISOString(),

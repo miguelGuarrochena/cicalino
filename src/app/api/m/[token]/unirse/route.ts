@@ -1,10 +1,8 @@
-import { cookies } from "next/headers";
 import { failure, guardGuestRequest, json, readJson } from "@/lib/server/guestApi";
 import { guestNameSchema } from "@/lib/schemas";
 import {
-  GUEST_COOKIE,
+  attachGuestCookie,
   fetchGuestState,
-  guestCookieOptions,
   joinTable,
   newGuestSecret,
   resolveTableQr,
@@ -44,9 +42,16 @@ export const POST = async (
   if (!res.ok) return failure(res.reason ?? "db-error");
 
   const guestId = String(res.comensal_id);
-  (await cookies()).set(GUEST_COOKIE, `${guestId}.${secret}`, guestCookieOptions());
-
   const state = await fetchGuestState({ guestId, tokenHash: hash });
   if (!state.ok) return failure("db-error");
-  return json({ ok: true, guest: state.guest, bill: state.bill });
+  return attachGuestCookie(
+    json({
+      ok: true,
+      guest: state.guest,
+      bill: state.bill,
+      cred: `${guestId}.${secret}`,
+    }),
+    guestId,
+    secret,
+  );
 };

@@ -6,11 +6,12 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useToast } from "@/components/ui/Toast";
 import { saveBranchBrand } from "@/lib/data/branch";
+import { branchBrandSchema, parseInput } from "@/lib/schemas";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
 import {
   BRAND_PRESETS,
-  COBALT_SWATCH,
+  CICALINO_SWATCH,
   compressBrandLogo,
   type BrandColorId,
 } from "@/lib/customerBrand";
@@ -18,33 +19,42 @@ import {
 const CARD =
   "rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6";
 
+const INPUT =
+  "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20";
+
 const SWATCHES: { id: BrandColorId | null; key: string; hex: string }[] = [
-  { id: null, key: "config.colorCobalto", hex: COBALT_SWATCH },
-  { id: "negro", key: "config.colorNegro", hex: BRAND_PRESETS.negro.brand },
-  { id: "bordo", key: "config.colorBordo", hex: BRAND_PRESETS.bordo.brand },
-  { id: "verde", key: "config.colorVerde", hex: BRAND_PRESETS.verde.brand },
-  { id: "terracota", key: "config.colorTerracota", hex: BRAND_PRESETS.terracota.brand },
+  { id: null, key: "config.colorCobalto", hex: CICALINO_SWATCH },
+  { id: "negro", key: "config.colorNegro", hex: BRAND_PRESETS.negro.bg },
+  { id: "bordo", key: "config.colorBordo", hex: BRAND_PRESETS.bordo.bg },
+  { id: "verde", key: "config.colorVerde", hex: BRAND_PRESETS.verde.bg },
+  { id: "terracota", key: "config.colorTerracota", hex: BRAND_PRESETS.terracota.bg },
 ];
 
 export const BrandIdentityCard = () => {
   const { t } = useApp();
   const toast = useToast();
   const branchId = useSessionStore((s) => s.sucursalId);
-  const name = useConfigStore((s) => s.name);
+  const storedName = useConfigStore((s) => s.name);
   const storedLogo = useConfigStore((s) => s.logoUrl);
   const storedColor = useConfigStore((s) => s.colorMarca);
   const hydrate = useConfigStore((s) => s.hydrate);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState<string | undefined>(undefined);
   const [logoUrl, setLogoUrl] = useState<string | null | undefined>(undefined);
   const [color, setColor] = useState<BrandColorId | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  const nombre = name === undefined ? storedName : name;
   const logo = logoUrl === undefined ? storedLogo : logoUrl;
   const colorMarca = color === undefined ? storedColor : color;
-  const dirty = logo !== storedLogo || colorMarca !== storedColor;
+  const dirty =
+    nombre.trim() !== storedName.trim() ||
+    logo !== storedLogo ||
+    colorMarca !== storedColor;
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
@@ -64,7 +74,21 @@ export const BrandIdentityCard = () => {
 
   const guardar = async () => {
     if (busy || !dirty) return;
-    const next = { logoUrl: logo, colorMarca };
+    const parsed = parseInput(branchBrandSchema, {
+      name: nombre,
+      logoUrl: logo,
+      colorMarca,
+    });
+    if (!parsed.ok) {
+      setNameError(t("config.errNombre"));
+      return;
+    }
+    setNameError(null);
+    const next = {
+      name: parsed.data.name,
+      logoUrl: parsed.data.logoUrl,
+      colorMarca: parsed.data.colorMarca,
+    };
     if (supabaseConfigured && isRealBranchId(branchId)) {
       setBusy(true);
       const ok = await saveBranchBrand(branchId!, next);
@@ -75,6 +99,7 @@ export const BrandIdentityCard = () => {
       }
     }
     hydrate(next);
+    setName(undefined);
     setLogoUrl(undefined);
     setColor(undefined);
     setSaved(true);
@@ -91,14 +116,26 @@ export const BrandIdentityCard = () => {
       </p>
 
       <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-1.5">
+        <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-carbon/70">
             {t("config.nombre")}
           </span>
-          <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
-            {name.trim() || "—"}
-          </p>
-        </div>
+          <p className="text-xs text-carbon/50">{t("config.nombreSub")}</p>
+          <input
+            value={nombre}
+            onChange={(e) => {
+              setName(e.target.value);
+              setNameError(null);
+              setSaved(false);
+            }}
+            maxLength={80}
+            className={INPUT}
+            autoComplete="organization"
+          />
+          {nameError ? (
+            <p className="text-xs text-red-500">{nameError}</p>
+          ) : null}
+        </label>
 
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-carbon/70">

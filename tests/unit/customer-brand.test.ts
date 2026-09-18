@@ -8,7 +8,7 @@ import {
   parseBrandColor,
   parseLogoUrl,
   BRAND_PRESETS,
-  COBALT_SWATCH,
+  CICALINO_SWATCH,
 } from "@/lib/customerBrand";
 
 const root = process.cwd();
@@ -20,15 +20,16 @@ describe("Identidad del comensal", () => {
     expect(parseBrandColor("cobalto")).toBeNull();
     expect(parseBrandColor("negro")).toBe("negro");
     expect(brandCssVars(null)).toBeUndefined();
-    expect(COBALT_SWATCH).toBe("#2536d4");
+    expect(CICALINO_SWATCH).toBe("#f4f1da");
   });
 
-  it("el negro es acento de marca, no dark mode", () => {
+  it("un color de fondo oscuro aclara texto y botones; no es el dark del panel", () => {
     const vars = brandCssVars("negro");
+    expect(vars?.["--bg"]).toBe(BRAND_PRESETS.negro.bg);
+    expect(vars?.["--text"]).toBe(BRAND_PRESETS.negro.text);
     expect(vars?.["--brand"]).toBe(BRAND_PRESETS.negro.brand);
-    expect(vars?.["--brand-strong"]).toBe(BRAND_PRESETS.negro.strong);
-    expect(vars?.["--color-marca"]).toBe(BRAND_PRESETS.negro.brand);
-    expect(JSON.stringify(vars)).not.toMatch(/data-theme|dark|#10142f|#1a1f45/);
+    expect(vars?.["--bg"]).not.toBe(vars?.["--text"]);
+    expect(JSON.stringify(vars)).not.toMatch(/#10142f|#1a1f45/);
   });
 
   it("solo acepta data URL de imagen como logo", () => {

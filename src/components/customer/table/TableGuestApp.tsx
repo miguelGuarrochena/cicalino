@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import { Controls } from "@/components/ui/Controls";
@@ -17,6 +17,7 @@ import {
 import { PaySheet } from "@/components/customer/table/PaySheet";
 import { TransferDetails, useErrorText } from "@/components/customer/table/TransferDetails";
 import { guestNameSchema } from "@/lib/schemas";
+import { clearGuestCred, loadGuestCred, saveGuestCred } from "@/lib/guestSession";
 import {
   formatMoney,
   type PaymentSettings,
@@ -76,6 +77,13 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   const applyBill = useCallback((next: TableBill | null) => {
     if (next) setBill(next);
   }, []);
+  const handleJoined = useCallback(
+    (g: { id: string; name: string }, b: TableBill) => {
+      setGuest(g);
+      applyBill(b);
+    },
+    [applyBill],
+  );
 
   /* Polling with the tab visible; one refresh when it comes back. Nothing is
    * kept only in memory, so a reload or a dropped connection resumes from the
@@ -249,10 +257,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           branchName={initial.branchName}
           logoUrl={initial.logoUrl}
           operational={initial.operational}
-          onJoined={(g, b) => {
-            setGuest(g);
-            applyBill(b);
-          }}
+          onJoined={handleJoined}
         />
       </CustomerBrandShell>
     );
@@ -621,12 +626,51 @@ const JoinTable = ({
   const { t } = useApp();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const errorText = useErrorText();
+  const onJoinedRef = useRef(onJoined);
+  onJoinedRef.current = onJoined;
+
+  useEffect(() => {
+    const cred = loadGuestCred(token);
+    if (!cred) {
+      setRestoring(false);
+      return;
+    }
+    let cancelled = false;
+    const restore = async () => {
+      try {
+        const res = await fetch(`/api/m/${token}/restaurar`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cred }),
+        });
+        const data = (await res.json().catch(() => null)) as
+          | { ok: boolean; guest?: { id: string; name: string }; bill?: TableBill }
+          | null;
+        if (cancelled) return;
+        if (data?.ok && data.guest && data.bill) {
+          onJoinedRef.current(data.guest, data.bill);
+          return;
+        }
+        clearGuestCred(token);
+      } catch {
+        /* Offline: keep creds so the next scan can restore. */
+      } finally {
+        if (!cancelled) setRestoring(false);
+      }
+    };
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const join = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (busy) return;
+    if (busy || restoring) return;
     const parsed = guestNameSchema.safeParse(name);
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? t("mesa.error.nombre-invalido"));
@@ -637,16 +681,25 @@ const JoinTable = ({
     try {
       const res = await fetch(`/api/m/${token}/unirse`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: parsed.data }),
       });
       const data = (await res.json().catch(() => null)) as
-        | { ok: boolean; reason?: string; message?: string; guest?: { id: string; name: string }; bill?: TableBill }
+        | {
+            ok: boolean;
+            reason?: string;
+            message?: string;
+            guest?: { id: string; name: string };
+            bill?: TableBill;
+            cred?: string;
+          }
         | null;
       if (!data?.ok || !data.guest || !data.bill) {
         setError(data?.message ?? errorText(data?.reason));
         return;
       }
+      if (typeof data.cred === "string") saveGuestCred(token, data.cred);
       onJoined(data.guest, data.bill);
     } catch {
       setError(t("mesa.error.red"));
@@ -662,7 +715,11 @@ const JoinTable = ({
       <h1 className="mt-1 font-display text-4xl uppercase text-marca">
         {t("mesa.mesaN", { n: tableNumber })}
       </h1>
-      {operational ? (
+      {restoring ? (
+        <div className="mt-8 flex justify-center" aria-busy="true">
+          <Spinner inline className="size-6" />
+        </div>
+      ) : operational ? (
         <form onSubmit={(e) => void join(e)} className="mt-8 flex flex-col gap-3">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-carbon/70">{t("mesa.tuNombre")}</span>

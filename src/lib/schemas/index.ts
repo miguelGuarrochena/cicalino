@@ -211,6 +211,7 @@ export const branchOperacionSchema = z
 export type BranchOperacionInput = z.infer<typeof branchOperacionSchema>;
 
 export const branchBrandSchema = z.object({
+  name: textField(2, 80, "el nombre del local"),
   logoUrl: z
     .string()
     .max(120_000, "El logo es demasiado pesado.")
@@ -386,6 +387,14 @@ export const guestNameSchema = customerAliasSchema.refine(
   (v): v is string => v !== null,
   "Contanos tu nombre.",
 );
+
+/* `<guestId>.<secret>` from join; 36-char UUID + '.' + 43-char base64url. */
+export const guestRestoreSchema = z.object({
+  cred: z.string().regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[A-Za-z0-9_-]{43}$/i,
+    "Sesión inválida.",
+  ),
+});
 
 const cantidad = z.coerce.number().int().min(1).max(50);
 const pesos = z.coerce.number().int().min(1).max(10_000_000);
