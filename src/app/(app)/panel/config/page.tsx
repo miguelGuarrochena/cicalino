@@ -1,7 +1,7 @@
 "use client";
 
 import { SubscriptionCard } from "@/components/panel/SubscriptionCard";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
@@ -26,8 +26,42 @@ import { useDeviceMode } from "@/lib/hooks/useDeviceMode";
 
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
-const CARD =
-  "rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6";
+const ACCORDION =
+  "group rounded-[24px] border border-linea bg-surface px-4 shadow-sm sm:px-6";
+
+const Accordion = ({
+  id,
+  title,
+  open,
+  onOpenChange,
+  children,
+}: {
+  id: string;
+  title: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+}) => (
+  <details
+    id={id}
+    className={`${ACCORDION} scroll-mt-28`}
+    open={open}
+    onToggle={(e) => {
+      const next = e.currentTarget.open;
+      if (next !== open) onOpenChange(next);
+    }}
+  >
+    <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 py-2 marker:content-none [&::-webkit-details-marker]:hidden">
+      <span className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
+        {title}
+      </span>
+      <span className="shrink-0 text-lg leading-none text-carbon/30 transition group-open:rotate-45">
+        +
+      </span>
+    </summary>
+    <div className="pb-4">{children}</div>
+  </details>
+);
 
 const HORAS_CORTE = Array.from({ length: 24 }).map((_, h) => ({
   value: String(h),
@@ -133,6 +167,24 @@ const ConfigPage = () => {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [draft, setDraft] = useState<Draft>({});
+  const [openId, setOpenId] = useState("");
+
+  useEffect(() => {
+    const sync = () => setOpenId(window.location.hash.replace("#", ""));
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+
+  const setOpenSection = (id: string) => {
+    setOpenId(id);
+    const path = `${window.location.pathname}${window.location.search}`;
+    const next = id ? `${path}#${id}` : path;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (next === current) return;
+    window.history.replaceState(null, "", next);
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  };
 
   const editar = <K extends keyof Draft>(campo: K, valor: Draft[K]) => {
     setDraft((d) => ({ ...d, [campo]: valor }));
@@ -231,10 +283,15 @@ const ConfigPage = () => {
     }
   };
 
+  const acc = (id: string) => ({
+    id,
+    open: openId === id,
+    onOpenChange: (open: boolean) => setOpenSection(open ? id : ""),
+  });
+
   return (
-    <div className="flex flex-col gap-5 sm:gap-6">
-      <SubscriptionCard />
-      <div id="restaurante" className="flex scroll-mt-28 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 sm:gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <div>
             <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
@@ -269,93 +326,97 @@ const ConfigPage = () => {
         </div>
       </div>
 
-      <BrandIdentityCard />
-
-      {role === "admin" && (
-        <section className={`${CARD} scroll-mt-28`}>
-          <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-carbon/60">
-            {t("config.seccionLocal")}
-          </h2>
-          <p className="mb-4 text-sm text-carbon/55">
-            {t("config.datosLocalSub")}
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-carbon/70">
-                {t("config.tipo")}
-              </span>
-              <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
-                {businessTypeLabel(c.tipo, locale === "en" ? "en" : "es")}
-              </p>
+      <Accordion
+        {...acc("local")}
+        title={t("config.seccionLocal")}
+      >
+        <div className="flex flex-col gap-5">
+          <SubscriptionCard embedded />
+          {role === "admin" && (
+            <div>
+              <p className="mb-3 text-sm text-carbon/55">{t("config.datosLocalSub")}</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-sm font-medium text-carbon/70">
+                    {t("config.tipo")}
+                  </span>
+                  <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
+                    {businessTypeLabel(c.tipo, locale === "en" ? "en" : "es")}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-sm font-medium text-carbon/70">
+                    {t("config.whatsapp")}
+                  </span>
+                  <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
+                    {c.whatsapp.trim() || "—"}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <span className="text-sm font-medium text-carbon/70">
+                    {t("config.direccion")}
+                  </span>
+                  <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
+                    {c.direccion.trim() || "—"}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-carbon/70">
-                {t("config.whatsapp")}
-              </span>
-              <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
-                {c.whatsapp.trim() || "—"}
-              </p>
-            </div>
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <span className="text-sm font-medium text-carbon/70">
-                {t("config.direccion")}
-              </span>
-              <p className="rounded-xl border border-linea bg-crema/30 px-4 py-3 text-carbon">
-                {c.direccion.trim() || "—"}
-              </p>
-            </div>
+          )}
+          <div>
+            <p className="text-sm font-medium text-carbon/70">
+              {t("config.seccionModulos")}
+            </p>
+            <p className="mb-3 mt-1 text-xs text-carbon/50">
+              {t("config.seccionModulosSub")}
+            </p>
+            <ul className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["pedidos", c.moduloPedidos, t("config.moduloPedidos")],
+                  ["espera", c.moduloEspera, t("config.moduloEspera")],
+                  ["pagos", c.moduloPagos, t("config.moduloPagos")],
+                ] as const
+              ).map(([id, on, label]) => (
+                <li
+                  key={id}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                    on
+                      ? "border-marca/40 bg-marca/10 text-carbon"
+                      : "border-linea bg-crema/40 text-carbon/45"
+                  }`}
+                >
+                  {label}
+                  <span className="ml-1.5 font-medium text-carbon/50">
+                    {on ? t("config.moduloIncluido") : t("config.moduloNo")}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
-        </section>
-      )}
+          {role === "admin" && supabaseConfigured && isRealBranchId(branchId) && (
+            <PedirSucursalCard embedded />
+          )}
+        </div>
+      </Accordion>
 
-      {role === "admin" && supabaseConfigured && isRealBranchId(branchId) && (
-        <PedirSucursalCard />
-      )}
-
-      <section className={`${CARD} scroll-mt-28`}>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-          {t("config.seccionModulos")}
-        </h2>
-        <p className="mb-3 mt-1 text-sm text-carbon/55">
-          {t("config.seccionModulosSub")}
-        </p>
-        <ul className="flex flex-wrap gap-2">
-          {(
-            [
-              ["pedidos", c.moduloPedidos, t("config.moduloPedidos")],
-              ["espera", c.moduloEspera, t("config.moduloEspera")],
-              ["pagos", c.moduloPagos, t("config.moduloPagos")],
-            ] as const
-          ).map(([id, on, label]) => (
-            <li
-              key={id}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                on
-                  ? "border-marca/40 bg-marca/10 text-carbon"
-                  : "border-linea bg-crema/40 text-carbon/45"
-              }`}
-            >
-              {label}
-              <span className="ml-1.5 font-medium text-carbon/50">
-                {on ? t("config.moduloIncluido") : t("config.moduloNo")}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <Accordion {...acc("identidad")} title={t("config.tab.identidad")}>
+        <BrandIdentityCard embedded />
+      </Accordion>
 
       {c.moduloPagos && isRealBranchId(branchId) && (
-        <section className={`${CARD} scroll-mt-28`} id="pagos">
-          <PaymentMethodsCard branchId={branchId} canEdit={role === "admin"} />
-        </section>
+        <Accordion {...acc("pagos")} title={t("config.tab.pagos")}>
+          <PaymentMethodsCard
+            branchId={branchId}
+            canEdit={role === "admin"}
+            hideHeading
+          />
+        </Accordion>
       )}
 
       {(c.moduloEspera || c.moduloPagos || modo === "mesa") && (
-        <section id="mesas" className={`${CARD} scroll-mt-28`}>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-            {t("config.tab.mesas")}
-          </h2>
-          <p className="mb-4 mt-1 text-sm text-carbon/55">
+        <Accordion {...acc("mesas")} title={t("config.tab.mesas")}>
+          <p className="mb-4 text-sm text-carbon/55">
             {t("config.seccionMesasSub")}
           </p>
           <div className="max-w-xs">
@@ -387,15 +448,12 @@ const ConfigPage = () => {
               </Link>
             </div>
           )}
-        </section>
+        </Accordion>
       )}
 
       {c.moduloEspera && (
-        <section className={`${CARD} scroll-mt-28`}>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-            {t("config.seccionRecepcion")}
-          </h2>
-          <p className="mb-4 mt-1 text-sm text-carbon/55">
+        <Accordion {...acc("recepcion")} title={t("config.seccionRecepcion")}>
+          <p className="mb-4 text-sm text-carbon/55">
             {t("config.seccionRecepcionSub")}
           </p>
           <p className="text-sm font-medium text-carbon/70">
@@ -437,19 +495,16 @@ const ConfigPage = () => {
               />
             </Campo>
           </div>
-        </section>
+        </Accordion>
       )}
 
-      <section id="empleados" className={`${CARD} scroll-mt-28`}>
-        <EmployeeList />
-      </section>
+      <Accordion {...acc("empleados")} title={t("config.tab.empleados")}>
+        <EmployeeList hideHeading />
+      </Accordion>
 
       {c.moduloPedidos && c.moduloEspera && (
-        <section id="dispositivo" className={`${CARD} scroll-mt-28`}>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-            {t("config.seccionDispositivo")}
-          </h2>
-          <p className="mb-4 mt-1 text-sm text-carbon/55">
+        <Accordion {...acc("dispositivo")} title={t("config.seccionDispositivo")}>
+          <p className="mb-4 text-sm text-carbon/55">
             {t("config.seccionDispositivoSub")}
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -479,14 +534,11 @@ const ConfigPage = () => {
               </button>
             ))}
           </div>
-        </section>
+        </Accordion>
       )}
 
-      <section id="avanzado" className={`${CARD} scroll-mt-28`}>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-          {t("config.seccionAvanzado")}
-        </h2>
-        <p className="mb-4 mt-1 text-sm text-carbon/55">
+      <Accordion {...acc("avanzado")} title={t("config.seccionAvanzado")}>
+        <p className="mb-4 text-sm text-carbon/55">
           {t("config.seccionAvanzadoSub")}
         </p>
         <p className="text-sm font-medium text-carbon/70">{t("config.seccionId")}</p>
@@ -564,7 +616,7 @@ const ConfigPage = () => {
             </div>
           </div>
         )}
-      </section>
+      </Accordion>
 
       {dirty && (
         <div className="sticky bottom-20 z-20 -mx-4 mt-4 border-t border-linea bg-crema/95 px-4 py-3 sm:hidden">

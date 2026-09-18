@@ -33,7 +33,11 @@ const SWATCHES: { id: BrandColorId | null; key: string; hex: string }[] = [
   { id: "terracota", key: "config.colorTerracota", hex: BRAND_PRESETS.terracota.bg },
 ];
 
-export const BrandIdentityCard = () => {
+export const BrandIdentityCard = ({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) => {
   const { t } = useApp();
   const toast = useToast();
   const branchId = useSessionStore((s) => s.sucursalId);
@@ -123,13 +127,22 @@ export const BrandIdentityCard = () => {
   };
 
   return (
-    <section id="identidad" className={`${CARD} scroll-mt-28`}>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
-        {t("config.seccionIdentidad")}
-      </h2>
-      <p className="mb-4 mt-1 text-sm text-carbon/55">
-        {t("config.seccionIdentidadSub")}
-      </p>
+    <section className={embedded ? undefined : `${CARD} scroll-mt-28`}>
+      {!embedded && (
+        <>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">
+            {t("config.seccionIdentidad")}
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-carbon/55">
+            {t("config.seccionIdentidadSub")}
+          </p>
+        </>
+      )}
+      {embedded && (
+        <p className="mb-4 text-sm text-carbon/55">
+          {t("config.seccionIdentidadSub")}
+        </p>
+      )}
 
       <div className="flex flex-col gap-5">
         <label className="flex flex-col gap-1.5">

@@ -110,6 +110,7 @@ describe("Experiencia del comensal: Light fijo + identidad mínima", () => {
     expect(config).toContain("BrandIdentityCard");
     expect(config).not.toContain('c.name.trim() || "—"');
     expect(card).toContain("config.seccionIdentidad");
+    expect(card).toContain("config.seccionIdentidadSub");
     expect(card).toContain("draftName");
     expect(card).toContain("listedName");
     expect(card).toContain("branchConfigReady");

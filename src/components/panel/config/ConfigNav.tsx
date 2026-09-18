@@ -23,18 +23,17 @@ export const ConfigNav = () => {
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
   const showMesas = visibles.espera || visibles.pagos || modo === "mesa";
   const onMetrics = path.startsWith("/panel/config/metricas");
-  const [hash, setHash] = useState("restaurante");
+  const [hash, setHash] = useState("");
 
   useEffect(() => {
-    const sync = () =>
-      setHash(window.location.hash.replace("#", "") || "restaurante");
+    const sync = () => setHash(window.location.hash.replace("#", ""));
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, [path]);
 
   const tabs: Tab[] = [
-    { id: "restaurante", href: "/panel/config#restaurante", key: "config.tab.restaurante", show: true },
+    { id: "identidad", href: "/panel/config#identidad", key: "config.tab.identidad", show: true },
     { id: "pagos", href: "/panel/config#pagos", key: "config.tab.pagos", show: visibles.pagos },
     { id: "mesas", href: "/panel/config#mesas", key: "config.tab.mesas", show: showMesas },
     { id: "empleados", href: "/panel/config#empleados", key: "config.tab.empleados", show: true },

@@ -71,9 +71,11 @@ const SurchargeInput = ({
 export const PaymentMethodsCard = ({
   branchId,
   canEdit,
+  hideHeading = false,
 }: {
   branchId: string;
   canEdit: boolean;
+  hideHeading?: boolean;
 }) => {
   const { t } = useApp();
   const toast = useToast();
@@ -108,7 +110,13 @@ export const PaymentMethodsCard = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId]);
 
-  if (!s) return <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">{t("cobros.titulo")}</h2>;
+  if (!s) {
+    return hideHeading ? (
+      <p className="text-sm text-carbon/45">…</p>
+    ) : (
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">{t("cobros.titulo")}</h2>
+    );
+  }
 
   const set = <K extends keyof PaymentSettings>(k: K, v: PaymentSettings[K]) =>
     setS((cur) => (cur ? { ...cur, [k]: v } : cur));
@@ -142,8 +150,10 @@ export const PaymentMethodsCard = ({
 
   return (
     <div>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">{t("cobros.titulo")}</h2>
-      <p className="mb-4 mt-1 text-sm text-carbon/55">
+      {!hideHeading && (
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/60">{t("cobros.titulo")}</h2>
+      )}
+      <p className={`${hideHeading ? "mb-4" : "mb-4 mt-1"} text-sm text-carbon/55`}>
         {canEdit ? t("cobros.sub") : t("cobros.soloDueno")}
       </p>
 

@@ -58,7 +58,11 @@ const Dato = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-export const SubscriptionCard = () => {
+export const SubscriptionCard = ({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) => {
   const { t } = useApp();
   const orgId = useSessionStore((s) => s.organizationId);
   const rol = useSessionStore((s) => s.rol);
@@ -97,9 +101,9 @@ export const SubscriptionCard = () => {
   );
 
   return (
-    <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-5">
+    <section className={embedded ? "" : "rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-5"}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg uppercase tracking-tight text-carbon">
+        <h2 className={embedded ? "text-sm font-medium text-carbon/70" : "font-display text-lg uppercase tracking-tight text-carbon"}>
           {t("suscripcion.titulo")}
         </h2>
         <span
