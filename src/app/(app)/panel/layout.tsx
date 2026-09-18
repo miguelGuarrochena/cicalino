@@ -87,7 +87,7 @@ const PanelLayout = ({
     (path === "/panel" ||
       path.startsWith("/panel/pedidos") ||
       path.startsWith("/panel/espera") ||
-      path === "/panel/mesas");
+      path === "/panel/pagos");
 
   useWakeLock(role !== "superadmin");
   useBranchConfigSync(branchId);

@@ -61,7 +61,7 @@ export const onlyModule = (m: ModuleFlags): ModuleId | null => {
 export const modulePath = (id: ModuleId): string => {
   if (id === "pedidos") return "/panel/pedidos";
   if (id === "espera") return "/panel/espera";
-  return "/panel/mesas";
+  return "/panel/pagos";
 };
 
 /** Home del panel: un solo módulo va directo; si hay varios, el hub.

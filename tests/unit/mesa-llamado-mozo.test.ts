@@ -16,7 +16,7 @@ const guest = readFileSync(
   "utf8",
 );
 const mesas = readFileSync(
-  join(root, "src/app/(app)/panel/mesas/page.tsx"),
+  join(root, "src/app/(app)/panel/pagos/page.tsx"),
   "utf8",
 );
 

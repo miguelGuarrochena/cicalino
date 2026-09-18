@@ -280,14 +280,32 @@ const MesasPage = () => {
               : t("mesas.subtitulo")}
           </p>
         </div>
-        {canManage && (
-          <Link
-            href="/panel/mesas/qr"
-            className="min-h-10 text-sm font-semibold text-carbon/55 underline-offset-4 hover:text-carbon hover:underline"
+        {/* Administración: lo que se hace una vez y no durante el servicio.
+            Va con el peso visual de un pie de página, no el de una pestaña —
+            el mozo en hora pico no tiene que tropezarse con esto. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-carbon/35">
+            {t("mesas.administracion")}
+          </span>
+          {canManage && (
+            <Link
+              href="/panel/pagos/qr"
+              className="min-h-10 text-sm font-semibold text-carbon/55 underline-offset-4 hover:text-carbon hover:underline"
+            >
+              {t("mesas.qrGestion")}
+            </Link>
+          )}
+          <button
+            type="button"
+            aria-pressed={tab === "turno"}
+            onClick={() => setTab(tab === "turno" ? "todas" : "turno")}
+            className={`min-h-10 text-sm font-semibold underline-offset-4 hover:text-carbon hover:underline ${
+              tab === "turno" ? "text-marca underline" : "text-carbon/55"
+            }`}
           >
-            {t("mesas.qrGestion")}
-          </Link>
-        )}
+            {t("mesas.filtroTurno")}
+          </button>
+        </div>
       </header>
 
       <SyncErrorBanner error={syncError} />
@@ -303,7 +321,7 @@ const MesasPage = () => {
           action={
             canManage ? (
               <Link
-                href="/panel/mesas/qr"
+                href="/panel/pagos/qr"
                 className="inline-flex min-h-10 items-center text-sm font-semibold text-marca underline-offset-4 hover:underline"
               >
                 {t("mesas.qrGestion")}
@@ -354,11 +372,6 @@ const MesasPage = () => {
                   id: "todas",
                   label: t("mesas.filtroTodas"),
                   icon: <TabGlyph k="todas" />,
-                },
-                {
-                  id: "turno",
-                  label: t("mesas.filtroTurno"),
-                  icon: <TabGlyph k="turno" />,
                 },
               ]}
             />

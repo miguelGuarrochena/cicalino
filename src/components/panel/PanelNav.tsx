@@ -16,7 +16,7 @@ import type { PanelAlertSource } from "@/lib/panelAlerts";
 const SOURCE_BY_HREF: Record<string, PanelAlertSource> = {
   "/panel/pedidos": "pedidos",
   "/panel/espera": "recepcion",
-  "/panel/mesas": "mesas",
+  "/panel/pagos": "mesas",
 };
 
 export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) => {
@@ -27,7 +27,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
   const counts = usePanelAlertCounts();
 
   const pendingFor = (href: string) => {
-    if (href === "/panel/mesas") return attention.headerUnseen;
+    if (href === "/panel/pagos") return attention.headerUnseen;
     const source = SOURCE_BY_HREF[href];
     return source ? counts[source] : 0;
   };
@@ -48,7 +48,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t border-linea bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden print:hidden">
         {links.map((l) => {
           const active = navLinkActive(l.href, path);
-          const isMesas = l.href === "/panel/mesas";
+          const isMesas = l.href === "/panel/pagos";
           const pending = pendingFor(l.href);
           const split = isMesas && attention.headerPedido > 0 && attention.headerCuenta > 0;
           const priority = isMesas && attention.headerPriority;
@@ -82,7 +82,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
     <nav className="hidden items-center gap-1 rounded-full bg-crema/60 p-1 sm:flex">
       {links.map((l) => {
         const active = navLinkActive(l.href, path);
-        const isMesas = l.href === "/panel/mesas";
+        const isMesas = l.href === "/panel/pagos";
         const pending = pendingFor(l.href);
         const split = isMesas && attention.headerPedido > 0 && attention.headerCuenta > 0;
         const priority = isMesas && attention.headerPriority;
