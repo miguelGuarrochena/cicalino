@@ -37,6 +37,19 @@
   /* Módulo Espera de mesa — teal dentro de la gama (hermano del cobalto) */
   --espera: #0f766e;
   --espera-strong: #0d9488;
+  /* Módulo Pagos — ámbar dorado, el cálido que le falta a la gama.
+   *
+   * En claro va oscuro y no dorado claro, y no es una preferencia: un
+   * #d9a441 sobre el crema da 2,0:1, ilegible como texto y como fondo. Este
+   * tiene el mismo tono (80° en Lab) y 4,8:1, exactamente el mismo contraste
+   * que el teal de Recepción. El dorado de verdad aparece en oscuro, que es
+   * donde el fondo lo deja respirar.
+   *
+   * También se mantiene lejos de `--curso` (ΔE 26), que es el ámbar de "pago
+   * a confirmar": una cosa es de qué sección estás y otra es qué hay que
+   * hacer ahí. */
+  --pagos: #8a6200;
+  --pagos-strong: #a37600;
   --line: #e4dfc2;
   --mascota: #2536d4;
 
@@ -68,6 +81,8 @@
     --brand-strong: #9aa4ff;
     --espera: #2dd4bf;
     --espera-strong: #5eead4;
+    --pagos: #d9a441;
+    --pagos-strong: #e8bd63;
     --line: #2a2f5c;
     --mascota: #ede9ce;
     --curso: #fcd34d;
@@ -92,6 +107,8 @@
   --brand-strong: #9aa4ff;
   --espera: #2dd4bf;
   --espera-strong: #5eead4;
+  --pagos: #d9a441;
+  --pagos-strong: #e8bd63;
   --line: #2a2f5c;
   --mascota: #ede9ce;
   --curso: #fcd34d;
@@ -114,6 +131,8 @@
   --color-marca-fuerte: var(--brand-strong);
   --color-espera: var(--espera);
   --color-espera-fuerte: var(--espera-strong);
+  --color-pagos: var(--pagos);
+  --color-pagos-fuerte: var(--pagos-strong);
   --color-linea: var(--line);
   --color-curso: var(--curso);
   --color-curso-fondo: var(--curso-fondo);

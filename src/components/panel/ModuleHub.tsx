@@ -6,10 +6,12 @@ import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { NavIconSvg } from "@/components/panel/NavIcons";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 
+/* Un color por módulo. Pagos compartía el azul de Pedidos y en el hub eran
+ * dos círculos iguales: el color dejaba de decir de qué sección era. */
 const TONE: Record<string, string> = {
   orders: "border-marca/30 bg-marca/10 text-marca",
   espera: "border-espera/30 bg-espera/10 text-espera",
-  mesas: "border-marca/30 bg-marca/10 text-marca",
+  mesas: "border-pagos/30 bg-pagos/10 text-pagos",
 };
 
 export const ModuleHub = () => {

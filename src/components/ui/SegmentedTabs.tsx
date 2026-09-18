@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { CountBadge } from "@/components/ui/CountBadge";
 
-type Accent = "marca" | "espera";
+type Accent = "marca" | "espera" | "pagos";
 
 export type SegmentedTab<T extends string> = {
   id: T;
@@ -30,7 +31,9 @@ export const SegmentedTabs = <T extends string>({
   const active =
     accent === "espera"
       ? "border-espera bg-espera text-crema"
-      : "border-marca bg-marca text-crema";
+      : accent === "pagos"
+        ? "border-pagos bg-pagos text-crema"
+        : "border-marca bg-marca text-crema";
   const n = options.length;
   const cols =
     n <= 2
@@ -76,22 +79,28 @@ export const SegmentedTabs = <T extends string>({
               </span>
             ) : null}
             <span className="leading-tight">{opt.label}</span>
-            {showBadge ? (
+            {/* El globito grande es para trabajo sin atender. El resto de los
+                números de esta barra son conteos de filtro —cuántas mesas hay,
+                cuántos pedidos entran en cada estado— y esos siguen adentro,
+                chiquitos: un número que grita sin pedir nada enseña a
+                ignorarlos a todos. */}
+            {showBadge && pulse && !selected ? (
+              <CountBadge
+                n={Number(opt.badge)}
+                tone={opt.priority ? "curso" : "marca"}
+                pulse
+                className="absolute -right-2 -top-2"
+              />
+            ) : showBadge ? (
               <span
                 className={`absolute right-2 top-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
-                  pulse && !selected ? "min-w-7 px-2 py-0.5 text-sm" : ""
-                } ${
                   selected
                     ? "bg-crema/20 text-crema"
-                    : pulse && opt.priority
-                      ? "bg-curso text-crema"
-                      : pulse
-                        ? "bg-marca text-crema"
-                        : opt.tone === "curso"
-                          ? "bg-curso-fondo text-curso"
-                          : opt.tone === "marca"
-                            ? "bg-marca/15 text-marca"
-                            : "bg-carbon/10 text-carbon/70"
+                    : opt.tone === "curso"
+                      ? "bg-curso-fondo text-curso"
+                      : opt.tone === "marca"
+                        ? "bg-marca/15 text-marca"
+                        : "bg-carbon/10 text-carbon/70"
                 }`}
               >
                 {opt.badge}

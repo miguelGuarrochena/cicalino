@@ -280,18 +280,16 @@ const MesasPage = () => {
               : t("mesas.subtitulo")}
           </p>
         </div>
-        {/* Administración: lo que se hace una vez y no durante el servicio.
-            Va con el peso visual de un pie de página, no el de una pestaña —
-            el mozo en hora pico no tiene que tropezarse con esto. */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-carbon/35">
-            {t("mesas.administracion")}
-          </span>
+        {/* Lo que no se toca durante el servicio: mismo tipo de botón que la
+            navegación de arriba —redondo, con ícono— pero en versión de
+            contorno, así se lee como botón sin competirle a lo operativo. */}
+        <div className="flex flex-wrap items-center gap-2">
           {canManage && (
             <Link
               href="/panel/pagos/qr"
-              className="min-h-10 text-sm font-semibold text-carbon/55 underline-offset-4 hover:text-carbon hover:underline"
+              className="flex min-h-11 items-center gap-2 rounded-full border border-linea bg-surface px-4 text-sm font-semibold text-carbon/70 transition hover:border-carbon/25 hover:text-carbon"
             >
+              <TabGlyph k="qr" size={18} />
               {t("mesas.qrGestion")}
             </Link>
           )}
@@ -299,10 +297,13 @@ const MesasPage = () => {
             type="button"
             aria-pressed={tab === "turno"}
             onClick={() => setTab(tab === "turno" ? "todas" : "turno")}
-            className={`min-h-10 text-sm font-semibold underline-offset-4 hover:text-carbon hover:underline ${
-              tab === "turno" ? "text-marca underline" : "text-carbon/55"
+            className={`flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition ${
+              tab === "turno"
+                ? "border-marca bg-marca text-crema"
+                : "border-linea bg-surface text-carbon/70 hover:border-carbon/25 hover:text-carbon"
             }`}
           >
+            <TabGlyph k="turno" size={18} />
             {t("mesas.filtroTurno")}
           </button>
         </div>
@@ -348,6 +349,7 @@ const MesasPage = () => {
 
             <SegmentedTabs
               ariaLabel={t("mesas.resumen")}
+              accent="pagos"
               value={tab}
               onChange={setTab}
               options={[

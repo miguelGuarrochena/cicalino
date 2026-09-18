@@ -172,10 +172,19 @@ describe("Operación — jerarquía y layout", () => {
     expect(nav).toContain("headerPedido");
     expect(nav).toContain("headerCuenta");
     expect(nav).toContain("nav.pedidoYCuenta");
-    /* El aviso de la nav late fuerte: el pulso suave no se ve de reojo en un
-     * salón lleno, que es la única situación en la que importa. */
-    expect(nav).toContain("u-alert-beat");
-    expect(nav).toContain("u-alert-halo");
+    /* El contador vive en un solo componente —lo dibujaban tres— y es un globo
+     * superpuesto, como el de mensajes sin leer: 10 px adentro del botón es un
+     * detalle decorativo, y esto tiene que verse de reojo desde el salón. */
+    const globo = read("src/components/ui/CountBadge.tsx");
+    expect(nav).toContain("CountBadge");
+    expect(globo).toContain("u-alert-beat");
+    expect(globo).toContain("u-alert-halo");
+    expect(globo).toContain("rounded-full");
+    /* Cero no dibuja nada, y no crece sin límite. */
+    expect(globo).toContain("if (n <= 0) return null;");
+    expect(globo).toContain('n > 99 ? "99+" : n');
+    /* Asomado por la esquina, no adentro. */
+    expect(nav).toContain("absolute -right-5 -top-4");
     expect(nav).not.toContain("alert(");
     expect(css).toContain("u-alert-beat");
     expect(css).toContain("u-alert-halo");
@@ -202,7 +211,9 @@ describe("Operación — jerarquía y layout", () => {
     const mesas = read("src/app/(app)/panel/pagos/page.tsx");
     expect(mesas).toContain("expanded={showClosed}");
     expect(mesas).not.toContain("tab === \"cobrar\" || showClosed");
-    expect(nav).toContain("bg-curso");
+    /* El tono lo elige quien lo usa; los colores viven en el globo. */
+    expect(nav).toContain('tone={priority ? "curso" : "marca"}');
+    expect(read("src/components/ui/CountBadge.tsx")).toContain("bg-curso");
   });
 
   it("el panel no usa el select nativo: las opciones van por el Select de la app", () => {
@@ -262,10 +273,21 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesasPage).toContain('k="cobrar"');
     expect(mesasPage).toContain('k="todas"');
     /* Turnos salió de las pestañas operativas: es administración, no algo que
-     * el mozo toque durante el servicio. Sigue llegándose desde la pantalla. */
-    expect(mesasPage).not.toContain('k="turno"');
-    expect(mesasPage).toContain("mesas.administracion");
+     * el mozo toque durante el servicio. Sigue llegándose desde la pantalla,
+     * con su botón propio — por eso se mira el bloque de pestañas y no el
+     * archivo entero. */
+    const pestanas = mesasPage.slice(
+      mesasPage.indexOf("<SegmentedTabs"),
+      mesasPage.indexOf("{tab === \"turno\" ?"),
+    );
+    expect(pestanas).toContain('k="pedido"');
+    expect(pestanas).not.toContain('k="turno"');
     expect(mesasPage).toContain('setTab(tab === "turno" ? "todas" : "turno")');
+    /* Y se ven como botones, no como links sueltos: redondos y con ícono,
+       igual que la navegación, pero de contorno para no competirle. */
+    expect(mesasPage).toContain('<TabGlyph k="qr" size={18} />');
+    expect(mesasPage).toContain('<TabGlyph k="turno" size={18} />');
+    expect(mesasPage).toContain("rounded-full border border-linea bg-surface px-4");
     expect(mesasPage).toContain('tone: "marca"');
     expect(mesasPage).toContain('tone: "curso"');
     expect(tabs).toContain('tone?: "marca" | "curso"');
