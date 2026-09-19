@@ -319,29 +319,15 @@ const ConfigPage = () => {
           </div>
           <HelpLink seccion="config" />
         </div>
-        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
-          {dirty && !saving && (
-            <span
-              role="status"
-              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-amber-400/60 bg-amber-50/80 px-3 py-1.5 text-xs font-semibold text-amber-900 dark:bg-amber-400/10 dark:text-amber-200"
-            >
-              <span className="size-1.5 rounded-full bg-amber-500" />
-              {t("config.sinGuardar")}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => void guardar()}
-            disabled={saving}
-            className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-60 sm:w-auto"
+        {dirty && !saving && (
+          <span
+            role="status"
+            className="inline-flex items-center gap-1.5 self-start rounded-full border border-amber-400/60 bg-amber-50/80 px-3 py-1.5 text-xs font-semibold text-amber-900 dark:bg-amber-400/10 dark:text-amber-200"
           >
-            {saving
-              ? "…"
-              : guardado
-                ? `✓ ${t("config.guardado")}`
-                : t("config.guardar")}
-          </button>
-        </div>
+            <span className="size-1.5 rounded-full bg-amber-500" />
+            {t("config.sinGuardar")}
+          </span>
+        )}
       </div>
 
       <Accordion
@@ -598,60 +584,74 @@ const ConfigPage = () => {
           </p>
         </div>
 
-        {c.moduloEspera && (
-          <div className="mt-5 border-t border-linea pt-5">
-            <p className="text-sm font-medium text-carbon/70">
-              {t("config.diasCerrados")}
-            </p>
-            <p className="mt-1 text-xs text-carbon/50">
-              {t("config.diasCerradosSub")}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {DIAS_SEMANA.map((d) => {
-                const cerrado = diasCerrados.includes(d.id);
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() =>
-                      editar(
-                        "diasCerrados",
-                        cerrado
-                          ? diasCerrados.filter((x) => x !== d.id)
-                          : [...diasCerrados, d.id],
-                      )
-                    }
-                    className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+        {/* Antes esto vivía adentro de `c.moduloEspera`: los días cerrados eran
+            "los que no aparecen en el calendario de reservas". Ahora valen para
+            todo el panel —la plantilla de mesas, el historial, la jornada—, así
+            que un local con Pedidos o Pagos también los tiene que poder
+            marcar. */}
+        <div className="mt-5 border-t border-linea pt-5">
+          <p className="text-sm font-medium text-carbon/70">
+            {t("config.diasCerrados")}
+          </p>
+          <p className="mt-1 text-xs text-carbon/50">
+            {t("config.diasCerradosSub")}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {DIAS_SEMANA.map((d) => {
+              const cerrado = diasCerrados.includes(d.id);
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() =>
+                    editar(
+                      "diasCerrados",
                       cerrado
-                        ? "bg-alerta text-crema"
-                        : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
-                    }`}
-                  >
-                    {locale === "en" ? d.en : d.es}
-                  </button>
-                );
-              })}
-            </div>
+                        ? diasCerrados.filter((x) => x !== d.id)
+                        : [...diasCerrados, d.id],
+                    )
+                  }
+                  className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+                    cerrado
+                      ? "bg-alerta text-crema"
+                      : "border border-linea bg-surface text-carbon/70 hover:bg-carbon/5"
+                  }`}
+                >
+                  {locale === "en" ? d.en : d.es}
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
       </Accordion>
 
-      {dirty && (
-        <div className="sticky bottom-20 z-20 -mx-4 mt-4 border-t border-linea bg-crema/95 px-4 py-3 sm:hidden">
-          <button
-            type="button"
-            onClick={() => void guardar()}
-            disabled={saving}
-            className="min-h-12 w-full rounded-full bg-marca px-5 text-sm font-semibold text-crema disabled:opacity-60"
-          >
-            {saving
-              ? "…"
-              : guardado
-                ? `✓ ${t("config.guardado")}`
-                : t("config.guardar")}
-          </button>
-        </div>
-      )}
+      {/* Guardar no se va de pantalla.
+          Antes vivía arriba del todo y esta barra aparecía solo en el celular:
+          abrías una sección de más abajo, cambiabas algo y te ibas a otra
+          pantalla sin enterarte de que había quedado sin guardar. Ahora la
+          barra está siempre, en cualquier tamaño, y dice cómo está la cosa. */}
+      <div className="sticky bottom-20 z-20 -mx-4 mt-4 flex items-center justify-between gap-3 border-t border-linea bg-crema/95 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:bottom-0 sm:px-6">
+        <p
+          role="status"
+          className={`min-w-0 text-xs font-semibold ${
+            dirty ? "text-amber-700 dark:text-amber-300" : "text-carbon/45"
+          }`}
+        >
+          {dirty ? t("config.sinGuardar") : t("config.alDia")}
+        </p>
+        <button
+          type="button"
+          onClick={() => void guardar()}
+          disabled={saving || !dirty}
+          className="min-h-12 shrink-0 rounded-full bg-marca px-6 text-sm font-semibold text-crema transition active:scale-95 disabled:opacity-40"
+        >
+          {saving
+            ? "…"
+            : guardado
+              ? `✓ ${t("config.guardado")}`
+              : t("config.guardar")}
+        </button>
+      </div>
     </div>
   );
 };

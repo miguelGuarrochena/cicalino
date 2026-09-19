@@ -40,6 +40,7 @@ const HistorialPage = () => {
   const { visibles, canManage, ready: branchReady } = useOperationalAccess();
   const branchName = useConfigStore((s) => s.name);
   const cutoffHour = useConfigStore((s) => s.cutoffHour);
+  const diasCerrados = useConfigStore((s) => s.diasCerrados);
 
   const [preset, setPreset] = useState<RangoPreset>("7d");
   const [desde, setDesde] = useState("");
@@ -64,7 +65,11 @@ const HistorialPage = () => {
   const cargar = useCallback(async () => {
     if (!branchId || !visibles.pagos) return;
     setCargando(true);
-    const rango = rangoDe(preset, cutoffHour, { desde, hasta });
+    const rango = rangoDe(preset, cutoffHour, {
+      desde,
+      hasta,
+      cerrados: diasCerrados,
+    });
     const res = await fetchTableClosings(branchId, {
       ...rango,
       estado,
@@ -80,7 +85,18 @@ const HistorialPage = () => {
       setError(res.error);
     }
     setCargando(false);
-  }, [branchId, visibles.pagos, preset, cutoffHour, desde, hasta, estado, qBuscado, pagina]);
+  }, [
+    branchId,
+    visibles.pagos,
+    preset,
+    cutoffHour,
+    diasCerrados,
+    desde,
+    hasta,
+    estado,
+    qBuscado,
+    pagina,
+  ]);
 
   useEffect(() => {
     const id = setTimeout(() => {

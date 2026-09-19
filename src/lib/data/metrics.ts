@@ -63,7 +63,8 @@ interface Resumen {
 
 const desde = (period: Periodo): Date => {
   if (period === "dia") {
-    return businessDayStart(useConfigStore.getState().cutoffHour);
+    const { cutoffHour, diasCerrados } = useConfigStore.getState();
+    return businessDayStart(cutoffHour, new Date(), TZ_NEGOCIO, diasCerrados);
   }
   const d = new Date();
   if (period === "semana") d.setDate(d.getDate() - 6);

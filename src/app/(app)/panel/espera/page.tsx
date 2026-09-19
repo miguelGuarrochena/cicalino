@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
+import { CerradoHoyAviso } from "@/components/panel/CerradoHoyAviso";
 import { QrModal } from "@/components/panel/QrModal";
 import { slicePage } from "@/components/ui/Pagination";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -168,7 +169,12 @@ const EsperaPanelPage = () => {
     [esperas],
   );
   const canceladasHoy = useMemo(() => {
-    const desde = businessDayStart(cutoffHour).toISOString();
+    const desde = businessDayStart(
+      cutoffHour,
+      new Date(),
+      TZ_NEGOCIO,
+      diasCerrados,
+    ).toISOString();
     return esperas
       .filter(
         (e) =>
@@ -180,7 +186,7 @@ const EsperaPanelPage = () => {
           a.cancelledAt ?? a.createdAt,
         ),
       );
-  }, [esperas, cutoffHour]);
+  }, [esperas, cutoffHour, diasCerrados]);
   const reservasActivas = useMemo(
     () => reservas.filter((r) => r.status === "activa"),
     [reservas],
@@ -544,6 +550,7 @@ const EsperaPanelPage = () => {
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <SyncErrorBanner error={syncError} />
+      <CerradoHoyAviso />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
@@ -709,6 +716,7 @@ const EsperaPanelPage = () => {
             reservas={reservasAgenda}
             locale={locale}
             ahora={ahora}
+            closedDays={diasCerrados}
             onSentar={(id) => {
               if (sentandoRef.current) return;
               sentandoRef.current = true;

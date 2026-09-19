@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -23,9 +23,9 @@ import {
   uniqueIds,
   weekdayFromOffset,
   weekdaysInSpan,
-  shiftWeekday,
 } from "@/components/panel/mesas/jornadaUi";
 import type { EmployeeUI } from "@/lib/store/config-store";
+import { isClosedIsoWeekday, shiftToOpenIsoWeekday } from "@/lib/closedDays";
 import {
   WEEKDAYS,
   assignmentByTable,
@@ -63,6 +63,7 @@ export const JornadaBoard = ({
   tableCount,
   occupied,
   employees,
+  closedDays,
   canManage,
   actorId,
   onChanged,
@@ -73,6 +74,9 @@ export const JornadaBoard = ({
   tableCount: number;
   occupied: Set<number>;
   employees: EmployeeUI[];
+  /* Los francos del local, como los guarda Configuración (0 = domingo). Acá
+   * los días son ISO, que es como los numera la base. */
+  closedDays: number[];
   canManage: boolean;
   actorId: string | null;
   onChanged: () => void;
@@ -86,13 +90,17 @@ export const JornadaBoard = ({
     () => mesas.map((n) => ({ value: String(n), label: String(n) })),
     [mesas],
   );
+  const cerrado = useCallback(
+    (d: number) => isClosedIsoWeekday(d, closedDays),
+    [closedDays],
+  );
   const dayOpts = useMemo(
     () =>
-      WEEKDAYS.map((d) => ({
+      WEEKDAYS.filter((d) => !cerrado(d)).map((d) => ({
         value: String(d),
         label: t(`recepcion.diaCorto.${d}`),
       })),
-    [t],
+    [t, cerrado],
   );
   const empIds = useMemo(() => employees.map((e) => e.id), [employees]);
   const empOpts = useMemo(
@@ -144,6 +152,7 @@ export const JornadaBoard = ({
   const todayWeekday = shift.weekday || 1;
   const viewWeekday = weekdayFromOffset(todayWeekday, dayOffset);
   const viewingToday = dayOffset === 0;
+  const viewCerrado = cerrado(viewWeekday);
 
   const ownersOf = (d: number) =>
     drafts[draftKey(activeTramo, d)] ??
@@ -214,7 +223,27 @@ export const JornadaBoard = ({
 
   const closeUi = () => setOpen(null);
 
+  /* Los francos se saltean al navegar: si cierra los lunes, del domingo el
+   * botón "siguiente" lleva al martes. Vale la pena el bucle porque el offset
+   * cuenta días de almanaque —el encabezado muestra la fecha— y no días de la
+   * plantilla. */
+  const irADia = (delta: 1 | -1) => {
+    setDayOffset((n) => {
+      let next = n + delta;
+      for (
+        let i = 0;
+        i < WEEKDAYS.length && cerrado(weekdayFromOffset(todayWeekday, next));
+        i++
+      ) {
+        next += delta;
+      }
+      return next;
+    });
+    closeUi();
+  };
+
   const openDay = (d: number) => {
+    if (cerrado(d)) return;
     setDiaOverride(d);
     setBrush("");
     setOpen({ kind: "day" });
@@ -231,7 +260,11 @@ export const JornadaBoard = ({
     mesaFrom: number;
     mesaTo: number;
   }) => {
-    const days = weekdaysInSpan(payload.dayFrom, payload.dayTo);
+    /* El rango puede ir de viernes a martes: los francos del medio quedan
+     * afuera en vez de guardarles una plantilla que nadie va a trabajar. */
+    const days = weekdaysInSpan(payload.dayFrom, payload.dayTo).filter(
+      (d) => !cerrado(d),
+    );
     const tables = tablesInRange(payload.mesaFrom, payload.mesaTo).filter(
       (n) => n <= tableCount,
     );
@@ -283,6 +316,9 @@ export const JornadaBoard = ({
   };
 
   const picked = open?.kind === "mesa" ? open.table : null;
+  /* El día con el que abre el modal de rangos. Si hoy es franco no está entre
+   * las opciones, así que arranca en el primero que el local abre. */
+  const diaRango = cerrado(dia) ? shiftToOpenIsoWeekday(dia, 1, closedDays) : dia;
   const rangeScope = open?.kind === "range" ? open.scope : null;
   const rangeMesaFrom = String(freeToday?.from ?? mesas[0] ?? 1);
   const rangeMesaTo = String(freeToday?.to ?? mesas[0] ?? 1);
@@ -336,22 +372,25 @@ export const JornadaBoard = ({
             <DayNavBtn
               dir="prev"
               label={t("recepcion.diaAnterior")}
-              onClick={() => {
-                setDayOffset((n) => n - 1);
-                closeUi();
-              }}
+              onClick={() => irADia(-1)}
             />
-            <h2 className="min-w-0 flex-1 text-center font-display text-2xl uppercase tracking-tight text-carbon">
-              {t(`recepcion.dia.${viewWeekday}`)}
-              {viewFecha ? ` — ${viewFecha}` : ""}
-            </h2>
+            <div className="min-w-0 flex-1 text-center">
+              <h2 className="font-display text-2xl uppercase tracking-tight text-carbon">
+                {t(`recepcion.dia.${viewWeekday}`)}
+                {viewFecha ? ` — ${viewFecha}` : ""}
+              </h2>
+              {/* Hoy cae en un franco: las mesas que se ven son las que
+                  quedaron abiertas de la última jornada trabajada. */}
+              {viewCerrado && (
+                <span className="mt-1 inline-block rounded-full bg-carbon/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-carbon/55">
+                  {t("panel.cerrado")}
+                </span>
+              )}
+            </div>
             <DayNavBtn
               dir="next"
               label={t("recepcion.diaSiguiente")}
-              onClick={() => {
-                setDayOffset((n) => n + 1);
-                closeUi();
-              }}
+              onClick={() => irADia(1)}
             />
           </div>
         </header>
@@ -498,6 +537,8 @@ export const JornadaBoard = ({
               ownersOf={ownersOf}
               onSelectDay={openDay}
               dayLabel={(d) => t(`recepcion.diaCorto.${d}`)}
+              isClosed={cerrado}
+              closedLabel={t("panel.cerrado")}
             />
           </div>
 
@@ -542,7 +583,9 @@ export const JornadaBoard = ({
             const owner = owners[n] || null;
             markTable(n, owner === brush ? null : brush);
           }}
-          onShiftDay={(delta) => setDiaOverride(shiftWeekday(dia, delta))}
+          onShiftDay={(delta) =>
+            setDiaOverride(shiftToOpenIsoWeekday(dia, delta, closedDays))
+          }
           onClose={closeUi}
         />
       ) : null}
@@ -557,8 +600,8 @@ export const JornadaBoard = ({
           mesaOpts={mesaOpts}
           dayOpts={dayOpts}
           defaultEmp={brush}
-          defaultDayFrom={String(dia)}
-          defaultDayTo={String(dia)}
+          defaultDayFrom={String(diaRango)}
+          defaultDayTo={String(diaRango)}
           defaultMesaFrom={rangeMesaFrom}
           defaultMesaTo={rangeMesaTo}
           busy={busy != null}

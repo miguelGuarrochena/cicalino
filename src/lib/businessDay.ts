@@ -10,6 +10,14 @@
  * recibe la zona por parámetro — la firma ya está preparada para eso.
  */
 
+import {
+  DAYS_IN_WEEK,
+  calendarDaysForOpenDays,
+  everyDayClosed,
+  isClosedWeekday,
+  type ClosedDays,
+} from "@/lib/closedDays";
+
 export const DEFAULT_CUTOFF_HOUR = 6;
 
 export const TZ_NEGOCIO = "America/Argentina/Buenos_Aires";
@@ -100,6 +108,18 @@ export const dateKeyInTz = (
   return `${p.year}-${dosDigitos(p.month)}-${dosDigitos(p.day)}`;
 };
 
+/* Qué día de la semana es, en la zona del negocio (0 = domingo, como
+ * `Date.getDay()`). No sale de `getUTCDay()` porque el instante puede caer del
+ * otro lado de la medianoche de Greenwich: con corte a las 22, las 22:00 de un
+ * sábado en Buenos Aires ya son las 01:00 del domingo en UTC. */
+export const weekdayInTz = (
+  ahora: Date = new Date(),
+  tz: string = TZ_NEGOCIO,
+): number => {
+  const p = partesEnZona(ahora, tz);
+  return new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay();
+};
+
 /* Minutos transcurridos desde la medianoche, en la zona del negocio. */
 export const minutesOfDayInTz = (
   ahora: Date = new Date(),
@@ -139,24 +159,58 @@ export const instantFromBusinessWallClock = (
   return instanteEnZona(year, month, day, h, tz, m);
 };
 
+/* El día del calendario al que pertenece la jornada en curso, como los
+ * milisegundos UTC de su medianoche. Sirve de cursor para las cuentas de
+ * abajo: sumar y restar días acá es sumar y restar 86.400.000. */
+const diaDeJornada = (
+  hora: number,
+  ahora: Date,
+  tz: string,
+  cerrados: ClosedDays,
+): number => {
+  const p = partesEnZona(ahora, tz);
+  let dia = Date.UTC(p.year, p.month - 1, p.day);
+  if (p.hour < hora) dia -= 86_400_000;
+  /* En un día cerrado la jornada no cambia: se queda en la del último día que
+   * abrió. Si el local cierra los lunes, lo que quedó abierto el domingo a la
+   * noche sigue a la vista el lunes a las diez de la mañana en vez de
+   * desaparecer en un corte que nadie trabajó. */
+  if (!everyDayClosed(cerrados)) {
+    for (
+      let i = 0;
+      i < DAYS_IN_WEEK && isClosedWeekday(new Date(dia).getUTCDay(), cerrados);
+      i++
+    ) {
+      dia -= 86_400_000;
+    }
+  }
+  return dia;
+};
+
+/* El corte de ese día del calendario, en la zona del negocio. */
+const corteDe = (dia: number, hora: number, tz: string): Date => {
+  const d = new Date(dia);
+  return instanteEnZona(
+    d.getUTCFullYear(),
+    d.getUTCMonth() + 1,
+    d.getUTCDate(),
+    hora,
+    tz,
+  );
+};
+
 /* Arranque de la jornada: hoy a la hora de corte, o ayer si todavía no
  * llegamos a esa hora. Con corte a las 6, a las 3 de la mañana seguís
- * trabajando en la jornada de ayer. */
+ * trabajando en la jornada de ayer.
+ *
+ * `cerrados` son los días que el local no abre (0 = domingo, como
+ * `Date.getDay()`). Sin ellos la función se comporta igual que siempre. */
 export const businessDayStart = (
   hora: number = DEFAULT_CUTOFF_HOUR,
   ahora: Date = new Date(),
   tz: string = TZ_NEGOCIO,
-): Date => {
-  const p = partesEnZona(ahora, tz);
-  let { year, month, day } = p;
-  if (p.hour < hora) {
-    const ayer = new Date(Date.UTC(year, month - 1, day) - 86_400_000);
-    year = ayer.getUTCFullYear();
-    month = ayer.getUTCMonth() + 1;
-    day = ayer.getUTCDate();
-  }
-  return instanteEnZona(year, month, day, hora, tz);
-};
+  cerrados: ClosedDays = [],
+): Date => corteDe(diaDeJornada(hora, ahora, tz, cerrados), hora, tz);
 
 /* Cierre: la misma hora de corte del día siguiente.
  *
@@ -166,22 +220,24 @@ export const businessDayEnd = (
   hora: number = DEFAULT_CUTOFF_HOUR,
   ahora: Date = new Date(),
   tz: string = TZ_NEGOCIO,
+  cerrados: ClosedDays = [],
 ): Date => {
-  const inicio = businessDayStart(hora, ahora, tz);
-  const p = partesEnZona(inicio, tz);
-  const manana = new Date(
-    Date.UTC(p.year, p.month - 1, p.day) + 86_400_000,
-  );
-  return instanteEnZona(
-    manana.getUTCFullYear(),
-    manana.getUTCMonth() + 1,
-    manana.getUTCDate(),
-    hora,
-    tz,
-  );
+  let dia = diaDeJornada(hora, ahora, tz, cerrados) + 86_400_000;
+  /* La jornada termina cuando arranca la siguiente, y la siguiente arranca el
+   * próximo día que el local abre. */
+  if (!everyDayClosed(cerrados)) {
+    for (
+      let i = 0;
+      i < DAYS_IN_WEEK && isClosedWeekday(new Date(dia).getUTCDay(), cerrados);
+      i++
+    ) {
+      dia += 86_400_000;
+    }
+  }
+  return corteDe(dia, hora, tz);
 };
 
-/* Cuántos días calendario ofrece el picker de reservas en espera.
+/* Cuántos días ABIERTOS ofrece el picker de reservas en espera.
  * Tiene que coincidir con `buildDayOptions` en `lib/espera/slots.ts`. */
 export const RESERVATION_PICKER_DAYS = 7;
 
@@ -196,12 +252,23 @@ export const reservationFetchRange = (
   hora: number = DEFAULT_CUTOFF_HOUR,
   ahora: Date = new Date(),
   tz: string = TZ_NEGOCIO,
+  cerrados: ClosedDays = [],
 ): { start: Date; end: Date } => {
-  const start = businessDayStart(hora, ahora, tz);
+  const start = businessDayStart(hora, ahora, tz, cerrados);
+  /* Siete días abiertos son más de siete de almanaque cuando el local tiene
+   * francos: con el lunes cerrado, el séptimo día que el picker ofrece cae
+   * recién al octavo. Pidiendo de menos volvía el mismo `choque` contra una
+   * reserva que el panel no había bajado. */
+  const dias = calendarDaysForOpenDays(
+    RESERVATION_PICKER_DAYS,
+    weekdayInTz(start, tz),
+    cerrados,
+  );
   const end = businessDayEnd(
     hora,
-    new Date(start.getTime() + RESERVATION_PICKER_DAYS * 86_400_000),
+    new Date(start.getTime() + dias * 86_400_000),
     tz,
+    cerrados,
   );
   return { start, end };
 };

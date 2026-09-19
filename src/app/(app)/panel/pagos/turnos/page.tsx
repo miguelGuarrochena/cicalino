@@ -27,6 +27,7 @@ const TurnosPage = () => {
   const { visibles, canManage, ready } = useOperationalAccess();
   const employees = useConfigStore((s) => s.employees);
   const tableCount = useConfigStore((s) => s.tableCount);
+  const diasCerrados = useConfigStore((s) => s.diasCerrados);
   const employee = useActiveEmployee();
   const { shift, live, refresh } = useFloorShift(
     visibles.pagos ? branchId : null,
@@ -70,6 +71,7 @@ const TurnosPage = () => {
         tableCount={tableCount}
         occupied={occupied}
         employees={employees}
+        closedDays={diasCerrados}
         canManage={canManage}
         actorId={employee?.id ?? null}
         onChanged={refresh}

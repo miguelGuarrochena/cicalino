@@ -21,8 +21,9 @@ export const useActiveEmployee = (): ActiveEmployee | null => {
   const emp = useSessionStore((s) => s.empleadoActivo);
   const salir = useSessionStore((s) => s.salir);
   const cutoffHour = useConfigStore((s) => s.cutoffHour);
+  const diasCerrados = useConfigStore((s) => s.diasCerrados);
 
-  const vigente = fichajeVigente(emp, cutoffHour);
+  const vigente = fichajeVigente(emp, cutoffHour, new Date(), diasCerrados);
 
   useEffect(() => {
     if (emp && !vigente) salir();

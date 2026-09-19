@@ -5,6 +5,7 @@ import {
   businessDayStart,
   businessDayEnd,
   reservationFetchRange,
+  TZ_NEGOCIO,
 } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import { isRealBranchId } from "@/lib/data/orders";
@@ -126,8 +127,13 @@ const SELECT_TABLE = "id, numero, estado, capacidad, espera_id, reserva_id";
  * corte sea visible y no lo decida el max-rows de PostgREST en silencio. */
 const MAX_FILAS_JORNADA = 1000;
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
-const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
-const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString();
+/* Los días que el local no abre: la jornada no cambia en un franco, así que
+ * lo de la última noche trabajada sigue en la lista de hoy. */
+const diasCerrados = (): number[] => useConfigStore.getState().diasCerrados;
+const startOfBusinessDay = (): string =>
+  businessDayStart(cutoffHour(), new Date(), TZ_NEGOCIO, diasCerrados()).toISOString();
+const endOfBusinessDay = (): string =>
+  businessDayEnd(cutoffHour(), new Date(), TZ_NEGOCIO, diasCerrados()).toISOString();
 
 /* Sync the table list to `cantidad` tables.
  *
@@ -219,7 +225,12 @@ export const fetchTodayReservations = async (
    * de la mañana siguiente queda fuera de la jornada abierta. Sin este
    * horizonte el panel muestra lista vacía y `crear_reserva` igual rechaza
    * por choque. */
-  const { start, end } = reservationFetchRange(cutoffHour());
+  const { start, end } = reservationFetchRange(
+    cutoffHour(),
+    new Date(),
+    TZ_NEGOCIO,
+    diasCerrados(),
+  );
   const { data, error } = await supabase
     .from("reservas")
     .select(SELECT_RESERVATION)

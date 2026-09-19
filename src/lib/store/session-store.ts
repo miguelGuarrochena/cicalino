@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabaseConfigured } from "@/lib/supabase/config";
-import { businessDayStart } from "@/lib/businessDay";
+import { businessDayStart, TZ_NEGOCIO } from "@/lib/businessDay";
+import type { ClosedDays } from "@/lib/closedDays";
 
 export interface ActiveEmployee {
   id: string;
@@ -116,12 +117,18 @@ export const fichajeVigente = (
   emp: ActiveEmployee | null,
   cutoffHour: number,
   ahora: Date = new Date(),
+  cerrados: ClosedDays = [],
 ): boolean => {
   if (!emp) return false;
   if (typeof emp.fichadoEn !== "number" || !Number.isFinite(emp.fichadoEn)) {
     return false;
   }
-  return emp.fichadoEn >= businessDayStart(cutoffHour, ahora).getTime();
+  /* Con los días cerrados la jornada no cambia en un franco, así que el
+   * fichaje tampoco vence ahí: sigue el mismo criterio que las listas. */
+  return (
+    emp.fichadoEn >=
+    businessDayStart(cutoffHour, ahora, TZ_NEGOCIO, cerrados).getTime()
+  );
 };
 
 export const clearSessionLocal = () => {

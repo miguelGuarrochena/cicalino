@@ -1,7 +1,7 @@
 "use client";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { businessDayStart, businessDayEnd } from "@/lib/businessDay";
+import { businessDayStart, businessDayEnd, TZ_NEGOCIO } from "@/lib/businessDay";
 import { useConfigStore } from "@/lib/store/config-store";
 import { newOrderSchema, parseInput, orderTransitionSources } from "@/lib/schemas";
 import { debounced, watchChannel } from "@/lib/realtime";
@@ -48,8 +48,13 @@ const mapRow = (r: Row): OrderView => ({
 });
 
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
-const startOfBusinessDay = (): string => businessDayStart(cutoffHour()).toISOString();
-const endOfBusinessDay = (): string => businessDayEnd(cutoffHour()).toISOString();
+/* Los días que el local no abre: la jornada no cambia en un franco, así que
+ * lo de la última noche trabajada sigue en la lista de hoy. */
+const diasCerrados = (): number[] => useConfigStore.getState().diasCerrados;
+const startOfBusinessDay = (): string =>
+  businessDayStart(cutoffHour(), new Date(), TZ_NEGOCIO, diasCerrados()).toISOString();
+const endOfBusinessDay = (): string =>
+  businessDayEnd(cutoffHour(), new Date(), TZ_NEGOCIO, diasCerrados()).toISOString();
 
 export interface OrdersPage {
   items: OrderView[];

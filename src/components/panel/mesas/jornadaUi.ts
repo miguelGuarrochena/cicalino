@@ -75,10 +75,3 @@ export const weekdayFromOffset = (weekday: number, offset: number): number => {
   const base = weekday >= 1 && weekday <= 7 ? weekday : 1;
   return ((((base - 1 + offset) % 7) + 7) % 7) + 1;
 };
-
-export const shiftWeekday = (day: number, delta: -1 | 1): number => {
-  const i = WEEKDAYS.indexOf(day as (typeof WEEKDAYS)[number]);
-  const idx = i < 0 ? 0 : i;
-  const next = (idx + delta + WEEKDAYS.length) % WEEKDAYS.length;
-  return WEEKDAYS[next]!;
-};

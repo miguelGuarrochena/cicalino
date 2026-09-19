@@ -24,6 +24,12 @@
 -- ---------------------------------------------------------------------------
 -- Arranque de jornada. Misma cuenta que crear_pedido en security-fixes-15.
 -- No se otorga a clientes: la usan las dos funciones de abajo.
+--
+-- OJO: dias-cerrados-jornada.sql reemplaza esta función por una de dos
+-- argumentos (corte + días cerrados) y borra esta firma. Si alguna vez volvés
+-- a correr este archivo sobre una base que ya tiene aquella, vas a dejar las
+-- dos y cualquier llamada de un solo argumento queda ambigua: corré después
+-- dias-cerrados-jornada.sql para volver a dejar una sola.
 -- ---------------------------------------------------------------------------
 create or replace function public.jornada_inicio_corte(p_corte integer)
 returns timestamptz

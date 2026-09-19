@@ -3,7 +3,9 @@ import {
   businessDayStart,
   dateKeyInTz,
   instantFromBusinessWallClock,
+  TZ_NEGOCIO,
 } from "@/lib/businessDay";
+import type { ClosedDays } from "@/lib/closedDays";
 
 /* Los períodos que el historial ofrece, en horas de jornada y no de reloj.
  *
@@ -31,8 +33,18 @@ const MEDIO_DIA_MS = DIA_MS / 2;
  * como la jornada anterior y el período saldría con un día de más. Doce horas
  * después del corte está lejos de los dos bordes, así que la cuenta no se
  * corre por una hora de acá para allá. */
-const jornadaHaceNDias = (inicioHoy: Date, n: number, corte: number): Date =>
-  businessDayStart(corte, new Date(inicioHoy.getTime() - n * DIA_MS + MEDIO_DIA_MS));
+const jornadaHaceNDias = (
+  inicioHoy: Date,
+  n: number,
+  corte: number,
+  cerrados: ClosedDays,
+): Date =>
+  businessDayStart(
+    corte,
+    new Date(inicioHoy.getTime() - n * DIA_MS + MEDIO_DIA_MS),
+    TZ_NEGOCIO,
+    cerrados,
+  );
 
 /* El mediodía del negocio de una fecha del selector, para anclar el cálculo de
  * la jornada sin depender de la zona horaria del dispositivo. */
@@ -42,22 +54,31 @@ const mediodiaDe = (dia: string): Date | null =>
 export const rangoDe = (
   preset: RangoPreset,
   cutoffHour: number,
-  opts: { desde?: string; hasta?: string; ahora?: Date } = {},
+  opts: {
+    desde?: string;
+    hasta?: string;
+    ahora?: Date;
+    /* Los días que el local no abre. "Ayer" es la jornada anterior que se
+     * trabajó, no el franco: si cierra los lunes, el martes a la mañana
+     * "ayer" muestra el domingo. */
+    cerrados?: ClosedDays;
+  } = {},
 ): Rango => {
   const ahora = opts.ahora ?? new Date();
-  const inicioHoy = businessDayStart(cutoffHour, ahora);
-  const finHoy = businessDayEnd(cutoffHour, ahora);
+  const cerrados = opts.cerrados ?? [];
+  const inicioHoy = businessDayStart(cutoffHour, ahora, TZ_NEGOCIO, cerrados);
+  const finHoy = businessDayEnd(cutoffHour, ahora, TZ_NEGOCIO, cerrados);
 
   if (preset === "ayer") {
     return {
-      desde: jornadaHaceNDias(inicioHoy, 1, cutoffHour).toISOString(),
+      desde: jornadaHaceNDias(inicioHoy, 1, cutoffHour, cerrados).toISOString(),
       hasta: inicioHoy.toISOString(),
     };
   }
   if (preset === "7d") {
     /* Siete jornadas contando la de hoy, no siete por delante del corte. */
     return {
-      desde: jornadaHaceNDias(inicioHoy, 6, cutoffHour).toISOString(),
+      desde: jornadaHaceNDias(inicioHoy, 6, cutoffHour, cerrados).toISOString(),
       hasta: finHoy.toISOString(),
     };
   }
@@ -67,7 +88,10 @@ export const rangoDe = (
      * cuando son las 2 de la mañana del día 1. */
     const uno = mediodiaDe(`${dateKeyInTz(inicioHoy).slice(0, 8)}01`);
     return {
-      desde: (uno ? businessDayStart(cutoffHour, uno) : inicioHoy).toISOString(),
+      desde: (uno
+        ? businessDayStart(cutoffHour, uno, TZ_NEGOCIO, cerrados)
+        : inicioHoy
+      ).toISOString(),
       hasta: finHoy.toISOString(),
     };
   }
@@ -78,8 +102,8 @@ export const rangoDe = (
     const h = mediodiaDe(opts.hasta || opts.desde) ?? d;
     if (d && h) {
       return {
-        desde: businessDayStart(cutoffHour, d).toISOString(),
-        hasta: businessDayEnd(cutoffHour, h).toISOString(),
+        desde: businessDayStart(cutoffHour, d, TZ_NEGOCIO, cerrados).toISOString(),
+        hasta: businessDayEnd(cutoffHour, h, TZ_NEGOCIO, cerrados).toISOString(),
       };
     }
   }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { attachLiveRefresh, coalesced, throttled } from "@/lib/realtime";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
-import { businessDayStart } from "@/lib/businessDay";
+import { businessDayStart, TZ_NEGOCIO } from "@/lib/businessDay";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { useConfigStore } from "@/lib/store/config-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
@@ -107,6 +107,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
   const demoLiberarJornada = useWaitlistStore((s) => s.liberarMesasJornadaDemo);
   const demoWalkIn = useWaitlistStore((s) => s.ocuparWalkIn);
   const cutoffHour = useConfigStore((s) => s.cutoffHour);
+  const diasCerrados = useConfigStore((s) => s.diasCerrados);
 
   const [liveEsperas, setLiveEsperas] = useState<WaitlistView[]>([]);
   const [liveMesas, setLiveMesas] = useState<TableView[]>([]);
@@ -164,11 +165,15 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
         seed(tableCount);
         setMesasCount(tableCount);
         demoExpirar();
-        demoLiberarJornada(businessDayStart(cutoffHour).toISOString());
+        demoLiberarJornada(
+          businessDayStart(cutoffHour, new Date(), TZ_NEGOCIO, diasCerrados).toISOString(),
+        );
       }
       const demoIv = window.setInterval(() => {
         demoExpirar();
-        demoLiberarJornada(businessDayStart(cutoffHour).toISOString());
+        demoLiberarJornada(
+          businessDayStart(cutoffHour, new Date(), TZ_NEGOCIO, diasCerrados).toISOString(),
+        );
       }, 15_000);
       return () => window.clearInterval(demoIv);
     }
