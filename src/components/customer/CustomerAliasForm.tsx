@@ -80,7 +80,7 @@ export const CustomerAliasForm = ({ token, alias, onSaved }: Props) => {
             setValue(alias);
             setError(null);
           }}
-          className="mt-1.5 text-sm font-semibold text-carbon/45 underline-offset-2 hover:text-marca hover:underline"
+          className="mt-1.5 inline-flex min-h-11 items-center rounded-full border border-linea px-4 text-sm font-semibold text-carbon hover:border-marca hover:text-marca"
         >
           {t("cliente.aliasCambiar")}
         </button>
@@ -109,18 +109,22 @@ export const CustomerAliasForm = ({ token, alias, onSaved }: Props) => {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={t("cliente.aliasPh")}
-          className="min-h-11 flex-1 rounded-full border border-linea bg-surface px-4 text-sm text-carbon outline-none ring-marca/30 placeholder:text-carbon/35 focus:ring-2"
+          className="min-h-12 flex-1 rounded-full border-2 border-linea bg-surface px-4 text-base text-carbon outline-none ring-marca/30 placeholder:text-suave focus:ring-2"
         />
         <button
           type="submit"
           disabled={busy}
-          className="min-h-11 shrink-0 rounded-full bg-marca px-4 text-sm font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
+          className="min-h-12 shrink-0 rounded-full bg-marca px-5 text-base font-semibold text-crema transition hover:bg-marca-fuerte disabled:opacity-60"
         >
           {busy ? "…" : t("cliente.aliasGuardar")}
         </button>
       </div>
-      <p className="mt-2 px-1 text-xs text-carbon/50">{t("cliente.aliasHint")}</p>
-      {error && <p className="mt-1 px-1 text-xs text-red-500">{error}</p>}
+      <p className="mt-2 px-1 text-sm text-suave">{t("cliente.aliasHint")}</p>
+      {error && (
+        <p role="alert" className="mt-1.5 px-1 text-sm font-semibold text-alerta">
+          {error}
+        </p>
+      )}
     </form>
   );
 };

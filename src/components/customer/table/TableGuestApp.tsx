@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -9,22 +9,33 @@ import { TabGlyph } from "@/components/ui/TabGlyph";
 import { Spinner } from "@/components/ui/Spinner";
 import { CustomerBrandHeader } from "@/components/customer/CustomerBrandHeader";
 import { CustomerBrandShell } from "@/components/customer/CustomerBrandShell";
+import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import type { BrandColorId } from "@/lib/customerBrand";
 import {
   BillTotals,
   ConsumptionTable,
   PaymentRows,
 } from "@/components/tables/BillParts";
-import { PaySheet } from "@/components/customer/table/PaySheet";
+import { MenuBrowser } from "@/components/customer/table/MenuBrowser";
+import { OrderReview } from "@/components/customer/table/OrderReview";
+import { SentOrders } from "@/components/customer/table/SentOrders";
+import { TableBottomBar } from "@/components/customer/table/TableBottomBar";
+import { PayScreen } from "@/components/customer/table/PayScreen";
 import { TransferDetails, useErrorText } from "@/components/customer/table/TransferDetails";
 import { guestNameSchema } from "@/lib/schemas";
 import { clearGuestCred, loadGuestCred, saveGuestCred } from "@/lib/guestSession";
 import {
-  formatMoney,
   type PaymentSettings,
   type TableBill,
 } from "@/lib/tableBill";
-import type { OrderStatus } from "@/lib/types";
+import {
+  clampCantidad,
+  itemsCarrito,
+  itemsParaEnviar,
+  lineasDelCarrito,
+  totalCarrito,
+  type CartLine,
+} from "@/lib/cart";
 
 export interface GuestMenuProduct {
   id: string;
@@ -73,8 +84,23 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   const [orderKey, setOrderKey] = useState(newKey);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* El error de mandar el pedido va aparte del de la pantalla.
+   *
+   * Compartían estado, y eso hacía dos cosas raras. Un fallo al llamar al mozo
+   * aparecía después en el pie de la revisión, arriba de "Enviar pedido", como
+   * si hubiera fallado el envío — cuando no se había mandado nada. Y al revés:
+   * un error de envío se dibujaba dos veces, en la hoja y en la página de
+   * atrás, y al cerrar la hoja el cartel viejo seguía ahí. */
+  const [orderError, setOrderError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [payOpen, setPayOpen] = useState(false);
+  /* Pagar dejó de ser una hoja encima de la cuenta: ahora es una vista del
+   * flujo, con su propio volver. Mientras está abierta, las pestañas y la
+   * barra de abajo se van — no hay nada que hacer en paralelo. */
+  const [pagando, setPagando] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  /* Lo que acaba de salir. El carrito se vacía en cuanto el servidor confirma,
+   * así que sin esta copia la hoja de "pedido enviado" quedaría en blanco. */
+  const [enviado, setEnviado] = useState<CartLine[] | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(initial.returningPaymentId);
   const applyBill = useCallback((next: TableBill | null) => {
     if (next) setBill(next);
@@ -149,58 +175,68 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
     () => new Map(initial.menu.map((p) => [p.id, p])),
     [initial.menu],
   );
-  const cartLines = Object.entries(cart)
-    .filter(([id, q]) => q > 0 && products.has(id))
-    .map(([id, q]) => ({ product: products.get(id)!, quantity: q }));
-  const cartTotal = cartLines.reduce((s, l) => s + l.product.price * l.quantity, 0);
-  const cartCount = cartLines.reduce((s, l) => s + l.quantity, 0);
-
-  const categories = useMemo(() => {
-    const out = new Map<string, GuestMenuProduct[]>();
-    for (const p of initial.menu) {
-      const k = p.category?.trim() || t("mesa.sinCategoria");
-      out.set(k, [...(out.get(k) ?? []), p]);
-    }
-    return [...out.entries()];
-  }, [initial.menu, t]);
+  const cartLines = useMemo(() => lineasDelCarrito(cart, products), [cart, products]);
+  const cartTotal = totalCarrito(cartLines);
+  const cartCount = itemsCarrito(cartLines);
 
   const errorText = useErrorText();
 
+  /* Cuánto ocupa la barra de pestañas, que queda pegada arriba. La carta lo
+   * necesita para pegar su propia barra justo abajo y para saber a qué altura
+   * frenar el salto a una categoría. Se mide en vez de escribirse: el alto
+   * cambia con el idioma, con el tamaño de letra del sistema y con el
+   * teléfono. */
+  const navRef = useRef<HTMLElement>(null);
+  const [navAlto, setNavAlto] = useState(0);
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const medir = () => setNavAlto(el.offsetHeight);
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   /* A changed cart is a different order, so it gets a new idempotency key. */
   const setQty = (id: string, q: number) => {
-    setCart((c) => ({ ...c, [id]: Math.max(0, Math.min(50, q)) }));
+    setCart((c) => ({ ...c, [id]: clampCantidad(q) }));
     setOrderKey(newKey());
+    /* Corregir una cantidad después de un error es un intento nuevo: el
+     * cartel viejo no tiene por qué seguir ahí. */
+    setOrderError(null);
   };
 
   const sendOrder = async () => {
     if (sending || !cartLines.length) return;
     setSending(true);
-    setError(null);
+    setOrderError(null);
     try {
       const res = await fetch(`/api/m/${token}/pedidos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           key: orderKey,
-          items: cartLines.map((l) => ({ productId: l.product.id, quantity: l.quantity })),
+          items: itemsParaEnviar(cartLines),
         }),
       });
       const data = (await res.json().catch(() => null)) as
         | { ok: boolean; reason?: string; bill?: TableBill }
         | null;
       if (!data?.ok) {
-        setError(errorText(data?.reason));
+        setOrderError(errorText(data?.reason));
         return;
       }
       applyBill(data.bill ?? null);
+      /* La copia se guarda ANTES de vaciar: la hoja de confirmación muestra lo
+       * que se mandó, y para entonces el carrito ya no existe. */
+      setEnviado(cartLines);
       setCart({});
       /* New key only after success: a retry of the same cart after a network
        * error reuses the old key and can't create a duplicate order. */
       setOrderKey(newKey());
-      setNotice(t("mesa.pedidoEnviado"));
-      setTab("pedidos");
     } catch {
-      setError(t("mesa.error.red"));
+      setOrderError(t("mesa.error.red"));
     } finally {
       setSending(false);
     }
@@ -281,7 +317,10 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
 
   return (
     <CustomerBrandShell color={initial.colorMarca}>
-    <main className={`mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-4 ${showBar ? "pb-32" : "pb-8"}`}>
+    {/* El hueco de abajo es para la barra fija. Mientras se paga, esa barra no
+        está —la pantalla de pago trae la suya— y el hueco quedaba como 300 px
+        de vacío al final. */}
+    <main className={`mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-4 ${showBar && !pagando ? "pb-32" : "pb-8"}`}>
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <CustomerBrandHeader
@@ -292,329 +331,231 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           <h1 className="font-display text-3xl uppercase text-marca">
             {t("mesa.mesaN", { n: bill.session.tableNumber })}
           </h1>
-          <p className="text-sm text-carbon/60">{t("mesa.hola", { n: guest.name })}</p>
+          <p className="mt-0.5 text-base text-suave">{t("mesa.hola", { n: guest.name })}</p>
         </div>
         <Controls showTheme={false} />
       </header>
 
-      {open && (
-        <button
-          type="button"
-          disabled={sending || Boolean(bill.session.calledAt)}
-          onClick={() => void callStaff()}
-          className="mt-3 min-h-11 w-full rounded-full border border-marca px-4 text-sm font-semibold text-marca disabled:opacity-60"
-        >
-          {bill.session.calledAt ? t("mesa.llamandoMozo") : t("mesa.llamarMozo")}
-        </button>
-      )}
-
-      {!open && (
-        <div className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100">
-          <p className="font-semibold">
-            {bill.session.status === "pagada" ? t("mesa.mesaPagada") : t("mesa.mesaCerrada")}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setGuest(null);
-              setBill(null);
-            }}
-            className="mt-2 text-sm font-semibold underline"
-          >
-            {t("mesa.nuevaVisita")}
-          </button>
-        </div>
-      )}
-
-      {notice && (
-        <p role="status" className="mt-4 rounded-xl bg-marca/10 px-3 py-2 text-sm text-marca">
-          {notice}
-        </p>
-      )}
-      {checkingPayment && (
-        <p role="status" className="mt-4 flex items-center gap-2 rounded-xl bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-900/30 dark:text-amber-100">
-          <Spinner inline className="size-4" /> {t("mesa.mpVerificando")}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-200">
-          {error}
-        </p>
-      )}
-
-      <nav
-        role="tablist"
-        aria-label={t("mesa.secciones")}
-        className="sticky top-0 z-10 -mx-4 mt-4 grid grid-cols-3 gap-2 border-b border-linea bg-crema/90 px-4 py-2 backdrop-blur"
-      >
-        {(["carta", "pedidos", "cuenta"] as const).map((k) => (
-          <button
-            key={k}
-            role="tab"
-            aria-selected={tab === k}
-            type="button"
-            onClick={() => setTab(k)}
-            className={`flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-2xl border-2 px-1 py-2 text-xs font-semibold transition ${
-              tab === k
-                ? "border-marca bg-marca text-crema"
-                : "border-linea bg-surface text-carbon/60 hover:text-carbon"
-            }`}
-          >
-            <TabGlyph k={k === "pedidos" ? "pedido" : k} size={22} />
-            {t(`mesa.tab.${k}`)}
-          </button>
-        ))}
-      </nav>
-
-      {tab === "carta" && (
-        <section className="mt-4 flex flex-col gap-5">
-          {!initial.menu.length && (
-            <p className="py-10 text-center text-sm text-carbon/55">{t("mesa.cartaVacia")}</p>
-          )}
-          {categories.map(([cat, items]) => (
-            <div key={cat}>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">{cat}</h2>
-              <ul className="flex flex-col gap-2">
-                {items.map((p) => {
-                  const q = cart[p.id] ?? 0;
-                  return (
-                    <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-linea bg-surface p-3">
-                      {p.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={p.imageUrl}
-                          alt=""
-                          className="size-14 shrink-0 rounded-xl object-cover"
-                        />
-                      ) : null}
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-carbon">{p.name}</p>
-                        {p.description && (
-                          <p className="mt-0.5 text-xs text-carbon/55">{p.description}</p>
-                        )}
-                        <p className="mt-1 text-sm font-semibold tabular-nums text-marca">
-                          {formatMoney(p.price)}
-                        </p>
-                      </div>
-                      {open && (
-                        <div className="flex shrink-0 items-center gap-1.5">
-                          {q > 0 && (
-                            <>
-                              <button
-                                type="button"
-                                aria-label={t("mesa.quitarUno", { n: p.name })}
-                                onClick={() => setQty(p.id, q - 1)}
-                                className="grid size-9 place-items-center rounded-full border border-linea text-lg text-carbon"
-                              >
-                                −
-                              </button>
-                              <span className="w-5 text-center font-semibold tabular-nums" aria-live="polite">
-                                {q}
-                              </span>
-                            </>
-                          )}
-                          <button
-                            type="button"
-                            aria-label={t("mesa.agregarUno", { n: p.name })}
-                            onClick={() => setQty(p.id, q + 1)}
-                            className="grid size-9 place-items-center rounded-full bg-marca text-lg text-crema"
-                          >
-                            +
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {tab === "pedidos" && (
-        <section className="mt-4 flex flex-col gap-3">
-          <p className="text-sm text-carbon/60">{t("mesa.pedidosAyuda")}</p>
-          {!myOrders.length && (
-            <p className="py-10 text-center text-sm text-carbon/55">{t("mesa.sinPedidos")}</p>
-          )}
-          {myOrders
-            .slice()
-            .reverse()
-            .map((o) => (
-              <article key={o.id} className="rounded-2xl border border-linea bg-surface p-3">
-                <p className="flex items-center justify-between gap-2 text-xs text-carbon/55">
-                  {new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  <OrderStatusChip status={o.status} />
-                </p>
-                <ul className="mt-2 flex flex-col gap-1 text-sm text-carbon/80">
-                  {o.items.map((i) => (
-                    <li key={i.id}>
-                      {i.quantity} × {i.name}
-                    </li>
-                  ))}
-                </ul>
-                {o.status === "creado" && open ? (
-                  <button
-                    type="button"
-                    disabled={sending}
-                    onClick={() => void cancelOrder(o.id)}
-                    className="mt-3 min-h-10 rounded-full border border-transparent px-4 text-sm font-semibold text-red-600 hover:border-red-300 hover:bg-red-500/10 disabled:opacity-50"
-                  >
-                    {t("mesa.cancelarPedido")}
-                  </button>
-                ) : o.status === "en_preparacion" || o.status === "listo" ? (
-                  <p className="mt-3 text-xs text-carbon/55">{t("mesa.yaAnotadoAyuda")}</p>
-                ) : null}
-              </article>
-            ))}
-        </section>
-      )}
-
-      {tab === "cuenta" && (
-        <section className="mt-4 flex flex-col gap-5">
-          <BillTotals bill={bill} />
-          <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
-              {t("mesa.seccionConsumo")}
-            </h2>
-            <ConsumptionTable bill={bill} highlightGuestId={guest.id} />
-          </div>
-          <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
-              {t("mesa.seccionPagos")}
-            </h2>
-            {bill.session.splitMode && (
-              <p className="mt-2 text-xs text-carbon/55">
-                {t("mesa.modoElegido", { m: t(`mesa.modo.${bill.session.splitMode}`) })}
-                {bill.session.splitMode === "iguales" && bill.session.parts
-                  ? ` · ${t("mesa.partesN", { n: bill.session.parts })}`
-                  : ""}
-              </p>
-            )}
-            <div className="mt-3">
-              <PaymentRows
-                bill={bill}
-                highlightGuestId={guest.id}
-                actions={(p) =>
-                  p.guestId === guest.id && p.status === "pendiente" ? (
-                    <PendingPaymentHelp
-                      token={token}
-                      paymentId={p.id}
-                      method={p.method}
-                      total={p.total}
-                      settings={initial.settings}
-                      onChanged={applyBill}
-                    />
-                  ) : null
-                }
-              />
-            </div>
-          </div>
-        </section>
-      )}
-
-      {showBar && (
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-linea bg-surface/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur">
-        <div className="mx-auto flex max-w-lg gap-2">
-          {tab === "carta" && cartCount > 0 ? (
-            <>
-              <button
-                type="button"
-                onClick={() => void sendOrder()}
-                disabled={sending || !open}
-                className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-marca px-5 font-semibold text-crema disabled:opacity-50"
-              >
-                {sending && <Spinner inline className="size-4" />}
-                {t("mesa.pedirN", { n: cartCount, total: formatMoney(cartTotal) })}
-              </button>
-              {hasConsumption && (
-                <button
-                  type="button"
-                  onClick={() => setTab("cuenta")}
-                  className="min-h-12 rounded-full border-2 border-marca px-4 font-semibold text-marca"
-                >
-                  {t("mesa.verCuenta")}
-                </button>
-              )}
-            </>
-          ) : tab === "cuenta" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setTab("carta")}
-                className="min-h-12 flex-1 rounded-full border-2 border-marca px-4 font-semibold text-marca"
-              >
-                {t("mesa.seguirPidiendo")}
-              </button>
-              {unpaid && (
-                <button
-                  type="button"
-                  onClick={() => setPayOpen(true)}
-                  className="min-h-12 flex-1 rounded-full bg-marca px-4 font-semibold text-crema"
-                >
-                  {t("mesa.pedirCuenta")}
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setTab("cuenta")}
-                className="min-h-12 flex-1 rounded-full border-2 border-marca px-4 font-semibold text-marca"
-              >
-                {t("mesa.verCuenta")}
-              </button>
-              {unpaid && (
-                <button
-                  type="button"
-                  onClick={() => setPayOpen(true)}
-                  className="min-h-12 flex-1 rounded-full bg-marca px-4 font-semibold text-crema"
-                >
-                  {t("mesa.pedirCuenta")}
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-      )}
-
-      {payOpen && (
-        <PaySheet
+      {pagando ? (
+        <PayScreen
           token={token}
           bill={bill}
           guestId={guest.id}
           settings={initial.settings}
           mercadoPagoReady={initial.mercadoPagoReady}
           onClose={() => {
-            setPayOpen(false);
+            setPagando(false);
             setTab("cuenta");
           }}
           onBill={applyBill}
           onStale={() => void refresh()}
         />
+      ) : (
+        <>
+        {open && (
+          <button
+            type="button"
+            disabled={sending || Boolean(bill.session.calledAt)}
+            onClick={() => void callStaff()}
+            className="mt-4 min-h-12 w-full rounded-full border-2 border-marca px-4 text-base font-semibold text-marca disabled:opacity-60"
+          >
+            {bill.session.calledAt ? t("mesa.llamandoMozo") : t("mesa.llamarMozo")}
+          </button>
+        )}
+
+        {!open && (
+          <CustomerNotice tone="ok" className="mt-4">
+            <p className="font-semibold">
+              {bill.session.status === "pagada" ? t("mesa.mesaPagada") : t("mesa.mesaCerrada")}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setGuest(null);
+                setBill(null);
+              }}
+              className="mt-2.5 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-4 text-base font-semibold text-marca"
+            >
+              {t("mesa.nuevaVisita")}
+            </button>
+          </CustomerNotice>
+        )}
+
+        {notice && (
+          <CustomerNotice
+            tone="marca"
+            className="mt-4"
+            onClose={() => setNotice(null)}
+            closeLabel={t("mesa.cerrarAviso")}
+          >
+            {notice}
+          </CustomerNotice>
+        )}
+        {checkingPayment && (
+          <CustomerNotice tone="curso" className="mt-4">
+            <span className="flex items-center gap-2">
+              <Spinner inline className="size-4" /> {t("mesa.mpVerificando")}
+            </span>
+          </CustomerNotice>
+        )}
+        {error && (
+          <CustomerNotice
+            tone="alerta"
+            role="alert"
+            className="mt-4"
+            onClose={() => setError(null)}
+            closeLabel={t("mesa.cerrarAviso")}
+          >
+            {error}
+          </CustomerNotice>
+        )}
+
+        <nav
+          ref={navRef}
+          role="tablist"
+          aria-label={t("mesa.secciones")}
+          className="sticky top-0 z-20 -mx-4 mt-4 grid grid-cols-3 gap-2 border-b border-linea bg-crema/90 px-4 py-2 backdrop-blur"
+        >
+          {(["carta", "pedidos", "cuenta"] as const).map((k) => (
+            <button
+              key={k}
+              role="tab"
+              aria-selected={tab === k}
+              type="button"
+              onClick={() => {
+              setTab(k);
+              /* Los avisos pertenecen a la acción que los produjo. "Pedido
+               * cancelado" no tiene nada que decir en Cuenta, y se quedaba
+               * ahí el resto de la noche. */
+              setNotice(null);
+              setError(null);
+              setOrderError(null);
+            }}
+              className={`flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-2xl border-2 px-1 py-2 text-sm font-semibold transition ${
+                tab === k
+                  ? "border-marca bg-marca text-crema"
+                  : "border-linea bg-surface text-suave hover:text-carbon"
+              }`}
+            >
+              <TabGlyph k={k === "pedidos" ? "pedido" : k} size={26} />
+              {t(`mesa.tab.${k}`)}
+            </button>
+          ))}
+        </nav>
+
+        {tab === "carta" && (
+          <MenuBrowser
+            menu={initial.menu}
+            cart={cart}
+            puedePedir={open}
+            onCantidad={setQty}
+            stickyTop={navAlto}
+          />
+        )}
+
+        {tab === "pedidos" && (
+          <SentOrders
+            pedidos={myOrders}
+            itemsSinEnviar={cartCount}
+            mesaAbierta={open}
+            ocupado={sending}
+            onVerPedido={() => setReviewOpen(true)}
+            onCancelar={(id) => void cancelOrder(id)}
+          />
+        )}
+
+        {tab === "cuenta" && (
+          <section className="mt-4 flex flex-col gap-5">
+            <BillTotals bill={bill} />
+            <div>
+              <h2 className="mb-3 font-display text-xl uppercase tracking-tight text-carbon">
+                {t("mesa.seccionConsumo")}
+              </h2>
+              <ConsumptionTable bill={bill} highlightGuestId={guest.id} />
+            </div>
+            <div>
+              <h2 className="mb-3 font-display text-xl uppercase tracking-tight text-carbon">
+                {t("mesa.seccionPagos")}
+              </h2>
+              {bill.session.splitMode && (
+                <p className="mt-2 text-sm text-suave">
+                  {t("mesa.modoElegido", { m: t(`mesa.modo.${bill.session.splitMode}`) })}
+                  {bill.session.splitMode === "iguales" && bill.session.parts
+                    ? ` · ${t("mesa.partesN", { n: bill.session.parts })}`
+                    : ""}
+                </p>
+              )}
+              <div className="mt-3">
+                <PaymentRows
+                  bill={bill}
+                  highlightGuestId={guest.id}
+                  actions={(p) =>
+                    p.guestId === guest.id && p.status === "pendiente" ? (
+                      <PendingPaymentHelp
+                        token={token}
+                        paymentId={p.id}
+                        method={p.method}
+                        total={p.total}
+                        settings={initial.settings}
+                        onChanged={applyBill}
+                      />
+                    ) : null
+                  }
+                />
+              </div>
+            </div>
+          </section>
+        )}
+
+        </>
       )}
+
+      {showBar && !pagando && (
+        <TableBottomBar
+          tab={tab}
+          items={cartCount}
+          total={cartTotal}
+          hayConsumo={hasConsumption}
+          faltaPagar={unpaid}
+          onVerPedido={() => setReviewOpen(true)}
+          onVerCuenta={() => setTab("cuenta")}
+          onVerCarta={() => setTab("carta")}
+          onPagar={() => setPagando(true)}
+        />
+      )}
+
+      {(reviewOpen || enviado) && (
+        <OrderReview
+          lineas={cartLines}
+          enviando={sending}
+          error={orderError}
+          enviado={enviado}
+          puedePedir={open}
+          onCantidad={setQty}
+          onEnviar={() => void sendOrder()}
+          onSeguirPidiendo={() => {
+            setReviewOpen(false);
+            setEnviado(null);
+            setOrderError(null);
+            setTab("carta");
+          }}
+          onVerPedidos={() => {
+            setReviewOpen(false);
+            setEnviado(null);
+            setOrderError(null);
+            setTab("pedidos");
+          }}
+          onClose={() => {
+            setReviewOpen(false);
+            setEnviado(null);
+            setOrderError(null);
+          }}
+        />
+      )}
+
+
     </main>
     </CustomerBrandShell>
-  );
-};
-
-const OrderStatusChip = ({ status }: { status: OrderStatus }) => {
-  const { t } = useApp();
-  const cls =
-    status === "listo"
-      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
-      : status === "retirado"
-        ? "bg-carbon/10 text-carbon/60"
-        : status === "cancelado"
-          ? "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-200"
-          : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200";
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
-      {t(`mesa.estadoPedido.${status}`)}
-    </span>
   );
 };
 
@@ -726,35 +667,38 @@ const JoinTable = ({
         </div>
       ) : operational ? (
         <form onSubmit={(e) => void join(e)} className="mt-8 flex flex-col gap-3">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-carbon/70">{t("mesa.tuNombre")}</span>
+          <label className="flex flex-col gap-2">
+            <span className="text-lg font-semibold text-carbon">{t("mesa.tuNombre")}</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="given-name"
               maxLength={24}
               autoFocus
-              className="w-full rounded-xl border border-linea bg-surface px-4 py-3 text-carbon outline-none focus:border-marca focus:ring-2 focus:ring-marca/20"
+              className="min-h-14 w-full rounded-2xl border-2 border-linea bg-surface px-4 text-lg text-carbon outline-none placeholder:text-suave focus:border-marca focus:ring-2 focus:ring-marca/20"
               placeholder={t("mesa.nombrePlaceholder")}
             />
           </label>
-          <p className="text-xs text-carbon/55">{t("mesa.nombreAyuda")}</p>
+          <p className="text-sm leading-relaxed text-suave">{t("mesa.nombreAyuda")}</p>
+          {/* Era `text-red-600` suelto sobre el fondo del local: 1.04:1 en
+              verde, 1.07 en terracota. Justo el mensaje que hay que leer para
+              poder seguir. */}
           {error && (
-            <p role="alert" className="text-sm text-red-600">
+            <CustomerNotice tone="alerta" role="alert">
               {error}
-            </p>
+            </CustomerNotice>
           )}
           <button
             type="submit"
             disabled={busy}
-            className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-full bg-marca px-6 font-semibold text-crema disabled:opacity-50"
+            className="mt-2 flex min-h-14 items-center justify-center gap-2 rounded-full bg-marca px-6 text-base font-semibold text-crema disabled:opacity-50"
           >
             {busy && <Spinner inline className="size-4" />}
             {t("mesa.entrar")}
           </button>
         </form>
       ) : (
-        <p className="mt-6 text-carbon/65">{t("mesa.noDisponible")}</p>
+        <p className="mt-6 text-base leading-relaxed text-suave">{t("mesa.noDisponible")}</p>
       )}
     </main>
   );
@@ -801,7 +745,7 @@ const PendingPaymentHelp = ({
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl bg-crema/60 p-2.5 text-xs text-carbon/70">
+    <div className="flex flex-col items-start gap-2.5 rounded-xl bg-crema/60 p-3 text-sm text-carbon">
       {method === "transferencia" ? (
         <TransferDetails settings={settings} total={total} compact />
       ) : method === "mercado_pago" ? (
@@ -813,7 +757,7 @@ const PendingPaymentHelp = ({
         type="button"
         onClick={() => void cancel()}
         disabled={busy}
-        className="self-start font-semibold text-carbon/60 underline disabled:opacity-50"
+        className="inline-flex min-h-11 items-center rounded-full border border-linea px-4 text-sm font-semibold text-carbon disabled:opacity-50"
       >
         {t("mesa.cancelarPago")}
       </button>

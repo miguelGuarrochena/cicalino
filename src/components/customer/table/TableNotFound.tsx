@@ -17,7 +17,7 @@ export const TableNotFound = ({
       <p className="mt-6 font-display text-2xl uppercase text-carbon">
         {t(reason === "not-available" ? "mesa.noDisponibleTitulo" : "mesa.noEncontradaTitulo")}
       </p>
-      <p className="mt-2 max-w-sm text-carbon/60">
+      <p className="mt-2 max-w-sm text-base leading-relaxed text-suave">
         {t(reason === "not-available" ? "mesa.noDisponible" : "mesa.noEncontradaSub")}
       </p>
     </main>

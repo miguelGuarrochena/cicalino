@@ -2,9 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
-import { ModalShell } from "@/components/ui/ModalShell";
-import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { Spinner } from "@/components/ui/Spinner";
+import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import { TransferDetails, useErrorText } from "@/components/customer/table/TransferDetails";
 import {
   SPLIT_MODES,
@@ -22,14 +21,31 @@ import {
 
 type TipChoice = 0 | 5 | 10 | 15 | "otro";
 
+/* Pagar, con sitio para pensarlo.
+ *
+ * Esto era una hoja sobre la carta: cuatro formas de dividir, dos campos
+ * numéricos, cinco opciones de propina con su propio campo, hasta seis
+ * métodos y un desglose calculado — todo dentro de un contenedor de 92dvh con
+ * scroll propio, en un teléfono, con el teclado abierto tapando la mitad. Era
+ * la pantalla más compleja del producto metida en el envase más chico.
+ *
+ * Ahora es una pantalla del flujo: se entra desde la cuenta y se vuelve con un
+ * botón que se ve. Las funciones son exactamente las mismas —consumo, partes
+ * iguales, paga uno, monto o porcentaje, propina, los seis métodos, Mercado
+ * Pago y transferencia—; lo que cambió es que cada decisión tiene aire y que
+ * el total y el botón viven abajo, fijos, sin competir con el teclado.
+ *
+ * 44 px: los chips eran de 40 y se tocan con el pulgar, de pie, con la cuenta
+ * ya pedida. El borde de 2 px es para que el elegido se note por algo más que
+ * el relleno cuando la pantalla tiene reflejo. */
 const chip = (active: boolean) =>
-  `min-h-10 rounded-full border px-3 text-sm font-semibold transition ${
+  `min-h-11 rounded-full border-2 px-4 text-base font-semibold transition ${
     active
       ? "border-marca bg-marca text-crema"
-      : "border-linea bg-surface text-carbon/75 hover:border-marca/40"
+      : "border-linea bg-surface text-carbon hover:border-marca/40"
   }`;
 
-export const PaySheet = ({
+export const PayScreen = ({
   token,
   bill,
   guestId,
@@ -44,8 +60,9 @@ export const PaySheet = ({
   guestId: string;
   settings: PaymentSettings;
   mercadoPagoReady: boolean;
+  /* Volver a la cuenta. */
   onClose: () => void;
-  /* New bill after a successful payment. The sheet stays open on the result. */
+  /* New bill after a successful payment. The screen stays on the result. */
   onBill: (bill: TableBill) => void;
   /* The server said the bill moved: reload it so the preview recomputes. */
   onStale: () => void;
@@ -168,60 +185,83 @@ export const PaySheet = ({
     }
   };
 
-  const footer = result ? (
+  const volver = (
     <button
       type="button"
       onClick={onClose}
-      className="min-h-12 w-full rounded-full bg-marca px-6 font-semibold text-crema"
+      disabled={busy}
+      className="flex min-h-12 w-fit items-center gap-2 rounded-full border-2 border-linea bg-surface px-4 text-base font-semibold text-carbon disabled:opacity-50"
     >
-      {t("mesa.listo")}
-    </button>
-  ) : (
-    <button
-      type="button"
-      onClick={() => void pay()}
-      disabled={!preview?.ok || busy}
-      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-marca px-6 font-semibold text-crema disabled:opacity-50"
-    >
-      {busy && <Spinner inline className="size-4" />}
-      {preview?.ok
-        ? t(method === "mercado_pago" ? "mesa.pagarConMp" : "mesa.pedirCuentaN", {
-            n: formatMoney(preview.total),
-          })
-        : t("mesa.pedirCuenta")}
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M15 18 9 12l6-6" />
+      </svg>
+      {t("mesa.volverALaCuenta")}
     </button>
   );
 
-  return (
-    <ModalShell onClose={onClose} labelledBy="pay-title" busy={busy} footer={footer}>
-      <div className="flex items-start justify-between gap-3">
-        <h2 id="pay-title" className="font-display text-2xl uppercase text-marca">
-          {result
-            ? result.method === "mercado_pago"
+  if (result) {
+    return (
+      <section className="mt-5 flex flex-col gap-5 pb-8">
+        {volver}
+        <div>
+          <h1 className="font-display text-3xl uppercase text-marca">
+            {result.method === "mercado_pago"
               ? t("mesa.pagoRegistrado")
-              : t("mesa.cuentaPedida")
-            : t("mesa.comoPagar")}
-        </h2>
-        <ModalCloseBtn onClick={onClose} disabled={busy} label={t("mesa.cerrar")} />
+              : t("mesa.cuentaPedida")}
+          </h1>
+        </div>
+        <CustomerNotice tone="ok">
+          {t("mesa.cuentaPedidaAyuda", { m: t(`mesa.metodo.${result.method}`) })}
+        </CustomerNotice>
+        {result.method === "transferencia" ? (
+          <TransferDetails settings={settings} total={result.total} />
+        ) : null}
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-14 w-full rounded-full bg-marca px-6 text-base font-semibold text-crema"
+        >
+          {t("mesa.volverALaCuenta")}
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mt-5 flex flex-col gap-5 pb-44">
+      {volver}
+
+      <div>
+        <h1 className="font-display text-3xl uppercase text-marca">{t("mesa.comoPagar")}</h1>
+        {/* Cuánto falta, arriba y grande: es el número contra el que se toman
+            todas las decisiones de esta pantalla. Estaba perdido en el medio,
+            entre la forma de dividir y la propina. */}
+        <p className="mt-1 text-lg font-bold text-carbon">
+          {t("mesa.faltaCubrir", { n: formatMoney(bill.totals.available) })}
+        </p>
       </div>
 
-      {result ? (
-        <div className="mt-4 flex flex-col gap-3">
-          <p className="text-sm text-carbon/70">
-            {t("mesa.cuentaPedidaAyuda", { m: t(`mesa.metodo.${result.method}`) })}
-          </p>
-          {result.method === "transferencia" ? (
-            <TransferDetails settings={settings} total={result.total} />
-          ) : null}
-        </div>
-      ) : (
+      <div
+        aria-busy={busy || undefined}
+        className={`flex flex-col gap-6 ${busy ? "pointer-events-none opacity-60" : ""}`}
+      >
         <div className="mt-4 flex flex-col gap-5">
           <fieldset>
-            <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
+            <legend className="mb-2.5 text-base font-bold uppercase tracking-wide text-carbon">
               {t("mesa.modoTitulo")}
             </legend>
             {locked && (
-              <p className="mb-2 text-xs text-carbon/55">{t("mesa.modoBloqueado")}</p>
+              <p className="mb-2.5 text-sm leading-relaxed text-suave">{t("mesa.modoBloqueado")}</p>
             )}
             <div className="grid grid-cols-2 gap-2">
               {SPLIT_MODES.map((m) => (
@@ -234,7 +274,7 @@ export const PaySheet = ({
                   className={`${chip(mode === m)} rounded-2xl py-2 text-left disabled:opacity-40`}
                 >
                   {t(`mesa.modo.${m}`)}
-                  <span className="block text-[11px] font-normal opacity-75">
+                  <span className="mt-0.5 block text-sm font-normal opacity-90">
                     {t(`mesa.modoAyuda.${m}`)}
                   </span>
                 </button>
@@ -242,9 +282,9 @@ export const PaySheet = ({
             </div>
 
             {mode === "iguales" && (
-              <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div className="mt-3 grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1">
-                  <span className="text-carbon/60">{t("mesa.partesTotales")}</span>
+                  <span className="text-base text-carbon">{t("mesa.partesTotales")}</span>
                   <input
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -254,11 +294,11 @@ export const PaySheet = ({
                     onChange={(e) =>
                       touch(setTotalPartsInput)(e.target.value.replace(/\D/g, "").slice(0, 2))
                     }
-                    className="rounded-xl border border-linea bg-surface px-3 py-2 disabled:opacity-60"
+                    className="min-h-12 rounded-xl border-2 border-linea bg-surface px-3 text-base disabled:opacity-60"
                   />
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className="text-carbon/60">{t("mesa.partesQuePago")}</span>
+                  <span className="text-base text-carbon">{t("mesa.partesQuePago")}</span>
                   <input
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -267,7 +307,7 @@ export const PaySheet = ({
                     onChange={(e) =>
                       touch(setPartsInput)(e.target.value.replace(/\D/g, "").slice(0, 2))
                     }
-                    className="rounded-xl border border-linea bg-surface px-3 py-2"
+                    className="min-h-12 rounded-xl border-2 border-linea bg-surface px-3 text-base"
                   />
                 </label>
               </div>
@@ -293,19 +333,15 @@ export const PaySheet = ({
                   value={amountInput}
                   onChange={(e) => touch(setAmountInput)(e.target.value)}
                   placeholder={amountKind === "monto" ? "$" : "%"}
-                  className="rounded-xl border border-linea bg-surface px-3 py-2"
+                  className="min-h-12 rounded-xl border-2 border-linea bg-surface px-3 text-base"
                   aria-label={t(`mesa.por.${amountKind}`)}
                 />
               </div>
             )}
           </fieldset>
 
-          <p className="text-sm font-semibold text-carbon">
-            {t("mesa.faltaCubrir", { n: formatMoney(bill.totals.available) })}
-          </p>
-
           <fieldset>
-            <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
+            <legend className="mb-2.5 text-base font-bold uppercase tracking-wide text-carbon">
               {t("mesa.propinaTitulo")}
             </legend>
             <div className="flex flex-wrap gap-2">
@@ -328,16 +364,16 @@ export const PaySheet = ({
                 onChange={(e) => touch(setTipOther)(e.target.value.replace(/\D/g, ""))}
                 placeholder="$"
                 aria-label={t("mesa.otroMonto")}
-                className="mt-2 w-full rounded-xl border border-linea bg-surface px-3 py-2"
+                className="mt-2.5 min-h-12 w-full rounded-xl border-2 border-linea bg-surface px-3 text-base"
               />
             )}
           </fieldset>
 
           <fieldset>
-            <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-carbon/50">
+            <legend className="mb-2.5 text-base font-bold uppercase tracking-wide text-carbon">
               {t("mesa.metodoTitulo")}
             </legend>
-            {!methods.length && <p className="text-sm text-carbon/60">{t("mesa.sinMetodos")}</p>}
+            {!methods.length && <p className="text-base leading-relaxed text-suave">{t("mesa.sinMetodos")}</p>}
             <div className="flex flex-wrap gap-2">
               {methods.map((m) => (
                 <button
@@ -357,9 +393,9 @@ export const PaySheet = ({
             <div className="rounded-2xl border border-linea bg-crema/50 p-4">
               {preview.ok ? (
                 <>
-                <dl className="flex flex-col gap-1 text-sm">
+                <dl className="flex flex-col gap-1.5 text-base">
                   <div className="flex justify-between">
-                    <dt className="text-carbon/65">
+                    <dt className="text-suave">
                       {mode === "iguales"
                         ? t("mesa.lineaPartes", { n: preview.parts })
                         : t("mesa.lineaConsumo")}
@@ -368,7 +404,7 @@ export const PaySheet = ({
                   </div>
                   {preview.tip > 0 && (
                     <div className="flex justify-between">
-                      <dt className="text-carbon/65">
+                      <dt className="text-suave">
                         {tip === "otro" ? t("mesa.lineaPropina") : t("mesa.lineaPropinaPct", { n: tip })}
                       </dt>
                       <dd className="tabular-nums">{formatMoney(preview.tip)}</dd>
@@ -376,7 +412,7 @@ export const PaySheet = ({
                   )}
                   {preview.surcharge > 0 && (
                     <div className="flex justify-between">
-                      <dt className="text-carbon/65">
+                      <dt className="text-suave">
                         {t("mesa.lineaRecargo", { n: preview.surchargePercent })}
                       </dt>
                       <dd className="tabular-nums">{formatMoney(preview.surcharge)}</dd>
@@ -389,44 +425,80 @@ export const PaySheet = ({
                     </dd>
                   </div>
                 </dl>
-                <p className="mt-2 text-xs font-medium text-carbon/65">
+                <p className="mt-2.5 text-sm font-semibold text-carbon">
                   {preview.remaining > 0
                     ? t("mesa.faltaDespues", { n: formatMoney(preview.remaining) })
                     : t("mesa.cubreTodo")}
                 </p>
                 </>
               ) : (
-                <p className="text-sm text-carbon/65">
+                <p className="text-base text-carbon">
                   {preview.reason === "excede" && preview.available != null
                     ? t("mesa.error.excede-n", { n: formatMoney(preview.available) })
                     : errorText(preview.reason)}
                 </p>
               )}
               {method === "transferencia" && preview.ok && (
-                <p className="mt-3 text-xs text-amber-800 dark:text-amber-200">
+                <p className="mt-3 text-sm leading-relaxed text-carbon">
                   {t("mesa.transferenciaAviso")}
                 </p>
               )}
               {method === "mercado_pago" && preview.ok && (
-                <p className="mt-3 text-xs text-carbon/60">{t("mesa.mpAviso")}</p>
+                <p className="mt-3 text-sm leading-relaxed text-suave">{t("mesa.mpAviso")}</p>
               )}
               {(method === "efectivo" ||
                 method === "qr_mercado_pago" ||
                 method === "tarjeta_debito" ||
                 method === "tarjeta_credito") &&
                 preview.ok && (
-                  <p className="mt-3 text-xs text-carbon/60">{t("mesa.manualAviso")}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-suave">{t("mesa.manualAviso")}</p>
                 )}
             </div>
           )}
 
           {error && (
-            <p role="alert" className="text-sm text-red-600">
+            <CustomerNotice tone="alerta" role="alert">
               {error}
-            </p>
+            </CustomerNotice>
           )}
         </div>
-      )}
-    </ModalShell>
+      </div>
+
+      {/* El total y el botón, fijos abajo. Con el teclado abierto —que es lo
+          que pasa al escribir un monto o una propina— el botón de una hoja
+          quedaba debajo del teclado. */}
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-linea bg-surface/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur">
+        <div className="mx-auto flex max-w-lg flex-col gap-2.5">
+          {error && (
+            <CustomerNotice tone="alerta" role="alert">
+              {error}
+            </CustomerNotice>
+          )}
+          {preview?.ok && (
+            <p className="flex flex-wrap items-baseline justify-between gap-2 text-base font-semibold text-carbon">
+              {t("mesa.total")}
+              <span className="font-display text-2xl tabular-nums text-marca">
+                {formatMoney(preview.total)}
+              </span>
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void pay()}
+            disabled={!preview?.ok || busy}
+            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-marca px-6 text-base font-semibold text-crema disabled:opacity-50"
+          >
+            {busy && <Spinner inline className="size-4" />}
+            {busy
+              ? t("mesa.registrandoPago")
+              : preview?.ok
+                ? t(method === "mercado_pago" ? "mesa.pagarConMp" : "mesa.pedirCuentaN", {
+                    n: formatMoney(preview.total),
+                  })
+                : t("mesa.pedirCuenta")}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 };

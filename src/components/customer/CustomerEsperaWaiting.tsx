@@ -16,6 +16,7 @@ import {
 import { CustomerOtherTab } from "@/components/customer/CustomerOtherTab";
 import { CustomerBrandHeader } from "@/components/customer/CustomerBrandHeader";
 import { CustomerBrandShell } from "@/components/customer/CustomerBrandShell";
+import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import { emptyCustomerBrand, type CustomerBrand } from "@/lib/customerBrand";
 import { useWaitlistStore } from "@/lib/store/waitlist-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
@@ -211,7 +212,7 @@ export const CustomerEsperaWaiting = ({
         <p className="mt-6 font-display text-2xl uppercase text-carbon">
           {t("clienteMesa.noEncontradoTitulo")}
         </p>
-        <p className="mt-2 max-w-sm text-carbon/60">
+        <p className="mt-2 max-w-sm text-base leading-relaxed text-suave">
           {t("clienteMesa.noEncontradoSub")}
         </p>
       </main>
@@ -239,19 +240,19 @@ export const CustomerEsperaWaiting = ({
       <Controls showTheme={false} className="absolute right-4 top-4 z-20" />
 
       {waiting && (
-        <div className="u-in mb-6 w-full rounded-2xl border border-espera/40 bg-espera/10 px-3 py-2.5 text-espera sm:max-w-sm">
-          <p className="text-sm font-semibold">
+        <CustomerNotice tone="curso" className="u-in mb-6 w-full text-left sm:max-w-sm">
+          <p className="font-bold">
             {t("clienteMesa.noCerrarTitulo")}
           </p>
-          <p className="mt-1 text-sm font-medium leading-snug">
+          <p className="mt-1 font-medium leading-snug">
             {t("clienteMesa.siCerras", { n: espera.name })}
           </p>
-          <p className="mt-1.5 text-xs font-medium leading-snug text-espera/80">
+          <p className="mt-1.5 text-sm font-medium leading-snug text-suave">
             {pushDisponible && pushActivo
               ? t("clienteMesa.noCerrarPush")
               : t("clienteMesa.noCerrar")}
           </p>
-        </div>
+        </CustomerNotice>
       )}
 
       <div className="u-in flex flex-1 flex-col items-center justify-center">
@@ -260,13 +261,13 @@ export const CustomerEsperaWaiting = ({
             name={espera.branchName || brand.name}
             logoUrl={espera.logoUrl ?? brand.logoUrl}
           />
-          <span className="mt-1 text-xs uppercase tracking-widest text-espera/70">
+          <span className="mt-1 text-sm font-semibold uppercase tracking-widest text-suave">
             {t("clienteMesa.titulo")}
           </span>
           <span className="font-display text-6xl leading-none text-espera sm:text-7xl">
             {espera.name}
           </span>
-          <span className="mt-1 text-sm text-carbon/50">
+          <span className="mt-1 text-base text-suave">
             {espera.partySize}{" "}
             {espera.partySize === 1
               ? locale === "en"
@@ -282,7 +283,7 @@ export const CustomerEsperaWaiting = ({
           <span
             className={`pointer-events-none absolute inset-0 m-auto size-52 rounded-full transition-colors duration-500 sm:size-56 ${
               cancelado
-                ? "bg-red-400/10"
+                ? "bg-alerta-fondo"
                 : esOk
                   ? "bg-espera/20"
                   : "bg-espera/10"
@@ -316,10 +317,10 @@ export const CustomerEsperaWaiting = ({
         <div className="u-in min-h-[92px]">
           {cancelado ? (
             <>
-              <p className="font-display text-3xl uppercase tracking-tight text-red-600/80">
+              <p className="font-display text-3xl uppercase tracking-tight text-alerta">
                 {t("clienteMesa.canceladoTitulo")}
               </p>
-              <p className="mt-2 text-carbon/60">
+              <p className="mt-2 text-base leading-relaxed text-suave">
                 {t("clienteMesa.canceladoSub")}
               </p>
             </>
@@ -330,7 +331,7 @@ export const CustomerEsperaWaiting = ({
                   n: String(espera.tableNumber ?? ""),
                 })}
               </p>
-              <p className="mt-2 max-w-sm text-carbon/60">
+              <p className="mt-2 max-w-sm text-base leading-relaxed text-suave">
                 {t("clienteMesa.sentadoSub")}
               </p>
             </>
@@ -339,14 +340,14 @@ export const CustomerEsperaWaiting = ({
               <p className="font-display text-3xl uppercase tracking-tight text-espera">
                 {t("clienteMesa.listoTitulo")}
               </p>
-              <p className="mt-2 text-carbon/60">{t("clienteMesa.listoSub")}</p>
+              <p className="mt-2 text-base leading-relaxed text-suave">{t("clienteMesa.listoSub")}</p>
             </>
           ) : (
             <>
               <p className="font-display text-2xl uppercase tracking-tight text-carbon sm:text-3xl">
                 {t("clienteMesa.esperandoTitulo")}
               </p>
-              <p className="mt-2 max-w-sm text-carbon/60">
+              <p className="mt-2 max-w-sm text-base leading-relaxed text-suave">
                 {t("clienteMesa.esperandoSub")}
               </p>
             </>
@@ -384,21 +385,21 @@ export const CustomerEsperaWaiting = ({
                     type="button"
                     onClick={() => void activarAvisos()}
                     disabled={pushCargando}
-                    className="w-full rounded-full bg-espera px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte active:scale-95 disabled:opacity-70"
+                    className="min-h-14 w-full rounded-full bg-espera px-6 text-base font-semibold text-crema shadow-sm transition hover:bg-espera-fuerte active:scale-95 disabled:opacity-70"
                   >
                     {pushCargando
                       ? t("clienteMesa.pushCargando")
                       : t("clienteMesa.activar")}
                   </button>
                   {pushError && (
-                    <p className="text-center text-xs text-red-500">
+                    <p className="text-center text-sm text-alerta">
                       {pushError}
                     </p>
                   )}
                 </>
               )
             ) : (
-              <p className="rounded-2xl border border-carbon/10 bg-carbon/[0.04] px-4 py-3 text-sm leading-snug text-carbon/75">
+              <p className="rounded-2xl border border-linea bg-carbon/[0.04] px-4 py-3.5 text-base leading-snug text-carbon">
                 {t("clienteMesa.mantenerPestana")}
               </p>
             )}
@@ -406,7 +407,7 @@ export const CustomerEsperaWaiting = ({
               <button
                 type="button"
                 onClick={() => setConfirmCancel(true)}
-                className="w-full rounded-full px-6 py-3 text-sm font-semibold text-red-600/80 transition hover:bg-red-50 active:scale-95"
+                className="min-h-12 w-full rounded-full border-2 border-alerta-borde px-6 text-base font-semibold text-carbon transition active:scale-95"
               >
                 {t("clienteMesa.cancelarBtn")}
               </button>
@@ -415,7 +416,7 @@ export const CustomerEsperaWaiting = ({
         )}
       </div>
 
-      <p className="mt-8 text-xs text-carbon/35">
+      <p className="mt-8 text-sm text-suave">
         {t("clienteMesa.espera")} · cicalino.net
       </p>
 
@@ -433,7 +434,7 @@ export const CustomerEsperaWaiting = ({
           >
             {t("clienteMesa.confirmarCancelTitulo")}
           </h2>
-          <p className="mt-2 text-sm text-carbon/60">
+          <p className="mt-2 text-base leading-relaxed text-suave">
             {t("clienteMesa.confirmarCancelSub")}
           </p>
           <div className="mt-5 flex flex-col gap-2">
@@ -441,7 +442,7 @@ export const CustomerEsperaWaiting = ({
               type="button"
               disabled={cancelando}
               onClick={() => void confirmarCancelar()}
-              className="w-full rounded-full bg-red-500 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
+              className="min-h-12 w-full rounded-full bg-alerta px-5 text-base font-semibold text-crema transition disabled:opacity-60"
             >
               {cancelando ? "…" : t("clienteMesa.confirmarCancelSi")}
             </button>

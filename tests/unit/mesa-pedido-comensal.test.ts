@@ -15,6 +15,13 @@ const guest = readFileSync(
   join(root, "src/components/customer/table/TableGuestApp.tsx"),
   "utf8",
 );
+/* La pestaña de pedidos enviados salió de la pantalla grande cuando apareció
+   la revisión previa al envío: son dos listas parecidas y lo importante es que
+   no se confundan, así que cada una vive en su archivo. */
+const enviados = readFileSync(
+  join(root, "src/components/customer/table/SentOrders.tsx"),
+  "utf8",
+);
 const inbox = readFileSync(
   join(root, "src/components/panel/mesas/KitchenInbox.tsx"),
   "utf8",
@@ -56,14 +63,23 @@ describe("Pedido de mesa — anotar y cancelar", () => {
 
   it("el cliente cancela desde Pedidos y no muestra precios ahí", () => {
     expect(guest).toContain("/pedidos/${orderId}/cancelar");
-    expect(guest).toContain('t("mesa.cancelarPedido")');
-    expect(guest).toContain('t("mesa.pedidosAyuda")');
-    const pedidos = guest.slice(
-      guest.indexOf("{tab === \"pedidos\" &&"),
-      guest.indexOf("{tab === \"cuenta\" &&"),
-    );
-    expect(pedidos).toContain("{i.quantity} × {i.name}");
-    expect(pedidos).not.toContain("formatMoney");
+    expect(enviados).toContain('t("mesa.cancelarPedido")');
+    expect(enviados).toContain('t("mesa.pedidosAyuda")');
+    /* La cantidad quedó en su propio <span> para poder ponerla en negrita:
+       la lista es lo que se lee de reojo para chequear que llegó bien. Lo que
+       importa sigue siendo que el renglón diga cuánto y de qué. */
+    expect(enviados).toContain("{i.quantity} ×");
+    expect(enviados).toContain("{i.name}");
+    expect(enviados).not.toContain("formatMoney");
+  });
+
+  it("lo ya enviado no se puede editar", () => {
+    /* La diferencia con la revisión es justo esta: lo de esta lista ya lo
+       tiene el local. Los +/− no existen acá, y lo único que se puede hacer
+       —cancelar mientras no lo anotaron— es la regla que ya estaba. */
+    expect(enviados).not.toContain("mesa.agregarUno");
+    expect(enviados).not.toContain("mesa.quitarUno");
+    expect(enviados).toContain('o.status === "creado" && mesaAbierta');
   });
 
   it("el panel copia el ticket y cancela desde la cola", () => {

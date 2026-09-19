@@ -47,13 +47,25 @@ export const brandFromLocal = (local: {
 /* Paleta del comensal: el color pinta el FONDO. Textos, botones e
  * ilustraciones contrastan. `bg-marca text-crema` = botón en `brand` con
  * texto en `bg`. null = crema + cobalto oficial. No es el Light/Dark del
- * panel: scheme marca si la mascota va azul o crema. */
+ * panel: scheme marca si la mascota va azul o crema.
+ *
+ * Cada preset se mide contra su propio `surface`, que es donde viven las
+ * tarjetas: el nombre del plato, el precio y la descripción se leen ahí, no
+ * sobre el fondo. Verde y terracota estaban claros de más y el nombre del
+ * plato daba 3.83 y 4.11 — abajo de AA con el texto principal, no con el
+ * secundario. Ahora son el tono 800/900 de su familia y dan 6.81 y 7.66.
+ *
+ * `soft` es el secundario de ese preset: la mezcla de `text` al 74% sobre
+ * `surface`. El 74% sale del peor caso (verde) y se aplica igual en todos para
+ * que el salto entre principal y secundario se vea parejo en toda la paleta. */
 export const BRAND_PRESETS: Record<
   BrandColorId,
   {
     bg: string;
     surface: string;
     text: string;
+    /* Texto secundario, ya medido: >= 4.5:1 sobre `surface` y sobre `bg`. */
+    soft: string;
     brand: string;
     strong: string;
     line: string;
@@ -64,6 +76,7 @@ export const BRAND_PRESETS: Record<
     bg: "#ffffff",
     surface: "#f7f7f5",
     text: "#20264f",
+    soft: "#585c7a",
     brand: "#2536d4",
     strong: "#1b29b0",
     line: "#e8e8e4",
@@ -73,6 +86,7 @@ export const BRAND_PRESETS: Record<
     bg: "#10142f",
     surface: "#1a1f45",
     text: "#ede9ce",
+    soft: "#b6b4aa",
     brand: "#7d8bff",
     strong: "#9aa4ff",
     line: "#2a2f5c",
@@ -82,6 +96,7 @@ export const BRAND_PRESETS: Record<
     bg: "#171717",
     surface: "#242424",
     text: "#f4efe0",
+    soft: "#bebaaf",
     brand: "#f4efe0",
     strong: "#ffffff",
     line: "#3a3a3a",
@@ -91,27 +106,30 @@ export const BRAND_PRESETS: Record<
     bg: "#7f1d1d",
     surface: "#8f2a2a",
     text: "#faf4ea",
+    soft: "#debfb8",
     brand: "#faf4ea",
     strong: "#ffffff",
     line: "#a34a4a",
     scheme: "dark",
   },
   verde: {
-    bg: "#15803d",
-    surface: "#1a9148",
-    text: "#f4faf6",
-    brand: "#f4faf6",
+    bg: "#14532d",
+    surface: "#166534",
+    text: "#f0fdf4",
+    soft: "#b7d5c2",
+    brand: "#f0fdf4",
     strong: "#ffffff",
-    line: "#4ade80",
+    line: "#3f8f5f",
     scheme: "dark",
   },
   terracota: {
-    bg: "#c2410c",
-    surface: "#d14e16",
+    bg: "#7c2d12",
+    surface: "#8a3414",
     text: "#fff7ed",
+    soft: "#e1c4b5",
     brand: "#fff7ed",
     strong: "#ffffff",
-    line: "#fdba74",
+    line: "#b5623a",
     scheme: "dark",
   },
 };
@@ -131,14 +149,25 @@ export const brandCssVars = (
     "--bg": p.bg,
     "--surface": p.surface,
     "--text": p.text,
+    "--suave": p.soft,
     "--brand": p.brand,
     "--brand-strong": p.strong,
     "--line": p.line,
+    /* El número de espera se pintaba con `--espera`, el teal del módulo, que
+     * no estaba acá: quedaba #0f766e sobre el fondo del local. Sobre verde
+     * daba 1.09:1 y sobre terracota 1.06:1 — el mismo color, en la práctica,
+     * y esa pantalla existe para mostrar ese número. En un local con marca
+     * propia el teal pasa a ser el color del local, que ya está medido. */
+    "--espera": p.brand,
+    "--espera-strong": p.strong,
     "--color-crema": p.bg,
     "--color-surface": p.surface,
     "--color-carbon": p.text,
+    "--color-suave": p.soft,
     "--color-marca": p.brand,
     "--color-marca-fuerte": p.strong,
+    "--color-espera": p.brand,
+    "--color-espera-fuerte": p.strong,
     "--color-linea": p.line,
   };
 };
