@@ -18,11 +18,14 @@ import type { CierreRow } from "@/lib/historial";
 export const HistorialLista = ({
   filas,
   abriendo,
+  seleccionada,
   onSelect,
 }: {
   filas: CierreRow[];
   /* La sesión cuyo detalle se está trayendo, si hay alguna. */
   abriendo?: string | null;
+  /* La que está abierta a la derecha. La lista no se va: hay que ver cuál. */
+  seleccionada?: string | null;
   onSelect: (sessionId: string) => void;
 }) => {
   const { t } = useApp();
@@ -31,15 +34,17 @@ export const HistorialLista = ({
       {filas.map((f) => {
         const pagada = f.estado === "pagada";
         const cargando = abriendo === f.id;
+        const activa = seleccionada === f.id;
         return (
           <li key={f.id}>
             <button
               type="button"
               onClick={() => onSelect(f.id)}
               aria-busy={cargando}
+              aria-current={activa ? "true" : undefined}
               className={`flex w-full flex-col gap-1.5 rounded-2xl border bg-surface p-3 text-left transition sm:p-4 ${
-                cargando
-                  ? "border-pagos"
+                activa || cargando
+                  ? "border-pagos ring-2 ring-pagos/20"
                   : "border-linea hover:border-carbon/25"
               }`}
             >
