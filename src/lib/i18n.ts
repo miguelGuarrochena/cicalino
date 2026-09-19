@@ -568,8 +568,8 @@ const dict = {
         "Para enterarte cuando el pedido esté listo, tenela abierta. Si vas a otra app, volvé acá: se actualiza sola.",
       noCerrarPush:
         "Notificaciones activadas: podés cambiar de app y te avisamos cuando esté listo.",
-      siCerras: "Si la cerrás, en el mostrador pedí el pedido {n}.",
-      siCerrasAlias: "Si la cerrás, en el mostrador pedí el {n} o {alias}.",
+      siCerras: "Si la cerrás, en el mostrador pedí el pedido {n}.",
+      siCerrasAlias: "Si la cerrás, en el mostrador pedí el pedido {n} o {alias}.",
       aliasPh: "Tu nombre (opcional)",
       aliasHint: "Así te encuentran si volvés al mostrador.",
       aliasGuardar: "Listo",
@@ -616,7 +616,7 @@ const dict = {
         "Para enterarte cuando tu mesa esté lista, tenela abierta. Si vas a otra app, volvé acá: se actualiza sola.",
       noCerrarPush:
         "Notificaciones activadas: podés cambiar de app y te avisamos cuando tu mesa esté lista.",
-      siCerras: "Si la cerrás, en recepción pedí por {n}.",
+      siCerras: "Si la cerrás, en recepción pedí por {n}.",
       mantenerPestana:
         "En este teléfono no usamos notificaciones. Dejá esta pestaña abierta en primer plano para ver cuándo está lista tu mesa. Si vas a otra app y volvés, se actualiza sola.",
       noEncontradoTitulo: "Link vencido",
@@ -2279,8 +2279,8 @@ const dict = {
         "Keep it open to see when your order is ready. If you switch apps, come back here — it updates on its own.",
       noCerrarPush:
         "Notifications activated: you can switch apps and we'll ping you when it's ready.",
-      siCerras: "If you close it, ask at the counter for order {n}.",
-      siCerrasAlias: "If you close it, ask at the counter for {n} or {alias}.",
+      siCerras: "If you close it, ask at the counter for order {n}.",
+      siCerrasAlias: "If you close it, ask at the counter for order {n} or {alias}.",
       aliasPh: "Your name (optional)",
       aliasHint: "So they can find you if you come back to the counter.",
       aliasGuardar: "Save",
@@ -2327,7 +2327,7 @@ const dict = {
         "Keep it open to see when your table is ready. If you switch apps, come back here — it updates on its own.",
       noCerrarPush:
         "Notifications activated: you can switch apps and we'll ping you when your table is ready.",
-      siCerras: "If you close it, ask at the host stand for {n}.",
+      siCerras: "If you close it, ask at the host stand for {n}.",
       mantenerPestana:
         "This phone doesn't use notifications. Keep this tab open in the foreground to see when your table is ready. If you switch apps and come back, it updates on its own.",
       noEncontradoTitulo: "Link expired",
