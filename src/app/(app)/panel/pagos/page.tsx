@@ -9,6 +9,7 @@ import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useActiveEmployee } from "@/lib/hooks/useActiveEmployee";
 import { useTableBills } from "@/lib/hooks/useTableBills";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
+import { CerradoHoyAviso } from "@/components/panel/CerradoHoyAviso";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
@@ -298,6 +299,7 @@ const MesasPage = () => {
       </header>
 
       <SyncErrorBanner error={syncError} />
+      <CerradoHoyAviso />
 
       {live && !ready ? (
         <div className="flex min-h-[30vh] items-center justify-center">

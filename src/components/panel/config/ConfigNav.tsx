@@ -12,6 +12,9 @@ import {
   subscribeConfigSection,
 } from "@/components/panel/config/configHash";
 
+const PILL =
+  "inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full px-3 text-xs font-semibold transition sm:min-h-10 sm:px-3.5 sm:text-sm";
+
 type Tab = {
   id: string;
   href: string;
@@ -56,6 +59,8 @@ export const ConfigNav = () => {
   ];
 
   const current = onMetrics ? "metricas" : hash;
+  const enPagina = tabs.filter((tab) => tab.show && tab.inPage);
+  const salidas = tabs.filter((tab) => tab.show && !tab.inPage);
 
   const openSection = (id: string, e: MouseEvent<HTMLAnchorElement>) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
@@ -72,40 +77,60 @@ export const ConfigNav = () => {
       aria-label={t("config.titulo")}
       className="sticky top-[3.25rem] z-10 -mx-1 min-w-0 bg-crema/90 px-1 py-1 backdrop-blur-md sm:top-[4.25rem] print:hidden"
     >
-      <ul className="flex flex-wrap gap-1 rounded-2xl border border-linea bg-surface/80 p-1">
-        {tabs
-          .filter((tab) => tab.show)
-          .map((tab) => {
-            const selected = current === tab.id;
-            const className = `inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full px-3 text-xs font-semibold transition sm:min-h-10 sm:px-3.5 sm:text-sm ${
-              selected
-                ? "bg-marca text-crema"
-                : "text-carbon/60 hover:bg-carbon/5 hover:text-carbon"
-            }`;
-            return (
-              <li key={tab.id}>
-                {tab.inPage ? (
-                  <a
-                    href={tab.href}
-                    aria-current={selected ? "page" : undefined}
-                    onClick={(e) => openSection(tab.id, e)}
-                    className={className}
-                  >
-                    {t(tab.key)}
-                  </a>
-                ) : (
-                  <Link
-                    href={tab.href}
-                    scroll={false}
-                    aria-current={selected ? "page" : undefined}
-                    className={className}
-                  >
-                    {t(tab.key)}
-                  </Link>
-                )}
-              </li>
-            );
-          })}
+      {/* Dos grupos, no una fila pareja. Los primeros abren una sección de
+          esta misma pantalla; Menú y Métricas se van a otra página y llevaban
+          la misma píldora, así que tocar "Menú" se sentía como perder lo que
+          estabas editando. Van a la derecha, separados por una línea y con una
+          flechita, que es la diferencia que hacía falta. */}
+      <ul className="flex flex-wrap items-center gap-1 rounded-2xl border border-linea bg-surface/80 p-1">
+        {enPagina.map((tab) => {
+          const selected = current === tab.id;
+          return (
+            <li key={tab.id}>
+              <a
+                href={tab.href}
+                aria-current={selected ? "page" : undefined}
+                onClick={(e) => openSection(tab.id, e)}
+                className={`${PILL} ${
+                  selected
+                    ? "bg-marca text-crema"
+                    : "text-carbon/60 hover:bg-carbon/5 hover:text-carbon"
+                }`}
+              >
+                {t(tab.key)}
+              </a>
+            </li>
+          );
+        })}
+        {salidas.map((tab, i) => {
+          const selected = current === tab.id;
+          return (
+            <li
+              key={tab.id}
+              className={
+                i === 0
+                  ? "flex items-center gap-1 sm:ml-auto sm:border-l sm:border-linea sm:pl-1.5"
+                  : undefined
+              }
+            >
+              <Link
+                href={tab.href}
+                scroll={false}
+                aria-current={selected ? "page" : undefined}
+                className={`${PILL} gap-1 border ${
+                  selected
+                    ? "border-marca bg-marca text-crema"
+                    : "border-linea text-carbon/60 hover:bg-carbon/5 hover:text-carbon"
+                }`}
+              >
+                {t(tab.key)}
+                <span aria-hidden className="text-[0.9em] leading-none">
+                  ↗
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

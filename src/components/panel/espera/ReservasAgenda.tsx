@@ -7,7 +7,8 @@ import {
   timeUntilLabel,
 } from "@/lib/reservations";
 import { TZ_NEGOCIO } from "@/lib/businessDay";
-import { addDaysKey, pad2 } from "@/lib/espera/slots";
+import { addDaysKey, pad2, weekdayOfKey } from "@/lib/espera/slots";
+import { isClosedWeekday } from "@/lib/closedDays";
 import {
   reservationStatusLabel,
   reservationClosed,
@@ -94,12 +95,17 @@ export const ReservasAgenda = ({
   reservas,
   locale,
   ahora,
+  closedDays,
   onSentar,
   onCancelar,
 }: {
   reservas: ReservationView[];
   locale: string;
   ahora: number;
+  /* Los francos del local (0 = domingo). El calendario los muestra apagados:
+   * el picker ya no deja reservar ahí, así que verlos como un día cualquiera
+   * era la única parte de la agenda que seguía diciendo que el local abre. */
+  closedDays: number[];
   onSentar: (id: string) => void;
   onCancelar: (id: string) => void;
 }) => {
@@ -233,6 +239,12 @@ export const ReservasAgenda = ({
   const activeCount = (key: string) =>
     (byDay.get(key) ?? []).filter((r) => r.status === "activa").length;
 
+  /* Un día que el local no abre. Se sigue pudiendo tocar: puede tener
+   * reservas viejas o una cancelada que alguien quiera mirar. */
+  const cerrado = (key: string) =>
+    isClosedWeekday(weekdayOfKey(key), closedDays);
+  const cerradoTxt = locale === "en" ? "Closed" : "Cerrado";
+
   return (
     <div className="flex flex-col gap-4">
       {/* 1) Calendar + pending for the selected day */}
@@ -278,21 +290,25 @@ export const ReservasAgenda = ({
               const selected = cell.key === selectedKey;
               const isToday = cell.key === todayKey;
               const muted = !cell.inMonth;
+              const diaCerrado = cerrado(cell.key);
               return (
                 <button
                   key={cell.key}
                   type="button"
                   onClick={() => selectDay(cell.key)}
+                  title={diaCerrado ? cerradoTxt : undefined}
                   className={`relative flex aspect-square flex-col items-center justify-center rounded-xl text-sm font-semibold transition ${
                     selected
                       ? "bg-amber-500 text-amber-950 shadow-sm"
-                      : count
-                        ? muted
-                          ? "bg-amber-100/60 text-amber-900/55 hover:bg-amber-200/70 dark:bg-amber-400/15 dark:text-amber-100/55"
-                          : "bg-amber-200/70 text-amber-950 hover:bg-amber-300/80 dark:bg-amber-400/25 dark:text-amber-100"
-                        : muted
-                          ? "bg-transparent text-carbon/30 hover:bg-carbon/5"
-                          : "bg-surface text-carbon/70 hover:bg-carbon/5"
+                      : diaCerrado
+                        ? "bg-crema/50 text-carbon/30 line-through hover:bg-carbon/5"
+                        : count
+                          ? muted
+                            ? "bg-amber-100/60 text-amber-900/55 hover:bg-amber-200/70 dark:bg-amber-400/15 dark:text-amber-100/55"
+                            : "bg-amber-200/70 text-amber-950 hover:bg-amber-300/80 dark:bg-amber-400/25 dark:text-amber-100"
+                          : muted
+                            ? "bg-transparent text-carbon/30 hover:bg-carbon/5"
+                            : "bg-surface text-carbon/70 hover:bg-carbon/5"
                   } ${isToday && !selected ? "ring-2 ring-espera/50" : ""}`}
                 >
                   {cell.day}
@@ -315,8 +331,8 @@ export const ReservasAgenda = ({
           </div>
           <p className="mt-3 text-xs text-carbon/50">
             {locale === "en"
-              ? "Neighboring days are faded. Tap a day to see its pending list."
-              : "Los días del mes vecino se ven atenuados. Tocá un día para ver las pendientes."}
+              ? "Neighboring days are faded, closed days crossed out. Tap a day to see its pending list."
+              : "Los días del mes vecino se ven atenuados y los cerrados tachados. Tocá un día para ver las pendientes."}
           </p>
         </div>
 
@@ -331,8 +347,13 @@ export const ReservasAgenda = ({
           }
         >
           <div className="mb-3 shrink-0">
-            <h3 className="font-display text-xl uppercase tracking-tight text-carbon capitalize">
+            <h3 className="flex flex-wrap items-center gap-2 font-display text-xl uppercase tracking-tight text-carbon capitalize">
               {selectedLabel}
+              {cerrado(selectedKey) && (
+                <span className="rounded-full bg-carbon/10 px-2 py-0.5 text-[11px] font-bold tracking-wide text-carbon/55">
+                  {cerradoTxt}
+                </span>
+              )}
             </h3>
             <p className="text-xs text-carbon/50">
               {delDiaActivas.length

@@ -81,5 +81,6 @@
   "mesa-sesiones-realtime.sql",
   "mesa-pago-qr-mp-enum.sql",
   "mesa-pago-qr-mp.sql",
-  "mesas-historial.sql"
+  "mesas-historial.sql",
+  "dias-cerrados-jornada.sql"
 ]
