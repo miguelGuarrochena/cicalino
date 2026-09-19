@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
+import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import { formatMoney, type PaymentSettings } from "@/lib/tableBill";
 
 /* API reasons → text, with a generic line for anything unexpected. */
@@ -56,47 +57,69 @@ export const TransferDetails = ({
     await copy(alias, "alias");
   };
 
+  /* Los "Copiar" medían 26 px de alto y eran de 12 px. Es el gesto del que
+   * depende que la plata llegue bien —un alias mal tipeado es una
+   * transferencia a otra persona— y estaba resuelto con el control más chico
+   * de toda la pantalla. */
+  const copiar =
+    "inline-flex min-h-11 shrink-0 items-center rounded-full border-2 border-marca px-4 text-sm font-semibold text-marca";
+
   return (
-    <div className={`flex flex-col gap-2 ${compact ? "" : "rounded-2xl border border-linea bg-surface p-4"}`}>
-      {!compact && <p className="text-sm font-semibold text-carbon">{t("mesa.transferenciaTitulo")}</p>}
-      <dl className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1.5 text-sm">
-        <dt className="text-carbon/55">{t("mesa.monto")}</dt>
-        <dd className="font-semibold tabular-nums text-carbon">{formatMoney(total)}</dd>
-        <span />
-        <dt className="text-carbon/55">{t("mesa.alias")}</dt>
-        <dd className="break-all font-mono text-carbon">{settings.transferAlias}</dd>
-        <button
-          type="button"
-          onClick={() => void copy(settings.transferAlias ?? "", "alias")}
-          className="rounded-full border border-linea px-2.5 py-1 text-xs font-semibold text-marca"
-        >
-          {copied === "alias" ? t("mesa.copiado") : t("mesa.copiar")}
-        </button>
+    <div className={`flex flex-col gap-3 ${compact ? "" : "rounded-2xl border border-linea bg-surface p-4"}`}>
+      {!compact && (
+        <p className="text-lg font-semibold text-carbon">{t("mesa.transferenciaTitulo")}</p>
+      )}
+      {/* Cada dato en su fila, con el botón abajo: en 375 px, una grilla de
+          tres columnas con un CBU de 22 dígitos y un botón de 44 px no entra
+          sin romper el número o empujar el botón fuera de la pantalla. */}
+      <dl className="flex flex-col gap-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-base text-suave">{t("mesa.monto")}</dt>
+          <dd className="text-lg font-bold tabular-nums text-carbon">{formatMoney(total)}</dd>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <dt className="w-full text-base text-suave">{t("mesa.alias")}</dt>
+          <dd className="min-w-0 flex-1 break-all font-mono text-base text-carbon">
+            {settings.transferAlias}
+          </dd>
+          <button
+            type="button"
+            onClick={() => void copy(settings.transferAlias ?? "", "alias")}
+            className={copiar}
+          >
+            {copied === "alias" ? t("mesa.copiado") : t("mesa.copiar")}
+          </button>
+        </div>
         {settings.transferCbu && (
-          <>
-            <dt className="text-carbon/55">{t("mesa.cbu")}</dt>
-            <dd className="break-all font-mono text-xs text-carbon">{settings.transferCbu}</dd>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <dt className="w-full text-base text-suave">{t("mesa.cbu")}</dt>
+            <dd className="min-w-0 flex-1 break-all font-mono text-base text-carbon">
+              {settings.transferCbu}
+            </dd>
             <button
               type="button"
               onClick={() => void copy(settings.transferCbu ?? "", "cbu")}
-              className="rounded-full border border-linea px-2.5 py-1 text-xs font-semibold text-marca"
+              className={copiar}
             >
               {copied === "cbu" ? t("mesa.copiado") : t("mesa.copiar")}
             </button>
-          </>
+          </div>
         )}
-        <dt className="text-carbon/55">{t("mesa.titular")}</dt>
-        <dd className="text-carbon">{settings.transferHolder}</dd>
-        <span />
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-base text-suave">{t("mesa.titular")}</dt>
+          <dd className="text-base font-semibold text-carbon">{settings.transferHolder}</dd>
+        </div>
       </dl>
       <button
         type="button"
         onClick={() => void openApp()}
-        className="min-h-10 rounded-full border-2 border-marca px-4 text-sm font-semibold text-marca"
+        className="min-h-12 rounded-full border-2 border-marca px-4 text-base font-semibold text-marca"
       >
         {t("mesa.abrirApp")}
       </button>
-      <p className="text-xs text-amber-800 dark:text-amber-200">{t("mesa.transferenciaAviso")}</p>
+      {/* Era `text-amber-800` con un `dark:` que nunca aplicaba: ámbar oscuro
+          sobre el fondo del local, sin banda propia que lo sostenga. */}
+      <CustomerNotice tone="curso">{t("mesa.transferenciaAviso")}</CustomerNotice>
     </div>
   );
 };

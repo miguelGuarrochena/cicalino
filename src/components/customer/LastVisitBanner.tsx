@@ -97,17 +97,17 @@ export const LastVisitBanner = () => {
       <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-2.5 sm:px-6">
         <Link
           href={href}
-          className="min-w-0 flex-1 text-sm font-semibold leading-snug hover:underline"
+          className="min-w-0 flex-1 py-1 text-base font-semibold leading-snug hover:underline"
         >
           {cta}
-          <span className="mt-0.5 block text-xs font-medium text-crema/75">
+          <span className="mt-0.5 block text-sm font-medium text-crema/85">
             {t("seguimiento.sub")}
           </span>
         </Link>
         <button
           type="button"
           onClick={ocultar}
-          className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-crema/80 hover:bg-white/10"
+          className="inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold text-crema hover:bg-white/10"
         >
           {t("seguimiento.cerrar")}
         </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useApp } from "@/components/providers/Providers";
+import { CustomerEmpty } from "@/components/customer/CustomerEmpty";
 import {
   consumptionByGuest,
   formatMoney,
@@ -17,12 +18,15 @@ import {
 
 export const PaymentStatusBadge = ({ payment }: { payment: BillPayment }) => {
   const { t } = useApp();
+  /* Los pasteles crudos de Tailwind no tenían variante oscura que sirviera: en
+   * el panel oscuro y sobre un fondo de marca del comensal quedaban bloques
+   * claros sueltos. Los tokens de estado ya saben en qué fondo están. */
   const cls =
     payment.status === "pagado"
-      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+      ? "border-ok-borde bg-ok-fondo text-carbon"
       : payment.status === "pendiente"
-        ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-        : "bg-carbon/10 text-carbon/55";
+        ? "border-curso-borde bg-curso-fondo text-carbon"
+        : "border-linea bg-carbon/5 text-suave";
   const icon = payment.status === "pagado" ? "✓" : payment.status === "pendiente" ? "⏳" : "✕";
   const label =
     payment.status === "pendiente" && payment.method === "mercado_pago"
@@ -30,7 +34,7 @@ export const PaymentStatusBadge = ({ payment }: { payment: BillPayment }) => {
       : t(`mesa.estadoPago.${payment.status}`);
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}
+      className={`inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold ${cls}`}
     >
       <span aria-hidden>{icon}</span>
       {label}
@@ -49,7 +53,7 @@ export const ConsumptionTable = ({
   const groups = consumptionByGuest(bill).filter((g) => g.lines.length > 0);
 
   if (!groups.length) {
-    return <p className="py-6 text-center text-sm text-carbon/55">{t("mesa.sinConsumo")}</p>;
+    return <CustomerEmpty titulo={t("mesa.sinConsumo")} cuerpo={t("mesa.sinConsumoAyuda")} />;
   }
 
   return (
@@ -57,59 +61,50 @@ export const ConsumptionTable = ({
       {groups.map((g) => (
         <section
           key={g.guest.id}
-          className={`rounded-2xl border bg-surface p-3 ${
+          className={`rounded-2xl border bg-surface p-3.5 ${
             g.guest.id === highlightGuestId ? "border-marca/50" : "border-linea"
           }`}
         >
-          <h3 className="mb-2 flex items-baseline justify-between gap-2 text-sm font-semibold text-carbon">
+          <h3 className="mb-2.5 flex items-baseline justify-between gap-2 text-lg font-semibold text-carbon">
             <span className="truncate">
               {g.guest.name}
               {g.guest.id === highlightGuestId && (
-                <span className="ml-1.5 text-xs font-medium text-marca">{t("mesa.vos")}</span>
+                <span className="ml-1.5 text-base font-medium text-marca">{t("mesa.vos")}</span>
               )}
             </span>
           </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wide text-carbon/45">
-                  <th className="pb-1 font-medium">{t("mesa.producto")}</th>
-                  <th className="pb-1 text-right font-medium">{t("mesa.cant")}</th>
-                  <th className="pb-1 text-right font-medium">{t("mesa.unitario")}</th>
-                  <th className="pb-1 text-right font-medium">{t("mesa.subtotal")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {g.lines.map((l) => (
-                  <tr key={`${l.name}:${l.unitPrice}`} className="border-t border-linea/60">
-                    <td className="py-1.5 pr-2 text-carbon/80">{l.name}</td>
-                    <td className="py-1.5 text-right tabular-nums text-carbon/70">{l.quantity}</td>
-                    <td className="py-1.5 text-right tabular-nums text-carbon/60">
-                      {formatMoney(l.unitPrice)}
-                    </td>
-                    <td className="py-1.5 text-right tabular-nums text-carbon">
-                      {formatMoney(l.subtotal)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-linea">
-                  <td colSpan={3} className="pt-1.5 text-xs font-semibold text-carbon/60">
-                    {t("mesa.subtotalDe", { n: g.guest.name })}
-                  </td>
-                  <td className="pt-1.5 text-right font-semibold tabular-nums text-carbon">
-                    {formatMoney(g.subtotal)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          {/* Era una tabla de cuatro columnas con cabeceras de 11 px. En un
+              teléfono de 375 px al nombre del producto le quedaban 134 px, y
+              para llegar a 14 px de fuente no hay forma de que entren las
+              cuatro. Ahora cada línea ocupa dos renglones: qué es arriba,
+              cuánto abajo. Se lee igual en la tablet del panel. */}
+          <ul className="flex flex-col">
+            {g.lines.map((l) => (
+              <li
+                key={`${l.name}:${l.unitPrice}`}
+                className="flex items-start justify-between gap-3 border-t border-linea/60 py-2.5 first:border-t-0 first:pt-0"
+              >
+                <div className="min-w-0">
+                  <p className="text-base leading-snug text-carbon">{l.name}</p>
+                  <p className="mt-0.5 text-sm tabular-nums text-suave">
+                    {l.quantity} × {formatMoney(l.unitPrice)}
+                  </p>
+                </div>
+                <span className="shrink-0 text-base font-semibold tabular-nums text-carbon">
+                  {formatMoney(l.subtotal)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 flex items-baseline justify-between gap-3 border-t border-linea pt-2.5 text-base font-semibold text-carbon">
+            <span className="min-w-0 truncate">{t("mesa.subtotalDe", { n: g.guest.name })}</span>
+            <span className="shrink-0 tabular-nums">{formatMoney(g.subtotal)}</span>
+          </p>
         </section>
       ))}
-      <p className="flex items-baseline justify-between rounded-2xl bg-marca/10 px-4 py-3 text-sm font-semibold text-carbon">
+      <p className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl bg-marca/10 px-4 py-3.5 text-base font-semibold text-carbon">
         {t("mesa.totalConsumo")}
-        <span className="font-display text-xl tabular-nums text-marca">
+        <span className="font-display text-2xl tabular-nums text-marca">
           {formatMoney(bill.totals.consumption)}
         </span>
       </p>
@@ -125,13 +120,13 @@ export const BillTotals = ({ bill }: { bill: TableBill }) => {
       {(
         [
           ["mesa.total", bill.totals.total, "text-carbon"],
-          ["mesa.pagado", bill.totals.paid, "text-emerald-700 dark:text-emerald-300"],
-          ["mesa.pendiente", pending, pending > 0 ? "text-amber-700 dark:text-amber-300" : "text-carbon/60"],
+          ["mesa.pagado", bill.totals.paid, "text-ok"],
+          ["mesa.pendiente", pending, pending > 0 ? "text-curso" : "text-suave"],
         ] as const
       ).map(([k, v, cls]) => (
-        <div key={k} className="rounded-2xl border border-linea bg-surface px-2 py-2.5">
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-carbon/50">{t(k)}</dt>
-          <dd className={`mt-0.5 font-display text-lg tabular-nums sm:text-xl ${cls}`}>
+        <div key={k} className="rounded-2xl border border-linea bg-surface px-2 py-3">
+          <dt className="text-sm font-semibold uppercase tracking-wide text-suave">{t(k)}</dt>
+          <dd className={`mt-1 font-display text-xl tabular-nums sm:text-2xl ${cls}`}>
             {formatMoney(v)}
           </dd>
         </div>
@@ -152,40 +147,40 @@ export const PaymentRows = ({
   const { t } = useApp();
   const rows = paymentsByPayer(bill);
   if (!rows.length) {
-    return <p className="py-4 text-center text-sm text-carbon/55">{t("mesa.sinPagos")}</p>;
+    return <CustomerEmpty titulo={t("mesa.sinPagos")} cuerpo={t("mesa.sinPagosAyuda")} />;
   }
   return (
     <ul className="flex flex-col gap-2">
       {rows.map((r) => (
         <li
           key={r.key}
-          className={`rounded-2xl border bg-surface p-3 ${
+          className={`rounded-2xl border bg-surface p-3.5 ${
             r.guestId && r.guestId === highlightGuestId ? "border-marca/50" : "border-linea"
           }`}
         >
-          <p className="flex items-baseline justify-between gap-2 text-sm font-semibold text-carbon">
+          <p className="flex items-baseline justify-between gap-2 text-lg font-semibold text-carbon">
             <span className="truncate">{r.name}</span>
             {!r.payments.length && (
-              <span className="text-xs font-medium text-carbon/45">{t("mesa.sinPagar")}</span>
+              <span className="shrink-0 text-sm font-medium text-suave">{t("mesa.sinPagar")}</span>
             )}
           </p>
           {r.payments.length > 0 && (
-            <ul className="mt-2 flex flex-col gap-2">
+            <ul className="mt-2.5 flex flex-col gap-2.5">
               {r.payments.map((p) => (
-                <li key={p.id} className="flex flex-col gap-1.5 border-t border-linea/60 pt-2">
-                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <li key={p.id} className="flex flex-col gap-2 border-t border-linea/60 pt-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
                     <span
-                      className={`font-semibold tabular-nums ${
-                        p.status === "cancelado" ? "text-carbon/40 line-through" : "text-carbon"
+                      className={`text-lg font-semibold tabular-nums ${
+                        p.status === "cancelado" ? "text-suave line-through" : "text-carbon"
                       }`}
                     >
                       {formatMoney(p.total)}
                     </span>
-                    <span className="text-xs text-carbon/60">{t(`mesa.metodo.${p.method}`)}</span>
+                    <span className="text-sm text-suave">{t(`mesa.metodo.${p.method}`)}</span>
                     <PaymentStatusBadge payment={p} />
                   </div>
                   {(p.tip > 0 || p.surcharge > 0) && p.status !== "cancelado" && (
-                    <p className="text-[11px] text-carbon/50">
+                    <p className="text-sm text-suave">
                       {t("mesa.desglose", {
                         base: formatMoney(p.base),
                         propina: formatMoney(p.tip),

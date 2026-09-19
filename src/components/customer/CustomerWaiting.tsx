@@ -19,6 +19,7 @@ import { CustomerAliasForm } from "@/components/customer/CustomerAliasForm";
 import { CustomerOtherTab } from "@/components/customer/CustomerOtherTab";
 import { CustomerBrandHeader } from "@/components/customer/CustomerBrandHeader";
 import { CustomerBrandShell } from "@/components/customer/CustomerBrandShell";
+import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import {
   showReadyNotice,
   requestNotificationPermission,
@@ -201,7 +202,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
         <p className="mt-6 font-display text-2xl uppercase text-carbon">
           {t("cliente.noEncontradoTitulo")}
         </p>
-        <p className="mt-2 max-w-sm text-carbon/60">
+        <p className="mt-2 max-w-sm text-base leading-relaxed text-suave">
           {t("cliente.noEncontradoSub")}
         </p>
       </main>
@@ -227,21 +228,19 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
       <Controls showTheme={false} className="absolute right-4 top-4 z-20" />
 
       {waiting && (
-        <div className="u-in mb-6 w-full rounded-2xl border border-amber-300/80 bg-amber-100 px-3 py-2.5 text-amber-950 sm:max-w-sm">
-          <p className="text-sm font-semibold">
-            {t("cliente.noCerrarTitulo")}
-          </p>
-          <p className="mt-1 text-sm font-medium leading-snug">
+        <CustomerNotice tone="curso" className="u-in mb-6 w-full text-left sm:max-w-sm">
+          <p className="font-bold">{t("cliente.noCerrarTitulo")}</p>
+          <p className="mt-1 font-medium leading-snug">
             {alias
               ? t("cliente.siCerrasAlias", { n: order.reference, alias })
               : t("cliente.siCerras", { n: order.reference })}
           </p>
-          <p className="mt-1.5 text-xs font-medium leading-snug text-amber-950/80">
+          <p className="mt-1.5 text-sm font-medium leading-snug text-suave">
             {pushDisponible && pushActivo
               ? t("cliente.noCerrarPush")
               : t("cliente.noCerrar")}
           </p>
-        </div>
+        </CustomerNotice>
       )}
 
       <div className="u-in flex flex-1 flex-col items-center justify-center">
@@ -250,7 +249,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
             name={order.branchName}
             logoUrl={order.logoUrl}
           />
-          <span className="mt-1 text-xs uppercase tracking-widest text-carbon/40">
+          <span className="mt-1 text-sm font-semibold uppercase tracking-widest text-suave">
             {t(`modo.${order.modo}`)}
           </span>
           <span className="font-display text-7xl leading-none text-marca sm:text-8xl">
@@ -269,14 +268,14 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
           <span
             className={`pointer-events-none absolute inset-0 m-auto size-52 rounded-full transition-colors duration-500 sm:size-56 ${
               esCancelado
-                ? "bg-red-400/10"
+                ? "bg-alerta-fondo"
                 : esOk
-                  ? "bg-emerald-400/15"
-                  : "bg-amber-400/15"
+                  ? "bg-ok-fondo"
+                  : "bg-curso-fondo"
             }`}
           />
           {!cerrado && (
-            <span className="pointer-events-none absolute inset-0 m-auto size-52 animate-ping rounded-full bg-amber-400/10 sm:size-56" />
+            <span className="pointer-events-none absolute inset-0 m-auto size-52 animate-ping rounded-full bg-curso-fondo sm:size-56" />
           )}
           <div
             key={`${esCancelado ? "cancel" : esRetirado ? "done" : esListo ? "ok" : "chef"}-${tick}`}
@@ -295,33 +294,33 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
         <div className="u-in min-h-[92px]">
           {esCancelado ? (
             <>
-              <p className="font-display text-3xl uppercase tracking-tight text-red-600/80">
+              <p className="font-display text-3xl uppercase tracking-tight text-alerta">
                 {t("cliente.canceladoTitulo")}
               </p>
-              <p className="mt-2 text-carbon/60">{t("cliente.canceladoSub")}</p>
+              <p className="mt-2 text-base leading-relaxed text-suave">{t("cliente.canceladoSub")}</p>
             </>
           ) : esRetirado ? (
             <>
-              <p className="font-display text-3xl uppercase tracking-tight text-emerald-700">
+              <p className="font-display text-3xl uppercase tracking-tight text-ok">
                 {t("cliente.retiradoTitulo")}
               </p>
-              <p className="mt-2 max-w-sm text-carbon/60">
+              <p className="mt-2 max-w-sm text-base leading-relaxed text-suave">
                 {t("cliente.retiradoSub")}
               </p>
             </>
           ) : esListo ? (
             <>
-              <p className="font-display text-3xl uppercase tracking-tight text-emerald-600">
+              <p className="font-display text-3xl uppercase tracking-tight text-ok">
                 {t("cliente.listoTitulo")}
               </p>
-              <p className="mt-2 text-carbon/60">{t("cliente.listoSub")}</p>
+              <p className="mt-2 text-base leading-relaxed text-suave">{t("cliente.listoSub")}</p>
             </>
           ) : (
             <>
               <p className="font-display text-2xl uppercase tracking-tight text-carbon sm:text-3xl">
                 {t("cliente.preparandoTitulo")}
               </p>
-              <p className="mt-2 max-w-sm text-carbon/60">
+              <p className="mt-2 max-w-sm text-base leading-relaxed text-suave">
                 {t("cliente.preparandoSub")}
               </p>
             </>
@@ -332,30 +331,30 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
           <div className="u-in mt-8 w-full sm:max-w-sm">
             {pushDisponible ? (
               pushActivo ? (
-                <p className="rounded-2xl border border-emerald-300/70 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+                <CustomerNotice tone="ok" className="text-left font-semibold">
                   {t("cliente.activados")}
-                </p>
+                </CustomerNotice>
               ) : (
                 <>
                   <button
                     type="button"
                     onClick={() => void activarAvisos()}
                     disabled={pushCargando}
-                    className="w-full rounded-full bg-marca px-6 py-4 font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
+                    className="min-h-14 w-full rounded-full bg-marca px-6 text-base font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-70"
                   >
                     {pushCargando
                       ? t("cliente.pushCargando")
                       : t("cliente.activar")}
                   </button>
                   {pushError && (
-                    <p className="mt-2 text-center text-xs text-red-500">
+                    <CustomerNotice tone="alerta" role="alert" className="mt-3 text-left">
                       {pushError}
-                    </p>
+                    </CustomerNotice>
                   )}
                 </>
               )
             ) : (
-              <p className="rounded-2xl border border-carbon/10 bg-carbon/[0.04] px-4 py-3 text-sm leading-snug text-carbon/75">
+              <p className="rounded-2xl border border-linea bg-carbon/[0.04] px-4 py-3.5 text-base leading-snug text-carbon">
                 {t("cliente.mantenerPestana")}
               </p>
             )}
@@ -363,7 +362,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
         )}
       </div>
 
-      <p className="mt-8 text-xs text-carbon/35">
+      <p className="mt-8 text-sm text-suave">
         {t("cliente.espera")} · cicalino.net
       </p>
     </main>

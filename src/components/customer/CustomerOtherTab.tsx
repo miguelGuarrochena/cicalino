@@ -13,6 +13,6 @@ export const CustomerOtherTab = ({ title, body }: Props) => (
     <Controls showTheme={false} className="absolute right-4 top-4" />
     <ThemedImg name="bell" alt="" className="h-28 opacity-50" />
     <p className="mt-6 font-display text-2xl uppercase text-carbon">{title}</p>
-    <p className="mt-2 max-w-sm text-carbon/60">{body}</p>
+    <p className="mt-2 max-w-sm text-suave">{body}</p>
   </main>
 );

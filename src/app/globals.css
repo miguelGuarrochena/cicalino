@@ -67,6 +67,19 @@
   --alerta: #991b1b;
   --alerta-fondo: #fee2e2;
   --alerta-borde: #fca5a5;
+
+  /* Texto secundario: descripciones, horarios, ayudas, etiquetas.
+   *
+   * Antes esto se resolvía con `text-carbon/55`, `/50`, `/45`, `/35` — media
+   * docena de grises distintos, y ninguno llegaba a 4.5:1. La descripción de
+   * un plato daba 3.45, la cabecera de una tabla 2.65 y el pie 2.04. Sobre los
+   * fondos de marca oscuros bajaba a 1.9.
+   *
+   * Ahora hay un solo nivel secundario, medido para cumplir AA sobre el
+   * `surface` de cada tema y de cada marca del comensal. La jerarquía la marcan
+   * el tamaño y el peso, que es lo que se ve igual con poca luz o poca vista.
+   * = mezcla de --text al 74% sobre --surface. */
+  --suave: #595d78;
   color-scheme: light;
 }
 
@@ -93,6 +106,7 @@
     --alerta: #fca5a5;
     --alerta-fondo: color-mix(in srgb, #ef4444 18%, transparent);
     --alerta-borde: color-mix(in srgb, #ef4444 45%, transparent);
+    --suave: #b6b4aa;
     color-scheme: dark;
   }
 }
@@ -119,6 +133,7 @@
   --alerta: #fca5a5;
   --alerta-fondo: color-mix(in srgb, #ef4444 18%, transparent);
   --alerta-borde: color-mix(in srgb, #ef4444 45%, transparent);
+  --suave: #b6b4aa;
   color-scheme: dark;
 }
 
@@ -126,6 +141,7 @@
   --color-crema: var(--bg);
   --color-surface: var(--surface);
   --color-carbon: var(--text);
+  --color-suave: var(--suave);
   --color-marca: var(--brand);
   --color-marca-fuerte: var(--brand-strong);
   --color-espera: var(--espera);
@@ -440,6 +456,38 @@ button:disabled,
 }
 :root [data-scheme="light"] .on-light {
   display: inline-block;
+}
+
+/* Los estados (en curso, listo, alerta) sobre un fondo de marca oscuro.
+ *
+ * El comensal fuerza `data-theme="light"` en el <html>, así que hasta acá se
+ * llevaba los tonos claros del `:root`: una banda `#fee2e2` con texto `#991b1b`
+ * flotando sobre un fondo bordó o terracota. Islas claras en una pantalla
+ * oscura, y ningún `dark:` las alcanzaba porque el variante está atado a
+ * `data-theme`, no a la marca del local.
+ *
+ * `data-scheme` ya sabe si el fondo del local es claro u oscuro — lo pone
+ * `CustomerBrandShell`. Los tonos siguen a eso y no al tema del dispositivo.
+ *
+ * El rojo es `#fecaca` y no el `#fca5a5` del panel: sobre verde y terracota,
+ * el del panel se quedaba en 3.76 y 4.29. Este da 4.93 en el peor caso.
+ *
+ * El tinte del fondo es flojo a propósito. Con el 20-22% de la primera
+ * versión, el rojo sobre un local verde daba un oliva apagado: se leía —8.2:1—
+ * pero no parecía una alerta, parecía un error de color. Acá el fondo casi no
+ * se mueve del `surface` del local y el tono lo ponen el borde, que va grueso,
+ * y el ícono. Eso además cumple lo de no depender solo del color: cada aviso
+ * trae su forma. */
+[data-scheme="dark"] {
+  --curso: #fcd34d;
+  --curso-fondo: color-mix(in srgb, #f59e0b 10%, transparent);
+  --curso-borde: color-mix(in srgb, #fcd34d 75%, transparent);
+  --ok: #6ee7b7;
+  --ok-fondo: color-mix(in srgb, #10b981 10%, transparent);
+  --ok-borde: color-mix(in srgb, #6ee7b7 75%, transparent);
+  --alerta: #fecaca;
+  --alerta-fondo: color-mix(in srgb, #ef4444 12%, transparent);
+  --alerta-borde: color-mix(in srgb, #fecaca 75%, transparent);
 }
 
 /* ---- Imprimir solo el sticker del QR ----

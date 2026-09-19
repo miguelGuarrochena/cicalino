@@ -135,9 +135,14 @@ describe("Operación — jerarquía y layout", () => {
     /* Dos columnas si entran, apiladas si no, sin medir el ancho en JS. */
     expect(detalle).toContain("grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]");
     expect(detalle).toContain("flex w-full flex-col gap-1.5");
-    expect(guest).toContain("mesa.verCuenta");
-    expect(guest).toContain("mesa.pedirCuenta");
-    expect(guest).toContain("mesa.seguirPidiendo");
+    /* La barra de abajo salió de la pantalla grande: ahora tiene una regla
+       propia —cuando hay algo sin enviar, el pedido se queda con la barra en
+       cualquier pestaña— y eso merecía su archivo. */
+    const barra = read("src/components/customer/table/TableBottomBar.tsx");
+    expect(barra).toContain("mesa.verCuenta");
+    expect(barra).toContain("mesa.pedirCuenta");
+    expect(barra).toContain("mesa.seguirPidiendo");
+    expect(barra).toContain("mesa.verPedido");
     expect(guest).toContain("mesa.llamarMozo");
     expect(qr).toContain('"/p" | "/e" | "/m"');
     expect(qr).toContain("qr.imprimir");
