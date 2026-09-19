@@ -231,9 +231,7 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
         <CustomerNotice tone="curso" className="u-in mb-6 w-full text-left sm:max-w-sm">
           <p className="font-bold">{t("cliente.noCerrarTitulo")}</p>
           <p className="mt-1 font-medium leading-snug">
-            {alias
-              ? t("cliente.siCerrasAlias", { n: order.reference, alias })
-              : t("cliente.siCerras", { n: order.reference })}
+            {alias ? t("cliente.siCerrasAlias") : t("cliente.siCerras")}
           </p>
           <p className="mt-1.5 text-sm font-medium leading-snug text-suave">
             {pushDisponible && pushActivo
