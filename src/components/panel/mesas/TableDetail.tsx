@@ -38,6 +38,7 @@ export const TableDetail = ({
   employeeId,
   employeeName,
   canManage,
+  soloLectura = false,
   onCloseTable,
   onChanged,
   onBack,
@@ -53,6 +54,10 @@ export const TableDetail = ({
   employeeId: string | null;
   employeeName?: string | null;
   canManage: boolean;
+  /* El historial es una consulta del pasado, no otra puerta de operación:
+   * anular un pago de agosto descuadra un cierre de caja que ya pasó. Con
+   * esto el detalle muestra lo mismo pero no ofrece nada que escriba. */
+  soloLectura?: boolean;
   /* Lo abre la página: el modal de cerrar vive una sola vez, así la baldosa y
    * el detalle no tienen cada uno su copia. */
   onCloseTable?: () => void;
@@ -71,7 +76,11 @@ export const TableDetail = ({
   const [cobrarOpen, setCobrarOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignTo, setReassignTo] = useState(waiterId ?? "");
-  const open = bill.session.status === "abierta";
+  /* Todo lo que escribe cuelga de `open`: cobrar, confirmar, anular, anotar,
+   * cancelar y cerrar. Por eso alcanza con apagarlo acá — una sesión que por
+   * lo que sea siguiera abierta no convierte una consulta del pasado en una
+   * pantalla de cobro. */
+  const open = bill.session.status === "abierta" && !soloLectura;
   const names = new Map(bill.guests.map((g) => [g.id, g.name]));
   const pending = billPending(bill);
   const status = floorStatus(bill);

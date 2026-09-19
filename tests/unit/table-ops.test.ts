@@ -11,10 +11,6 @@ import {
   floorStatus,
   guestAccountRows,
   kitchenInbox,
-  historialEntry,
-  historialDelDia,
-  buscarHistorial,
-  isPaidToday,
   nextChargeAfter,
   summarizeKitchen,
 } from "@/lib/tableOps";
@@ -244,7 +240,6 @@ describe("buildFloor", () => {
     );
     const byN = new Map(floor.map((r) => [r.tableNumber, r]));
     const list = [byN.get(4)!, byN.get(2)!, byN.get(5)!];
-    expect(isPaidToday(five)).toBe(true);
     expect(nextChargeAfter(list, "s5")?.tableNumber).toBe(4);
     expect(nextChargeAfter(list, "s4")?.tableNumber).toBe(2);
   });
@@ -333,66 +328,5 @@ describe("cuenta por persona", () => {
     const rows = guestAccountRows(bill);
     expect(rows[0]).toMatchObject({ status: "pagado", consumption: 15000 });
     expect(rows[1]).toMatchObject({ status: "pendiente", consumption: 10000 });
-  });
-});
-
-/* El día que ya pasó, para poder revisarlo.
- *
- * "Pagadas hoy (8)" contaba ocho cuando dos se habían cerrado sin cobrar:
- * `isPaidToday` incluye las `cerrada`, así que una invitación de la casa
- * aparecía con $0 bajo el mismo título que una mesa cobrada. Revisar el día es
- * justamente encontrar esas. */
-describe("historial del día", () => {
-  const cerrada = (over: Partial<TableBill["session"]>, totals: Partial<TableBill["totals"]>) =>
-    mkBill({
-      session: { ...mkBill().session, ...over },
-      totals: { ...mkBill().totals, ...totals },
-    });
-
-  it("separa lo cobrado de lo cerrado sin cobrar", () => {
-    const pagada = historialEntry(
-      cerrada({ status: "pagada", paidAt: "2026-09-18T22:10:00Z" },
-              { consumption: 21000, paid: 21000, uncovered: 0 }),
-    );
-    const invitada = historialEntry(
-      cerrada({ status: "cerrada", closedAt: "2026-09-18T23:00:00Z", closeReason: "invitación de la casa" },
-              { consumption: 12000, paid: 0, uncovered: 12000 }),
-    );
-    expect(pagada.estado).toBe("pagada");
-    expect(invitada.estado).toBe("sin-cobrar");
-    /* La que no se cobró muestra el consumo: el $0 no decía nada. */
-    expect(invitada.consumo).toBe(12000);
-    expect(invitada.bill.session.closeReason).toBe("invitación de la casa");
-  });
-
-  it("la hora sale del cierre, y si no del pago", () => {
-    expect(historialEntry(cerrada({ closedAt: "2026-09-18T23:00:00Z", paidAt: "2026-09-18T22:00:00Z" }, {})).at)
-      .toBe("2026-09-18T23:00:00Z");
-    expect(historialEntry(cerrada({ closedAt: null, paidAt: "2026-09-18T22:00:00Z" }, {})).at)
-      .toBe("2026-09-18T22:00:00Z");
-  });
-
-  it("lo último primero: revisar el día es mirar lo que recién pasó", () => {
-    const filas = historialDelDia([
-      cerrada({ id: "vieja", status: "pagada", closedAt: "2026-09-18T13:00:00Z" }, { consumption: 100, paid: 100, uncovered: 0 }),
-      cerrada({ id: "nueva", status: "pagada", closedAt: "2026-09-18T23:00:00Z" }, { consumption: 200, paid: 200, uncovered: 0 }),
-    ]);
-    expect(filas.map((f) => f.bill.session.id)).toEqual(["nueva", "vieja"]);
-  });
-
-  it("no lista las mesas que siguen abiertas con saldo", () => {
-    const abierta = cerrada({ status: "abierta" }, { consumption: 9000, paid: 0, uncovered: 9000 });
-    expect(historialDelDia([abierta])).toEqual([]);
-  });
-
-  it("se busca por número de mesa y por nombre del comensal", () => {
-    const filas = historialDelDia([
-      cerrada({ id: "a", status: "pagada", tableNumber: 12, closedAt: "2026-09-18T20:00:00Z" },
-              { consumption: 100, paid: 100, uncovered: 0 }),
-    ]);
-    expect(buscarHistorial(filas, "12")).toHaveLength(1);
-    expect(buscarHistorial(filas, "juan")).toHaveLength(1);
-    expect(buscarHistorial(filas, "99")).toEqual([]);
-    expect(buscarHistorial(filas, "  ")).toHaveLength(1);
   });
 });

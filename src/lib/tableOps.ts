@@ -140,12 +140,6 @@ export const needsPedido = (row: FloorTable): boolean =>
 export const needsCharge = (row: FloorTable): boolean =>
   Boolean(row.bill && row.bill.session.status === "abierta" && row.pending > 0);
 
-export const isPaidToday = (bill: TableBill): boolean =>
-  bill.totals.consumption > 0 &&
-  (bill.session.status === "pagada" ||
-    bill.session.status === "cerrada" ||
-    (bill.session.status === "abierta" && billPending(bill) <= 0));
-
 /* After a table is paid in full, open the first one still in this list.
  * The list order is what the waiter sees (urgency on Cobrar, number on Todas),
  * not the table number. They can still tap any other table. */
@@ -289,56 +283,15 @@ export const tableAlert = (
   return null;
 };
 
-/* Lo que hace falta para revisar una mesa ya terminada.
+/* El historial de mesas cerradas ya no se arma acá.
  *
- * La lista de abajo decía "Mesa 2 · $21.000" cuatro veces y no había forma de
- * saber cuál era cuál. Lo que distingue una mesa de otra cuando ya se fueron
- * es a qué hora se cerró, quién la atendió y con qué se pagó.
+ * Vivía en este archivo porque la lista salía de las mismas cuentas que la
+ * pantalla operativa: `mesas_cuentas` corta en el inicio de la jornada, así
+ * que "el historial" era, en los hechos, filtrar las de hoy en memoria. Eso
+ * dejaba fuera todo lo anterior a las 6 de la mañana de hoy.
  *
- * Y "Pagadas hoy" contaba de más: `isPaidToday` incluye las cerradas con saldo
- * sin cubrir —invitación de la casa, saldo perdonado— que aparecían con $0 y
- * el mismo título que las cobradas. Acá se separan, porque revisar el día es
- * justamente encontrar esas. */
-export type CierreEstado = "pagada" | "sin-cobrar";
-
-export interface HistorialEntry {
-  bill: TableBill;
-  /* Cuándo terminó: el cierre manda, si no la hora en que quedó cubierta. */
-  at: string;
-  estado: CierreEstado;
-  consumo: number;
-  cobrado: number;
-  /* Con qué se cobró, sin repetir. Vacío = no se cobró nada. */
-  metodos: string[];
-}
-
-export const historialEntry = (bill: TableBill): HistorialEntry => ({
-  bill,
-  at: bill.session.closedAt ?? bill.session.paidAt ?? bill.session.updatedAt,
-  estado: bill.totals.uncovered <= 0 ? "pagada" : "sin-cobrar",
-  consumo: bill.totals.consumption,
-  cobrado: bill.totals.paid,
-  metodos: [
-    ...new Set(
-      bill.payments.filter((p) => p.status === "pagado").map((p) => p.method),
-    ),
-  ],
-});
-
-/* Lo último primero: revisar el día casi siempre es mirar lo que acaba de
- * pasar, no lo de la hora del almuerzo. */
-export const historialDelDia = (bills: TableBill[]): HistorialEntry[] =>
-  bills.filter(isPaidToday).map(historialEntry).sort((a, b) => b.at.localeCompare(a.at));
-
-export const buscarHistorial = (
-  filas: HistorialEntry[],
-  q: string,
-): HistorialEntry[] => {
-  const t = q.trim().toLowerCase();
-  if (!t) return filas;
-  return filas.filter(
-    (f) =>
-      String(f.bill.session.tableNumber).includes(t) ||
-      f.bill.guests.some((g) => g.name.toLowerCase().includes(t)),
-  );
-};
+ * Ahora la lista la resuelve el servidor —rango, estado, búsqueda y
+ * paginación— en `mesas_cierres`, y la fila que se muestra es `CierreRow` en
+ * `@/lib/historial`. Lo de acá quedó sin usar y se fue: `isPaidToday` además
+ * mentía, porque contaba como "pagada" una mesa cerrada con saldo sin cubrir.
+ */

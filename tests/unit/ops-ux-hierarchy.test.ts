@@ -100,15 +100,18 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesas).toContain("ChargeInbox");
     expect(mesas).toContain("newOrderIds");
     expect(mesas).toContain("tabCobrarPulse");
-    expect(mesas).toMatch(/tab === "pedido" \|\| tab === "turno"/);
+    expect(mesas).toContain('tab === "pedido"');
     expect(mesas).toContain("flex flex-col gap-2");
     expect(mesas).toContain("onShowQr");
     expect(mesas).toContain("pathPrefix=\"/m\"");
     expect(mesas).toContain("venueName={branchName}");
-    expect(mesas).toContain("JornadaBoard");
+    expect(read("src/app/(app)/panel/pagos/turnos/page.tsx")).toContain("JornadaBoard");
     expect(mesas).toContain("mesas.filtroTurno");
     expect(mesas).toContain("showDetail");
-    expect(mesas).toMatch(/tab !== "turno"/);
+    /* Turnos dejó de ser un modo de esta pantalla: es una pantalla. El glifo
+     * sigue llamándose "turno" — lo que no existe más es el estado. */
+    expect(mesas).not.toContain('tab === "turno"');
+    expect(mesas).not.toContain('| "turno"');
     expect(detalle).toContain("w-full rounded-full bg-marca");
     expect(detalle).toContain("mesas.cobrar");
     expect(detalle).toContain("mesas.comanda");
@@ -155,7 +158,7 @@ describe("Operación — jerarquía y layout", () => {
     expect(espera).not.toContain("JornadaBoard");
     expect(espera).not.toContain("recepcion.jornada");
     expect(espera).toContain('t("nav.espera")');
-    expect(mesas).toContain("JornadaBoard");
+    expect(read("src/app/(app)/panel/pagos/turnos/page.tsx")).toContain("JornadaBoard");
     expect(mesas).toContain("waiterName");
     expect(mesas).toContain("assignTable");
     expect(pricing).toContain('espera: "Recepción"');
@@ -211,7 +214,7 @@ describe("Operación — jerarquía y layout", () => {
     const mesas = read("src/app/(app)/panel/pagos/page.tsx");
     /* El día cerrado salió del pie de la lista —donde desaparece justo la
      * noche que hay treinta mesas— y subió a su propio botón. */
-    expect(mesas).toContain("HistorialModal");
+    expect(mesas).toContain('href="/panel/pagos/historial"');
     expect(mesas).toContain("mesas.historial");
     expect(mesas).not.toContain("ClosedTodayList");
     expect(mesas).not.toContain("showClosed");
@@ -286,7 +289,7 @@ describe("Operación — jerarquía y layout", () => {
     );
     expect(pestanas).toContain('k="pedido"');
     expect(pestanas).not.toContain('k="turno"');
-    expect(mesasPage).toContain('setTab(tab === "turno" ? "todas" : "turno")');
+    expect(mesasPage).toContain('href="/panel/pagos/turnos"');
     /* Y se ven como botones, no como links sueltos: redondos y con ícono,
        igual que la navegación, pero de contorno para no competirle. */
     expect(mesasPage).toContain('<TabGlyph k="qr" size={18} />');

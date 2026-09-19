@@ -80,5 +80,6 @@
   "locales-identidad.sql",
   "mesa-sesiones-realtime.sql",
   "mesa-pago-qr-mp-enum.sql",
-  "mesa-pago-qr-mp.sql"
+  "mesa-pago-qr-mp.sql",
+  "mesas-historial.sql"
 ]
