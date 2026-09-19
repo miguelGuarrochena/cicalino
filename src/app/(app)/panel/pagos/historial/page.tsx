@@ -115,6 +115,7 @@ const HistorialPage = () => {
   };
 
   const abrir = async (id: string) => {
+    if (detalle?.session.id === id) return;
     setAbriendo(id);
     const bill = await fetchTableBill(id);
     setAbriendo(null);
@@ -132,6 +133,10 @@ const HistorialPage = () => {
 
   const paginas = Math.max(1, Math.ceil(total / PAGINA_HISTORIAL));
   const filtrando = Boolean(qBuscado) || estado !== "todas";
+  /* Misma regla que Comanda y Cobrar: en desktop la lista no se va; el
+   * detalle entra a la derecha. En el teléfono no caben las dos, así que
+   * la lista se esconde hasta que tocan volver. */
+  const showDetail = Boolean(detalle);
 
   return (
     <div className="flex flex-col gap-4">
@@ -142,24 +147,18 @@ const HistorialPage = () => {
         sub={total ? t("mesas.historialTotalN", { n: total }) : undefined}
       />
 
-      {detalle ? (
-        /* Volver no pierde nada: el período, el filtro, la búsqueda y la
-           página siguen en el estado de esta pantalla. */
-        <TableDetail
-          key={detalle.session.id}
-          bill={detalle}
-          settings={settings}
-          branchName={branchName}
-          employeeId={null}
-          canManage={canManage}
-          soloLectura
-          onChanged={() => {}}
-          onBack={() => setDetalle(null)}
-        />
-      ) : (
-        <>
-          <SyncErrorBanner error={error} />
+      <SyncErrorBanner error={error} />
 
+      <div
+        className={`grid gap-4 ${
+          showDetail ? "lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]" : ""
+        }`}
+      >
+        <div
+          className={`flex min-w-0 flex-col gap-4 print:hidden ${
+            showDetail ? "hidden lg:flex" : "flex"
+          }`}
+        >
           <div className="flex flex-wrap gap-2">
             {PRESETS.map((p) => (
               <button
@@ -242,7 +241,12 @@ const HistorialPage = () => {
             </div>
           ) : filas.length ? (
             <>
-              <HistorialLista filas={filas} abriendo={abriendo} onSelect={(id) => void abrir(id)} />
+              <HistorialLista
+                filas={filas}
+                abriendo={abriendo}
+                seleccionada={detalle?.session.id ?? null}
+                onSelect={(id) => void abrir(id)}
+              />
               {paginas > 1 && (
                 <div className="flex items-center justify-between gap-3">
                   <button
@@ -283,8 +287,25 @@ const HistorialPage = () => {
               }
             />
           )}
-        </>
-      )}
+        </div>
+
+        <div className={showDetail ? "block" : "hidden"}>
+          {detalle ? (
+            <TableDetail
+              key={detalle.session.id}
+              bill={detalle}
+              settings={settings}
+              branchName={branchName}
+              employeeId={null}
+              canManage={canManage}
+              soloLectura
+              onChanged={() => {}}
+              onBack={() => setDetalle(null)}
+              onBackLabel={t("mesas.historialTitulo")}
+            />
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 };

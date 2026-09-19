@@ -105,6 +105,14 @@ describe("Experiencia del comensal: Light fijo + identidad mínima", () => {
     expect(css).toContain('[data-scheme="dark"] .on-dark');
   });
 
+  it("el nombre pide que escribas el tuyo, no un ejemplo", () => {
+    expect(translate("es", "mesa.nombrePlaceholder")).toBe("Escribí tu nombre");
+    expect(translate("en", "mesa.nombrePlaceholder")).toBe("Type your name");
+    expect(read("src/components/customer/table/TableGuestApp.tsx")).toContain(
+      'placeholder={t("mesa.nombrePlaceholder")}',
+    );
+  });
+
   it("las pantallas /m /p /e no muestran el toggle de tema", () => {
     const files = [
       "src/components/customer/CustomerWaiting.tsx",

@@ -42,6 +42,7 @@ export const TableDetail = ({
   onCloseTable,
   onChanged,
   onBack,
+  onBackLabel,
   onShowQr,
   waiterName,
   waiterId,
@@ -63,6 +64,10 @@ export const TableDetail = ({
   onCloseTable?: () => void;
   onChanged: () => void;
   onBack?: () => void;
+  /* Qué dice el botón de volver. Por defecto, "Mesas": el detalle se abre casi
+   * siempre desde la grilla de Pagos. El historial lo pisa, porque desde ahí
+   * volver a "Mesas" es volver a otro lado. */
+  onBackLabel?: string;
   onShowQr?: () => void;
   waiterName?: string | null;
   waiterId?: string | null;
@@ -259,13 +264,30 @@ export const TableDetail = ({
   return (
     <>
       <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-6 print:hidden">
+        {/* En pantalla angosta el detalle tapa la lista, así que este botón es
+            el único camino de vuelta. Era un "← Mesas" gris de 14 px: del
+            mismo tamaño que cualquier texto de la pantalla, o sea una frase y
+            no un botón. Misma píldora que usan las sub-pantallas de Pagos. */}
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="mb-2 min-h-10 text-sm font-semibold text-carbon/60 lg:hidden"
+            className="mb-3 flex min-h-11 w-fit items-center gap-2 rounded-full border border-linea bg-crema px-4 text-sm font-semibold text-carbon/70 transition hover:border-carbon/25 hover:text-carbon lg:hidden"
           >
-            ← {t("mesas.volverCobros")}
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M15 18 9 12l6-6" />
+            </svg>
+            {onBackLabel ?? t("mesas.volverCobros")}
           </button>
         )}
         <header className="flex flex-wrap items-start justify-between gap-3">

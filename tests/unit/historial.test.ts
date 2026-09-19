@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { rangoDe, PAGINA_HISTORIAL } from "@/lib/historial";
+
+const read = (rel: string) =>
+  readFileSync(join(process.cwd(), rel), "utf8");
 
 /* Los períodos del historial.
  *
@@ -80,5 +85,25 @@ describe("rangos del historial", () => {
 
   it("la página es chica: el historial se pide de a poco", () => {
     expect(PAGINA_HISTORIAL).toBeLessThanOrEqual(50);
+  });
+});
+
+describe("el detalle del historial no tapa la lista", () => {
+  it("abre en la otra columna, como Comanda y Cobrar", () => {
+    const page = read("src/app/(app)/panel/pagos/historial/page.tsx");
+    const cobro = read("src/app/(app)/panel/pagos/page.tsx");
+    expect(page).toContain(
+      'lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]',
+    );
+    expect(page).toContain('showDetail ? "hidden lg:flex"');
+    expect(cobro).toContain(
+      'lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]',
+    );
+    expect(page).toContain("seleccionada={detalle?.session.id ?? null}");
+    expect(page).toContain("HistorialLista");
+    expect(page).toContain("<TableDetail");
+    /* La lista vive en la columna izquierda, no adentro de un if que la
+       reemplaza por el detalle. */
+    expect(page.indexOf("HistorialLista")).toBeLessThan(page.indexOf("<TableDetail"));
   });
 });
