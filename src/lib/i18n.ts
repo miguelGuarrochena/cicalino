@@ -568,8 +568,8 @@ const dict = {
         "Para enterarte cuando el pedido esté listo, tenela abierta. Si vas a otra app, volvé acá: se actualiza sola.",
       noCerrarPush:
         "Notificaciones activadas: podés cambiar de app y te avisamos cuando esté listo.",
-      siCerras: "Si la cerrás, en el mostrador pedí el pedido {n}.",
-      siCerrasAlias: "Si la cerrás, en el mostrador pedí el pedido {n} o {alias}.",
+      siCerras: "Si la cerrás, en el mostrador pedí con el número de abajo.",
+      siCerrasAlias: "Si la cerrás, en el mostrador pedí con tu nombre o con el número de abajo.",
       aliasPh: "Tu nombre (opcional)",
       aliasHint: "Así te encuentran si volvés al mostrador.",
       aliasGuardar: "Listo",
@@ -2279,8 +2279,8 @@ const dict = {
         "Keep it open to see when your order is ready. If you switch apps, come back here — it updates on its own.",
       noCerrarPush:
         "Notifications activated: you can switch apps and we'll ping you when it's ready.",
-      siCerras: "If you close it, ask at the counter for order {n}.",
-      siCerrasAlias: "If you close it, ask at the counter for order {n} or {alias}.",
+      siCerras: "If you close it, ask at the counter using the number below.",
+      siCerrasAlias: "If you close it, ask at the counter using your name or the number below.",
       aliasPh: "Your name (optional)",
       aliasHint: "So they can find you if you come back to the counter.",
       aliasGuardar: "Save",

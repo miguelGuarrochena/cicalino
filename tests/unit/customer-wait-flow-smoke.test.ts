@@ -168,7 +168,10 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
     expect(translate("es", "clienteMesa.mantenerPestana").length).toBeGreaterThan(
       20,
     );
-    expect(translate("es", "cliente.siCerras", { n: "42" })).toContain("42");
+    /* The reference is already the big number on screen: the notice points at
+     * it instead of repeating it. */
+    expect(translate("es", "cliente.siCerras")).toContain("número");
+    expect(translate("es", "cliente.siCerrasAlias")).toContain("nombre");
     expect(translate("es", "clienteMesa.siCerras", { n: "García" })).toContain(
       "García",
     );
