@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SubPageHeader } from "@/components/panel/SubPageHeader";
 import { QrDownloadModal } from "@/components/panel/mesas/QrDownloadModal";
 import type { QrDownloadKind } from "@/components/panel/mesas/QrDownloadModal";
 import {
@@ -239,20 +240,17 @@ const MesasQrPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <header className="flex flex-wrap items-end justify-between gap-3 print:hidden">
-        <div>
-          <Link href="/panel/pagos" className="text-sm text-carbon/60 hover:underline">
-            ← {t("nav.pagos")}
-          </Link>
-          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon">
-            {t("mesasQr.titulo")}
-          </h1>
-          <p className="max-w-xl text-sm text-carbon/60">{t("mesasQr.sub")}</p>
-          <p className="mt-1 text-sm font-semibold text-carbon">
+      <SubPageHeader
+        volverA="/panel/pagos"
+        volverLabel={t("nav.pagos")}
+        titulo={t("mesasQr.titulo")}
+        sub={t("mesasQr.sub")}
+        acciones={
+          <p className="text-sm font-semibold text-carbon">
             {t("mesasQr.resumen", { n: activeCount, total: tables.length })}
           </p>
-        </div>
-      </header>
+        }
+      />
 
       {canManage && (
         <div className="flex flex-wrap gap-x-4 gap-y-2 print:hidden">

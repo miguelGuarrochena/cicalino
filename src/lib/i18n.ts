@@ -1268,7 +1268,8 @@ const dict = {
       filtroTodas: "Mesas",
       filtroTurno: "Turnos",
       sinAtencion: "Nada pide atención ahora.",
-      sinAtencionBody: "Las demás están en Mesas.",
+      sinAtencionBody: "Acá están todas las mesas del salón, ocupadas y libres.",
+      sinResultadosBody: "Se buscó entre las {n} mesas del salón. Probá con otro número.",
       sinPedidosCola: "Todavía nadie pidió",
       sinPedidosColaBody: "Cuando pidan desde la mesa, las comandas aparecen acá para pasarlas a cocina.",
       sinCobros: "Nada para cobrar.",
@@ -1297,11 +1298,28 @@ const dict = {
       /* El día que ya pasó. Dice "cerradas" y no "pagadas" porque adentro
        * también están las que se cerraron sin cobrar. */
       historial: "Historial",
-      historialTitulo: "Mesas cerradas hoy",
-      historialResumen: "{n} mesas · {total} cobrado",
-      historialSinCobrarN: "{n} sin cobrar",
+      historialTitulo: "Mesas cerradas",
+      historialTotalN: "{n} mesas en el período",
       historialBuscar: "Buscar por mesa o nombre",
-      historialVacio: "Todavía no se cerró ninguna mesa hoy.",
+      historialFiltro: "Filtrar cierres",
+      filtroTodasCierres: "Todas",
+      /* Los períodos que ofrece el historial. Son jornadas, no días de reloj:
+       * en un local que cierra a las 3, la mesa de la 01:30 es de anoche. */
+      rango: {
+        hoy: "Hoy",
+        ayer: "Ayer",
+        "7d": "Últimos 7 días",
+        mes: "Este mes",
+        personalizado: "Personalizado",
+        desde: "Desde",
+        hasta: "Hasta",
+      },
+      historialVacio: "No hay mesas cerradas en este período.",
+      historialVacioBody:
+        "El historial guarda todas las mesas cerradas, no solo las de hoy. Probá con otro período.",
+      historialSinResultadosBody:
+        "No hay cierres que coincidan en el período elegido. Probá con otro número, otro nombre, otro período, o sacá el filtro.",
+      turnosSub: "Quién atiende cada mesa. Se arma antes de abrir y se ajusta durante el turno.",
       historialEstado: {
         pagada: "Pagada",
         "sin-cobrar": "Cerrada sin cobrar",
@@ -2915,7 +2933,8 @@ const dict = {
       filtroTodas: "Tables",
       filtroTurno: "Shifts",
       sinAtencion: "Nothing needs attention now.",
-      sinAtencionBody: "The others are under Tables.",
+      sinAtencionBody: "Every table in the room shows up here, busy or free.",
+      sinResultadosBody: "Searched across the {n} tables in the room. Try another number.",
       sinPedidosCola: "Nobody has ordered yet",
       sinPedidosColaBody: "When they order from the table, tickets show up here to pass to the kitchen.",
       sinCobros: "Nothing to collect.",
@@ -2942,11 +2961,26 @@ const dict = {
       cerradasHoy: "Closed today ({n})",
       pagadasHoy: "Paid today ({n})",
       historial: "History",
-      historialTitulo: "Tables closed today",
-      historialResumen: "{n} tables · {total} collected",
-      historialSinCobrarN: "{n} uncollected",
+      historialTitulo: "Closed tables",
+      historialTotalN: "{n} tables in this period",
       historialBuscar: "Search by table or name",
-      historialVacio: "No table has been closed today yet.",
+      historialFiltro: "Filter closings",
+      filtroTodasCierres: "All",
+      rango: {
+        hoy: "Today",
+        ayer: "Yesterday",
+        "7d": "Last 7 days",
+        mes: "This month",
+        personalizado: "Custom",
+        desde: "From",
+        hasta: "To",
+      },
+      historialVacio: "No tables were closed in this period.",
+      historialVacioBody:
+        "History keeps every closed table, not just today's. Try another period.",
+      historialSinResultadosBody:
+        "Nothing matches in the selected period. Try another number or name, another period, or clear the filter.",
+      turnosSub: "Who serves each table. Set before opening, adjusted during the shift.",
       historialEstado: {
         pagada: "Paid",
         "sin-cobrar": "Closed uncollected",

@@ -19,8 +19,6 @@ import { CloseTableModal } from "@/components/panel/mesas/CloseTableModal";
 import { KitchenInbox } from "@/components/panel/mesas/KitchenInbox";
 import { ChargeInbox } from "@/components/panel/mesas/ChargeInbox";
 import { FloorTableTile } from "@/components/panel/mesas/FloorTableTile";
-import { JornadaBoard } from "@/components/panel/mesas/JornadaBoard";
-import { HistorialModal } from "@/components/panel/mesas/HistorialModal";
 import { fetchPaymentSettings, fetchTableQrs, acknowledgeWaiterCall, type TableQrView } from "@/lib/data/tables";
 import { updateOrderStatus } from "@/lib/data/orders";
 import {
@@ -58,12 +56,11 @@ const MesasPage = () => {
   const branchName = useConfigStore((s) => s.name);
   const employee = useActiveEmployee();
   const employees = useConfigStore((s) => s.employees);
-  const tableCount = useConfigStore((s) => s.tableCount);
   const { bills, ready, live, syncError, refresh } = useTableBills(
     visibles.pagos ? branchId : null,
   );
   const attention = useFloorAttention();
-  const { shift, live: shiftLive, refresh: refreshShift } = useFloorShift(
+  const { shift, refresh: refreshShift } = useFloorShift(
     visibles.pagos ? branchId : null,
     visibles.pagos,
   );
@@ -71,7 +68,7 @@ const MesasPage = () => {
   const [selected, setSelected] = useState<string | null>(null);
   const [qrRow, setQrRow] = useState<FloorTable | null>(null);
   const [settings, setSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
-  const [tab, setTab] = useState<FloorFilter | "turno">("pedido");
+  const [tab, setTab] = useState<FloorFilter>("pedido");
   const [query, setQuery] = useState("");
   const [kitchenBusy, setKitchenBusy] = useState<string | null>(null);
   /* Llamado, pedido, cuenta y cobro de Mercado Pago los avisa la capa global
@@ -79,7 +76,6 @@ const MesasPage = () => {
    * alguien la atiende. Acá había tres toasts que contaban lo mismo y se iban
    * solos a los cinco segundos. */
   const [closeBill, setCloseBill] = useState<TableBill | null>(null);
-  const [historialOpen, setHistorialOpen] = useState(false);
   const pendingBySession = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
@@ -87,7 +83,7 @@ const MesasPage = () => {
   }, [branchId]);
 
   useLayoutEffect(() => {
-    setFloorView(tab === "turno" ? "turno" : tab);
+    setFloorView(tab);
     return () => setFloorView(null);
   }, [tab]);
 
@@ -123,27 +119,18 @@ const MesasPage = () => {
     });
   }, [tables, bills, shift.assignments, shift.turnosPiso]);
   const shown = useMemo(
-    () => filterFloor(floor, tab === "turno" ? "todas" : tab, query),
+    () => filterFloor(floor, tab, query),
     [floor, tab, query],
   );
   const inbox = useMemo(() => kitchenInbox(floor), [floor]);
   const pedidoN = floor.filter(needsPedido).length;
   const chargeN = inbox.bills.length;
   const currentBill = bills.find((b) => b.session.id === selected) ?? null;
-  const showDetail = Boolean(currentBill) && tab !== "turno";
+  const showDetail = Boolean(currentBill);
   const openPending = floor.reduce((s, r) => s + (r.bill ? r.pending : 0), 0);
-  const occupied = useMemo(
-    () =>
-      new Set(
-        floor
-          .filter((r) => r.bill?.session.status === "abierta")
-          .map((r) => r.tableNumber),
-      ),
-    [floor],
-  );
 
   useEffect(() => {
-    if (!selected || tab === "turno") return;
+    if (!selected) return;
     const current = bills.find((b) => b.session.id === selected);
     if (!current) return;
     const pending = billPending(current);
@@ -233,7 +220,7 @@ const MesasPage = () => {
   const inboxBills = showChargeInbox ? inbox.bills : [];
   const requestKeys = new Set(inboxBills.map((r) => r.key));
   const tiles =
-    tab === "pedido" || tab === "turno"
+    tab === "pedido"
       ? []
       : tab === "cobrar"
         ? shown.filter((r) => !requestKeys.has(r.key))
@@ -290,30 +277,23 @@ const MesasPage = () => {
               {t("mesas.qrGestion")}
             </Link>
           )}
-          {/* El día que ya pasó vivía al pie de la lista, donde desaparece
-              justo la noche en que hay treinta mesas y alguien necesita
-              revisar una. Acá arriba está siempre. */}
-          <button
-            type="button"
-            onClick={() => setHistorialOpen(true)}
+          {/* Las tres se abren igual y se vuelve igual: son pantallas, no
+              modos de esta. Historial y Turnos necesitan lugar para buscar y
+              para trabajar, y acá adentro no lo tenían. */}
+          <Link
+            href="/panel/pagos/historial"
             className="flex min-h-11 items-center gap-2 rounded-full border border-linea bg-surface px-4 text-sm font-semibold text-carbon/70 transition hover:border-carbon/25 hover:text-carbon"
           >
             <TabGlyph k="historial" size={18} />
             {t("mesas.historial")}
-          </button>
-          <button
-            type="button"
-            aria-pressed={tab === "turno"}
-            onClick={() => setTab(tab === "turno" ? "todas" : "turno")}
-            className={`flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition ${
-              tab === "turno"
-                ? "border-marca bg-marca text-crema"
-                : "border-linea bg-surface text-carbon/70 hover:border-carbon/25 hover:text-carbon"
-            }`}
+          </Link>
+          <Link
+            href="/panel/pagos/turnos"
+            className="flex min-h-11 items-center gap-2 rounded-full border border-linea bg-surface px-4 text-sm font-semibold text-carbon/70 transition hover:border-carbon/25 hover:text-carbon"
           >
             <TabGlyph k="turno" size={18} />
             {t("mesas.filtroTurno")}
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -341,7 +321,6 @@ const MesasPage = () => {
       ) : (
         <div className={`grid gap-4 ${showDetail ? "lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]" : ""}`}>
           <div className={`flex min-w-0 flex-col gap-3 print:hidden ${showDetail ? "hidden lg:flex" : "flex"}`}>
-            {tab !== "turno" && (
             <label className="block">
               <span className="sr-only">{t("mesas.buscarMesa")}</span>
               <input
@@ -353,7 +332,6 @@ const MesasPage = () => {
                 className="min-h-11 w-full max-w-sm rounded-2xl border border-linea bg-surface px-4 text-sm text-carbon outline-none placeholder:text-carbon/40 focus:border-marca focus:ring-2 focus:ring-marca/20"
               />
             </label>
-            )}
 
             <SegmentedTabs
               ariaLabel={t("mesas.resumen")}
@@ -386,20 +364,6 @@ const MesasPage = () => {
               ]}
             />
 
-            {tab === "turno" ? (
-              <JornadaBoard
-                branchId={branchId}
-                shift={shift}
-                live={shiftLive}
-                tableCount={tableCount || tables.length}
-                occupied={occupied}
-                employees={employees}
-                canManage={canManage}
-                actorId={employee?.id ?? null}
-                onChanged={refreshShift}
-              />
-            ) : (
-              <>
 
             {showInbox && (
               <KitchenInbox
@@ -447,9 +411,12 @@ const MesasPage = () => {
                         ? t("mesas.sinCobros")
                         : t("mesas.sinAtencion")
                 }
+                /* Siempre hay explicación. Buscar y no encontrar dejaba un
+                   título solo —"Ninguna mesa con ese número"— que no dice
+                   dónde mirar ni cuántas mesas se revisaron. */
                 body={
                   query
-                    ? undefined
+                    ? t("mesas.sinResultadosBody", { n: floor.length })
                     : tab === "pedido"
                       ? t("mesas.sinPedidosColaBody")
                       : tab === "cobrar"
@@ -491,8 +458,6 @@ const MesasPage = () => {
                 </ul>
               )
             ) : null}
-              </>
-            )}
           </div>
 
           <div className={showDetail ? "block" : "hidden"}>
@@ -529,18 +494,6 @@ const MesasPage = () => {
             ) : null}
           </div>
         </div>
-      )}
-
-      {historialOpen && (
-        <HistorialModal
-          bills={bills}
-          waiterFor={(n) => floor.find((r) => r.tableNumber === n)?.waiterName ?? null}
-          onSelect={(id) => {
-            setHistorialOpen(false);
-            setSelected(id);
-          }}
-          onClose={() => setHistorialOpen(false)}
-        />
       )}
 
       {closeBill && (

@@ -17,6 +17,7 @@ import {
   type PaymentSettings,
   type TableBill,
 } from "@/lib/tableBill";
+import type { CierreRow } from "@/lib/historial";
 import type { z } from "zod";
 
 /* Panel side of split payments. Reads go through RLS with the staff session;
@@ -60,6 +61,72 @@ export const fetchTableBills = async (
       .map(mapBill)
       .filter((b): b is TableBill => b !== null),
   );
+};
+
+/* El historial: la lista liviana y el detalle bajo demanda.
+ *
+ * Camino aparte del de la operación a propósito. `fetchTableBills` trae el
+ * `_cuenta_json` completo de todas las mesas del día y se recarga entero por
+ * realtime; servir meses por ahí significaría recargar meses cada vez que
+ * alguien llama al mozo. Acá viajan solo las columnas que la fila muestra, con
+ * el filtro, la búsqueda y la paginación resueltos en el servidor. */
+export const fetchTableClosings = async (
+  branchId: string,
+  args: {
+    desde: string;
+    hasta: string;
+    estado?: "todas" | "pagada" | "sin-cobrar";
+    busqueda?: string;
+    limite?: number;
+    offset?: number;
+  },
+): Promise<DataResult<{ total: number; items: CierreRow[] }>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok({ total: 0, items: [] });
+  const { data, error } = await supabase.rpc("mesas_cierres", {
+    p_local: branchId,
+    p_desde: args.desde,
+    p_hasta: args.hasta,
+    p_estado: args.estado ?? "todas",
+    p_busqueda: args.busqueda ?? "",
+    p_limite: args.limite ?? 20,
+    p_offset: args.offset ?? 0,
+  });
+  if (error) {
+    reportError("panel.mesas.cierres", error, { branchId });
+    return fail(desdeSupabase(error));
+  }
+  const r = (data ?? {}) as { total?: number; items?: unknown[] };
+  return ok({
+    total: Number(r.total ?? 0),
+    items: ((r.items ?? []) as Record<string, unknown>[]).map((x) => ({
+      id: String(x.id),
+      tableNumber: Number(x.mesa_numero ?? 0),
+      at: String(x.cerrado_en ?? ""),
+      estado: x.estado === "sin-cobrar" ? "sin-cobrar" : "pagada",
+      consumo: Number(x.consumo ?? 0),
+      cobrado: Number(x.cobrado ?? 0),
+      motivo: typeof x.motivo === "string" ? x.motivo : null,
+      metodos: Array.isArray(x.metodos) ? (x.metodos as string[]) : [],
+      comensales: Array.isArray(x.comensales) ? (x.comensales as string[]) : [],
+    })),
+  });
+};
+
+/* Una sola cuenta, completa, para cuando alguien abre una mesa del historial.
+ * Se reconstruye igual que la de hoy: `_cuenta_json` lee las tablas vivas y
+ * nada se borra. */
+export const fetchTableBill = async (
+  sessionId: string,
+): Promise<TableBill | null> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("mesa_cuenta", { p_sesion: sessionId });
+  if (error) {
+    reportError("panel.mesas.cuenta", error, { sessionId });
+    return null;
+  }
+  return mapBill(data);
 };
 
 /* Every write to a bill bumps mesa_sesiones.version, so one table is enough
