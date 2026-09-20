@@ -225,6 +225,12 @@ describe("Operación — jerarquía y layout", () => {
      * noche que hay treinta mesas— y subió a su propio botón. */
     expect(mesas).toContain('href="/panel/pagos/historial"');
     expect(mesas).toContain("mesas.historial");
+    expect(mesas).toContain('seccion="pagos"');
+    expect(mesas).toContain("/panel/ayuda#pagos");
+    const ayuda = read("src/app/(app)/panel/ayuda/page.tsx");
+    expect(ayuda).toContain('id: "pagos"');
+    expect(ayuda).toContain('href: "/panel/pagos"');
+    expect(read("src/components/panel/HelpLink.tsx")).toContain('"pagos"');
     expect(mesas).not.toContain("ClosedTodayList");
     expect(mesas).not.toContain("showClosed");
     /* El tono lo elige quien lo usa; los colores viven en el globo. Cada

@@ -9,7 +9,7 @@ type Paso = { t: string; d: string };
 
 const SECCIONES: {
   id: AyudaSeccion;
-  accent: "marca" | "espera" | "carbon";
+  accent: "marca" | "espera" | "pagos" | "carbon";
   href?: string;
   pasos: Paso[];
   tips?: string[];
@@ -44,6 +44,20 @@ const SECCIONES: {
     tips: ["ayuda.espera.tip1", "ayuda.espera.tip2"],
   },
   {
+    id: "pagos",
+    accent: "pagos",
+    href: "/panel/pagos",
+    pasos: [
+      { t: "ayuda.pagos.p1t", d: "ayuda.pagos.p1d" },
+      { t: "ayuda.pagos.p2t", d: "ayuda.pagos.p2d" },
+      { t: "ayuda.pagos.p3t", d: "ayuda.pagos.p3d" },
+      { t: "ayuda.pagos.p4t", d: "ayuda.pagos.p4d" },
+      { t: "ayuda.pagos.p5t", d: "ayuda.pagos.p5d" },
+      { t: "ayuda.pagos.p6t", d: "ayuda.pagos.p6d" },
+    ],
+    tips: ["ayuda.pagos.tip1", "ayuda.pagos.tip2"],
+  },
+  {
     id: "config",
     accent: "carbon",
     href: "/panel/config",
@@ -54,7 +68,7 @@ const SECCIONES: {
       { t: "ayuda.config.p4t", d: "ayuda.config.p4d" },
       { t: "ayuda.config.p5t", d: "ayuda.config.p5d" },
     ],
-    tips: ["ayuda.config.tip1"],
+    tips: ["ayuda.config.tip1", "ayuda.config.tip2"],
   },
   {
     id: "metricas",
@@ -82,12 +96,14 @@ const SECCIONES: {
 const accentRing = {
   marca: "border-marca/25 ring-marca/15",
   espera: "border-espera/25 ring-espera/15",
+  pagos: "border-pagos/25 ring-pagos/15",
   carbon: "border-linea ring-carbon/5",
 } as const;
 
 const accentNum = {
   marca: "bg-marca text-crema",
   espera: "bg-espera text-crema",
+  pagos: "bg-pagos text-crema",
   carbon: "bg-carbon/80 text-crema",
 } as const;
 

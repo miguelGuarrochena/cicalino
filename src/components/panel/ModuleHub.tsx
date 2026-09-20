@@ -20,7 +20,7 @@ const TONE: Record<string, string> = {
 
 export const ModuleHub = () => {
   const { t } = useApp();
-  const { links, ready } = useOperationalAccess();
+  const { links, ready, visibles } = useOperationalAccess();
   const jornadaActiva = useJornadaActiva();
   const pendingFor = useNavPending();
 
@@ -40,7 +40,18 @@ export const ModuleHub = () => {
       <p className="mt-2 text-center text-sm text-carbon/55">{t("hub.sub")}</p>
       {!jornadaActiva && (
         <div className="mt-8 w-full">
-          <JornadaInactivaState />
+          <JornadaInactivaState
+            action={
+              visibles.espera ? (
+                <Link
+                  href="/panel/espera"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-espera px-5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
+                >
+                  {t("panel.jornadaInactivaReserva")}
+                </Link>
+              ) : undefined
+            }
+          />
         </div>
       )}
       <nav
