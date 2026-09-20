@@ -27,12 +27,39 @@ export interface Tramo {
 }
 
 export const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-export const MESES = ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+export const MESES = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+];
 
 /* El eje también se lee, así que sigue el idioma del panel. Antes salía
- * siempre en castellano: un panel en inglés mostraba "Mié" y "Sáb". */
+ * siempre en castellano: un panel en inglés mostraba "Mié" y "Sáb".
+ * Los meses van en tres letras: una sola ("S") no se entiende en el pico. */
 export const DIAS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-export const MESES_EN = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+export const MESES_EN = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 export type ChartLocale = "es" | "en";
 

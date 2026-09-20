@@ -143,8 +143,19 @@ describe("ejes: año", () => {
     const { labels, valores } = ejes([], "ano", new Date(2025, 8, 1));
     expect(labels).toHaveLength(12);
     expect(valores).toHaveLength(12);
-    expect(labels[0]).toBe("S"); // septiembre
-    expect(labels[4]).toBe("E"); // enero, cruzando de año
+    expect(labels[0]).toBe("Sep");
+    expect(labels[4]).toBe("Ene");
+  });
+
+  it("el pico del año se lee (Sep, no S)", () => {
+    const { labels, valores } = ejes([b(0, 9)], "ano", new Date(2025, 8, 1));
+    expect(pico(labels, valores)).toBe("Sep");
+  });
+
+  it("en inglés los meses también van en tres letras", () => {
+    const { labels } = ejes([], "ano", new Date(2025, 8, 1), "en");
+    expect(labels[0]).toBe("Sep");
+    expect(labels[4]).toBe("Jan");
   });
 
   it("mapea el offset en meses", () => {

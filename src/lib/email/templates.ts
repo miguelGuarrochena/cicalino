@@ -59,7 +59,7 @@ export const emailLayout = ({
             </tr>
           </table>
           <p style="margin:18px 0 0;font-size:12px;line-height:1.5;color:${CARBON};opacity:0.5;">
-            ${pie ?? "Cicalino · Avisos de pedido por QR · info@cicalino.net"}
+            ${pie ?? "Cicalino · info@cicalino.net"}
           </p>
         </td>
       </tr>

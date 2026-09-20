@@ -31,9 +31,11 @@ const TerminosPage = () => {
           {es ? (
             <>
               <p>
-                Al usar Cicalino aceptás estos términos. El servicio es un
-                avisador de pedidos por QR para negocios gastronómicos. El
-                cliente final del local no paga ni se registra en Cicalino.
+                Al usar Cicalino aceptás estos términos. El servicio es una
+                plataforma para negocios gastronómicos: avisos de pedidos
+                listos, recepción (cola y reservas) y pagos divididos en mesa,
+                según los módulos contratados. El cliente final del local no
+                paga ni se registra en Cicalino.
               </p>
               <p>
                 <b className="text-carbon">Contratación.</b> El servicio se
@@ -105,9 +107,11 @@ const TerminosPage = () => {
           ) : (
             <>
               <p>
-                By using Cicalino you accept these terms. The product is a QR
-                order-notice tool for food businesses. End customers never pay
-                or create an account.
+                By using Cicalino you accept these terms. The product is a
+                platform for food businesses: order-ready notices, reception
+                (queue and reservations) and split table bills, according to
+                the modules you contract. End customers never pay or create an
+                account.
               </p>
               <p>
                 <b className="text-carbon">Contracting.</b> The service is sold
