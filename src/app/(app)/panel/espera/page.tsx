@@ -64,11 +64,6 @@ const INPUT =
 const BTN_MOBILE =
   "w-full rounded-full px-4 py-3.5 text-sm font-semibold transition active:scale-[0.98] sm:w-auto sm:px-4 sm:py-2.5";
 
-const AVISO_ESPERA = {
-  es: "Marcado como avisado, pero el celular no tiene avisos activos: llamalo vos.",
-  en: "Marked as notified, but their phone has no alerts on — call them out.",
-};
-
 const EsperaPanelPage = () => {
   const { locale, t } = useApp();
   const toast = useToast();
@@ -159,7 +154,7 @@ const EsperaPanelPage = () => {
     return () => window.clearInterval(iv);
   }, []);
 
-  const toastAviso = useAvisoToast(AVISO_ESPERA);
+  const toastAviso = useAvisoToast();
 
   const cola = useMemo(
     () =>
@@ -681,8 +676,14 @@ const EsperaPanelPage = () => {
         puedeSentar={hayMesaPara}
         onPage={setPage}
         onAgregar={() => setCreateOpen(true)}
-        onAvisar={(id) => void avisar(id).then(toastAviso)}
-        onReavisar={(id) => void reavisar(id).then(toastAviso)}
+        onAvisar={(id) => {
+          const seenAt = esperaById.get(id)?.seenAt;
+          void avisar(id).then((r) => toastAviso(r, seenAt));
+        }}
+        onReavisar={(id) => {
+          const seenAt = esperaById.get(id)?.seenAt;
+          void reavisar(id).then((r) => toastAviso(r, seenAt));
+        }}
         onSentar={(id) => {
           setSentarMesas([]);
           setSentarId(id);

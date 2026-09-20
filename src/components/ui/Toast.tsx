@@ -38,7 +38,7 @@ const HALO: Record<ToastKind, string> = {
 
 let seq = 0;
 const TOAST_MS = 3200;
-/* El aviso de “llamalo vos” es más largo: si se va al toque, en el
+/* El aviso de que no se pudo avisar es más largo: si se va al toque, en el
  * mostrador no se llega a leer. */
 export const TOAST_AVISO_MS = 5_200;
 
