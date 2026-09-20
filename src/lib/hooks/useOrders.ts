@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useOrdersStore } from "@/lib/store/orders-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { attachLiveRefresh, coalesced, throttled } from "@/lib/realtime";
@@ -97,15 +97,28 @@ export const useOrders = (
     [branchId],
   );
 
+  /* Cuál es la consulta que vale. Cambiar de filtro, de búsqueda o de página
+   * arma un `recargar` nuevo, así que puede haber dos consultas en el aire a
+   * la vez: la del filtro viejo, que salió antes, y la del nuevo. Si la vieja
+   * vuelve segunda —basta con que el servidor tarde un poco más en esa— pinta
+   * la pantalla con los pedidos del filtro que el mozo ya dejó atrás.
+   *
+   * `coalesced` no cubre esto: une las recargas de un mismo `recargar`, y acá
+   * son dos distintos. Por eso cada consulta se lleva su número y, al volver,
+   * solo aplica si sigue siendo la última que salió. */
+  const consulta = useRef(0);
+
   const recargar = useCallback(async () => {
     if (!live || !branchId) return;
     sweepInPreparation();
+    const miConsulta = ++consulta.current;
     const res = await fetchOrdersPage(branchId, {
       filtro,
       busqueda,
       pagina,
       tam,
     });
+    if (miConsulta !== consulta.current) return;
     if (res.ok) {
       setLiveOrders(res.data.items);
       setTotal(res.data.total);
@@ -128,23 +141,49 @@ export const useOrders = (
    * fuerza una pasada más al terminar— y quien esperaba recibe esa promesa,
    * así que el `await reload()` de después de una mutación sigue devolviendo
    * datos frescos. */
+  /* eslint-disable-next-line react-hooks/refs -- `coalesced` guarda la
+     función, no la llama. El contador de `recargar` se lee recién dentro de
+     esa función y después del await, nunca durante el render. */
   const reload = useMemo(() => coalesced(recargar), [recargar]);
 
+  /* El canal tiene que llamar al `reload` de ahora, no al que existía cuando
+   * se conectó. Se guarda la referencia viva acá para que el efecto de abajo
+   * no necesite tener a `reload` entre sus dependencias. */
+  const reloadRef = useRef(reload);
+  useEffect(() => {
+    reloadRef.current = reload;
+  }, [reload]);
+
+  /* Los datos: cambiar de filtro, de búsqueda o de página vuelve a consultar.
+   * El setState ocurre después del await, no en el cuerpo del efecto. */
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  /* El canal y el poll: viven mientras dure la sucursal, no el filtro.
+   *
+   * Estaban en el mismo efecto que la consulta. Como la consulta depende del
+   * filtro, de la búsqueda y de la página, tocar cualquiera de los tres
+   * desarmaba la suscripción de realtime y la volvía a armar para escuchar
+   * exactamente lo mismo: la tabla `pedidos` de esta sucursal. Pasar tres
+   * páginas eran tres reconexiones, y cada una deja al panel sordo los
+   * milisegundos que tarda en volver a suscribirse.
+   *
+   * El nombre de la sucursal también estaba acá adentro y se volvía a pedir en
+   * cada tecleo del buscador. No depende del filtro: se pide una vez por
+   * sucursal. */
   useEffect(() => {
     if (!live || !branchId) {
       if (!supabaseConfigured) seed();
       return;
     }
-    /* El setState ocurre después del await, no en el cuerpo del efecto. La
-     * regla ya no lo confunde ahora que `reload` pasa por `coalesced`. */
-    void reload();
     void fetchBranchName(branchId).then((n) => setBranchName(n));
     return attachLiveRefresh({
       subscribe: (onChange) => subscribeOrders(branchId, onChange),
-      reload: () => void reload(),
+      reload: () => void reloadRef.current(),
       ticksSano: 6,
     });
-  }, [live, branchId, seed, reload]);
+  }, [live, branchId, seed]);
 
   const createOrder = useCallback<UseOrders["createOrder"]>(
     async (reference, employee) => {
