@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
+import { useNavPending } from "@/lib/hooks/useNavPending";
 import { NavIconSvg } from "@/components/panel/NavIcons";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 
 /* Un color por módulo. Pagos compartía el azul de Pedidos y en el hub eran
@@ -17,6 +19,7 @@ const TONE: Record<string, string> = {
 export const ModuleHub = () => {
   const { t } = useApp();
   const { links, ready } = useOperationalAccess();
+  const pendingFor = useNavPending();
 
   if (!ready) {
     return (
@@ -42,22 +45,37 @@ export const ModuleHub = () => {
               : "grid-cols-3"
         }`}
       >
-        {links.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className="flex min-h-[7.5rem] flex-col items-center justify-center gap-3 rounded-[28px] p-3 transition active:scale-[0.97] sm:min-h-[9rem]"
-          >
-            <span
-              className={`flex size-[4.5rem] items-center justify-center rounded-full border-2 sm:size-24 ${TONE[l.icon]}`}
+        {links.map((l) => {
+          const { n, tone, label } = pendingFor(l.href);
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              aria-label={label(t(l.key))}
+              className="flex min-h-[7.5rem] flex-col items-center justify-center gap-3 rounded-[28px] p-3 transition active:scale-[0.97] sm:min-h-[9rem]"
             >
-              <NavIconSvg k={l.icon} size={32} />
-            </span>
-            <span className="text-center text-sm font-semibold text-carbon">
-              {t(l.key)}
-            </span>
-          </Link>
-        ))}
+              <span
+                className={`relative flex size-[4.5rem] items-center justify-center rounded-full border-2 sm:size-24 ${TONE[l.icon]}`}
+              >
+                <NavIconSvg k={l.icon} size={32} />
+                {/* Esta es la primera pantalla del turno: si Pedidos tiene
+                    tres esperando, se tiene que ver antes de elegir.
+                    `right-0 top-0` cae justo sobre el borde del círculo a 45°,
+                    que en una caja cuadrada es la esquina; más afuera flota
+                    suelto y no se lee como parte del botón. */}
+                <CountBadge
+                  n={n}
+                  tone={tone}
+                  pulse
+                  className="absolute right-0 top-0"
+                />
+              </span>
+              <span className="text-center text-sm font-semibold text-carbon">
+                {t(l.key)}
+              </span>
+            </Link>
+          );
+        })}
       </nav>
     </div>
   );

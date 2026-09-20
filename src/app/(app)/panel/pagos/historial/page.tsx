@@ -10,6 +10,7 @@ import { HistorialLista } from "@/components/panel/mesas/HistorialLista";
 import { TableDetail } from "@/components/panel/mesas/TableDetail";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Pagination } from "@/components/ui/Pagination";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import { fetchPaymentSettings, fetchTableBill, fetchTableClosings } from "@/lib/data/tables";
@@ -147,7 +148,6 @@ const HistorialPage = () => {
   }
   if (!visibles.pagos) return null;
 
-  const paginas = Math.max(1, Math.ceil(total / PAGINA_HISTORIAL));
   const filtrando = Boolean(qBuscado) || estado !== "todas";
   /* Misma regla que Comanda y Cobrar: en desktop la lista no se va; el
    * detalle entra a la derecha. En el teléfono no caben las dos, así que
@@ -263,33 +263,16 @@ const HistorialPage = () => {
                 seleccionada={detalle?.session.id ?? null}
                 onSelect={(id) => void abrir(id)}
               />
-              {paginas > 1 && (
-                <div className="flex items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    disabled={pagina === 0}
-                    onClick={() => setPagina((p) => Math.max(0, p - 1))}
-                    className="min-h-11 rounded-full border border-linea bg-surface px-4 text-sm font-semibold text-carbon/70 disabled:opacity-40"
-                  >
-                    {t("paginacion.prev")}
-                  </button>
-                  <span className="text-sm tabular-nums text-carbon/60">
-                    {t("paginacion.rango", {
-                      from: pagina * PAGINA_HISTORIAL + 1,
-                      to: pagina * PAGINA_HISTORIAL + filas.length,
-                      total,
-                    })}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={pagina + 1 >= paginas}
-                    onClick={() => setPagina((p) => p + 1)}
-                    className="min-h-11 rounded-full border border-linea bg-surface px-4 text-sm font-semibold text-carbon/70 disabled:opacity-40"
-                  >
-                    {t("paginacion.next")}
-                  </button>
-                </div>
-              )}
+              {/* El mismo pie que Pedidos y Recepción. Acá la página la trae
+                  el servidor, así que `pagina` va 0-based contra el offset de
+                  la consulta y el componente la cuenta desde 1, como la lee
+                  quien mira la pantalla. */}
+              <Pagination
+                page={pagina + 1}
+                pageSize={PAGINA_HISTORIAL}
+                total={total}
+                onChange={(p) => setPagina(p - 1)}
+              />
             </>
           ) : (
             /* La explicación se queda con o sin resultados: un título solo no

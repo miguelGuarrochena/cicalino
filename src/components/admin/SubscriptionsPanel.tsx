@@ -11,6 +11,7 @@ import {
   type SubscriptionState,
   type SubscriptionStatus,
 } from "@/lib/subscription";
+import { Pagination, slicePage } from "@/components/ui/Pagination";
 
 const money = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -57,6 +58,10 @@ const ESTADO_CLASS: Record<SubscriptionStatus, string> = {
   paused: "border-linea bg-carbon/5 text-carbon/60",
 };
 
+/* Esta lista crece con el negocio: es un cliente por fila, para siempre.
+ * Mismo tamaño de página que Pedidos y Recepción. */
+const PAGE_SIZE = 20;
+
 const asState = (org: OrganizationRow): SubscriptionState => ({
   status: org.estadoSuscripcion,
   plan: org.plan,
@@ -75,6 +80,7 @@ export const SubscriptionsPanel = ({
 }) => {
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
   const hoy = toDateOnly(new Date());
 
   const filas = useMemo(() => {
@@ -108,10 +114,24 @@ export const SubscriptionsPanel = ({
       });
   }, [orgs, filtro, q, hoy]);
 
+  /* Los dos contadores del encabezado son sobre todo lo filtrado, no sobre la
+   * página: "3 clientes atrasados" tiene que decir tres aunque dos estén en la
+   * página siguiente. */
   const deudores = filas.filter((f) => f.vencido).length;
   const porVencer = filas.filter(
     (f) => f.faltan != null && f.faltan >= 0 && f.faltan <= 7,
   ).length;
+
+  /* Volver a la página 1 cuando cambia el filtro o la búsqueda, ajustando
+   * durante el render y no en un efecto: mismo patrón que Pedidos. */
+  const claveConsulta = `${filtro}|${q}`;
+  const [claveAnterior, setClaveAnterior] = useState(claveConsulta);
+  if (claveConsulta !== claveAnterior) {
+    setClaveAnterior(claveConsulta);
+    setPage(1);
+  }
+
+  const pageItems = slicePage(filas, page, PAGE_SIZE);
 
   return (
     <section className="rounded-[24px] border border-linea bg-surface p-4 shadow-sm sm:p-5">
@@ -160,7 +180,7 @@ export const SubscriptionsPanel = ({
       </div>
 
       <div className="flex flex-col divide-y divide-linea/70">
-        {filas.map(({ org, faltan, vencido, enGracia, monto }) => {
+        {pageItems.map(({ org, faltan, vencido, enGracia, monto }) => {
           const activas = org.sucursales.filter((s) => s.activo).length;
           const esperandoContrato = isContractPending(org) && !org.activo;
           const sinCargo = org.plan === "gratis";
@@ -271,6 +291,13 @@ export const SubscriptionsPanel = ({
           </p>
         )}
       </div>
+
+      <Pagination
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={filas.length}
+        onChange={setPage}
+      />
     </section>
   );
 };
