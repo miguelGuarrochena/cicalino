@@ -44,7 +44,8 @@ describe("En un franco la jornada corta, no se estira", () => {
     expect(empty).not.toContain("/panel/pagos/historial");
     expect(pedidos).not.toContain("jornadaInactivaHistorial");
     expect(espera).not.toContain("jornadaInactivaHistorial");
-    expect(espera).toContain("jornadaInactivaReserva");
+    expect(espera).not.toContain("jornadaInactivaReserva");
+    expect(espera).toContain("jornadaInactivaEspera");
     expect(pagos).toContain("jornadaInactivaHistorial");
     expect(hub).toContain("jornadaInactivaReserva");
     expect(hub).toContain('href="/panel/espera"');
