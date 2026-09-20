@@ -295,7 +295,7 @@ export const MetricsPanel = () => {
           detalle={
             tab === "espera"
               ? t("metricas.gruposDet")
-              : t("metricas.pedidosDet")
+              : t(`metricas.pedidosDet.${periodo}`)
           }
           delay={0.05}
           acentoColor={accent}
@@ -332,7 +332,7 @@ export const MetricsPanel = () => {
           acentoColor={accent}
         />
         <Tarjeta
-          titulo={t("metricas.pico")}
+          titulo={t(`metricas.pico.${periodo}`)}
           valor={d.pico}
           detalle={t("metricas.picoDet")}
           delay={0.25}

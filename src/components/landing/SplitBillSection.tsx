@@ -43,6 +43,7 @@ const CLIENT_ITEMS = [
   "consumo",
   "suyo",
   "iguales",
+  "uno",
   "monto",
   "porcentaje",
   "propina",

@@ -32,7 +32,7 @@ el HTML por el de abajo. Usan las variables de Supabase (`{{ .ConfirmationURL }}
         </td></tr></table>
       </td></tr>
     </table>
-    <p style="margin:18px 0 0;font-size:12px;color:#20264f;opacity:.5;">Cicalino · Avisos de pedido por QR · info@cicalino.net</p>
+    <p style="margin:18px 0 0;font-size:12px;color:#20264f;opacity:.5;">Cicalino · info@cicalino.net</p>
   </td></tr></table>
 </body></html>
 ```

@@ -27,13 +27,16 @@ const PrivacidadPage = () => {
           {es ? (
             <>
               <p>
-                Cicalino trata los datos del negocio (local, empleados, pedidos) y
-                las suscripciones Web Push del cliente solo para operar el aviso
-                de pedidos.
+                Cicalino trata los datos del negocio (local, empleados, pedidos,
+                esperas y cobros) y las suscripciones Web Push del cliente solo
+                para operar el servicio contratado.
               </p>
               <p>
-                No vendemos datos. El cliente no crea cuenta: solo escanea un QR
-                temporal. Los tokens de QR expiran al final del día.
+                No vendemos datos. El cliente no crea cuenta: solo escanea un QR.
+                Los pedidos, esperas y cobros quedan en el historial del local
+                para métricas y operación: no se borran al corte de jornada. Lo
+                que deja de funcionar es el token de ese QR, para que el aviso
+                no siga activo.
               </p>
               <p>
                 Para ejercer derechos o consultas, escribinos a{" "}
@@ -49,12 +52,16 @@ const PrivacidadPage = () => {
           ) : (
             <>
               <p>
-                Cicalino processes business data (venue, staff, orders) and
-                customer Web Push subscriptions only to run order notices.
+                Cicalino processes business data (venue, staff, orders, waitlist
+                and payments) and customer Web Push subscriptions only to run
+                the contracted service.
               </p>
               <p>
                 We don’t sell data. Customers don’t create accounts: they scan a
-                temporary QR. QR tokens expire at end of day.
+                QR. Orders, waitlist entries and payments stay in the venue’s
+                history for metrics and operations: they are not deleted at
+                business-day cutover. What expires is that QR token, so notices
+                stop.
               </p>
               <p>
                 For requests, email us at{" "}

@@ -55,6 +55,8 @@ describe("Diccionario ES/EN", () => {
     expect(texto).toContain("el pedido está listo");
     expect(texto).toContain("Escaneá el QR y esperá el aviso");
     expect(texto).toContain("¿Te olvidaste la contraseña?");
+    expect(texto).not.toContain("N° de turno");
+    expect(texto).not.toContain("¿Se borran los pedidos?");
   });
 
   it("el inglés no quedó en castellano por copiar y pegar", () => {

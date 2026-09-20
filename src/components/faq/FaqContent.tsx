@@ -6,7 +6,7 @@ import { ReservasLandingPreview } from "@/components/landing/ReservasLandingPrev
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { TabGlyph } from "@/components/ui/TabGlyph";
 
-type Tab = "pedidos" | "espera";
+type Tab = "pedidos" | "espera" | "pagos";
 
 const STEPS_PEDIDOS = [
   { key: "creado", color: "bg-amber-100 text-amber-800", ring: "ring-amber-200" },
@@ -39,6 +39,15 @@ const FAQ_ESPERA = [
   { q: "faq.e.q6", a: "faq.e.a6" },
 ] as const;
 
+const FAQ_PAGOS = [
+  { q: "faq.p.q1", a: "faq.p.a1" },
+  { q: "faq.p.q2", a: "faq.p.a2" },
+  { q: "faq.p.q3", a: "faq.p.a3" },
+  { q: "faq.p.q4", a: "faq.p.a4" },
+  { q: "faq.p.q5", a: "faq.p.a5" },
+  { q: "faq.p.q6", a: "faq.p.a6" },
+] as const;
+
 export const FaqContent = ({
   showFlow = true,
   className = "",
@@ -49,14 +58,15 @@ export const FaqContent = ({
   const { t } = useApp();
   const [tab, setTab] = useState<Tab>("pedidos");
   const steps = tab === "pedidos" ? STEPS_PEDIDOS : STEPS_ESPERA;
-  const bloques = tab === "pedidos" ? FAQ_PEDIDOS : FAQ_ESPERA;
+  const bloques =
+    tab === "pedidos" ? FAQ_PEDIDOS : tab === "espera" ? FAQ_ESPERA : FAQ_PAGOS;
 
   return (
     <div className={className}>
       <div className="mb-6">
         <SegmentedTabs
           ariaLabel="FAQ"
-          accent={tab === "espera" ? "espera" : "marca"}
+          accent={tab === "espera" ? "espera" : tab === "pagos" ? "pagos" : "marca"}
           value={tab}
           onChange={setTab}
           options={[
@@ -70,11 +80,16 @@ export const FaqContent = ({
               label: t("faq.tabEspera"),
               icon: <TabGlyph k="espera" />,
             },
+            {
+              id: "pagos",
+              label: t("faq.tabPagos"),
+              icon: <TabGlyph k="cobrar" />,
+            },
           ]}
         />
       </div>
 
-      {showFlow && (
+      {showFlow && tab !== "pagos" && (
         <section
           className={`rounded-[28px] border bg-surface p-5 shadow-sm sm:p-8 ${
             tab === "espera" ? "border-espera/25" : "border-linea"
@@ -127,6 +142,18 @@ export const FaqContent = ({
 
           <p className="mt-6 rounded-2xl bg-crema/60 px-4 py-3 text-sm leading-relaxed text-carbon/65">
             {t(tab === "pedidos" ? "faq.flujoNota" : "faq.e.flujoNota")}
+          </p>
+        </section>
+      )}
+
+      {showFlow && tab === "pagos" && (
+        <section className="rounded-[28px] border border-linea bg-surface p-5 shadow-sm sm:p-8">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-carbon/55">
+            {t("faq.p.flujoTitulo")}
+          </h2>
+          <p className="mt-1 text-sm text-carbon/50">{t("faq.p.flujoSub")}</p>
+          <p className="mt-6 rounded-2xl bg-crema/60 px-4 py-3 text-sm leading-relaxed text-carbon/65">
+            {t("faq.p.flujoNota")}
           </p>
         </section>
       )}
