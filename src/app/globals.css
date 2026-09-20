@@ -365,6 +365,14 @@ button:disabled,
   --halo: color-mix(in srgb, var(--brand) 60%, transparent);
 }
 
+.u-alert-halo-espera {
+  --halo: color-mix(in srgb, var(--espera) 60%, transparent);
+}
+
+.u-alert-halo-pagos {
+  --halo: color-mix(in srgb, var(--pagos) 60%, transparent);
+}
+
 .u-alert-halo-curso {
   --halo: color-mix(in srgb, var(--curso) 60%, transparent);
 }

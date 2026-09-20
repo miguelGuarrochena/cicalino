@@ -154,7 +154,7 @@ export const FloorTableTile = ({
             )}
           </span>
           {waiter ? (
-            <span className="truncate text-[10px] font-semibold leading-none opacity-80">
+            <span className="truncate text-[10px] font-semibold leading-tight opacity-80">
               {waiter}
             </span>
           ) : null}

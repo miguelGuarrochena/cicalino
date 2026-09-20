@@ -119,7 +119,12 @@ export const OrderCard = ({
               {order.reference}
             </span>
             {order.alias ? (
-              <span className="truncate font-display text-lg leading-none text-marca">
+              /* `leading-tight` y no `leading-none`: `truncate` es
+               * `overflow:hidden`, y con la caja del alto exacto de la letra la
+               * panza de la "g" de un nombre como Miguel queda cortada. El
+               * número de al lado no tiene descendentes, así que el corte solo
+               * se ve en el alias. */
+              <span className="truncate font-display text-lg leading-tight text-marca">
                 {order.alias}
               </span>
             ) : null}

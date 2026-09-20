@@ -183,7 +183,10 @@ export const QrModal = ({
                 {reference}
               </span>
               {alias ? (
-                <span className="truncate font-display text-lg leading-none text-marca">
+                /* Mismo alias que en OrderCard, con el mismo `leading-tight`:
+                 * `truncate` recorta las descendentes si la caja mide justo lo
+                 * que mide la letra. */
+                <span className="truncate font-display text-lg leading-tight text-marca">
                   {alias}
                 </span>
               ) : null}

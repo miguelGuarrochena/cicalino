@@ -227,10 +227,19 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesas).toContain("mesas.historial");
     expect(mesas).not.toContain("ClosedTodayList");
     expect(mesas).not.toContain("showClosed");
-    /* El tono lo elige quien lo usa; los colores viven en el globo. Lo decide
-     * el hook porque Mesas late igual en la nav y en el hub. */
-    expect(read("src/lib/hooks/useNavPending.ts")).toContain(
-      'attention.headerPriority ? "curso" : "marca"',
+    /* El tono lo elige quien lo usa; los colores viven en el globo. Cada
+     * sección late del color de su sección —el mismo de su círculo en el hub—
+     * y lo decide el hook, así la nav y el hub no se pueden ir a distinto. */
+    const pendiente = read("src/lib/hooks/useNavPending.ts");
+    expect(pendiente).toContain('"/panel/pedidos": "marca"');
+    expect(pendiente).toContain('"/panel/espera": "espera"');
+    expect(pendiente).toContain('"/panel/pagos": "pagos"');
+    /* Pagos ya no se pone ámbar por tener una cuenta esperando: esa condición
+     * es casi siempre verdadera en hora pico y tapaba el color del módulo. El
+     * matiz sigue en las pestañas de adentro de Pagos. */
+    expect(pendiente).not.toContain('"curso"');
+    expect(read("src/components/ui/SegmentedTabs.tsx")).toContain(
+      'opt.priority ? "curso" : "marca"',
     );
     expect(nav).toContain("tone={tone}");
     expect(read("src/components/ui/CountBadge.tsx")).toContain("bg-curso");
@@ -253,6 +262,31 @@ describe("Operación — jerarquía y layout", () => {
     for (const src of [hub, nav]) {
       expect(src).not.toContain("usePanelAlertCounts");
       expect(src).not.toContain("useFloorAttention");
+    }
+  });
+
+  it("los nombres que escribe el cliente no pierden la panza de la g", () => {
+    /* `truncate` es `overflow:hidden`. Con `leading-none` la caja mide
+     * exactamente lo que mide la letra, así que las descendentes —la g de
+     * Miguel, la y de Nahuel Y.— quedaban cortadas por abajo. El número del
+     * pedido no tiene descendentes y por eso el corte solo se veía en el
+     * alias. */
+    const conAlias = [
+      "src/components/panel/OrderCard.tsx",
+      "src/components/panel/QrModal.tsx",
+      "src/components/panel/mesas/FloorTableTile.tsx",
+    ];
+    for (const rel of conAlias) {
+      const src = read(rel);
+      for (const linea of src.split("\n")) {
+        /* Solo las líneas de clases: si no, el propio comentario que explica
+         * esta regla la hace fallar. */
+        if (!linea.includes("className")) continue;
+        if (!linea.includes("truncate")) continue;
+        expect(linea.includes("leading-none"), `${rel}: ${linea.trim()}`).toBe(
+          false,
+        );
+      }
     }
   });
 
