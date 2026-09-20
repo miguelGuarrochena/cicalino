@@ -51,6 +51,22 @@ export const visibleModules = (
   return activos;
 };
 
+/* ¿Este local necesita saber cuántas mesas tiene?
+ *
+ * La pregunta no la contesta el nombre de la sección. La cantidad de mesas la
+ * usan tres cosas distintas: Recepción para sentar gente, Pagos para llevar la
+ * cuenta de cada mesa, y Pedidos cuando identifica los pedidos por número de
+ * mesa. Un local con Pedidos solo, en modo mesa, la necesita tanto como uno
+ * con Recepción.
+ *
+ * Vive acá y no en la pantalla porque la misma respuesta la piden la sección,
+ * la pestaña del nav y la validación del guardado. Cuando estaba escrita tres
+ * veces, cambiarla era acordarse de los tres lugares. */
+export const needsTableCount = (
+  m: ModuleFlags,
+  modoIdentificacion: string,
+): boolean => m.espera || m.pagos || (m.pedidos && modoIdentificacion === "mesa");
+
 export const hasBothModules = (m: ModuleFlags): boolean => m.pedidos && m.espera;
 
 export const onlyModule = (m: ModuleFlags): ModuleId | null => {

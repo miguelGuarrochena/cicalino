@@ -370,10 +370,14 @@ const dict = {
       buscarMesa: "Buscar por mesa o nombre…",
       buscarNombre: "Buscar por nombre…",
       pedirMesa: "¿Qué mesa es?",
-      pedirNombre: "¿Nombre del cliente?",
+      pedirNombre: "Identificador de pedido",
+      pedirNombreSub: "Lo que escribas acá es lo que ve el cliente en el avisador.",
+      /* Avisa y deja seguir: hay locales que repiten a propósito. */
+      refRepetida: "Ya hay un pedido abierto con este identificador.",
+      refRepetidaSeguir: "Generar igual",
       errMesa: "Ingresá un número entre 1 y {n}.",
-      errNombre: "Escribí el nombre del cliente.",
-      crearYQr: "Crear y mostrar QR",
+      errNombre: "Escribí el identificador del pedido.",
+      crearYQr: "Generar QR",
       ayudaEstados: "¿Cómo funciona esta pantalla?",
       cerrado: "Cerrado",
       cerradoHoy:
@@ -656,7 +660,11 @@ const dict = {
       sub: "Lo abriste en este teléfono.",
       cerrar: "Ahora no",
     },
-    modo: { pedido: "Pedido", nombre: "Cliente", mesa: "Mesa" },
+    /* El rótulo chico que va arriba del valor, en la tarjeta del pedido, en el
+     * QR y en la pantalla del comensal. Dice QUÉ es el número de abajo, así
+     * que sigue al modo de identificación: "Cliente" era mentira cuando el
+     * local escribía una comanda como "A24". */
+    modo: { pedido: "Número", nombre: "Identificador", mesa: "Mesa" },
     toast: {
       creado: "Pedido {n} creado",
       listo: "Listo · le avisamos al cliente",
@@ -756,6 +764,7 @@ const dict = {
         general: "General",
         restaurante: "Restaurante",
         identidad: "Identidad",
+        pedidos: "Pedidos",
         mesas: "Mesas",
         empleados: "Personal",
         carta: "Menú",
@@ -772,7 +781,7 @@ const dict = {
         "Horario en el que se pueden hacer reservas. No cambia las mesas del salón.",
       seccionAvanzado: "Avanzado",
       seccionAvanzadoSub:
-        "Cómo se identifican los pedidos, a qué hora corta la jornada y qué días el local no toma reservas.",
+        "A qué hora corta la jornada y qué días el local está cerrado. Vale para todo el panel, tenga los módulos que tenga.",
       mesasQrCta: "Gestionar QR de mesas",
       mesasQrCtaSub:
         "Acá no se crean mesas. Elegís cuáles de las mesas ya definidas tienen QR para pedir y pagar.",
@@ -850,8 +859,16 @@ const dict = {
       seccionId: "Cómo identificás los pedidos",
       seccionIdSub:
         "Elegí cómo se muestra cada pedido a tu personal y al cliente.",
-      modoPedidoDet: "Turno correlativo (42, 43…). Ideal para take away.",
-      modoNombreDet: "El cliente da su nombre. Cálido, típico en cafeterías.",
+      /* El nombre largo va acá y no en `modo.*`, que es el rótulo corto de la
+       * tarjeta del pedido y de la pantalla del cliente: ahí "Número de
+       * Cicalino" no entra ni hace falta. */
+      idModoPedido: "Número de Cicalino",
+      idModoNombre: "Identificador de pedido",
+      idModoMesa: "Número de mesa",
+      modoPedidoDet:
+        "Cicalino asigna el número solo (42, 43…) y el QR sale al toque. Ideal para take away.",
+      modoNombreDet:
+        "Lo escribe el local al crear el pedido: un nombre, un número de comanda, lo que usen. El QR sale después de escribirlo.",
       modoMesaDet: "Número de mesa. Ayuda a organizar al personal.",
       tableCount: "Cantidad de mesas",
       reservaHorario: "Horario de reservas",
@@ -2091,10 +2108,13 @@ const dict = {
       buscarMesa: "Search by table or name…",
       buscarNombre: "Search by name…",
       pedirMesa: "Which table?",
-      pedirNombre: "Customer's name?",
+      pedirNombre: "Order identifier",
+      pedirNombreSub: "Whatever you type here is what the customer sees.",
+      refRepetida: "There's already an open order with this identifier.",
+      refRepetidaSeguir: "Create anyway",
       errMesa: "Enter a number between 1 and {n}.",
-      errNombre: "Enter the customer's name.",
-      crearYQr: "Create & show QR",
+      errNombre: "Enter the order identifier.",
+      crearYQr: "Generate QR",
       ayudaEstados: "How does this screen work?",
       cerrado: "Closed",
       cerradoHoy:
@@ -2371,7 +2391,7 @@ const dict = {
       sub: "You opened this on this phone.",
       cerrar: "Not now",
     },
-    modo: { pedido: "Order", nombre: "Customer", mesa: "Table" },
+    modo: { pedido: "Number", nombre: "Identifier", mesa: "Table" },
     toast: {
       creado: "Order {n} created",
       listo: "Ready · customer notified",
@@ -2470,6 +2490,7 @@ const dict = {
         general: "General",
         restaurante: "Restaurant",
         identidad: "Identity",
+        pedidos: "Orders",
         mesas: "Tables",
         empleados: "Staff",
         carta: "Menu",
@@ -2486,7 +2507,7 @@ const dict = {
         "Hours when guests can book. It does not change the dining-room tables.",
       seccionAvanzado: "Advanced",
       seccionAvanzadoSub:
-        "How orders are identified, when the business day cuts over, and which days the venue does not take bookings.",
+        "When the business day cuts over and which days the venue is closed. Applies to the whole panel, whatever modules it has.",
       mesasQrCta: "Manage table QR codes",
       mesasQrCtaSub:
         "Tables are not created here. You choose which of the existing tables have a QR to order and pay.",
@@ -2564,8 +2585,13 @@ const dict = {
       seccionId: "How you identify orders",
       seccionIdSub:
         "Choose how each order is shown to your staff and the customer.",
-      modoPedidoDet: "Sequential number (42, 43…). Great for takeaway.",
-      modoNombreDet: "The customer gives their name. Warm, common in cafés.",
+      idModoPedido: "Cicalino number",
+      idModoNombre: "Order identifier",
+      idModoMesa: "Table number",
+      modoPedidoDet:
+        "Cicalino numbers it for you (42, 43…) and the QR shows right away. Great for takeaway.",
+      modoNombreDet:
+        "The venue types it when creating the order: a name, a ticket number, whatever they use. The QR shows after that.",
       modoMesaDet: "Table number. Helps organize the staff.",
       tableCount: "Number of tables",
       reservaHorario: "Reservation hours",

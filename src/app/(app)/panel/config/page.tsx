@@ -18,6 +18,7 @@ import {
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { saveBranchConfig } from "@/lib/data/branch";
+import { needsTableCount } from "@/lib/modules";
 import { syncTables } from "@/lib/data/waitlist";
 import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { HelpLink } from "@/components/panel/HelpLink";
@@ -233,19 +234,30 @@ const ConfigPage = () => {
   const dispositivo = elegido ?? dispositivoGuardado;
   const setDispositivo = setElegido;
 
+  /* Las tres, siempre que el local tenga Pedidos (que es lo que abre esta
+   * sección). Identificar por mesa es una forma legítima de numerar los
+   * pedidos aunque el local no tenga Recepción ni Pagos: lo único que hace
+   * falta es saber cuántas mesas hay, y elegir este modo es justamente lo que
+   * hace aparecer esa configuración. */
   const modes: {
     id: IdentificationMode;
     label: string;
     det: string;
   }[] = [
-    { id: "pedido", label: t("modo.pedido"), det: t("config.modoPedidoDet") },
-    { id: "nombre", label: t("modo.nombre"), det: t("config.modoNombreDet") },
-    { id: "mesa", label: t("modo.mesa"), det: t("config.modoMesaDet") },
+    { id: "pedido", label: t("config.idModoPedido"), det: t("config.modoPedidoDet") },
+    { id: "nombre", label: t("config.idModoNombre"), det: t("config.modoNombreDet") },
+    { id: "mesa", label: t("config.idModoMesa"), det: t("config.modoMesaDet") },
   ];
+
+  /* La misma respuesta para la sección, la pestaña y la validación. */
+  const pideMesas = needsTableCount(
+    { pedidos: c.moduloPedidos, espera: c.moduloEspera, pagos: c.moduloPagos },
+    modo,
+  );
 
   const validar = (): FormErrors => {
     const next: FormErrors = {};
-    if ((modo === "mesa" || c.moduloEspera || c.moduloPagos) && (!tableCount || tableCount < 1)) {
+    if (pideMesas && (!tableCount || tableCount < 1)) {
       next.mesas = t("config.errMesas");
     }
     if (c.moduloEspera && reservaAbreMin >= reservaCierraMin) {
@@ -256,6 +268,15 @@ const ConfigPage = () => {
 
   const guardar = async () => {
     if (saving) return;
+    /* Nada se guarda hasta que la sucursal terminó de hidratar.
+     *
+     * Lo que no está en el borrador se escribe con el valor del store, así que
+     * guardar en esa ventana mandaría a la base lo que el store traía de
+     * antes: el default del cliente nuevo, o peor, el modo de la sucursal
+     * anterior si acaban de cambiar de sucursal. Un local que tenía "mesa" y
+     * no está mirando esta sección —porque no tiene Pedidos contratado— se
+     * habría quedado en "número" sin tocar nada. */
+    if (!c.branchConfigReady) return;
     const next = validar();
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -284,7 +305,14 @@ const ConfigPage = () => {
          * el borrador queda como estaba y las mesas no se mueven. */
         c.hydrate(cfg);
         setDraft({});
-        if (c.moduloEspera || c.moduloPagos || cfg.modo === "mesa") {
+        /* La misma regla de siempre: las mesas se sincronizan solo si hay
+         * algo que las use. */
+        if (
+          needsTableCount(
+            { pedidos: c.moduloPedidos, espera: c.moduloEspera, pagos: c.moduloPagos },
+            cfg.modo,
+          )
+        ) {
           await syncTables(id, cfg.tableCount);
         }
       } else {
@@ -408,6 +436,39 @@ const ConfigPage = () => {
         <BrandIdentityCard embedded />
       </Accordion>
 
+      {/* Cómo se identifica un pedido es de Pedidos y de nadie más. Vivía en
+          "Avanzado", que se muestra siempre: un local que contrató solo
+          Recepción o solo Pagos veía —y podía cambiar— una configuración que
+          no usa en ninguna de sus pantallas. */}
+      {c.moduloPedidos && (
+        <Accordion {...acc("pedidos")} title={t("config.tab.pedidos")}>
+          <p className="mb-4 text-sm text-carbon/55">{t("config.seccionIdSub")}</p>
+          <p className="text-sm font-medium text-carbon/70">{t("config.seccionId")}</p>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {modes.map((m) => {
+              const active = modo === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => editar("modo", m.id)}
+                  className={`flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 text-left transition hover:opacity-90 ${
+                    active
+                      ? "border-marca bg-marca/10 ring-2 ring-marca/30"
+                      : "border-linea bg-crema/30"
+                  }`}
+                >
+                  <span className="font-semibold text-carbon">{m.label}</span>
+                  <span className="text-xs leading-snug text-carbon/55">
+                    {m.det}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Accordion>
+      )}
+
       {c.moduloPagos && isRealBranchId(branchId) && (
         <Accordion {...acc("pagos")} title={t("config.tab.pagos")}>
           <PaymentMethodsCard
@@ -418,7 +479,7 @@ const ConfigPage = () => {
         </Accordion>
       )}
 
-      {(c.moduloEspera || c.moduloPagos || modo === "mesa") && (
+      {pideMesas && (
         <Accordion {...acc("mesas")} title={t("config.tab.mesas")}>
           <p className="mb-4 text-sm text-carbon/55">
             {t("config.seccionMesasSub")}
@@ -545,31 +606,6 @@ const ConfigPage = () => {
         <p className="mb-4 text-sm text-carbon/55">
           {t("config.seccionAvanzadoSub")}
         </p>
-        <p className="text-sm font-medium text-carbon/70">{t("config.seccionId")}</p>
-        <p className="mb-3 mt-1 text-xs text-carbon/50">{t("config.seccionIdSub")}</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {modes.map((m) => {
-            const active = modo === m.id;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => editar("modo", m.id)}
-                className={`flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 text-left transition hover:opacity-90 ${
-                  active
-                    ? "border-marca bg-marca/10 ring-2 ring-marca/30"
-                    : "border-linea bg-crema/30"
-                }`}
-              >
-                <span className="font-semibold text-carbon">{m.label}</span>
-                <span className="text-xs leading-snug text-carbon/55">
-                  {m.det}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
         <div className="mt-5 max-w-xs border-t border-linea pt-5">
           <Campo label={t("config.corte")}>
             <Select
@@ -642,7 +678,7 @@ const ConfigPage = () => {
         <button
           type="button"
           onClick={() => void guardar()}
-          disabled={saving || !dirty}
+          disabled={saving || !dirty || !c.branchConfigReady}
           className="min-h-12 shrink-0 rounded-full bg-marca px-6 text-sm font-semibold text-crema transition active:scale-95 disabled:opacity-40"
         >
           {saving

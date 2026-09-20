@@ -186,6 +186,35 @@ export const fetchPendingCounterOrders = async (
   );
 };
 
+/* ¿Ya hay un pedido abierto de hoy con este identificador?
+ *
+ * Solo para avisar: cuando el local escribe el identificador a mano, repetir
+ * uno que sigue en el mostrador deja dos pedidos con el mismo rótulo y el
+ * cliente equivocado se lleva el pedido del otro. No bloquea el alta —hay
+ * locales que numeran por mesa y repiten a propósito—, así que la pantalla
+ * avisa y deja seguir.
+ *
+ * Abierto es lo que todavía está en juego: retirado y cancelado ya no compiten
+ * por el mismo rótulo. */
+export const findOpenOrderWithReference = async (
+  branchId: string,
+  reference: string,
+): Promise<boolean> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return false;
+  const { data, error } = await supabase
+    .from("pedidos")
+    .select("id")
+    .eq("local_id", branchId)
+    .eq("referencia", reference)
+    .in("estado", ["creado", "en_preparacion", "listo"])
+    .gte("creado_en", startOfBusinessDay())
+    .limit(1);
+  /* Si la consulta falla no se inventa un aviso: el alta sigue como siempre. */
+  if (error) return false;
+  return (data ?? []).length > 0;
+};
+
 export const fetchBranchName = async (
   branchId: string,
 ): Promise<string | null> => {
