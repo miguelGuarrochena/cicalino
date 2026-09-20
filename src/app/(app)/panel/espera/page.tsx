@@ -698,19 +698,10 @@ const EsperaPanelPage = () => {
       />
       </>
       ) : (
-        <JornadaInactivaState
-          action={
-            <a
-              href="#reservas"
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-espera px-5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
-            >
-              {t("panel.jornadaInactivaReserva")}
-            </a>
-          }
-        />
+        <JornadaInactivaState body={t("panel.jornadaInactivaEspera")} />
       )}
 
-      <section id="reservas" className="scroll-mt-24">
+      <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-carbon/70">
