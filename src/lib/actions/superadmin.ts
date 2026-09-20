@@ -10,9 +10,13 @@ import {
   parseInput,
   type CreateOrgInput,
 } from "@/lib/schemas";
-import { leadToOrgPayload, type LeadRow } from "@/lib/leadToOrg";
+import {
+  leadFromRow,
+  leadToOrgPayload,
+  type LeadPendiente,
+  type LeadRow,
+} from "@/lib/leadToOrg";
 import { aggregateModules, modulesFromRow, normalizeModules } from "@/lib/pricing";
-import type { Lead } from "@/lib/db/schema";
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 type SimpleResult = { ok: true } | { ok: false; error: string };
@@ -423,16 +427,26 @@ export const ensureDemoOrg = async (): Promise<
   };
 };
 
-export const listLeads = async (): Promise<Lead[]> => {
+export const listLeads = async (): Promise<LeadPendiente[]> => {
   const perfil = await getCurrentProfile();
   if (!perfil || perfil.rol !== "superadmin") return [];
   const admin = createAdminSupabase();
   if (!admin) return [];
+  /* Solo las que esperan respuesta, filtradas en la consulta como hace
+   * `listBranchRequests`. La tabla guarda todas las solicitudes que entraron
+   * alguna vez y el panel dibuja únicamente las nuevas: traerlas enteras era
+   * bajarse un histórico que solo crece para mostrar, casi siempre, ninguna. */
   const { data } = await admin
     .from("solicitudes")
-    .select("*")
+    .select(
+      "id, nombre, email, telefono, local, ciudad, direccion, cuil, tipo, plan, pack",
+    )
+    .eq("estado", "nueva")
     .order("creado_en", { ascending: false });
-  return (data ?? []) as Lead[];
+
+  /* La base habla castellano y la app inglés: las filas se traducen, no se
+   * castean. El porqué está en `leadFromRow`. */
+  return (data ?? []).map((r) => leadFromRow(r as LeadRow & { id: string }));
 };
 
 export const activateLead = async (id: string): Promise<Resultado> => {

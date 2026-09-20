@@ -10,13 +10,13 @@ import {
   activateLead,
   dismissLead,
 } from "@/lib/actions/superadmin";
+import type { LeadPendiente } from "@/lib/leadToOrg";
 import { refreshOrganizations } from "@/lib/data/superadmin";
-import type { Lead } from "@/lib/db/schema";
 
 export const SolicitudesPanel = () => {
   const { t } = useApp();
   const toast = useToast();
-  const [items, setItems] = useState<Lead[]>([]);
+  const [items, setItems] = useState<LeadPendiente[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -29,8 +29,9 @@ export const SolicitudesPanel = () => {
     void load();
   }, [load]);
 
-  const nuevas = items.filter((s) => s.status === "nueva");
-  if (nuevas.length === 0) return null;
+  /* La consulta ya trae solo las que esperan respuesta, igual que en Pedidos
+   * de sucursal: filtrar de nuevo acá sería repetir la regla en dos lugares. */
+  if (items.length === 0) return null;
 
   const activar = async (id: string) => {
     setBusy(id);
@@ -64,11 +65,11 @@ export const SolicitudesPanel = () => {
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-marca">
         Solicitudes
         <span className="rounded-full bg-marca px-2 py-0.5 text-xs text-crema">
-          {nuevas.length}
+          {items.length}
         </span>
       </h2>
       <ul className="flex flex-col gap-2">
-        {nuevas.map((s) => {
+        {items.map((s) => {
           const esContrato = s.tipo === "contrato";
           const planLbl =
             s.plan === "anual" ? "Anual" : s.plan === "mensual" ? "Mensual" : "";

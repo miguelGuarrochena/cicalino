@@ -175,11 +175,15 @@ describe("Operación — jerarquía y layout", () => {
     const css = read("src/app/globals.css");
     const inbox = read("src/components/panel/mesas/KitchenInbox.tsx");
     const charge = read("src/components/panel/mesas/ChargeInbox.tsx");
+    /* De dónde sale cada número lo resuelve el hook: la nav y el hub cuelgan
+     * el mismo dato de botones distintos. */
+    const pendientes = read("src/lib/hooks/useNavPending.ts");
     expect(layout).toContain("FloorAttentionWatch");
-    expect(nav).toContain("headerUnseen");
-    expect(nav).toContain("headerPedido");
-    expect(nav).toContain("headerCuenta");
-    expect(nav).toContain("nav.pedidoYCuenta");
+    expect(pendientes).toContain("headerUnseen");
+    expect(pendientes).toContain("headerPedido");
+    expect(pendientes).toContain("headerCuenta");
+    expect(pendientes).toContain("nav.pedidoYCuenta");
+    expect(nav).toContain("useNavPending");
     /* El contador vive en un solo componente —lo dibujaban tres— y es un globo
      * superpuesto, como el de mensajes sin leer: 10 px adentro del botón es un
      * detalle decorativo, y esto tiene que verse de reojo desde el salón. */
@@ -223,9 +227,33 @@ describe("Operación — jerarquía y layout", () => {
     expect(mesas).toContain("mesas.historial");
     expect(mesas).not.toContain("ClosedTodayList");
     expect(mesas).not.toContain("showClosed");
-    /* El tono lo elige quien lo usa; los colores viven en el globo. */
-    expect(nav).toContain('tone={priority ? "curso" : "marca"}');
+    /* El tono lo elige quien lo usa; los colores viven en el globo. Lo decide
+     * el hook porque Mesas late igual en la nav y en el hub. */
+    expect(read("src/lib/hooks/useNavPending.ts")).toContain(
+      'attention.headerPriority ? "curso" : "marca"',
+    );
+    expect(nav).toContain("tone={tone}");
     expect(read("src/components/ui/CountBadge.tsx")).toContain("bg-curso");
+  });
+
+  it("el hub avisa lo mismo que la nav, sin contar dos veces", () => {
+    const hub = read("src/components/panel/ModuleHub.tsx");
+    const nav = read("src/components/panel/PanelNav.tsx");
+    /* El hub es donde arranca el turno: si Pedidos tiene tres esperando, se
+     * tiene que ver antes de elegir a dónde entrar. */
+    expect(hub).toContain("useNavPending");
+    expect(hub).toContain("CountBadge");
+    expect(hub).toContain("aria-label={label(t(l.key))}");
+    /* Colgado del círculo, no de la tarjeta: la tarjeta incluye el texto de
+     * abajo y el globo terminaría flotando al lado del nombre. */
+    expect(hub).toContain("absolute right-0 top-0");
+    expect(hub).toContain("relative flex size-[4.5rem]");
+    /* Nadie recalcula de dónde sale el número: las dos superficies preguntan
+     * lo mismo al mismo hook. */
+    for (const src of [hub, nav]) {
+      expect(src).not.toContain("usePanelAlertCounts");
+      expect(src).not.toContain("useFloorAttention");
+    }
   });
 
   it("el panel no usa el select nativo: las opciones van por el Select de la app", () => {

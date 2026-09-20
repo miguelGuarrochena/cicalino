@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { leadToOrgPayload, type LeadRow } from "@/lib/leadToOrg";
+import { leadFromRow, leadToOrgPayload, type LeadRow } from "@/lib/leadToOrg";
 import { createOrganizationSchema, parseInput } from "@/lib/schemas";
 
 const mkLead = (over: Partial<LeadRow> = {}): LeadRow => ({
@@ -121,5 +121,36 @@ describe("leadToOrgPayload: reglas de negocio", () => {
 
   it("el alta siempre arranca con cupo 1", () => {
     expect(leadToOrgPayload(mkLead()).cupo).toBe(1);
+  });
+});
+
+/* El mismo error, en la otra punta: la lista del panel casteaba la fila cruda
+ * a `Lead` en vez de traducirla, así que `.name` y `.status` venían undefined
+ * y las solicitudes nuevas no aparecían nunca. */
+describe("leadFromRow: la fila cruda llega al panel con las claves de la app", () => {
+  it("traduce los nombres de columna, no los copia", () => {
+    const fila = { ...mkLead(), id: "sol-1" };
+    const lead = leadFromRow(fila);
+    expect(lead.id).toBe("sol-1");
+    expect(lead.name).toBe("Juan Pérez");
+    expect(lead.local).toBe("Panadería La Esquina");
+    expect(lead.email).toBe("Juan@Ejemplo.com ");
+    /* Lo que el panel dibuja de cada fila, sin un solo undefined. */
+    for (const k of ["id", "name", "email", "tipo"] as const) {
+      expect(lead[k], k).not.toBeUndefined();
+    }
+    expect(Object.keys(lead)).not.toContain("nombre");
+  });
+
+  it("una solicitud mínima no deja huecos donde el panel espera texto", () => {
+    const lead = leadFromRow({
+      id: "sol-2",
+      nombre: "Ana",
+      email: "ana@ejemplo.com",
+      tipo: null,
+    });
+    expect(lead.tipo).toBe("prueba");
+    expect(lead.telefono).toBeNull();
+    expect(lead.pack).toBeNull();
   });
 });
