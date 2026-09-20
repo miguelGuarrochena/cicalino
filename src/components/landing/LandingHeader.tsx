@@ -77,7 +77,11 @@ export const LandingHeader = ({
         </nav>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-3">
-          <Controls className="hidden md:flex" />
+          {/* `sm` y no `md`, igual que FAQ y Precios: el footer esconde los
+              suyos justo en `sm`, así que con `md` quedaba una banda entre 640
+              y 767 px —una tablet en vertical— sin tema ni idioma en ningún
+              lado de la página. */}
+          <Controls className="hidden sm:flex" />
 
           <Link
             href="/panel"

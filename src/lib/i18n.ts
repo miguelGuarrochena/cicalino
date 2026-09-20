@@ -120,9 +120,14 @@ const dict = {
     },
     home: {
       kicker: "Cicalino",
-      h1a: "Avisá al cliente",
-      h1b: "cuando el pedido",
-      h1c: "está listo o hay mesa",
+      /* Las tres cosas que el local avisa, que son los tres módulos: el
+       * pedido listo, la mesa que se liberó y la cuenta que pidieron. El
+       * título se parte en tres líneas fijas, así que el corte está elegido
+       * para que ninguna se pase de ~25 caracteres: más que eso y en
+       * `text-7xl` la línea no entra. */
+      h1a: "Avisá al cliente cuando",
+      h1b: "el pedido está listo,",
+      h1c: "hay mesa o pide la cuenta",
       sub: "Sin buzzers, sin apps. Pedidos listos, recepción y pagos divididos, en un solo lugar.",
       cta1: "Entrar a la app",
       ctaProbar: "Probá gratis 30 días",
@@ -1843,8 +1848,8 @@ const dict = {
     home: {
       kicker: "Cicalino",
       h1a: "Tell the customer",
-      h1b: "when the order",
-      h1c: "is ready",
+      h1b: "when the order is ready,",
+      h1c: "a table opens or they pay",
       sub: "No buzzers, no apps. Order ready, reception and split bill, all in one place.",
       cta1: "Sign in",
       ctaProbar: "Try it free for 30 days",

@@ -25,7 +25,7 @@ const AdminLayout = async ({
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 sm:px-6 sm:py-8">
         {children}
       </main>
-      <SiteFooter className="pb-24 sm:pb-8" />
+      <SiteFooter className="pb-24 sm:pb-8" showControls={false} />
       <AdminBottomNav />
     </div>
   );

@@ -163,7 +163,7 @@ const PanelLayout = ({
         )}
       </main>
 
-      <SiteFooter className="pb-20 sm:pb-8 print:hidden" />
+      <SiteFooter className="pb-20 sm:pb-8 print:hidden" showControls={false} />
       {role !== "superadmin" && <PanelAlertDock />}
       {role !== "superadmin" && <PanelNav variant="bottom" />}
       {role !== "superadmin" && <InstallBanner />}
