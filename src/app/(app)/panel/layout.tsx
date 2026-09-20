@@ -140,7 +140,16 @@ const PanelLayout = ({
             <div className="flex min-w-0 items-center gap-1.5 xl:contents">
               <BranchSwitcher />
               <PanelNav />
-              {mostrarFichaje && <Fichaje />}
+              {/* Contra el margen derecho, debajo de los tres botones: en el
+                  teléfono la segunda línea queda con la sucursal a un lado y
+                  quién atiende al otro, igual que la primera. En la fila
+                  única de `xl` el margen automático se saca, porque ahí el
+                  único que empuja tiene que ser el logo. */}
+              {mostrarFichaje && (
+                <div className="ml-auto flex items-center xl:ml-0">
+                  <Fichaje />
+                </div>
+              )}
             </div>
           )}
         </div>
