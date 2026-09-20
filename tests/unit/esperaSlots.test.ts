@@ -8,12 +8,14 @@ import {
   timeKeyFromLocal,
   combineLocalHorario,
   addDaysKey,
+  weekdayOfKey,
   buildDayOptions,
   buildTimeSlots,
   allTimeSlots,
   availableTimeSlots,
   todayDateKey,
 } from "@/lib/espera/slots";
+import { isClosedWeekday } from "@/lib/closedDays";
 
 /* Las cuentas de fechas del picker de reservas. Vivían sueltas arriba de la
  * página y no tenían un solo test: son el tipo de código que se rompe sin
@@ -170,6 +172,31 @@ describe("buildDayOptions", () => {
       "2026-08-14",
       "2026-08-17",
     ]);
+  });
+
+  it("hoy cerrado no bloquea días futuros abiertos, y omite los francos", () => {
+    /* Lunes cerrado, martes abierto, miércoles cerrado, jueves abierto.
+     * El picker mira `dias_cerrados` de cada fecha, no si hay jornada ahora. */
+    congelar("2026-08-10T15:00:00");
+    const dias = buildDayOptions("es", { closedWeekdays: [1, 3] }).map(
+      (d) => d.key,
+    );
+    expect(dias).not.toContain("2026-08-10");
+    expect(dias).toContain("2026-08-11");
+    expect(dias).not.toContain("2026-08-12");
+    expect(dias).toContain("2026-08-13");
+    expect(dias[0]).toBe("2026-08-11");
+  });
+
+  it("el calendario marca cerrado el franco, no el día de hoy", () => {
+    /* Misma cuenta que ReservasAgenda: weekday del YYYY-MM-DD contra
+     * dias_cerrados. Una reserva vieja de un miércoles que después se
+     * configuró cerrado sigue agrupada en ese día; no se ofrece para crear. */
+    const cerrados = [1, 3];
+    expect(isClosedWeekday(weekdayOfKey("2026-08-10"), cerrados)).toBe(true);
+    expect(isClosedWeekday(weekdayOfKey("2026-08-11"), cerrados)).toBe(false);
+    expect(isClosedWeekday(weekdayOfKey("2026-08-12"), cerrados)).toBe(true);
+    expect(isClosedWeekday(weekdayOfKey("2026-08-13"), cerrados)).toBe(false);
   });
 
   it("cruza el fin de mes sin romperse", () => {

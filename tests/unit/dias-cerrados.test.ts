@@ -113,6 +113,22 @@ describe("la jornada con días cerrados", () => {
     expect(conFranco.end.getTime()).toBeGreaterThan(sinFrancos.end.getTime());
   });
 
+  it("hoy cerrado sigue trayendo reservas de días abiertos y de francos con reservas viejas", () => {
+    /* Lunes y miércoles cerrados. El panel tiene que seguir viendo una
+     * reserva del martes (se puede crear) y una del miércoles (ya existía). */
+    const lunes = new Date("2026-08-10T15:00:00Z");
+    const cerrados = [1, 3];
+    expect(isJornadaActiva(6, lunes, TZ_NEGOCIO, cerrados)).toBe(false);
+    const rango = reservationFetchRange(6, lunes, TZ_NEGOCIO, cerrados);
+    const dentro = (iso: string) => {
+      const t = new Date(iso).getTime();
+      return t >= rango.start.getTime() && t <= rango.end.getTime();
+    };
+    expect(dentro("2026-08-11T20:00:00-03:00")).toBe(true);
+    expect(dentro("2026-08-12T20:00:00-03:00")).toBe(true);
+    expect(dentro("2026-08-13T20:00:00-03:00")).toBe(true);
+  });
+
   it("cuántos días de almanaque hacen falta para juntar días abiertos", () => {
     // Desde un domingo (0), con el lunes cerrado: 7 abiertos entran en 8 días.
     expect(calendarDaysForOpenDays(7, 0, LUNES_CERRADO)).toBe(8);
