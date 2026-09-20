@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
-import { CerradoHoyAviso } from "@/components/panel/CerradoHoyAviso";
+import { JornadaInactivaState } from "@/components/panel/JornadaInactivaState";
 import { QrModal } from "@/components/panel/QrModal";
 import { slicePage } from "@/components/ui/Pagination";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -37,6 +37,7 @@ import {
   reservationDateKey,
 } from "@/lib/reservations";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
+import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 import { CapacidadMesaModal } from "@/components/panel/espera/CapacidadMesaModal";
 import { ConfirmacionModal } from "@/components/panel/espera/ConfirmacionModal";
 import { HoldReservaModal } from "@/components/panel/espera/HoldReservaModal";
@@ -70,6 +71,7 @@ const EsperaPanelPage = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const activeEmployee = useActiveEmployee();
   const { visibles } = useOperationalAccess();
+  const jornadaActiva = useJornadaActiva();
   const tableCount = useConfigStore((s) => s.tableCount);
   const cutoffHour = useConfigStore((s) => s.cutoffHour);
   const reservaAbreMin = useConfigStore((s) => s.reservaAbreMin);
@@ -545,7 +547,6 @@ const EsperaPanelPage = () => {
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <SyncErrorBanner error={syncError} />
-      <CerradoHoyAviso />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
@@ -558,7 +559,7 @@ const EsperaPanelPage = () => {
           <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
             {t("nav.espera")}
           </h1>
-          {ready ? (
+          {jornadaActiva && ready ? (
             <p className="mt-1 text-sm text-carbon/55">
               {cola.length}{" "}
               {locale === "en" ? "parties waiting" : "grupos esperando"}
@@ -569,9 +570,9 @@ const EsperaPanelPage = () => {
                 ? ` · ${tableCount} ${locale === "en" ? "tables" : "mesas"}`
                 : ""}
             </p>
-          ) : (
+          ) : jornadaActiva ? (
             <Skeleton className="mt-1.5 h-4 w-44" />
-          )}
+          ) : null}
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
@@ -585,6 +586,7 @@ const EsperaPanelPage = () => {
           >
             {locale === "en" ? "+ Reservation" : "+ Reserva"}
           </button>
+          {jornadaActiva && (
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
@@ -592,9 +594,12 @@ const EsperaPanelPage = () => {
           >
             {locale === "en" ? "+ Add party" : "+ Agregar grupo"}
           </button>
+          )}
         </div>
       </div>
 
+      {jornadaActiva ? (
+      <>
       <div className="flex flex-col gap-3">
         <SegmentedTabs
           ariaLabel={locale === "en" ? "Table filters" : "Filtro de mesas"}
@@ -691,6 +696,10 @@ const EsperaPanelPage = () => {
         onVerQr={qr.abrirVerQr}
         onCancelar={setConfirmCancelEsperaId}
       />
+      </>
+      ) : (
+        <JornadaInactivaState />
+      )}
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -718,7 +727,9 @@ const EsperaPanelPage = () => {
             locale={locale}
             ahora={ahora}
             closedDays={diasCerrados}
-            onSentar={(id) => {
+            onSentar={
+              jornadaActiva
+                ? (id) => {
               if (sentandoRef.current) return;
               sentandoRef.current = true;
               const r = reservasActivas.find((x) => x.id === id);
@@ -739,7 +750,9 @@ const EsperaPanelPage = () => {
                 .finally(() => {
                   sentandoRef.current = false;
                 });
-            }}
+            }
+                : undefined
+            }
             onCancelar={(id) => {
               setHoldReservaId(null);
               setConfirmCancelReservaId(id);
@@ -770,6 +783,7 @@ const EsperaPanelPage = () => {
         )}
       </section>
 
+      {jornadaActiva && (
       <CanceladosHoy
         canceladas={canceladasHoy}
         locale={locale}
@@ -778,6 +792,7 @@ const EsperaPanelPage = () => {
           toast(locale === "en" ? "Removed" : "Eliminado", "success");
         }}
       />
+      )}
 
       <p className="text-center text-xs text-carbon/45">
         {locale === "en"

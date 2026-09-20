@@ -106,7 +106,7 @@ export const ReservasAgenda = ({
    * el picker ya no deja reservar ahí, así que verlos como un día cualquiera
    * era la única parte de la agenda que seguía diciendo que el local abre. */
   closedDays: number[];
-  onSentar: (id: string) => void;
+  onSentar?: (id: string) => void;
   onCancelar: (id: string) => void;
 }) => {
   const todayKey = todayKeyInTz(ahora);
@@ -410,6 +410,7 @@ export const ReservasAgenda = ({
                         </p>
                       </div>
                       <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+                      {onSentar && (
                         <button
                           type="button"
                           onClick={() => onSentar(r.id)}
@@ -417,6 +418,7 @@ export const ReservasAgenda = ({
                         >
                           {locale === "en" ? "Seat" : "Sentar"}
                         </button>
+                      )}
                         <button
                           type="button"
                           onClick={() => onCancelar(r.id)}

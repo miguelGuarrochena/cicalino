@@ -127,8 +127,8 @@ const SELECT_TABLE = "id, numero, estado, capacidad, espera_id, reserva_id";
  * corte sea visible y no lo decida el max-rows de PostgREST en silencio. */
 const MAX_FILAS_JORNADA = 1000;
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
-/* Los días que el local no abre: la jornada no cambia en un franco, así que
- * lo de la última noche trabajada sigue en la lista de hoy. */
+/* El corte de la jornada, no los francos: un lunes cerrado no trae la
+ * cola del domingo. Eso queda en historial. */
 const diasCerrados = (): number[] => useConfigStore.getState().diasCerrados;
 const startOfBusinessDay = (): string =>
   businessDayStart(cutoffHour(), new Date(), TZ_NEGOCIO, diasCerrados()).toISOString();

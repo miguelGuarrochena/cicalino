@@ -123,8 +123,8 @@ export const fichajeVigente = (
   if (typeof emp.fichadoEn !== "number" || !Number.isFinite(emp.fichadoEn)) {
     return false;
   }
-  /* Con los días cerrados la jornada no cambia en un franco, así que el
-   * fichaje tampoco vence ahí: sigue el mismo criterio que las listas. */
+  /* El fichaje vale dentro de la jornada activa. En un franco el tramo
+   * anterior ya cerró, así que hay que volver a identificarse. */
   return (
     emp.fichadoEn >=
     businessDayStart(cutoffHour, ahora, TZ_NEGOCIO, cerrados).getTime()

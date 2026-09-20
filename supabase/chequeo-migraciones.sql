@@ -203,6 +203,7 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('mesas-historial.sql', 'function', 'mesa_cuenta', 82),
     ('mesas-historial.sql', 'index', 'idx_mesa_sesiones_cierre', 82),
     ('dias-cerrados-jornada.sql', 'function', 'jornada_inicio_local', 83),
+    ('jornada-cerrado-corta.sql', 'function', 'jornada_inicio_corte', 84),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -364,7 +365,8 @@ requisitos (archivo, necesita) as (
     ('mesa-pago-qr-mp-enum.sql', 'split-payments.sql'),
     ('mesa-pago-qr-mp.sql', 'mesa-pago-qr-mp-enum.sql'),
     ('mesas-historial.sql', 'split-payments.sql, liberar-mesas-jornada.sql'),
-    ('dias-cerrados-jornada.sql', 'reservas-horario-local.sql, liberar-mesas-jornada.sql, mesa-asignacion-jornada.sql, security-fixes-15.sql, split-payments.sql, mesa-qr-activo.sql')
+    ('dias-cerrados-jornada.sql', 'reservas-horario-local.sql, liberar-mesas-jornada.sql, mesa-asignacion-jornada.sql, security-fixes-15.sql, split-payments.sql, mesa-qr-activo.sql'),
+    ('jornada-cerrado-corta.sql', 'dias-cerrados-jornada.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

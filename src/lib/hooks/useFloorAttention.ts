@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from "react
 import { usePathname } from "next/navigation";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
+import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 import { useTableBills } from "@/lib/hooks/useTableBills";
 import {
   emptyAttentionSeen,
@@ -32,8 +33,12 @@ const EMPTY: FloorAttention = floorAttention([], emptyAttentionSeen(), null);
 export const useFloorAttention = (): FloorAttention => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const { visibles } = useOperationalAccess();
+  const jornadaActiva = useJornadaActiva();
   const path = usePathname();
-  const billsBranch = visibles.pagos && path.startsWith("/panel") ? branchId : null;
+  const billsBranch =
+    visibles.pagos && jornadaActiva && path.startsWith("/panel")
+      ? branchId
+      : null;
   const { bills, ready } = useTableBills(billsBranch);
   const version = useSyncExternalStore(
     subscribeFloorAttention,
@@ -56,8 +61,12 @@ export const useFloorAttention = (): FloorAttention => {
 export const useFloorAttentionWatch = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const { visibles } = useOperationalAccess();
+  const jornadaActiva = useJornadaActiva();
   const path = usePathname();
-  const billsBranch = visibles.pagos && path.startsWith("/panel") ? branchId : null;
+  const billsBranch =
+    visibles.pagos && jornadaActiva && path.startsWith("/panel")
+      ? branchId
+      : null;
   const { bills, ready } = useTableBills(billsBranch);
   const version = useSyncExternalStore(
     subscribeFloorAttention,

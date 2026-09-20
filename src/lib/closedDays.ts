@@ -4,8 +4,7 @@
  * reservas, pedidos, pagos y la plantilla de mozos. Antes vivían adentro del
  * módulo de espera —eran "los días que no aparecen en el calendario de
  * reservas"— y el resto de la app los ignoraba: la plantilla de turnos ofrecía
- * el lunes cerrado como cualquier otro y la jornada cambiaba igual a las 6 de
- * la mañana de un día en el que no abre nadie.
+ * el lunes cerrado como cualquier otro.
  *
  * Hay dos numeraciones dando vueltas y por eso este archivo existe. La config
  * guarda el día como lo devuelve `Date.getDay()` (0 = domingo … 6 = sábado), y
