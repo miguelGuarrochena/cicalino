@@ -700,22 +700,17 @@ const EsperaPanelPage = () => {
       ) : (
         <JornadaInactivaState
           action={
-            <button
-              type="button"
-              onClick={() => {
-                setReservaMesas([]);
-                setReservaHorario(defaultHorarioInput(reservaHours));
-                setReservaOpen(true);
-              }}
+            <a
+              href="#reservas"
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-espera px-5 text-sm font-semibold text-crema transition hover:bg-espera-fuerte"
             >
               {t("panel.jornadaInactivaReserva")}
-            </button>
+            </a>
           }
         />
       )}
 
-      <section>
+      <section id="reservas" className="scroll-mt-24">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-carbon/70">
