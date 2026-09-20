@@ -105,6 +105,28 @@ const release = (s: Shared) => {
   }, RELEASE_MS);
 };
 
+/* Pintar el cambio antes de que vuelva el servidor.
+ *
+ * Mismo trato que `changeStatus` en useOrders: se pinta, se manda y el
+ * `refresh` que viene después reconcilia. No hay rollback porque no hace
+ * falta: la próxima lectura pisa esto con lo que dice la base, salga bien o
+ * mal la operación.
+ *
+ * Toca el snapshot compartido a propósito. La baldosa, la campanita del
+ * header, el globo de la nav y el dock derivan todos de estas mismas cuentas,
+ * así que parchearlas acá los mueve a los cuatro en el mismo render. Parchear
+ * solo la pantalla dejaría al globo diciendo que la mesa sigue llamando.
+ *
+ * No hace nada si la sucursal cambió mientras tanto. */
+export const patchTableBills = (
+  branchId: string,
+  fn: (bills: TableBill[]) => TableBill[],
+) => {
+  if (!shared || shared.branchId !== branchId) return;
+  shared.bills = fn(shared.bills);
+  emit(shared);
+};
+
 const empty = {
   bills: [] as TableBill[],
   ready: true,
