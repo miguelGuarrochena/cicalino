@@ -6,6 +6,7 @@ import { useApp } from "@/components/providers/Providers";
 export type AyudaSeccion =
   | "pedidos"
   | "espera"
+  | "pagos"
   | "config"
   | "metricas"
   | "general";
@@ -17,13 +18,15 @@ export const HelpLink = ({
 }: {
   seccion: AyudaSeccion;
   className?: string;
-  accent?: "marca" | "espera";
+  accent?: "marca" | "espera" | "pagos";
 }) => {
   const { t } = useApp();
   const hover =
     accent === "espera"
       ? "hover:border-espera/40 hover:bg-espera/5 hover:text-espera"
-      : "hover:border-marca/40 hover:bg-marca/5 hover:text-marca";
+      : accent === "pagos"
+        ? "hover:border-pagos/40 hover:bg-pagos/5 hover:text-pagos"
+        : "hover:border-marca/40 hover:bg-marca/5 hover:text-marca";
   return (
     <Link
       href={`/panel/ayuda#${seccion}`}

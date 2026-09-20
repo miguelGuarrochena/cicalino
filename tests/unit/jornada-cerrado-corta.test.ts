@@ -34,4 +34,19 @@ describe("En un franco la jornada corta, no se estira", () => {
       expect(src).not.toContain("cerradoHoy");
     }
   });
+
+  it("el historial de mesas cerradas solo se ofrece desde Pagos", () => {
+    const pedidos = read("src/app/(app)/panel/pedidos/page.tsx");
+    const espera = read("src/app/(app)/panel/espera/page.tsx");
+    const pagos = read("src/app/(app)/panel/pagos/page.tsx");
+    const hub = read("src/components/panel/ModuleHub.tsx");
+    const empty = read("src/components/panel/JornadaInactivaState.tsx");
+    expect(empty).not.toContain("/panel/pagos/historial");
+    expect(pedidos).not.toContain("jornadaInactivaHistorial");
+    expect(espera).not.toContain("jornadaInactivaHistorial");
+    expect(espera).toContain("jornadaInactivaReserva");
+    expect(pagos).toContain("jornadaInactivaHistorial");
+    expect(hub).toContain("jornadaInactivaReserva");
+    expect(hub).toContain('href="/panel/espera"');
+  });
 });

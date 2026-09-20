@@ -10,6 +10,7 @@ import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 import { useActiveEmployee } from "@/lib/hooks/useActiveEmployee";
 import { useTableBills } from "@/lib/hooks/useTableBills";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
+import { HelpLink } from "@/components/panel/HelpLink";
 import { JornadaInactivaState } from "@/components/panel/JornadaInactivaState";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -272,9 +273,12 @@ const MesasPage = () => {
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <div>
-          <h1 className="font-display text-3xl uppercase tracking-tight text-carbon">
-            {t("mesas.titulo")}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-3xl uppercase tracking-tight text-carbon">
+              {t("mesas.titulo")}
+            </h1>
+            <HelpLink seccion="pagos" accent="pagos" />
+          </div>
           <p className="text-sm text-carbon/60">
             {openPending > 0
               ? t("mesas.pendienteTotal", { n: formatMoney(openPending) })
@@ -317,7 +321,16 @@ const MesasPage = () => {
       <SyncErrorBanner error={syncError} />
 
       {!jornadaActiva ? (
-        <JornadaInactivaState />
+        <JornadaInactivaState
+          action={
+            <Link
+              href="/panel/pagos/historial"
+              className="inline-flex min-h-10 items-center text-sm font-semibold text-marca underline-offset-4 hover:underline"
+            >
+              {t("panel.jornadaInactivaHistorial")}
+            </Link>
+          }
+        />
       ) : live && !ready ? (
         <div className="flex min-h-[30vh] items-center justify-center">
           <MascotLoader className="h-16" />
@@ -554,6 +567,16 @@ const MesasPage = () => {
           onClose={() => setQrRow(null)}
         />
       )}
+
+      <p className="text-center text-xs text-carbon/45 print:hidden">
+        {t("panel.ayudaEstados")}{" "}
+        <Link
+          href="/panel/ayuda#pagos"
+          className="font-semibold text-pagos underline-offset-2 hover:underline"
+        >
+          {t("nav.ayuda")}
+        </Link>
+      </p>
     </div>
   );
 };
