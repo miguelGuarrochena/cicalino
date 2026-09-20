@@ -19,16 +19,25 @@
  *    resolver. Un número que late sin pedir nada enseña a ignorarlo.
  */
 
-type Tone = "marca" | "curso" | "alerta";
+/* `espera` y `pagos` son los colores de esos dos módulos: el globo de cada
+ * sección late del color de su sección, así el número se lee como "de acá" sin
+ * tener que buscar de qué botón salió. `text-crema` es el fondo de la página,
+ * que es claro en tema claro y oscuro en tema oscuro: por eso contrasta contra
+ * el relleno lleno en los dos, sin una regla por tema. */
+type Tone = "marca" | "espera" | "pagos" | "curso" | "alerta";
 
 const FONDO: Record<Tone, string> = {
   marca: "bg-marca text-crema",
+  espera: "bg-espera text-crema",
+  pagos: "bg-pagos text-crema",
   curso: "bg-curso text-crema",
   alerta: "bg-alerta text-crema",
 };
 
 const HALO: Record<Tone, string> = {
   marca: "u-alert-halo u-alert-halo-marca",
+  espera: "u-alert-halo u-alert-halo-espera",
+  pagos: "u-alert-halo u-alert-halo-pagos",
   curso: "u-alert-halo u-alert-halo-curso",
   alerta: "u-alert-halo",
 };
