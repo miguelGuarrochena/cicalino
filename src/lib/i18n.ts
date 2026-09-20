@@ -384,7 +384,7 @@ const dict = {
       jornadaInactivaBody:
         "No hay jornada activa. La operación empieza cuando abra el local.",
       jornadaInactivaHistorial: "Ver historial",
-      jornadaInactivaReserva: "Hacer reserva",
+      jornadaInactivaReserva: "Gestionar reservas",
     },
     ayuda: {
       kicker: "Guía del panel",
@@ -2145,7 +2145,7 @@ const dict = {
       jornadaInactivaBody:
         "There’s no active shift. Operations start when the venue opens.",
       jornadaInactivaHistorial: "View history",
-      jornadaInactivaReserva: "Make a reservation",
+      jornadaInactivaReserva: "Manage reservations",
     },
     ayuda: {
       kicker: "Panel guide",
