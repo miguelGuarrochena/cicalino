@@ -128,6 +128,31 @@ export const PanelMenu = () => {
             {locale === "en" ? "Help" : "Ayuda"}
           </Link>
 
+          {/* La home manda al panel cuando ya hay sesión (ver middleware), así
+              que este es el camino a la landing: el ?web=1 la deja pasar. */}
+          <Link
+            href="/?web=1"
+            onClick={() => setOpen(false)}
+            className="mt-1 flex w-full items-center gap-2 rounded-xl px-2 py-2 text-sm text-carbon transition hover:bg-carbon/5"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M2 12h20" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+            {t("nav.verWeb")}
+          </Link>
+
           <div className="my-1 border-t border-linea" />
 
           <button

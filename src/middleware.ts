@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { buildCsp, cspEnforce } from "@/lib/security/csp";
+import { tieneCookieDeSesion } from "@/lib/security/session-cookie";
 
 type CookieItem = { name: string; value: string; options?: CookieOptions };
 
@@ -50,6 +51,24 @@ export const middleware = async (req: NextRequest) => {
         headers: { "content-type": "text/plain; charset=utf-8" },
       }),
     );
+  }
+
+  /* La landing es la puerta para quien todavía no es cliente. Al dueño que ya
+   * entró una vez no le sirve: cada vez que abre el navegador tiene que pasar
+   * por ahí y tocar "Entrar". Si la cookie de sesión está, va derecho al panel.
+   *
+   * La landing sigue a mano con /?web=1, que es el link "Ver la web" del menú
+   * del panel. Un buscador o un comensal no tienen esa cookie, así que para
+   * ellos la home no cambia. */
+  if (
+    path === "/" &&
+    !req.nextUrl.searchParams.has("web") &&
+    tieneCookieDeSesion(req.cookies.getAll().map((c) => c.name))
+  ) {
+    const panel = req.nextUrl.clone();
+    panel.pathname = "/panel";
+    panel.search = "";
+    return conCsp(NextResponse.redirect(panel));
   }
 
   /* /panel and /admin need a session. Public routes skip getUser(): it's a
