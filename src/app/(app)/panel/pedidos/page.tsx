@@ -56,11 +56,6 @@ const FILTRO_ICON: Record<FiltroEstado, TabGlyphKey> = {
 const INPUT =
   "w-full rounded-xl border border-linea bg-crema/40 px-4 py-3 text-carbon outline-none transition focus:border-marca focus:ring-2 focus:ring-marca/20 placeholder:text-carbon/40";
 
-const AVISO_PEDIDO = {
-  es: "Marcado como listo, pero el celular no tiene avisos activos: llamalo vos.",
-  en: "Marked as ready, but their phone has no alerts on — call them out.",
-};
-
 const PanelOrdersPage = () => {
   const { t, locale } = useApp();
   const toast = useToast();
@@ -142,10 +137,13 @@ const PanelOrdersPage = () => {
         ? t("panel.buscarNombre")
         : t("panel.buscarPedido");
 
-  const toastAviso = useAvisoToast(AVISO_PEDIDO);
+  const toastAviso = useAvisoToast();
+  const seenAtDe = (id: string) =>
+    orders.find((o) => o.id === id)?.seenAt ?? null;
 
   const reavisar = async (id: string) => {
-    toastAviso(await notifyCustomer({ orderId: id }));
+    const seenAt = seenAtDe(id);
+    toastAviso(await notifyCustomer({ orderId: id }), seenAt);
   };
 
   const handleCreate = async (reference: string | null): Promise<boolean> => {
@@ -181,6 +179,7 @@ const PanelOrdersPage = () => {
   };
 
   const changeStatusUX = async (id: string, status: OrderStatus) => {
+    const seenAt = seenAtDe(id);
     const res = await changeStatus(id, status);
     if (!res.ok) {
       toast(
@@ -193,7 +192,7 @@ const PanelOrdersPage = () => {
     }
     if (status === "listo") {
       notifyReady();
-      if (live) toastAviso(res.notify);
+      if (live) toastAviso(res.notify, seenAt);
       else toast(t("toast.listo"), "success");
     } else if (status === "retirado") {
       toast(t("toast.retirado"), "info");
