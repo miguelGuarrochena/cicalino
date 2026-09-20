@@ -258,11 +258,25 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     return created;
   };
 
+  /* Pintar primero, como hace `changeStatus` en useOrders.
+   *
+   * Avisar son dos viajes: el UPDATE y después el push, que sale del servidor
+   * hacia FCM o APNs. El mozo tocaba el botón en el momento más cargado del
+   * turno y la fila no se movía hasta que los dos volvían. Ahora la fila pasa
+   * a "avisado" en el acto y el `reload` del final reconcilia: si el UPDATE no
+   * entró, la fila vuelve sola a "esperando" con el dato del servidor. No hace
+   * falta rollback a mano — el servidor manda, no el snapshot de la UI. */
   const avisar = async (id: string) => {
     if (!live) {
       demoChange(id, "avisado");
       return null;
     }
+    const ahora = new Date().toISOString();
+    setLiveEsperas((cur) =>
+      cur.map((e) =>
+        e.id === id ? { ...e, status: "avisado", notifiedAt: ahora } : e,
+      ),
+    );
     await updateWaitlistStatus(id, "avisado");
     const r = await notifyCustomer({ waitlistId: id });
     await reload();
@@ -304,12 +318,22 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     return res;
   };
 
+  /* Lo mismo acá: la cola muestra solo "esperando" y "avisado", así que
+   * pintarlo cancelado saca la fila en el acto. Viene de un cartel de
+   * confirmar y no tiene rama de error en pantalla, así que no hay ningún
+   * cartel que pueda contradecir lo que se pintó. */
   const cancelar = async (id: string) => {
     staffWaitlistCancelIds.add(id);
     if (!live) {
       demoChange(id, "cancelado");
       return;
     }
+    const ahora = new Date().toISOString();
+    setLiveEsperas((cur) =>
+      cur.map((e) =>
+        e.id === id ? { ...e, status: "cancelado", cancelledAt: ahora } : e,
+      ),
+    );
     await updateWaitlistStatus(id, "cancelado");
     await reload();
   };

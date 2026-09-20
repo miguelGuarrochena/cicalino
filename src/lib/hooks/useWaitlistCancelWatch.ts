@@ -15,12 +15,10 @@ import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isRealBranchId } from "@/lib/data/orders";
 import { fetchTodayWaitlist } from "@/lib/data/waitlist";
 import { dingCancelled } from "@/lib/sound";
-import { watchChannel } from "@/lib/realtime";
+import { attachLiveRefresh, coalesced, watchChannel } from "@/lib/realtime";
 import { receptionAlerts } from "@/lib/panelAlerts";
 import { publishPanelAlerts } from "@/lib/store/panel-alert-store";
 import type { WaitlistStatus } from "@/lib/types";
-
-const POLL_MS = 5_000;
 
 const announce = (args: {
   id: string;
@@ -140,7 +138,10 @@ export const useWaitlistCancelWatch = () => {
     const supabase = createBrowserSupabase();
     if (!supabase) return;
 
-    const tick = async () => {
+    /* Coalescido como Mesas: la acción del mozo, el evento de realtime que
+     * llega por esa misma acción y el tick del poll piden lo mismo con
+     * milisegundos de diferencia. Sin esto eran tres lecturas de la lista. */
+    const tick = coalesced(async () => {
       const res = await fetchTodayWaitlist(branchId);
       if (!active) return;
       /* On a failed read, skip this tick rather than treating it as an empty
@@ -171,91 +172,111 @@ export const useWaitlistCancelWatch = () => {
         });
       }
       prev.current = next;
-    };
+    });
 
-    void tick();
-    const iv = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      void tick();
-    }, POLL_MS);
+    /* La suscripción, con la forma que pide `attachLiveRefresh`: el poll de
+     * respaldo se espacia solo cuando el canal está sano. */
+    const subscribe = (onChange: () => void) => {
+      /* Camino rápido: el UPDATE de postgres trae nombre/estado sin esperar el fetch. */
+      let pgWatcher: { state: { healthy: boolean }; dispose: () => void } | null =
+        null;
+      let pgChannel: ReturnType<typeof supabase.channel> | null = null;
+      const connectPg = () => {
+        if (!active) return;
+        if (pgChannel) void supabase.removeChannel(pgChannel);
+        pgWatcher?.dispose();
+        pgChannel = supabase
+          .channel(`espera-cancel-pg:${branchId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "esperas",
+              filter: `local_id=eq.${branchId}`,
+            },
+            (payload) => {
+              const row = payload.new as {
+                id?: string;
+                nombre?: string;
+                estado?: string;
+              };
+              if (!row?.id || !row.nombre || row.estado !== "cancelado") return;
+              announceCancel({
+                id: row.id,
+                name: row.nombre,
+                toast,
+                locale,
+                seen: seen.current,
+              });
+              onChange();
+            },
+          )
+          /* Un alta nueva no es una cancelación, pero sí una novedad: en vez de
+           * esperar al poll, el mismo canal la trae al toque. */
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "esperas",
+              filter: `local_id=eq.${branchId}`,
+            },
+            onChange,
+          );
+        pgWatcher = watchChannel(pgChannel, connectPg, onChange);
+      };
+      connectPg();
 
-    /* Camino rápido: el UPDATE de postgres trae nombre/estado sin esperar el fetch. */
-    let pgWatcher: { dispose: () => void } | null = null;
-    let pgChannel: ReturnType<typeof supabase.channel> | null = null;
-    const connectPg = () => {
-      if (!active) return;
-      if (pgChannel) void supabase.removeChannel(pgChannel);
-      pgWatcher?.dispose();
-      pgChannel = supabase
-        .channel(`espera-cancel-pg:${branchId}`)
+      const broadcastCh = supabase
+        .channel(`espera-cancel:${branchId}`)
         .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "esperas",
-            filter: `local_id=eq.${branchId}`,
-          },
-          (payload) => {
-            const row = payload.new as {
-              id?: string;
-              nombre?: string;
-              estado?: string;
-            };
-            if (!row?.id || !row.nombre || row.estado !== "cancelado") return;
+          "broadcast",
+          { event: "guest-cancel" },
+          (msg: { payload?: { id?: string; name?: string } }) => {
+            const id = msg.payload?.id;
+            const name = msg.payload?.name;
+            if (!id || !name) return;
             announceCancel({
-              id: row.id,
-              name: row.nombre,
+              id,
+              name,
               toast,
               locale,
               seen: seen.current,
             });
-            void tick();
+            onChange();
           },
         )
-        /* Un alta nueva no es una cancelación, pero sí una novedad: en vez de
-         * esperar al poll, el mismo canal la trae al toque. */
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "esperas",
-            filter: `local_id=eq.${branchId}`,
-          },
-          () => void tick(),
-        );
-      pgWatcher = watchChannel(pgChannel, connectPg, () => void tick());
-    };
-    connectPg();
+        .subscribe();
 
-    const broadcastCh = supabase
-      .channel(`espera-cancel:${branchId}`)
-      .on(
-        "broadcast",
-        { event: "guest-cancel" },
-        (msg: { payload?: { id?: string; name?: string } }) => {
-          const id = msg.payload?.id;
-          const name = msg.payload?.name;
-          if (!id || !name) return;
-          announceCancel({
-            id,
-            name,
-            toast,
-            locale,
-            seen: seen.current,
-          });
-          void tick();
+      return {
+        unsubscribe: () => {
+          pgWatcher?.dispose();
+          if (pgChannel) void supabase.removeChannel(pgChannel);
+          void supabase.removeChannel(broadcastCh);
         },
-      )
-      .subscribe();
+        /* La salud del canal de filas es la que decide cada cuánto refrescar.
+         * El de broadcast es un extra del comensal: si se cae, las
+         * cancelaciones siguen llegando por postgres. */
+        isHealthy: () => pgWatcher?.state.healthy ?? false,
+      };
+    };
+
+    /* Mismo respaldo que Pedidos y Mesas: cada 20 s con el canal sano y cada
+     * 5 s si se cayó, pausado con la pestaña atrás y con refresco al volver
+     * por visibilidad, foco o red. Antes era un intervalo fijo de 5 s que
+     * corría igual con realtime sano —doce lecturas por minuto y por tablet,
+     * todo el servicio— y sin refresco al volver a la pestaña. */
+    const stopLive = attachLiveRefresh({
+      subscribe,
+      reload: () => void tick(),
+      ticksSano: 4,
+    });
+    void tick();
 
     return () => {
       active = false;
-      window.clearInterval(iv);
-      pgWatcher?.dispose();
-      if (pgChannel) void supabase.removeChannel(pgChannel);
-      void supabase.removeChannel(broadcastCh);
+      stopLive();
       publishPanelAlerts("recepcion", []);
     };
   }, [moduloEspera, branchId, live, toast, locale]);

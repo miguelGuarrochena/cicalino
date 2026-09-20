@@ -21,6 +21,7 @@ import { KitchenInbox } from "@/components/panel/mesas/KitchenInbox";
 import { ChargeInbox } from "@/components/panel/mesas/ChargeInbox";
 import { FloorTableTile } from "@/components/panel/mesas/FloorTableTile";
 import { fetchPaymentSettings, fetchTableQrs, acknowledgeWaiterCall, type TableQrView } from "@/lib/data/tables";
+import { patchTableBills } from "@/lib/hooks/useTableBills";
 import { updateOrderStatus } from "@/lib/data/orders";
 import {
   DEFAULT_PAYMENT_SETTINGS,
@@ -184,12 +185,25 @@ const MesasPage = () => {
   /* Mesas mueve el pedido a dos lugares y nada más: "ya lo anoté" (pasa a la
    * comanda del local) o "cancelado". Listo/entregado no viven acá: si Mesas
    * también los gestionara, el mismo pedido tendría dos dueños. */
+  /* Pintar y después mandar. El `reload` del final reconcilia en las dos
+   * ramas, así que un UPDATE que no entró vuelve solo a como estaba. */
   const moveRows = async (
     row: FloorTable,
     orders: FloorTable["newOrders"],
     to: "en_preparacion" | "cancelado",
   ) => {
     setKitchenBusy(row.key);
+    const ids = new Set(orders.map((o) => o.id));
+    if (branchId) {
+      patchTableBills(branchId, (bills) =>
+        bills.map((b) => ({
+          ...b,
+          orders: b.orders.map((o) =>
+            ids.has(o.id) ? { ...o, status: to } : o,
+          ),
+        })),
+      );
+    }
     let ok = true;
     for (const o of orders) {
       const done = await updateOrderStatus(o.id, to);
@@ -377,17 +391,32 @@ const MesasPage = () => {
                 onOpen={openRow}
                 onPassToKitchen={(row) => void moveRows(row, row.newOrders, "en_preparacion")}
                 onCancel={(row, orders) => void cancelInbox(row, orders)}
+                /* "Ya voy" es un toque y un UPDATE. Se apaga el llamado en
+                   el acto —en la baldosa, en la campanita y en el globo de la
+                   nav, que salen todos de estas cuentas— y el reload de
+                   cualquiera de las dos ramas lo vuelve a encender si el
+                   servidor no lo aceptó. */
                 onAcknowledge={(row) => {
                   if (!row.bill) return;
+                  const sessionId = row.bill.session.id;
                   setKitchenBusy(row.key);
-                  void acknowledgeWaiterCall(row.bill.session.id).then((res) => {
+                  if (branchId) {
+                    patchTableBills(branchId, (bills) =>
+                      bills.map((b) =>
+                        b.session.id === sessionId
+                          ? { ...b, session: { ...b.session, calledAt: null } }
+                          : b,
+                      ),
+                    );
+                  }
+                  void acknowledgeWaiterCall(sessionId).then((res) => {
                     setKitchenBusy(null);
                     if (res.ok) {
                       toast(t("mesas.llamadoAtendido"), "success");
-                      reload();
                     } else {
                       toast(t("mesas.error.error"), "error");
                     }
+                    reload();
                   });
                 }}
               />

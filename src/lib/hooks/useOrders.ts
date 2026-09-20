@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOrdersStore } from "@/lib/store/orders-store";
 import { supabaseConfigured } from "@/lib/supabase/config";
-import { attachLiveRefresh, throttled } from "@/lib/realtime";
+import { attachLiveRefresh, coalesced, throttled } from "@/lib/realtime";
 import {
   isRealBranchId,
   fetchOrdersPage,
@@ -97,7 +97,7 @@ export const useOrders = (
     [branchId],
   );
 
-  const reload = useCallback(async () => {
+  const recargar = useCallback(async () => {
     if (!live || !branchId) return;
     sweepInPreparation();
     const res = await fetchOrdersPage(branchId, {
@@ -120,13 +120,23 @@ export const useOrders = (
     setCargado(true);
   }, [live, branchId, filtro, busqueda, pagina, tam, sweepInPreparation]);
 
+  /* Las recargas que se pisan se unen en una, igual que en Recepción y Mesas.
+   *
+   * Cambiar el estado de un pedido recargaba dos veces: la del propio
+   * `changeStatus` y la que rebota por realtime avisando de ese mismo cambio.
+   * `coalesced` no pierde ninguna —lo que llega durante una recarga en vuelo
+   * fuerza una pasada más al terminar— y quien esperaba recibe esa promesa,
+   * así que el `await reload()` de después de una mutación sigue devolviendo
+   * datos frescos. */
+  const reload = useMemo(() => coalesced(recargar), [recargar]);
+
   useEffect(() => {
     if (!live || !branchId) {
       if (!supabaseConfigured) seed();
       return;
     }
-    /* eslint-disable-next-line react-hooks/set-state-in-effect -- `reload`
-       hace el setState después de un await, no en el cuerpo del efecto. */
+    /* El setState ocurre después del await, no en el cuerpo del efecto. La
+     * regla ya no lo confunde ahora que `reload` pasa por `coalesced`. */
     void reload();
     void fetchBranchName(branchId).then((n) => setBranchName(n));
     return attachLiveRefresh({

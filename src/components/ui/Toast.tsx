@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 type ToastKind = "info" | "success" | "error";
 interface ToastItem {
@@ -57,8 +57,16 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     [],
   );
 
+  /* `toast` ya era estable; el objeto de alrededor no. Este provider se
+   * renderiza dos veces por aviso —al aparecer y al irse— y con el objeto
+   * armado en el JSX eso re-renderizaba a los 22 consumidores de `useToast`,
+   * que incluyen las pantallas de Pedidos, Mesas y Recepción en pleno
+   * servicio. Memoizado, el contexto no cambia nunca y los avisos solo
+   * redibujan la pila de avisos. */
+  const value = useMemo(() => ({ toast }), [toast]);
+
   return (
-    <Ctx.Provider value={{ toast }}>
+    <Ctx.Provider value={value}>
       {children}
       <div
         className="pointer-events-none fixed inset-x-0 top-[4.25rem] z-[220] flex flex-col items-center gap-2 px-4 sm:top-[4.75rem] grande:top-[5.5rem] grande:gap-3"
