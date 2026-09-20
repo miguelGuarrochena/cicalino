@@ -4,8 +4,9 @@ import {
   dateKeyInTz,
   instantFromBusinessWallClock,
   TZ_NEGOCIO,
+  weekdayInTz,
 } from "@/lib/businessDay";
-import type { ClosedDays } from "@/lib/closedDays";
+import { DAYS_IN_WEEK, isClosedWeekday, type ClosedDays } from "@/lib/closedDays";
 
 /* Los períodos que el historial ofrece, en horas de jornada y no de reloj.
  *
@@ -58,9 +59,9 @@ export const rangoDe = (
     desde?: string;
     hasta?: string;
     ahora?: Date;
-    /* Los días que el local no abre. "Ayer" es la jornada anterior que se
+    /* Los días que el local no abre. "Ayer" es la última jornada que se
      * trabajó, no el franco: si cierra los lunes, el martes a la mañana
-     * "ayer" muestra el domingo. */
+     * "ayer" muestra el domingo. Eso es historial, no la operación actual. */
     cerrados?: ClosedDays;
   } = {},
 ): Rango => {
@@ -70,9 +71,19 @@ export const rangoDe = (
   const finHoy = businessDayEnd(cutoffHour, ahora, TZ_NEGOCIO, cerrados);
 
   if (preset === "ayer") {
+    let n = 1;
+    let desde = jornadaHaceNDias(inicioHoy, n, cutoffHour, cerrados);
+    while (
+      n < DAYS_IN_WEEK &&
+      isClosedWeekday(weekdayInTz(desde, TZ_NEGOCIO), cerrados)
+    ) {
+      n += 1;
+      desde = jornadaHaceNDias(inicioHoy, n, cutoffHour, cerrados);
+    }
+    const ancla = new Date(desde.getTime() + MEDIO_DIA_MS);
     return {
-      desde: jornadaHaceNDias(inicioHoy, 1, cutoffHour, cerrados).toISOString(),
-      hasta: inicioHoy.toISOString(),
+      desde: desde.toISOString(),
+      hasta: businessDayEnd(cutoffHour, ancla, TZ_NEGOCIO, cerrados).toISOString(),
     };
   }
   if (preset === "7d") {

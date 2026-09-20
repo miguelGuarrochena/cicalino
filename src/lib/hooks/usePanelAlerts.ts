@@ -4,6 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
+import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   isRealBranchId,
@@ -49,8 +50,9 @@ export const usePanelAlertCounts = (): Record<PanelAlertSource, number> => {
 const useCounterAlertsFeed = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const { visibles } = useOperationalAccess();
+  const jornadaActiva = useJornadaActiva();
   const live =
-    supabaseConfigured && isRealBranchId(branchId) && visibles.pedidos;
+    supabaseConfigured && isRealBranchId(branchId) && visibles.pedidos && jornadaActiva;
 
   useEffect(() => {
     if (!live || !branchId) {

@@ -7,6 +7,8 @@ import { useNavPending } from "@/lib/hooks/useNavPending";
 import { NavIconSvg } from "@/components/panel/NavIcons";
 import { CountBadge } from "@/components/ui/CountBadge";
 import { MascotLoader } from "@/components/ui/MascotLoader";
+import { JornadaInactivaState } from "@/components/panel/JornadaInactivaState";
+import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 
 /* Un color por módulo. Pagos compartía el azul de Pedidos y en el hub eran
  * dos círculos iguales: el color dejaba de decir de qué sección era. */
@@ -19,6 +21,7 @@ const TONE: Record<string, string> = {
 export const ModuleHub = () => {
   const { t } = useApp();
   const { links, ready } = useOperationalAccess();
+  const jornadaActiva = useJornadaActiva();
   const pendingFor = useNavPending();
 
   if (!ready) {
@@ -35,6 +38,11 @@ export const ModuleHub = () => {
         {t("hub.titulo")}
       </h1>
       <p className="mt-2 text-center text-sm text-carbon/55">{t("hub.sub")}</p>
+      {!jornadaActiva && (
+        <div className="mt-8 w-full">
+          <JornadaInactivaState />
+        </div>
+      )}
       <nav
         aria-label={t("hub.titulo")}
         className={`mt-10 grid w-full gap-5 ${
@@ -64,7 +72,7 @@ export const ModuleHub = () => {
                     que en una caja cuadrada es la esquina; más afuera flota
                     suelto y no se lee como parte del botón. */}
                 <CountBadge
-                  n={n}
+                  n={jornadaActiva ? n : 0}
                   tone={tone}
                   pulse
                   className="absolute right-0 top-0"

@@ -6,10 +6,11 @@ import { useApp } from "@/components/providers/Providers";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
+import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 import { useActiveEmployee } from "@/lib/hooks/useActiveEmployee";
 import { useTableBills } from "@/lib/hooks/useTableBills";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
-import { CerradoHoyAviso } from "@/components/panel/CerradoHoyAviso";
+import { JornadaInactivaState } from "@/components/panel/JornadaInactivaState";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
@@ -55,11 +56,12 @@ const MesasPage = () => {
   const confirmar = useConfirm();
   const branchId = useSessionStore((s) => s.sucursalId);
   const { visibles, canManage, ready: branchReady } = useOperationalAccess();
+  const jornadaActiva = useJornadaActiva();
   const branchName = useConfigStore((s) => s.name);
   const employee = useActiveEmployee();
   const employees = useConfigStore((s) => s.employees);
   const { bills, ready, live, syncError, refresh } = useTableBills(
-    visibles.pagos ? branchId : null,
+    visibles.pagos && jornadaActiva ? branchId : null,
   );
   const attention = useFloorAttention();
   const { shift, refresh: refreshShift } = useFloorShift(
@@ -313,9 +315,10 @@ const MesasPage = () => {
       </header>
 
       <SyncErrorBanner error={syncError} />
-      <CerradoHoyAviso />
 
-      {live && !ready ? (
+      {!jornadaActiva ? (
+        <JornadaInactivaState />
+      ) : live && !ready ? (
         <div className="flex min-h-[30vh] items-center justify-center">
           <MascotLoader className="h-16" />
         </div>

@@ -9,7 +9,7 @@ import { notifyCustomer } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
 import { QrModal } from "@/components/panel/QrModal";
 import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
-import { CerradoHoyAviso } from "@/components/panel/CerradoHoyAviso";
+import { JornadaInactivaState } from "@/components/panel/JornadaInactivaState";
 import { ThemedImg } from "@/components/ui/ThemedImg";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
@@ -31,6 +31,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useAvisoToast } from "@/lib/hooks/useAvisoToast";
 import { dingNew, notifyReady } from "@/lib/sound";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
+import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
 const PAGE_SIZE = 9;
@@ -62,6 +63,7 @@ const PanelOrdersPage = () => {
   const mode = useConfigStore((s) => s.modo);
   const tableCount = useConfigStore((s) => s.tableCount);
   const { visibles } = useOperationalAccess();
+  const jornadaActiva = useJornadaActiva();
   const activeEmployee = useActiveEmployee();
   const branchId = useSessionStore((s) => s.sucursalId);
   const orgs = useSuperadminStore((s) => s.organizaciones);
@@ -83,7 +85,7 @@ const PanelOrdersPage = () => {
     ready,
     live,
     syncError,
-  } = useOrders(branchId, {
+  } = useOrders(jornadaActiva ? branchId : null, {
     filtro,
     busqueda: qDebounced,
     pagina: page,
@@ -255,10 +257,30 @@ const PanelOrdersPage = () => {
 
   if (!visibles.pedidos) return null;
 
+  if (!jornadaActiva) {
+    return (
+      <div className="flex flex-col gap-5 sm:gap-6">
+        <div>
+          {branchNameLabel && (
+            <p className="mb-0.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca/70">
+              {branchNameLabel}
+            </p>
+          )}
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-3xl uppercase tracking-tight text-carbon sm:text-4xl">
+              {t("panel.titulo")}
+            </h1>
+            <HelpLink seccion="pedidos" />
+          </div>
+        </div>
+        <JornadaInactivaState />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <SyncErrorBanner error={syncError} />
-      <CerradoHoyAviso />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           {branchNameLabel && (

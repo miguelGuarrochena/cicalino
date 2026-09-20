@@ -4,6 +4,7 @@ import {
   businessDayEnd,
   reservationFetchRange,
   weekdayInTz,
+  isJornadaActiva,
   TZ_NEGOCIO,
 } from "@/lib/businessDay";
 import {
@@ -16,9 +17,9 @@ import {
 import { rangoDe } from "@/lib/historial";
 
 /* Los días cerrados se marcan una vez en Configuración y valen para todo el
- * panel. Lo que se prueba acá es la parte que no se ve: que la jornada no
- * cambie en un franco y que las dos numeraciones de día de la semana —la de
- * `Date.getDay()` y la ISO de la base— no se crucen. */
+ * panel. Lo que se prueba acá es la parte que no se ve: que un franco no
+ * hereda la jornada anterior y que las dos numeraciones de día de la semana
+ * —la de `Date.getDay()` y la ISO de la base— no se crucen. */
 
 const LUNES_CERRADO = [1];
 
@@ -63,25 +64,39 @@ describe("numeración de los días", () => {
 
 describe("la jornada con días cerrados", () => {
   /* 2026-08-10 es lunes. */
-  it("el lunes cerrado sigue siendo la jornada del domingo", () => {
+  it("el lunes cerrado no hereda la jornada del domingo", () => {
     const lunesAlMediodia = new Date("2026-08-10T15:00:00Z");
     expect(weekdayInTz(lunesAlMediodia)).toBe(1);
     expect(enBsAs(businessDayStart(6, lunesAlMediodia, TZ_NEGOCIO, LUNES_CERRADO))).toBe(
-      "2026-08-09, 06:00",
+      "2026-08-10, 06:00",
     );
   });
 
-  it("esa jornada recién cierra cuando arranca el martes", () => {
-    const lunesAlMediodia = new Date("2026-08-10T15:00:00Z");
-    expect(enBsAs(businessDayEnd(6, lunesAlMediodia, TZ_NEGOCIO, LUNES_CERRADO))).toBe(
-      "2026-08-11, 06:00",
+  it("el domingo cierra al corte del lunes, aunque el lunes esté cerrado", () => {
+    const domingoALaNoche = new Date("2026-08-09T23:00:00Z"); // 20:00 en BsAs
+    expect(enBsAs(businessDayEnd(6, domingoALaNoche, TZ_NEGOCIO, LUNES_CERRADO))).toBe(
+      "2026-08-10, 06:00",
     );
+  });
+
+  it("antes del corte del lunes todavía es la jornada del domingo", () => {
+    const lunesMadrugada = new Date("2026-08-10T08:00:00Z"); // 05:00 en BsAs
+    expect(enBsAs(businessDayStart(6, lunesMadrugada, TZ_NEGOCIO, LUNES_CERRADO))).toBe(
+      "2026-08-09, 06:00",
+    );
+    expect(isJornadaActiva(6, lunesMadrugada, TZ_NEGOCIO, LUNES_CERRADO)).toBe(true);
+  });
+
+  it("después del corte del lunes no hay jornada activa", () => {
+    const lunesAlMediodia = new Date("2026-08-10T15:00:00Z");
+    expect(isJornadaActiva(6, lunesAlMediodia, TZ_NEGOCIO, LUNES_CERRADO)).toBe(false);
   });
 
   it("sin días cerrados la jornada es la de siempre", () => {
     const lunesAlMediodia = new Date("2026-08-10T15:00:00Z");
     expect(enBsAs(businessDayStart(6, lunesAlMediodia))).toBe("2026-08-10, 06:00");
     expect(enBsAs(businessDayEnd(6, lunesAlMediodia))).toBe("2026-08-11, 06:00");
+    expect(isJornadaActiva(6, lunesAlMediodia)).toBe(true);
   });
 
   it("un día abierto no se mueve aunque haya francos", () => {
@@ -113,9 +128,9 @@ describe("historial", () => {
       cerrados: LUNES_CERRADO,
     });
     /* El lunes cerrado no parte el período: "ayer" es el domingo entero,
-     * hasta el corte del martes. */
+     * hasta el corte del lunes. */
     expect(enBsAs(new Date(rango.desde))).toBe("2026-08-09, 06:00");
-    expect(enBsAs(new Date(rango.hasta))).toBe("2026-08-11, 06:00");
+    expect(enBsAs(new Date(rango.hasta))).toBe("2026-08-10, 06:00");
   });
 
   it("sin días cerrados 'ayer' sigue siendo el día anterior", () => {

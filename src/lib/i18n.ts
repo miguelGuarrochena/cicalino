@@ -380,8 +380,10 @@ const dict = {
       crearYQr: "Generar QR",
       ayudaEstados: "¿Cómo funciona esta pantalla?",
       cerrado: "Cerrado",
-      cerradoHoy:
-        "Hoy el local figura cerrado. Seguís viendo la jornada del {dia}.",
+      jornadaInactivaTitulo: "Local cerrado",
+      jornadaInactivaBody:
+        "No hay jornada activa. La operación empieza cuando abra el local. Las jornadas anteriores están en el Historial.",
+      jornadaInactivaHistorial: "Ver historial",
     },
     ayuda: {
       kicker: "Guía del panel",
@@ -879,7 +881,7 @@ const dict = {
       alDia: "Todo guardado",
       diasCerrados: "Días cerrados",
       diasCerradosSub:
-        "Los francos del local (ej. lunes). No aparecen en reservas ni en la plantilla de mesas, y la jornada no cambia hasta el próximo día abierto.",
+        "Los francos del local (ej. lunes). No aparecen en reservas ni en la plantilla de mesas. Ese día no hay jornada activa: la operación queda en historial hasta el próximo día abierto.",
       errReservaHorario: "La apertura tiene que ser antes del cierre.",
       seccionEmp: "Empleados",
       seccionEmpSub:
@@ -2117,8 +2119,10 @@ const dict = {
       crearYQr: "Generate QR",
       ayudaEstados: "How does this screen work?",
       cerrado: "Closed",
-      cerradoHoy:
-        "The venue is closed today. You're still on {dia}'s shift.",
+      jornadaInactivaTitulo: "Closed",
+      jornadaInactivaBody:
+        "There’s no active shift. Operations start when the venue opens. Previous shifts are in History.",
+      jornadaInactivaHistorial: "View history",
     },
     ayuda: {
       kicker: "Panel guide",
@@ -2602,7 +2606,7 @@ const dict = {
       alDia: "All saved",
       diasCerrados: "Closed days",
       diasCerradosSub:
-        "The days you don’t open (e.g. Mondays). They’re left out of bookings and the floor template, and the shift doesn’t roll over until the next open day.",
+        "The days you don’t open (e.g. Mondays). They’re left out of bookings and the floor template. There’s no active shift that day: current operations move to History until the next open day.",
       errReservaHorario: "Opening time must be before closing.",
       seccionEmp: "Staff",
       seccionEmpSub:

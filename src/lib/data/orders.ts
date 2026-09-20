@@ -48,8 +48,8 @@ const mapRow = (r: Row): OrderView => ({
 });
 
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
-/* Los días que el local no abre: la jornada no cambia en un franco, así que
- * lo de la última noche trabajada sigue en la lista de hoy. */
+/* El corte de la jornada, no los francos: un lunes cerrado arranca su
+ * propio tramo (vacío). Lo de la última noche trabajada es historial. */
 const diasCerrados = (): number[] => useConfigStore.getState().diasCerrados;
 const startOfBusinessDay = (): string =>
   businessDayStart(cutoffHour(), new Date(), TZ_NEGOCIO, diasCerrados()).toISOString();
