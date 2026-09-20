@@ -99,16 +99,50 @@ const PanelLayout = ({
       {role !== "superadmin" && <FloorAttentionWatch />}
       {role !== "superadmin" && <PanelAlertsWatch />}
       <header className="sticky top-0 z-20 border-b border-linea/70 bg-crema/80 backdrop-blur-md print:hidden">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 sm:flex-nowrap sm:justify-between sm:gap-3 sm:px-8 sm:py-3">
-          <Logo href={homeHref} className="h-8 shrink-0 sm:h-12" />
-          <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:flex-nowrap sm:gap-3">
-            {role !== "superadmin" && <BranchSwitcher />}
-            {role !== "superadmin" && <PanelNav />}
-            {mostrarFichaje && <Fichaje />}
-            {role !== "superadmin" && <SoundToggle />}
-            <ThemeToggle />
-            <PanelMenu />
+        {/* En el teléfono son dos líneas: arriba el logo con los tres botones
+            de siempre —sonido, tema y el menú— y abajo la sucursal y quién
+            atiende, que son los que llevan texto y necesitan el ancho.
+            Antes caían donde entraran y el menú quedaba solo en una tercera
+            línea.
+
+            De `xl` para arriba `xl:contents` disuelve los dos grupos: sus
+            hijos pasan a ser hijos directos de esta fila y queda el header de
+            una sola línea de siempre. El grupo de botones va `xl:order-last`
+            para terminar a la derecha, después de Mesas y del fichaje.
+
+            El corte es `xl` (1280) y no `sm`. Medido, la fila única necesita
+            985 px —logo 126, sucursal 162, las pestañas 284, el fichaje 169,
+            los botones 132, más los espacios y el padding— y eso con la
+            sucursal de nombre más corto. En `lg` (1024) quedaban 39 px de
+            aire: un nombre de sucursal un poco más largo los comía y la
+            sucursal terminaba montada sobre el logo, que es justo lo que
+            pasaba en un iPad mini apaisado. Así que teléfono y tablet usan
+            las dos líneas y la fila única queda para la notebook. */}
+        <div className="flex flex-col gap-1.5 px-3 py-2 sm:px-8 sm:py-3 xl:flex-row xl:items-center xl:gap-3">
+          <div className="flex items-center gap-2 xl:contents">
+            {/* El logo empuja: a la derecha en su línea del teléfono y contra
+                el borde izquierdo en pantalla grande. Va envuelto porque `Logo`
+                usa su className para el alto, no para el margen. `shrink-0`
+                porque el `Link` que arma `Logo` ya lo traía: sin eso, en una
+                tablet angosta el logo se achica y la sucursal se le monta
+                encima. */}
+            <div className="mr-auto flex shrink-0 items-center">
+              <Logo href={homeHref} className="h-8 shrink-0 sm:h-12" />
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5 xl:order-last xl:gap-3">
+              {role !== "superadmin" && <SoundToggle />}
+              <ThemeToggle />
+              <PanelMenu />
+            </div>
           </div>
+
+          {role !== "superadmin" && (
+            <div className="flex min-w-0 items-center gap-1.5 xl:contents">
+              <BranchSwitcher />
+              <PanelNav />
+              {mostrarFichaje && <Fichaje />}
+            </div>
+          )}
         </div>
       </header>
 
