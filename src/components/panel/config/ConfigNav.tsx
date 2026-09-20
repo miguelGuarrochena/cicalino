@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useConfigStore } from "@/lib/store/config-store";
+import { needsTableCount } from "@/lib/modules";
 import {
   goToConfigSection,
   readConfigSection,
@@ -30,7 +31,12 @@ export const ConfigNav = () => {
   const modo = useConfigStore((s) => s.modo);
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
-  const showMesas = visibles.espera || visibles.pagos || modo === "mesa";
+  /* La misma regla que usa la sección: la cantidad de mesas la piden
+   * Recepción, Pagos y también Pedidos cuando numera por mesa. */
+  const showMesas = needsTableCount(
+    { pedidos: moduloPedidos, espera: visibles.espera, pagos: visibles.pagos },
+    modo,
+  );
   const onMetrics = path.startsWith("/panel/config/metricas");
   const onConfigHome = path === "/panel/config";
   const [hash, setHash] = useState("");
@@ -43,6 +49,8 @@ export const ConfigNav = () => {
 
   const tabs: Tab[] = [
     { id: "identidad", href: "/panel/config#identidad", key: "config.tab.identidad", show: true, inPage: true },
+    /* Cómo se identifica un pedido: solo para quien tiene Pedidos. */
+    { id: "pedidos", href: "/panel/config#pedidos", key: "config.tab.pedidos", show: moduloPedidos, inPage: true },
     { id: "pagos", href: "/panel/config#pagos", key: "config.tab.pagos", show: visibles.pagos, inPage: true },
     { id: "mesas", href: "/panel/config#mesas", key: "config.tab.mesas", show: showMesas, inPage: true },
     { id: "empleados", href: "/panel/config#empleados", key: "config.tab.empleados", show: true, inPage: true },

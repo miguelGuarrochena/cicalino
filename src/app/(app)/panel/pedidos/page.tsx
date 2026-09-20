@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { fetchOrderSeenAt } from "@/lib/data/orders";
+import { findOpenOrderWithReference, fetchOrderSeenAt } from "@/lib/data/orders";
 import { useQrSeenClose } from "@/lib/hooks/useQrSeenClose";
 import { notifyCustomer } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
@@ -106,6 +106,10 @@ const PanelOrdersPage = () => {
    * antes. El ref sí, en el mismo click. */
   const creatingRef = useRef(false);
   const [refError, setRefError] = useState(false);
+  /* El identificador ya está en uso por un pedido abierto. Avisa y deja
+   * seguir: el segundo toque del botón crea igual. Hay locales que repiten a
+   * propósito y no les vamos a trabar el mostrador por eso. */
+  const [refRepetida, setRefRepetida] = useState(false);
 
   /* Volver a la página 1 cuando cambia el filtro o la búsqueda.
    *
@@ -172,6 +176,7 @@ const PanelOrdersPage = () => {
     }
     setRefDraft("");
     setRefError(false);
+    setRefRepetida(false);
     setCrearOpen(true);
   };
 
@@ -216,6 +221,16 @@ const PanelOrdersPage = () => {
     creatingRef.current = true;
     setCreando(true);
     try {
+      /* Solo en el modo identificador: repetir un número de mesa es normal,
+       * repetir un identificador de pedido casi nunca lo es. Si la consulta
+       * falla devuelve false y el alta sigue como siempre. */
+      if (mode === "nombre" && !refRepetida && live && branchId) {
+        const yaExiste = await findOpenOrderWithReference(branchId, ref);
+        if (yaExiste) {
+          setRefRepetida(true);
+          return;
+        }
+      }
       const ok = await handleCreate(ref);
       if (ok) setCrearOpen(false);
     } finally {
@@ -229,6 +244,7 @@ const PanelOrdersPage = () => {
     setCrearOpen(false);
     setRefDraft("");
     setRefError(false);
+    setRefRepetida(false);
   };
 
   const labelFiltro = (f: FiltroEstado) => {
@@ -381,7 +397,11 @@ const PanelOrdersPage = () => {
                 onClick={() => void confirmarCrear()}
                 className="w-full rounded-full bg-marca px-4 py-3 text-sm font-semibold text-crema disabled:opacity-60 sm:flex-1"
               >
-                {creating ? "…" : t("panel.crearYQr")}
+                {creating
+                  ? "…"
+                  : refRepetida
+                    ? t("panel.refRepetidaSeguir")
+                    : t("panel.crearYQr")}
               </button>
               <button
                 type="button"
@@ -407,9 +427,14 @@ const PanelOrdersPage = () => {
               onClick={cerrarCrear}
             />
           </div>
-          <p className="mt-1 text-sm text-carbon/55">
+          <p className="mt-1 text-sm font-medium text-carbon/70">
             {mode === "mesa" ? t("panel.pedirMesa") : t("panel.pedirNombre")}
           </p>
+          {mode !== "mesa" && (
+            <p className="mt-1 text-xs text-carbon/50">
+              {t("panel.pedirNombreSub")}
+            </p>
+          )}
           <input
             autoFocus
             disabled={creating}
@@ -422,6 +447,7 @@ const PanelOrdersPage = () => {
                   : e.target.value,
               );
               setRefError(false);
+              setRefRepetida(false);
             }}
             onKeyDown={(e) => {
               if (e.key !== "Enter") return;
@@ -436,6 +462,11 @@ const PanelOrdersPage = () => {
               {mode === "mesa"
                 ? t("panel.errMesa", { n: tableCount })
                 : t("panel.errNombre")}
+            </p>
+          )}
+          {refRepetida && !refError && (
+            <p className="mt-2 text-xs font-medium text-curso">
+              {t("panel.refRepetida")}
             </p>
           )}
         </ModalShell>

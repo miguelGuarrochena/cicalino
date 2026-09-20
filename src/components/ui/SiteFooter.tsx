@@ -4,7 +4,19 @@ import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
 import { Controls } from "@/components/ui/Controls";
 
-export const SiteFooter = ({ className = "" }: { className?: string }) => {
+export const SiteFooter = ({
+  className = "",
+  /* El tema y el idioma, para las pantallas que no los tienen en otro lado.
+   *
+   * Abajo de `sm` muchas cabeceras públicas los esconden y este footer es el
+   * único lugar donde cambiarlos. Pero el panel y el admin los tienen siempre
+   * a mano —el sol en la barra y el idioma en el menú ···—, así que ahí
+   * repetirlos es ruido al pie de todas las pantallas. */
+  showControls = true,
+}: {
+  className?: string;
+  showControls?: boolean;
+}) => {
   const { t } = useApp();
   const year = new Date().getFullYear();
 
@@ -27,7 +39,7 @@ export const SiteFooter = ({ className = "" }: { className?: string }) => {
           </a>
         </p>
 
-        <Controls className="justify-center sm:hidden" />
+        {showControls && <Controls className="justify-center sm:hidden" />}
 
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-3 font-medium text-carbon/55 sm:justify-self-end">
           <Link

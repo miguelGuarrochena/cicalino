@@ -52,7 +52,7 @@ describe("Diccionario ES/EN", () => {
     expect(texto).not.toMatch(/El restaurante/);
     expect(texto).not.toMatch(/¿Olvidaste tu contraseña/);
     expect(texto).toContain("Avisá al cliente");
-    expect(texto).toContain("está listo o hay mesa");
+    expect(texto).toContain("el pedido está listo");
     expect(texto).toContain("Escaneá el QR y esperá el aviso");
     expect(texto).toContain("¿Te olvidaste la contraseña?");
   });
