@@ -21,10 +21,12 @@ const funcion = (nombre: string): string => {
 
 describe("staff-empleado-cobro", () => {
   it("va después de mesa-launch-blockers y el chequeo lo registra", () => {
-    expect(orden.at(-1)).toBe("staff-empleado-cobro.sql");
-    expect(orden.indexOf("staff-floor-guards.sql")).toBeLessThan(
-      orden.indexOf("staff-empleado-cobro.sql"),
-    );
+    const cobro = orden.indexOf("staff-empleado-cobro.sql");
+    expect(cobro).toBeGreaterThan(-1);
+    expect(orden.indexOf("staff-floor-guards.sql")).toBeLessThan(cobro);
+    expect(orden.indexOf("mesa-launch-blockers.sql")).toBeLessThan(cobro);
+    /* mesa-sesion-activa-unica reemplaza unirse_mesa y va después. */
+    expect(orden.indexOf("mesa-sesion-activa-unica.sql")).toBeGreaterThan(cobro);
     expect(chequeo).toContain(
       "('staff-empleado-cobro.sql', 'function', '_staff_empleado_cobro', 88)",
     );
