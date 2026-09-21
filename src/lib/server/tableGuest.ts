@@ -9,7 +9,9 @@ import {
   type PaymentSettings,
   type TableBill,
 } from "@/lib/tableBill";
-import { mercadoPagoConfigured } from "@/lib/server/mercadopago";
+import { mercadoPagoConfigured, createPreference } from "@/lib/server/mercadopago";
+import { appBaseUrl } from "@/lib/appUrl";
+import { SUPABASE_URL } from "@/lib/supabase/config";
 import { orderForGuests } from "@/lib/menuView";
 import { brandFromLocal, emptyCustomerBrand, type CustomerBrand } from "@/lib/customerBrand";
 import { GUEST_COOKIE } from "@/lib/guestSession";
@@ -288,6 +290,32 @@ export const createGuestPayment = (creds: GuestCredentials, datos: Record<string
     p_datos: datos,
   });
 
+export const startGuestSplit = (creds: GuestCredentials) =>
+  callRpc("iniciar_division_comensal", {
+    p_comensal: creds.guestId,
+    p_token_hash: creds.tokenHash,
+  });
+
+export const defineGuestShare = (creds: GuestCredentials, datos: Record<string, unknown>) =>
+  callRpc("definir_parte_comensal", {
+    p_comensal: creds.guestId,
+    p_token_hash: creds.tokenHash,
+    p_datos: datos,
+  });
+
+export const requestGuestBill = (creds: GuestCredentials) =>
+  callRpc("pedir_cuenta_comensal", {
+    p_comensal: creds.guestId,
+    p_token_hash: creds.tokenHash,
+  });
+
+export const payAllGuestBill = (creds: GuestCredentials, datos: Record<string, unknown>) =>
+  callRpc("pagar_todo_comensal", {
+    p_comensal: creds.guestId,
+    p_token_hash: creds.tokenHash,
+    p_datos: datos,
+  });
+
 export const cancelGuestPayment = (creds: GuestCredentials, paymentId: string) =>
   callRpc("cancelar_pago_comensal", {
     p_comensal: creds.guestId,
@@ -344,3 +372,70 @@ export const confirmMercadoPagoPayment = (args: {
     p_monto: args.amount,
     p_moneda: args.currency,
   });
+
+const checkoutUrl = (preferenceId: string) =>
+  `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(preferenceId)}`;
+
+/* Preference + redirect URL for a pending Mercado Pago row. Defining a share
+ * does not call this; requesting the bill (or paying all) does. */
+export const startGuestMercadoPagoCheckout = async (
+  token: string,
+  paymentId: string,
+): Promise<{ ok: true; checkoutUrl: string } | { ok: false; reason: string }> => {
+  const admin = createAdminSupabase();
+  if (!admin) return { ok: false, reason: "not-configured" };
+  const { data: row } = await admin
+    .from("pagos_mesa")
+    .select("local_id, mp_preferencia_id, monto_total, expira_en, metodo, estado")
+    .eq("id", paymentId)
+    .maybeSingle();
+  if (!row) return { ok: false, reason: "db-error" };
+  if (row.metodo !== "mercado_pago" || row.estado !== "pendiente") {
+    return { ok: false, reason: "no-pendiente" };
+  }
+  if (row.mp_preferencia_id) {
+    return { ok: true, checkoutUrl: checkoutUrl(row.mp_preferencia_id as string) };
+  }
+  const mesa = await resolveTableQr(token);
+  const pref = await createPreference({
+    localId: row.local_id as string,
+    pagoId: paymentId,
+    title: mesa.ok ? `${mesa.branchName} · Mesa ${mesa.tableNumber}` : "Cuenta de la mesa",
+    amount: row.monto_total as number,
+    expiresAt: row.expira_en as string,
+    returnUrl: `${appBaseUrl()}/m/${token}?pago=${paymentId}`,
+  });
+  if (!pref) {
+    await cancelMercadoPagoPayment(paymentId, "mp-preferencia-fallida");
+    return { ok: false, reason: "mp-error" };
+  }
+  await attachPreference(paymentId, pref.id);
+  return { ok: true, checkoutUrl: pref.initPoint };
+};
+
+export const broadcastTableBill = async (sessionId: string) => {
+  const key =
+    process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  if (!SUPABASE_URL || !key || !sessionId) return;
+  const res = await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+      apikey: key,
+    },
+    body: JSON.stringify({
+      messages: [
+        {
+          topic: `realtime:mesa-cuenta:${sessionId}`,
+          event: "cambio",
+          payload: { sessionId },
+        },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error("m/cuenta broadcast", res.status, body);
+  }
+};

@@ -95,6 +95,12 @@ const mkBill = (over: Partial<TableBill> = {}, payments: BillPayment[] = []): Ta
       closedAt: null,
       closeReason: null,
       calledAt: null,
+      billState: "abierta" as const,
+      intent: null,
+      requestedAt: null,
+      requestedBy: null,
+      fullPayerId: null,
+      fullPayerName: null,
     },
     guests: [
       { id: "juan", name: "Juan", joinedAt: "", consumption: 12000 },
@@ -328,7 +334,7 @@ describe("métodos de pago", () => {
   it("cada método, modo y estado tiene texto en los dos idiomas", () => {
     const keys = [
       ...["mercado_pago", "transferencia", "efectivo", "qr_mercado_pago", "tarjeta_debito", "tarjeta_credito"].map((m) => `mesa.metodo.${m}`),
-      ...["consumo", "iguales", "uno", "monto"].flatMap((m) => [`mesa.modo.${m}`, `mesa.modoAyuda.${m}`]),
+      ...["consumo", "iguales", "uno", "monto", "porcentaje"].flatMap((m) => [`mesa.modo.${m}`, `mesa.modoAyuda.${m}`]),
       ...["pendiente", "pagado", "cancelado"].map((s) => `mesa.estadoPago.${s}`),
       ...["creado", "en_preparacion", "listo", "retirado", "cancelado"].map((s) => `mesa.estadoPedido.${s}`),
       ...["pendiente", "parcial", "pagada", "sin-consumo", "cerrada"].map((s) => `mesas.estadoCobro.${s}`),

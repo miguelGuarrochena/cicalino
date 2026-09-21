@@ -83,5 +83,7 @@
   "mesa-pago-qr-mp.sql",
   "mesas-historial.sql",
   "dias-cerrados-jornada.sql",
-  "jornada-cerrado-corta.sql"
+  "jornada-cerrado-corta.sql",
+  "mesa-cuenta-enum.sql",
+  "mesa-cuenta-compartida.sql"
 ]

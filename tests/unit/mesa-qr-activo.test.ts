@@ -52,10 +52,18 @@ describe("mesa-qr-activo", () => {
     );
     expect(page).toContain("QrDownloadModal");
     expect(page).toContain("sheetPng");
+    expect(page).toContain("printImage");
+    expect(page).toContain("InformativeQrCard");
+    expect(page).toContain("PRINT_QR_OPTIONS");
     expect(page).not.toMatch(/<select[\s>]/);
     expect(sticker).toContain('kind: "solo" | "marco"');
+    expect(sticker).toContain("INFORMATIVE_QR_PX");
+    expect(sticker).toContain("copy.orderSteps");
+    expect(sticker).toContain("copy.paySteps");
     expect(modal).toContain("descargarSoloHint");
     expect(modal).toContain("descargarMarcoHint");
+    expect(modal).toContain("InformativeQrCard");
+    expect(modal).toContain("aspect-[180/102]");
     expect(modal).toContain("sm:items-start");
     const solo = modal.slice(modal.indexOf('onPick("solo")'));
     expect(solo.indexOf("descargarSolo")).toBeLessThan(solo.indexOf("aspect-square"));

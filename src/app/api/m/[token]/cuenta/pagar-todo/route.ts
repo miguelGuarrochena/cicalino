@@ -1,27 +1,24 @@
 import { failure, guardGuestRequest, json, readJson } from "@/lib/server/guestApi";
-import { guestPaymentSchema, paymentDatos } from "@/lib/schemas";
+import { guestPayAllSchema, paymentDatos } from "@/lib/schemas";
 import {
   broadcastTableBill,
-  createGuestPayment,
   fetchGuestState,
+  payAllGuestBill,
   readGuestCookie,
   startGuestMercadoPagoCheckout,
 } from "@/lib/server/tableGuest";
 
 export const dynamic = "force-dynamic";
 
-/* Kept for the staff-adjacent old path and retries. The guest screen now
- * defines shares via /cuenta/parte and requests via /cuenta/pedir. Mercado
- * Pago checkout still starts only when the row is `pendiente`. */
 export const POST = async (
   req: Request,
   { params }: { params: Promise<{ token: string }> },
 ) => {
   const { token } = await params;
   const blocked = await guardGuestRequest(req, token, {
-    action: "pago",
-    perToken: 40,
-    perIp: 40,
+    action: "cuenta-pagar-todo",
+    perToken: 20,
+    perIp: 20,
     windowMs: 60_000,
     mutating: true,
   });
@@ -30,7 +27,7 @@ export const POST = async (
   const creds = await readGuestCookie();
   if (!creds) return failure("no-guest");
 
-  const parsed = guestPaymentSchema.safeParse(await readJson(req));
+  const parsed = guestPayAllSchema.safeParse(await readJson(req));
   if (!parsed.success) {
     return json(
       { ok: false, reason: "datos-invalidos", message: parsed.error.issues[0]?.message },
@@ -38,17 +35,15 @@ export const POST = async (
     );
   }
 
-  const res = await createGuestPayment(creds, paymentDatos(parsed.data));
+  const res = await payAllGuestBill(creds, paymentDatos({ ...parsed.data, mode: "uno" }));
   if (!res.ok) {
     const { ok: _ok, reason, ...extra } = res;
     return failure(reason ?? "db-error", extra);
   }
 
-  const paymentId = String(res.pago_id);
   let checkout: string | null = null;
-
-  if (res.metodo === "mercado_pago" && res.estado === "pendiente") {
-    const mp = await startGuestMercadoPagoCheckout(token, paymentId);
+  if (res.metodo === "mercado_pago" && res.estado === "pendiente" && res.pago_id) {
+    const mp = await startGuestMercadoPagoCheckout(token, String(res.pago_id));
     if (!mp.ok) return failure(mp.reason);
     checkout = mp.checkoutUrl;
   }
@@ -57,7 +52,7 @@ export const POST = async (
   if (state.ok) await broadcastTableBill(state.guest.sessionId);
   return json({
     ok: true,
-    paymentId,
+    paymentId: res.pago_id,
     status: res.estado,
     total: res.monto_total,
     checkoutUrl: checkout,

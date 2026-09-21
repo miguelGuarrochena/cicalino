@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { useApp } from "@/components/providers/Providers";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
@@ -12,6 +13,7 @@ import { useConfirm } from "@/components/ui/Confirm";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SubPageHeader } from "@/components/panel/SubPageHeader";
+import { InformativeQrCard } from "@/components/panel/mesas/InformativeQrCard";
 import { QrDownloadModal } from "@/components/panel/mesas/QrDownloadModal";
 import type { QrDownloadKind } from "@/components/panel/mesas/QrDownloadModal";
 import {
@@ -21,13 +23,23 @@ import {
   type StickerCard,
 } from "@/lib/qrSticker";
 import {
+  INFORMATIVE_QR_MM,
+  PRINT_QR_OPTIONS,
+  informativeQrCopy,
+  printAccentFor,
+} from "@/lib/qrInformativo";
+import {
   fetchTableQrs,
   regenerateTableQr,
   setTableQrs,
   type TableQrView,
 } from "@/lib/data/tables";
 
-type WithImage = TableQrView & { url: string; image: string | null };
+type WithImage = TableQrView & {
+  url: string;
+  image: string | null;
+  printImage: string | null;
+};
 
 const QrMark = ({ on }: { on: boolean }) => (
   <span
@@ -51,12 +63,16 @@ const MesasQrPage = () => {
   const confirmar = useConfirm();
   const branchId = useSessionStore((s) => s.sucursalId);
   const branchName = useConfigStore((s) => s.name);
+  const colorMarca = useConfigStore((s) => s.colorMarca);
   const { visibles, canManage, ready } = useOperationalAccess();
+  const copy = informativeQrCopy(t);
+  const accent = printAccentFor(colorMarca);
   const [tables, setTables] = useState<WithImage[] | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [printIds, setPrintIds] = useState<Set<string> | null>(null);
+  const [onClient, setOnClient] = useState(false);
   const [download, setDownload] = useState<
     null | { kind: "one"; table: WithImage } | { kind: "sheet"; tables: WithImage[] }
   >(null);
@@ -74,15 +90,17 @@ const MesasQrPage = () => {
     const withImages = await Promise.all(
       res.data.map(async (m) => {
         const url = `${origin}/m/${m.qrToken}`;
-        const image = m.qrActive
-          ? await QRCode.toDataURL(url, {
-              margin: 2,
-              width: 600,
-              errorCorrectionLevel: "H",
-              color: { dark: "#1b29b0", light: "#ffffff" },
-            })
-          : null;
-        return { ...m, url, image };
+        if (!m.qrActive) return { ...m, url, image: null, printImage: null };
+        const [image, printImage] = await Promise.all([
+          QRCode.toDataURL(url, {
+            margin: 2,
+            width: 600,
+            errorCorrectionLevel: "H",
+            color: { dark: "#1b29b0", light: "#ffffff" },
+          }),
+          QRCode.toDataURL(url, PRINT_QR_OPTIONS),
+        ]);
+        return { ...m, url, image, printImage };
       }),
     );
     setTables(withImages);
@@ -145,16 +163,35 @@ const MesasQrPage = () => {
     }
   };
 
-  const stickerOf = (m: WithImage): StickerCard | null => {
-    if (!m.image) return null;
+  const stickerOf = (m: WithImage, qr: string | null): StickerCard | null => {
+    if (!qr) return null;
     return {
-      qrDataUrl: m.image,
+      qrDataUrl: qr,
       venue: branchName.trim() || "Cicalino",
       tableLabel: t("mesa.mesaN", { n: m.number }),
-      instruction: t("mesasQr.instruccion"),
+      copy,
+      accent,
       number: m.number,
     };
   };
+
+  useEffect(() => {
+    setOnClient(true);
+    const before = () => {
+      document.body.dataset.imprimiendo = "qr";
+    };
+    const after = () => {
+      delete document.body.dataset.imprimiendo;
+      setPrintIds(null);
+    };
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => {
+      window.removeEventListener("beforeprint", before);
+      window.removeEventListener("afterprint", after);
+      after();
+    };
+  }, []);
 
   const openSheet = (fromSelected: boolean) => {
     if (!tables) return;
@@ -175,11 +212,18 @@ const MesasQrPage = () => {
     setBusy(true);
     try {
       if (download.kind === "one") {
-        const card = stickerOf(download.table);
-        if (!card) return;
         if (kind === "solo") {
-          downloadDataUrl(card.qrDataUrl, `cicalino-mesa-${card.number}.png`);
+          if (!download.table.image) return;
+          downloadDataUrl(
+            download.table.image,
+            `cicalino-mesa-${download.table.number}.png`,
+          );
         } else {
+          const card = stickerOf(
+            download.table,
+            download.table.printImage ?? download.table.image,
+          );
+          if (!card) return;
           downloadDataUrl(
             await framedQrPng(card),
             `cicalino-mesa-${card.number}-marco.png`,
@@ -187,7 +231,9 @@ const MesasQrPage = () => {
         }
       } else {
         const cards = download.tables
-          .map(stickerOf)
+          .map((m) =>
+            stickerOf(m, kind === "solo" ? m.image : (m.printImage ?? m.image)),
+          )
           .filter((c): c is StickerCard => c != null);
         if (!cards.length) {
           toast(t("mesasQr.nadaParaDescargar"), "error");
@@ -219,7 +265,6 @@ const MesasQrPage = () => {
     setPrintIds(ids);
     window.setTimeout(() => {
       window.print();
-      setPrintIds(null);
     }, 50);
   };
 
@@ -314,23 +359,20 @@ const MesasQrPage = () => {
         />
       )}
 
-      <ul className={`grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 print:grid-cols-2 print:gap-6 ${selected.size ? "pb-28 sm:pb-4" : ""}`}>
+      <ul className={`grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${selected.size ? "pb-28 sm:pb-4" : ""}`}>
         {tables.map((m) => {
           const on = m.qrActive;
           const checked = selected.has(m.id);
-          const hidePrint = printIds != null && !printIds.has(m.id);
           return (
             <li
               key={m.id}
-              className={`flex break-inside-avoid flex-col rounded-[20px] border bg-surface p-4 transition print:items-center print:rounded-none print:border-2 print:border-dashed print:border-gray-400 print:bg-white print:p-4 print:text-center ${
-                hidePrint ? "print:hidden" : ""
-              } ${
+              className={`flex flex-col rounded-[20px] border bg-surface p-4 transition ${
                 on
                   ? "border-marca/35 ring-1 ring-marca/15"
                   : "border-linea"
               } ${checked ? "ring-2 ring-marca/40" : ""}`}
             >
-              <label className="flex cursor-pointer items-start justify-between gap-3 print:hidden">
+              <label className="flex cursor-pointer items-start justify-between gap-3">
                 <span className="flex min-w-0 flex-col">
                   <span className="font-display text-2xl uppercase text-carbon">
                     {t("mesa.mesaN", { n: m.number })}
@@ -345,30 +387,19 @@ const MesasQrPage = () => {
                   aria-label={t("mesa.mesaN", { n: m.number })}
                 />
               </label>
-              <p className="hidden text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 print:block">
-                {branchName}
-              </p>
-              <p className="hidden font-display text-3xl uppercase text-[#1b29b0] print:block">
-                {t("mesa.mesaN", { n: m.number })}
-              </p>
               {on && m.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={m.image}
                   alt={t("mesasQr.alt", { n: m.number })}
-                  className="mt-3 w-full self-center print:max-w-[220px]"
+                  className="mt-3 w-full self-center"
                 />
               ) : (
-                <div className="mt-3 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-linea bg-crema/40 text-center print:hidden">
+                <div className="mt-3 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-linea bg-crema/40 text-center">
                   <p className="text-sm text-carbon/50">{t("mesasQr.sinQr")}</p>
                 </div>
               )}
-              {on && (
-                <p className="mt-2 hidden text-xs font-medium text-gray-600 print:block">
-                  {t("mesasQr.instruccion")}
-                </p>
-              )}
-              <div className="mt-4 flex flex-col gap-2 print:hidden sm:flex-row sm:flex-wrap">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {on && m.image && (
                   <button
                     type="button"
@@ -488,6 +519,36 @@ const MesasQrPage = () => {
           }}
         />
       ) : null}
+
+      {onClient && tables.some((m) => m.printImage)
+        ? createPortal(
+            <div data-imprimible="qr" aria-hidden className="hidden print:block">
+              {tables.map((m) => {
+                if (!m.printImage) return null;
+                if (printIds != null && !printIds.has(m.id)) return null;
+                return (
+                  <article
+                    key={m.id}
+                    className="mx-auto break-inside-avoid"
+                    style={{
+                      width: `${INFORMATIVE_QR_MM.w}mm`,
+                      height: `${INFORMATIVE_QR_MM.h}mm`,
+                      marginBottom: "10mm",
+                    }}
+                  >
+                    <InformativeQrCard
+                      qrSrc={m.printImage}
+                      venue={branchName.trim() || "Cicalino"}
+                      tableLabel={t("mesa.mesaN", { n: m.number })}
+                      accent={accent}
+                    />
+                  </article>
+                );
+              })}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 };

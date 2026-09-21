@@ -412,7 +412,8 @@ export const guestOrderSchema = z.object({
     ),
 });
 
-export const splitModeSchema = z.enum(["consumo", "iguales", "uno", "monto"]);
+export const splitModeSchema = z.enum(["consumo", "iguales", "uno", "monto", "porcentaje"]);
+export const guestShareModeSchema = z.enum(["consumo", "iguales", "monto", "porcentaje"]);
 export const paymentMethodSchema = z.enum([
   "mercado_pago",
   "transferencia",
@@ -439,6 +440,27 @@ export const guestPaymentSchema = z.object({
   expectedTotal: z.coerce.number().int().min(1).max(30_000_000),
 });
 
+export const guestShareSchema = z.object({
+  key: uuid,
+  mode: guestShareModeSchema,
+  method: paymentMethodSchema,
+  parts: z.coerce.number().int().min(1).max(50).optional(),
+  totalParts: z.coerce.number().int().min(1).max(50).optional(),
+  amount: pesos.optional().nullable(),
+  percent: z.coerce.number().gt(0).max(100).optional().nullable(),
+  tipPercent: z.union([z.literal(0), z.literal(5), z.literal(10), z.literal(15)]).optional().nullable(),
+  tipAmount: z.coerce.number().int().min(0).max(10_000_000).optional().nullable(),
+  expectedTotal: z.coerce.number().int().min(1).max(30_000_000),
+});
+
+export const guestPayAllSchema = z.object({
+  key: uuid,
+  method: paymentMethodSchema,
+  tipPercent: z.union([z.literal(0), z.literal(5), z.literal(10), z.literal(15)]).optional().nullable(),
+  tipAmount: z.coerce.number().int().min(0).max(10_000_000).optional().nullable(),
+  expectedTotal: z.coerce.number().int().min(1).max(30_000_000),
+});
+
 export const staffPaymentSchema = z
   .object({
     ...paymentBase,
@@ -455,17 +477,21 @@ export const staffPaymentSchema = z
 /* Draft → the jsonb that _crear_pago_mesa reads. A percentage tip wins over a
  * fixed one, same as in SQL. */
 export const paymentDatos = (
-  v: z.infer<typeof guestPaymentSchema> | z.infer<typeof staffPaymentSchema>,
+  v:
+    | z.infer<typeof guestPaymentSchema>
+    | z.infer<typeof staffPaymentSchema>
+    | z.infer<typeof guestShareSchema>
+    | (z.infer<typeof guestPayAllSchema> & { mode?: "uno" }),
 ): Record<string, unknown> => {
   const d: Record<string, unknown> = {
     clave: v.key,
-    modo: v.mode,
+    modo: "mode" in v && v.mode ? v.mode : "uno",
     metodo: v.method,
   };
-  if (v.parts != null) d.partes = v.parts;
-  if (v.totalParts != null) d.partes_totales = v.totalParts;
-  if (v.amount != null) d.monto = v.amount;
-  else if (v.percent != null) d.porcentaje = v.percent;
+  if ("parts" in v && v.parts != null) d.partes = v.parts;
+  if ("totalParts" in v && v.totalParts != null) d.partes_totales = v.totalParts;
+  if ("amount" in v && v.amount != null) d.monto = v.amount;
+  else if ("percent" in v && v.percent != null) d.porcentaje = v.percent;
   if (v.tipPercent != null) d.propina_porcentaje = v.tipPercent;
   else if (v.tipAmount != null) d.propina_monto = v.tipAmount;
   if ("expectedTotal" in v) d.monto_esperado = v.expectedTotal;

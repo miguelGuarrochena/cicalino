@@ -1,25 +1,24 @@
 import { failure, guardGuestRequest, json } from "@/lib/server/guestApi";
 import { uuid } from "@/lib/schemas";
 import {
-  broadcastTableBill,
-  cancelGuestPayment,
   fetchGuestState,
   readGuestCookie,
+  startGuestMercadoPagoCheckout,
 } from "@/lib/server/tableGuest";
 
 export const dynamic = "force-dynamic";
 
-/* A guest withdraws their own pending payment (changed their mind about the
- * method, or the transfer didn't go through). Paid ones can't be undone here. */
+/* After the table requested the bill, a guest who chose Mercado Pago opens
+ * checkout from here. Defining the share never created a preference. */
 export const POST = async (
   req: Request,
   { params }: { params: Promise<{ token: string; pagoId: string }> },
 ) => {
   const { token, pagoId } = await params;
   const blocked = await guardGuestRequest(req, token, {
-    action: "cancelar",
-    perToken: 30,
-    perIp: 30,
+    action: "mp-checkout",
+    perToken: 20,
+    perIp: 20,
     windowMs: 60_000,
     mutating: true,
   });
@@ -29,10 +28,14 @@ export const POST = async (
   const creds = await readGuestCookie();
   if (!creds) return failure("no-guest");
 
-  const res = await cancelGuestPayment(creds, pagoId);
-  if (!res.ok) return failure(res.reason ?? "db-error");
-
   const state = await fetchGuestState(creds);
-  if (state.ok) await broadcastTableBill(state.guest.sessionId);
-  return json({ ok: true, bill: state.ok ? state.bill : null });
+  if (!state.ok) return failure(state.reason);
+  const mine = state.bill.payments.find(
+    (p) => p.id === pagoId && p.guestId === creds.guestId && p.method === "mercado_pago",
+  );
+  if (!mine) return failure("not-found");
+
+  const mp = await startGuestMercadoPagoCheckout(token, pagoId);
+  if (!mp.ok) return failure(mp.reason);
+  return json({ ok: true, checkoutUrl: mp.checkoutUrl, bill: state.bill });
 };

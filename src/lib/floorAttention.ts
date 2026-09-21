@@ -36,15 +36,22 @@ export const openCreatedOrders = (bill: TableBill): BillOrder[] =>
     ? bill.orders.filter((o) => o.status === "creado")
     : [];
 
-export const guestBillRequests = (bill: TableBill): BillPayment[] =>
-  bill.session.status === "abierta"
-    ? bill.payments.filter(
-        (p) =>
-          p.status === "pendiente" &&
-          p.method !== "mercado_pago" &&
-          p.createdBy === "comensal",
-      )
-    : [];
+export const guestBillRequests = (bill: TableBill): BillPayment[] => {
+  if (bill.session.status !== "abierta") return [];
+  /* After the table asked for the bill, the restaurant gets one request with
+   * every defined share — including Mercado Pago, which still charges later. */
+  if (bill.session.requestedAt) {
+    return bill.payments.filter(
+      (p) => p.createdBy === "comensal" && (p.status === "pendiente" || p.status === "pagado"),
+    );
+  }
+  return bill.payments.filter(
+    (p) =>
+      p.status === "pendiente" &&
+      p.method !== "mercado_pago" &&
+      p.createdBy === "comensal",
+  );
+};
 
 export const pendingOrderIds = (bills: TableBill[]): string[] =>
   bills.flatMap((b) => openCreatedOrders(b).map((o) => o.id));

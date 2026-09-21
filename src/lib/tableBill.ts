@@ -10,7 +10,7 @@ import type { OrderStatus } from "@/lib/types";
  * of charging something else. Keep both in sync (tests/unit/table-bill.test.ts
  * uses the same cases as the SQL checks). */
 
-export type SplitMode = "consumo" | "iguales" | "uno" | "monto";
+export type SplitMode = "consumo" | "iguales" | "uno" | "monto" | "porcentaje";
 export type PaymentMethod =
   | "mercado_pago"
   | "transferencia"
@@ -18,10 +18,13 @@ export type PaymentMethod =
   | "qr_mercado_pago"
   | "tarjeta_debito"
   | "tarjeta_credito";
-export type PaymentStatus = "pendiente" | "pagado" | "cancelado";
+export type PaymentStatus = "definido" | "pendiente" | "pagado" | "cancelado";
 export type TableSessionStatus = "abierta" | "pagada" | "cerrada";
+export type BillRequestState = "abierta" | "dividiendo" | "lista" | "solicitada";
+export type BillIntent = "total" | "dividir";
 
 export const SPLIT_MODES: SplitMode[] = ["consumo", "iguales", "uno", "monto"];
+export const GUEST_SHARE_MODES: SplitMode[] = ["consumo", "iguales", "monto", "porcentaje"];
 export const PAYMENT_METHODS: PaymentMethod[] = [
   "mercado_pago",
   "transferencia",
@@ -117,6 +120,12 @@ export interface TableBill {
     closedAt: string | null;
     closeReason: string | null;
     calledAt: string | null;
+    billState: BillRequestState;
+    intent: BillIntent | null;
+    requestedAt: string | null;
+    requestedBy: string | null;
+    fullPayerId: string | null;
+    fullPayerName: string | null;
   };
   guests: BillGuest[];
   orders: BillOrder[];
@@ -156,6 +165,12 @@ export const mapBill = (raw: unknown): TableBill | null => {
       closedAt: strOrNull(s.cerrada_en),
       closeReason: strOrNull(s.cerrada_motivo),
       calledAt: strOrNull(s.llamado_en),
+      billState: (strOrNull(s.cuenta_estado) as BillRequestState | null) ?? "abierta",
+      intent: (strOrNull(s.cuenta_intencion) as BillIntent | null) ?? null,
+      requestedAt: strOrNull(s.cuenta_solicitada_en),
+      requestedBy: strOrNull(s.cuenta_solicitada_por),
+      fullPayerId: strOrNull(s.cuenta_pagador_total_id),
+      fullPayerName: strOrNull(s.cuenta_pagador_total_nombre),
     },
     guests: ((r.comensales as Json[] | null) ?? []).map((c) => ({
       id: str(c.id),
@@ -305,7 +320,7 @@ export interface PaymentDraft {
   parts?: number;
   /* iguales, first payment only: total parts of the table. */
   totalParts?: number;
-  /* monto: either a fixed amount or a percentage of consumption. */
+  /* monto / porcentaje: either a fixed amount or a percentage of consumption. */
   amount?: number | null;
   percent?: number | null;
   tipPercent?: TipPercent | null;
@@ -385,9 +400,14 @@ export const previewPayment = (
   settings: PaymentSettings,
   now: Date = new Date(),
   actor: "comensal" | "personal" = "comensal",
+  opts: { lockMode?: boolean } = {},
 ): PaymentPreview => {
   if (bill.session.status !== "abierta") return { ok: false, reason: "mesa-cerrada" };
+  if (bill.session.requestedAt && actor === "comensal") {
+    return { ok: false, reason: "mesa-cerrada" };
+  }
   const presencial = actor === "personal" && (draft.mode === "monto" || draft.mode === "uno");
+  const lockMode = opts.lockMode !== false && !presencial;
 
   /* Expired MP reservations are released server-side before computing. */
   const active = bill.payments.filter(
@@ -397,13 +417,14 @@ export const previewPayment = (
         p.method === "mercado_pago" &&
         p.status === "pendiente" &&
         p.expiresAt &&
-        new Date(p.expiresAt).getTime() < now.getTime()
+        new Date(p.expiresAt).getTime() < now.getTime() &&
+        !bill.session.requestedAt
       ),
   );
 
   const guestActive = active.filter((p) => !isStaffAmount(p));
   let totalParts = bill.session.parts;
-  if (!presencial && guestActive.length > 0 && bill.session.splitMode !== null) {
+  if (lockMode && guestActive.length > 0 && bill.session.splitMode !== null) {
     if (
       bill.session.splitMode !== draft.mode ||
       (draft.mode === "iguales" &&
@@ -413,7 +434,7 @@ export const previewPayment = (
       return { ok: false, reason: "modo-bloqueado" };
     }
   }
-  if (!presencial && guestActive.length === 0) {
+  if (lockMode && guestActive.length === 0) {
     if (draft.mode === "iguales") {
       totalParts = draft.totalParts ?? bill.guests.length;
       if (!Number.isInteger(totalParts) || totalParts < 1 || totalParts > 50) {
@@ -421,6 +442,11 @@ export const previewPayment = (
       }
     } else {
       totalParts = null;
+    }
+  } else if (draft.mode === "iguales") {
+    totalParts = draft.totalParts ?? bill.session.parts ?? bill.guests.length;
+    if (!Number.isInteger(totalParts) || totalParts < 1 || totalParts > 50) {
+      return { ok: false, reason: "partes-invalidas" };
     }
   }
 
@@ -445,18 +471,29 @@ export const previewPayment = (
     base = Math.min(Math.max(mine - mineCommitted, 0), available);
   } else if (draft.mode === "iguales") {
     parts = Math.max(1, Math.min(50, Math.trunc(draft.parts ?? 1)));
-    const remaining = (totalParts ?? 1) - committedParts;
-    if (remaining <= 0) {
-      base = available;
-      parts = 1;
-    } else if (parts >= remaining) {
-      parts = remaining;
-      base = available;
+    if (!lockMode) {
+      const n = totalParts ?? 1;
+      base = Math.min(Math.floor(consumption / n) * parts, available);
     } else {
-      base = Math.floor(available / remaining) * parts;
+      const remaining = (totalParts ?? 1) - committedParts;
+      if (remaining <= 0) {
+        base = available;
+        parts = 1;
+      } else if (parts >= remaining) {
+        parts = remaining;
+        base = available;
+      } else {
+        base = Math.floor(available / remaining) * parts;
+      }
     }
   } else if (draft.mode === "uno") {
     base = available;
+  } else if (draft.mode === "porcentaje") {
+    if (draft.percent == null || !(draft.percent > 0 && draft.percent <= 100)) {
+      return { ok: false, reason: "porcentaje-invalido" };
+    }
+    base = pgRound((consumption * draft.percent) / 100);
+    if (base > available) return { ok: false, reason: "excede", available };
   } else {
     if (draft.amount != null) {
       base = Math.trunc(draft.amount);
@@ -499,6 +536,67 @@ export const previewPayment = (
     remaining: available - base,
   };
 };
+
+export const withoutGuestDraft = (bill: TableBill, guestId: string): TableBill => {
+  const payments = bill.payments.filter(
+    (p) => !(p.guestId === guestId && p.createdBy === "comensal" && p.status === "definido"),
+  );
+  const committed = payments.filter((p) => p.status !== "cancelado").reduce((s, p) => s + p.base, 0);
+  return {
+    ...bill,
+    payments,
+    totals: {
+      ...bill.totals,
+      committedBase: committed,
+      available: Math.max(bill.totals.consumption - committed, 0),
+    },
+  };
+};
+
+/* Mix of modes is allowed while defining. The guest's current draft is replaced. */
+export const previewGuestShare = (
+  bill: TableBill,
+  guestId: string,
+  draft: PaymentDraft,
+  settings: PaymentSettings,
+): PaymentPreview =>
+  previewPayment(withoutGuestDraft(bill, guestId), guestId, draft, settings, new Date(), "comensal", {
+    lockMode: false,
+  });
+
+export const payAllBase = (bill: TableBill): number => {
+  const drafts = bill.payments
+    .filter((p) => p.createdBy === "comensal" && p.status === "definido")
+    .reduce((s, p) => s + p.base, 0);
+  return bill.totals.available + drafts;
+};
+
+export const previewPayAll = (
+  bill: TableBill,
+  guestId: string,
+  draft: Omit<PaymentDraft, "mode">,
+  settings: PaymentSettings,
+): PaymentPreview =>
+  previewPayment(
+    {
+      ...bill,
+      payments: bill.payments.filter((p) => !(p.createdBy === "comensal" && p.status === "definido")),
+    },
+    guestId,
+    { ...draft, mode: "uno" },
+    settings,
+    new Date(),
+    "comensal",
+    { lockMode: false },
+  );
+
+export const myDefinedPayment = (bill: TableBill, guestId: string): BillPayment | null =>
+  bill.payments.find(
+    (p) => p.guestId === guestId && p.createdBy === "comensal" && p.status === "definido",
+  ) ?? null;
+
+export const billRequested = (bill: TableBill): boolean =>
+  Boolean(bill.session.requestedAt) || bill.session.billState === "solicitada";
 
 /* ---- Views ------------------------------------------------------------ */
 
@@ -564,7 +662,7 @@ export const paymentsByPayer = (bill: TableBill): PayerSummary[] => {
       { key, name: p.payerName, guestId: p.guestId, payments: [], paid: 0, pending: 0 };
     row.payments.push(p);
     if (p.status === "pagado") row.paid += p.total;
-    if (p.status === "pendiente") row.pending += p.total;
+    if (p.status === "pendiente" || p.status === "definido") row.pending += p.total;
     out.set(key, row);
   }
   return [...out.values()];
