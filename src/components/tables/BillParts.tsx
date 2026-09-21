@@ -24,10 +24,11 @@ export const PaymentStatusBadge = ({ payment }: { payment: BillPayment }) => {
   const cls =
     payment.status === "pagado"
       ? "border-ok-borde bg-ok-fondo text-carbon"
-      : payment.status === "pendiente"
+      : payment.status === "pendiente" || payment.status === "definido"
         ? "border-curso-borde bg-curso-fondo text-carbon"
         : "border-linea bg-carbon/5 text-suave";
-  const icon = payment.status === "pagado" ? "✓" : payment.status === "pendiente" ? "⏳" : "✕";
+  const icon =
+    payment.status === "pagado" ? "✓" : payment.status === "pendiente" || payment.status === "definido" ? "⏳" : "✕";
   const label =
     payment.status === "pendiente" && payment.method === "mercado_pago"
       ? t("mesa.estadoPago.verificandoMp")

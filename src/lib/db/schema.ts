@@ -538,6 +538,7 @@ export const splitModeEnum = pgEnum("division_modo", [
   "iguales",
   "uno",
   "monto",
+  "porcentaje",
 ]);
 
 export const tablePaymentMethodEnum = pgEnum("metodo_pago_mesa", [
@@ -550,6 +551,7 @@ export const tablePaymentMethodEnum = pgEnum("metodo_pago_mesa", [
 ]);
 
 export const tablePaymentStatusEnum = pgEnum("pago_mesa_estado", [
+  "definido",
   "pendiente",
   "pagado",
   "cancelado",
@@ -638,6 +640,11 @@ export const tableSessions = pgTable(
     pagadaEn: timestamp("pagada_en", { withTimezone: true }),
     cerradaEn: timestamp("cerrada_en", { withTimezone: true }),
     cerradaMotivo: text("cerrada_motivo"),
+    cuentaIntencion: text("cuenta_intencion"),
+    cuentaSolicitadaEn: timestamp("cuenta_solicitada_en", { withTimezone: true }),
+    cuentaSolicitadaPor: uuid("cuenta_solicitada_por"),
+    cuentaPagadorTotalId: uuid("cuenta_pagador_total_id"),
+    cuentaPagadorTotalNombre: text("cuenta_pagador_total_nombre"),
   },
   (t) => [
     uniqueIndex("uq_mesa_sesion_abierta").on(t.mesaId).where(sql`estado = 'abierta'`),

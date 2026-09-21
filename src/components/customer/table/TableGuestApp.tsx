@@ -12,8 +12,6 @@ import { CustomerBrandShell } from "@/components/customer/CustomerBrandShell";
 import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import type { BrandColorId } from "@/lib/customerBrand";
 import {
-  BillTotals,
-  ConsumptionTable,
   PaymentRows,
 } from "@/components/tables/BillParts";
 import { MenuBrowser } from "@/components/customer/table/MenuBrowser";
@@ -25,9 +23,13 @@ import { TransferDetails, useErrorText } from "@/components/customer/table/Trans
 import { guestNameSchema } from "@/lib/schemas";
 import { clearGuestCred, loadGuestCred, saveGuestCred } from "@/lib/guestSession";
 import {
+  billRequested,
+  formatMoney,
   type PaymentSettings,
   type TableBill,
 } from "@/lib/tableBill";
+import { useTableBillLive } from "@/lib/hooks/useTableBillLive";
+import { ModalShell } from "@/components/ui/ModalShell";
 import {
   clampCantidad,
   itemsCarrito,
@@ -93,15 +95,12 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
    * atrás, y al cerrar la hoja el cartel viejo seguía ahí. */
   const [orderError, setOrderError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  /* Pagar dejó de ser una hoja encima de la cuenta: ahora es una vista del
-   * flujo, con su propio volver. Mientras está abierta, las pestañas y la
-   * barra de abajo se van — no hay nada que hacer en paralelo. */
-  const [pagando, setPagando] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   /* Lo que acaba de salir. El carrito se vacía en cuanto el servidor confirma,
    * así que sin esta copia la hoja de "pedido enviado" quedaría en blanco. */
   const [enviado, setEnviado] = useState<CartLine[] | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(initial.returningPaymentId);
+  const [pagoTotalAviso, setPagoTotalAviso] = useState<string | null>(null);
   const applyBill = useCallback((next: TableBill | null) => {
     if (next) setBill(next);
   }, []);
@@ -156,6 +155,21 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
       window.removeEventListener("online", tick);
     };
   }, [guest, refresh]);
+
+  useTableBillLive(bill?.session.id ?? null, refresh);
+
+  useEffect(() => {
+    if (!guest || !bill?.session.requestedAt || !bill.session.fullPayerId) return;
+    if (bill.session.fullPayerId === guest.id) return;
+    const storageKey = `cicalino-pago-total:${bill.session.id}:${bill.session.requestedAt}`;
+    try {
+      if (sessionStorage.getItem(storageKey)) return;
+    } catch {
+      /* Safari private mode. */
+    }
+    setPagoTotalAviso(bill.session.fullPayerName || t("mesa.alguienDeLaMesa"));
+    setTab("cuenta");
+  }, [guest, bill, t]);
 
   /* Back from the Mercado Pago checkout: we only show what the webhook
    * confirmed, so this waits for the payment to leave "pendiente". */
@@ -311,16 +325,17 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
 
   const open = bill.session.status === "abierta";
   const myOrders = bill.orders.filter((o) => o.guestId === guest.id);
-  const unpaid = open && bill.totals.available > 0;
+  const unpaid = open && bill.totals.available > 0 && !billRequested(bill);
   const hasConsumption = bill.totals.consumption > 0;
-  const showBar = cartCount > 0 || hasConsumption || tab === "cuenta";
+  const cuentaFlujo = tab === "cuenta" && hasConsumption && open;
+  const showBar = !cuentaFlujo && (cartCount > 0 || hasConsumption || tab === "cuenta");
 
   return (
     <CustomerBrandShell color={initial.colorMarca}>
     {/* El hueco de abajo es para la barra fija. Mientras se paga, esa barra no
         está —la pantalla de pago trae la suya— y el hueco quedaba como 300 px
         de vacío al final. */}
-    <main className={`mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-4 ${showBar && !pagando ? "pb-32" : "pb-8"}`}>
+    <main className={`mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-4 ${showBar ? "pb-32" : "pb-8"}`}>
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <CustomerBrandHeader
@@ -336,22 +351,6 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
         <Controls showTheme={false} />
       </header>
 
-      {pagando ? (
-        <PayScreen
-          token={token}
-          bill={bill}
-          guestId={guest.id}
-          settings={initial.settings}
-          mercadoPagoReady={initial.mercadoPagoReady}
-          onClose={() => {
-            setPagando(false);
-            setTab("cuenta");
-          }}
-          onBill={applyBill}
-          onStale={() => void refresh()}
-        />
-      ) : (
-        <>
         {open && (
           <button
             type="button"
@@ -464,53 +463,44 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           />
         )}
 
-        {tab === "cuenta" && (
+        {tab === "cuenta" && hasConsumption && open ? (
+          <PayScreen
+            token={token}
+            bill={bill}
+            guestId={guest.id}
+            settings={initial.settings}
+            mercadoPagoReady={initial.mercadoPagoReady}
+            onBill={applyBill}
+            onStale={() => void refresh()}
+          />
+        ) : tab === "cuenta" ? (
           <section className="mt-4 flex flex-col gap-5">
-            <BillTotals bill={bill} />
-            <div>
-              <h2 className="mb-3 font-display text-xl uppercase tracking-tight text-carbon">
-                {t("mesa.seccionConsumo")}
-              </h2>
-              <ConsumptionTable bill={bill} highlightGuestId={guest.id} />
-            </div>
             <div>
               <h2 className="mb-3 font-display text-xl uppercase tracking-tight text-carbon">
                 {t("mesa.seccionPagos")}
               </h2>
-              {bill.session.splitMode && (
-                <p className="mt-2 text-sm text-suave">
-                  {t("mesa.modoElegido", { m: t(`mesa.modo.${bill.session.splitMode}`) })}
-                  {bill.session.splitMode === "iguales" && bill.session.parts
-                    ? ` · ${t("mesa.partesN", { n: bill.session.parts })}`
-                    : ""}
-                </p>
-              )}
-              <div className="mt-3">
-                <PaymentRows
-                  bill={bill}
-                  highlightGuestId={guest.id}
-                  actions={(p) =>
-                    p.guestId === guest.id && p.status === "pendiente" ? (
-                      <PendingPaymentHelp
-                        token={token}
-                        paymentId={p.id}
-                        method={p.method}
-                        total={p.total}
-                        settings={initial.settings}
-                        onChanged={applyBill}
-                      />
-                    ) : null
-                  }
-                />
-              </div>
+              <PaymentRows
+                bill={bill}
+                highlightGuestId={guest.id}
+                actions={(p) =>
+                  p.guestId === guest.id && p.status === "pendiente" ? (
+                    <PendingPaymentHelp
+                      token={token}
+                      paymentId={p.id}
+                      method={p.method}
+                      total={p.total}
+                      settings={initial.settings}
+                      requested={billRequested(bill)}
+                      onChanged={applyBill}
+                    />
+                  ) : null
+                }
+              />
             </div>
           </section>
-        )}
+        ) : null}
 
-        </>
-      )}
-
-      {showBar && !pagando && (
+      {showBar && (
         <TableBottomBar
           tab={tab}
           items={cartCount}
@@ -520,7 +510,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           onVerPedido={() => setReviewOpen(true)}
           onVerCuenta={() => setTab("cuenta")}
           onVerCarta={() => setTab("carta")}
-          onPagar={() => setPagando(true)}
+          onPagar={() => setTab("cuenta")}
         />
       )}
 
@@ -551,6 +541,53 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
             setOrderError(null);
           }}
         />
+      )}
+
+      {pagoTotalAviso && (
+        <ModalShell
+          labelledBy="pago-total-titulo"
+          onClose={() => {
+            if (bill?.session.requestedAt) {
+              try {
+                sessionStorage.setItem(
+                  `cicalino-pago-total:${bill.session.id}:${bill.session.requestedAt}`,
+                  "1",
+                );
+              } catch {
+                /* ignore */
+              }
+            }
+            setPagoTotalAviso(null);
+            setTab("cuenta");
+          }}
+          footer={
+            <button
+              type="button"
+              onClick={() => {
+                if (bill?.session.requestedAt) {
+                  try {
+                    sessionStorage.setItem(
+                      `cicalino-pago-total:${bill.session.id}:${bill.session.requestedAt}`,
+                      "1",
+                    );
+                  } catch {
+                    /* ignore */
+                  }
+                }
+                setPagoTotalAviso(null);
+                setTab("cuenta");
+              }}
+              className="min-h-12 w-full rounded-full bg-marca px-5 text-base font-semibold text-crema"
+            >
+              {t("mesa.entendido")}
+            </button>
+          }
+        >
+          <h2 id="pago-total-titulo" className="font-display text-2xl uppercase text-marca">
+            {t("mesa.pagoTotalPopupTitulo", { n: pagoTotalAviso })}
+          </h2>
+          <p className="mt-3 text-base leading-relaxed text-carbon">{t("mesa.pagoTotalPopupCuerpo")}</p>
+        </ModalShell>
       )}
 
 
@@ -711,6 +748,7 @@ const PendingPaymentHelp = ({
   method,
   total,
   settings,
+  requested = false,
   onChanged,
 }: {
   token: string;
@@ -718,6 +756,7 @@ const PendingPaymentHelp = ({
   method: string;
   total: number;
   settings: PaymentSettings;
+  requested?: boolean;
   onChanged: (b: TableBill | null) => void;
 }) => {
   const { t } = useApp();
@@ -725,7 +764,7 @@ const PendingPaymentHelp = ({
   const [busy, setBusy] = useState(false);
 
   const cancel = async () => {
-    if (busy) return;
+    if (busy || requested) return;
     const ok = await confirmar({
       title: t("mesa.cancelarPagoTitulo"),
       body: t("mesa.cancelarPagoConfirmar"),
@@ -744,6 +783,20 @@ const PendingPaymentHelp = ({
     }
   };
 
+  const checkout = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/m/${token}/pagos/${paymentId}/checkout`, { method: "POST" });
+      const data = (await res.json().catch(() => null)) as
+        | { ok: boolean; checkoutUrl?: string }
+        | null;
+      if (data?.ok && data.checkoutUrl) window.location.assign(data.checkoutUrl);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="flex flex-col items-start gap-2.5 rounded-xl bg-crema/60 p-3 text-sm text-carbon">
       {method === "transferencia" ? (
@@ -753,14 +806,26 @@ const PendingPaymentHelp = ({
       ) : (
         <p>{t("mesa.manualPendienteAyuda")}</p>
       )}
-      <button
-        type="button"
-        onClick={() => void cancel()}
-        disabled={busy}
-        className="inline-flex min-h-11 items-center rounded-full border border-linea px-4 text-sm font-semibold text-carbon disabled:opacity-50"
-      >
-        {t("mesa.cancelarPago")}
-      </button>
+      {method === "mercado_pago" && requested && (
+        <button
+          type="button"
+          onClick={() => void checkout()}
+          disabled={busy}
+          className="inline-flex min-h-11 items-center rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
+        >
+          {t("mesa.pagarConMp", { n: formatMoney(total) })}
+        </button>
+      )}
+      {!requested && (
+        <button
+          type="button"
+          onClick={() => void cancel()}
+          disabled={busy}
+          className="inline-flex min-h-11 items-center rounded-full border border-linea px-4 text-sm font-semibold text-carbon disabled:opacity-50"
+        >
+          {t("mesa.cancelarPago")}
+        </button>
+      )}
     </div>
   );
 };

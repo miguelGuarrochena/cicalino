@@ -75,6 +75,12 @@ const bill = (over: Partial<TableBill> = {}): TableBill => ({
     closedAt: null,
     closeReason: null,
     calledAt: null,
+    billState: "abierta" as const,
+    intent: null,
+    requestedAt: null,
+    requestedBy: null,
+    fullPayerId: null,
+    fullPayerName: null,
     ...over.session,
   },
   guests: over.guests ?? [{ id: "juan", name: "Juan", joinedAt: "", consumption: 10000 }],
@@ -117,6 +123,19 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
     });
     expect(pendingBillIds([open])).toEqual([]);
     expect(guestBillRequests(open)).toEqual([]);
+  });
+
+  it("cuando la mesa ya pidió la cuenta, Mercado Pago también entra en Cobrar", () => {
+    const open = bill({
+      session: {
+        ...bill().session,
+        requestedAt: "2026-09-21T12:00:00Z",
+        billState: "solicitada",
+        intent: "total",
+      },
+      payments: [pay({ id: "mp", method: "mercado_pago", createdBy: "comensal" })],
+    });
+    expect(guestBillRequests(open).map((p) => p.id)).toEqual(["mp"]);
   });
 
   it("entrar a Pedido apaga el header de pedidos y deja Cuentas", () => {
