@@ -249,6 +249,23 @@ describe("buildFloor", () => {
     expect(nextChargeAfter(list, "s5")?.tableNumber).toBe(4);
     expect(nextChargeAfter(list, "s4")?.tableNumber).toBe(2);
   });
+
+  it("una mesa pagada sigue ocupada: no queda libre ni abre sesión nueva", () => {
+    const paid = mkBill({
+      session: { ...mkBill().session, status: "pagada", paidAt: "2026-09-16T21:00:00Z" },
+      orders: [order({ status: "retirado" })],
+      totals: {
+        ...mkBill().totals,
+        paid: 20000,
+        paidBase: 20000,
+        uncovered: 0,
+        available: 0,
+      },
+    });
+    const floor = buildFloor([{ id: "m8", number: 8, qrToken: "t8", qrActive: true }], [paid]);
+    expect(floor[0]?.status).toBe("pagada");
+    expect(floor[0]?.bill?.session.id).toBe("s1");
+  });
 });
 
 describe("comanda", () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useApp } from "@/components/providers/Providers";
+import { excessPayments } from "@/lib/tableBill";
 import type { FloorTable } from "@/lib/tableOps";
 
 export const ChargeInbox = ({
@@ -30,6 +31,7 @@ export const ChargeInbox = ({
       <ul className="mt-3 flex flex-col gap-3">
         {rows.map((row) => {
           const isNew = row.billRequests.some((p) => newPaymentIds.has(p.id));
+          const excess = row.bill ? excessPayments(row.bill).length > 0 : false;
           return (
             <li
               key={row.key}
@@ -42,10 +44,14 @@ export const ChargeInbox = ({
               </p>
               <p
                 className={`mt-2 text-sm font-semibold ${
-                  isNew ? "text-curso" : "text-carbon/70"
+                  excess ? "text-alerta" : isNew ? "text-curso" : "text-carbon/70"
                 }`}
               >
-                {isNew ? t("mesas.solicitaCuenta") : t("mesas.cuentaSolicitada")}
+                {excess
+                  ? t("mesas.evento.excedente")
+                  : isNew
+                    ? t("mesas.solicitaCuenta")
+                    : t("mesas.cuentaSolicitada")}
               </p>
               <button
                 type="button"

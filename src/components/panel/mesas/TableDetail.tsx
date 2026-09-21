@@ -17,6 +17,7 @@ import { updateOrderStatus } from "@/lib/data/orders";
 import { cancelTablePayment, confirmTablePayment, acknowledgeWaiterCall } from "@/lib/data/tables";
 import {
   billPending,
+  excessPayments,
   formatMoney,
   type BillOrder,
   type BillPayment,
@@ -86,12 +87,16 @@ export const TableDetail = ({
    * lo que sea siguiera abierta no convierte una consulta del pasado en una
    * pantalla de cobro. */
   const open = bill.session.status === "abierta" && !soloLectura;
+  const live =
+    (bill.session.status === "abierta" || bill.session.status === "pagada") &&
+    !soloLectura;
   const names = new Map(bill.guests.map((g) => [g.id, g.name]));
   const pending = billPending(bill);
   const status = floorStatus(bill);
   const waitingPayments = bill.payments.filter(
     (p) => p.status === "pendiente" && p.method !== "mercado_pago",
   );
+  const excess = excessPayments(bill);
   const created = kitchenOrders(bill, "creado");
   const comanda = bill.orders.filter((o) => o.status !== "cancelado");
   const accountRows = guestAccountRows(bill);
@@ -166,14 +171,14 @@ export const TableDetail = ({
    *  · Mercado Pago pendiente → abajo también, sin botón: se confirma solo.
    */
   const paymentActions = (p: BillPayment, soloRegistro = false) => {
-    if (!open || p.status === "cancelado") return null;
+    if (!live || p.status === "cancelado") return null;
     if (soloRegistro && p.status === "pendiente" && p.method !== "mercado_pago") {
       return null;
     }
     if (!soloRegistro && p.status !== "pendiente") return null;
-    const canConfirm = p.status === "pendiente" && p.method !== "mercado_pago";
+    const canConfirm = open && p.status === "pendiente" && p.method !== "mercado_pago";
     const canCancel =
-      p.status === "pendiente" ||
+      (open && p.status === "pendiente") ||
       (canManage && p.status === "pagado" && p.method !== "mercado_pago");
     if (!canConfirm && !canCancel && !(p.status === "pendiente" && p.method === "mercado_pago")) {
       return null;
@@ -350,6 +355,11 @@ export const TableDetail = ({
             {t("mesas.pagosEsperandoN", { n: waitingPayments.length })}
           </p>
         )}
+        {excess.length > 0 && (
+          <p className="mt-3 text-center text-sm font-semibold text-alerta">
+            {t("mesas.evento.excedente")}
+          </p>
+        )}
 
         <div className="mt-4 flex flex-col gap-2">
           {/* Una sola acción global, y solo con dos o más esperando: con uno
@@ -428,7 +438,7 @@ export const TableDetail = ({
                 reglas siguen donde estaban — el modal explica el saldo y pide
                 el motivo, y `cerrar_mesa` rechaza pagos pendientes y exige
                 encargado cuando falta cubrir. */}
-            {open && onCloseTable && (
+            {live && onCloseTable && (
               <button
                 type="button"
                 onClick={onCloseTable}

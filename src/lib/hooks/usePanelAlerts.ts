@@ -17,6 +17,7 @@ import {
   ackPanelSource,
   getLiveAlertCounts,
   getLiveAlerts,
+  getPanelAlertState,
   getPanelAlertVersion,
   hydratePanelAlerts,
   publishPanelAlerts,
@@ -98,6 +99,10 @@ const useAlertSound = () => {
   }, [branchId]);
 
   useEffect(() => {
+    const st = getPanelAlertState();
+    /* Hasta que Mesas publique su primer snapshot, lo que hay no es la foto
+     * completa: primar ahora haría sonar todo como nuevo cuando llegue. */
+    if (!st.sourceReady.mesas) return;
     const alerts = getLiveAlerts();
     const ids = new Set(alerts.map((a) => a.id));
     if (!primed.current) {

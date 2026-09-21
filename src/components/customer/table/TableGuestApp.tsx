@@ -324,6 +324,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   }
 
   const open = bill.session.status === "abierta";
+  const puedePedir = open && !billRequested(bill);
   const myOrders = bill.orders.filter((o) => o.guestId === guest.id);
   const unpaid = open && bill.totals.available > 0 && !billRequested(bill);
   const hasConsumption = bill.totals.consumption > 0;
@@ -446,7 +447,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           <MenuBrowser
             menu={initial.menu}
             cart={cart}
-            puedePedir={open}
+            puedePedir={puedePedir}
             onCantidad={setQty}
             stickyTop={navAlto}
           />
@@ -520,7 +521,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           enviando={sending}
           error={orderError}
           enviado={enviado}
-          puedePedir={open}
+          puedePedir={puedePedir}
           onCantidad={setQty}
           onEnviar={() => void sendOrder()}
           onSeguirPidiendo={() => {

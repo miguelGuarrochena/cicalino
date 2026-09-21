@@ -8,6 +8,7 @@ import {
   billPending,
   billStatus,
   previewPayment,
+  previewGuestShare,
   parsePartCount,
   splitModeLocked,
   type BillPayment,
@@ -174,6 +175,9 @@ describe("previewPayment", () => {
     };
     expect(previewPayment(afterTwo, "c", { mode: "iguales", method: "efectivo" }, settings))
       .toMatchObject({ ok: true, base: 19000 - 6333 * 2 });
+    expect(
+      previewGuestShare(afterTwo, "c", { mode: "iguales", method: "efectivo", parts: 1, totalParts: 3 }, settings),
+    ).toMatchObject({ ok: true, base: 19000 - 6333 * 2 });
   });
 
   it("monto o porcentaje respeta lo que falta", () => {

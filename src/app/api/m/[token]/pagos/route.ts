@@ -1,18 +1,11 @@
-import { failure, guardGuestRequest, json, readJson } from "@/lib/server/guestApi";
-import { guestPaymentSchema, paymentDatos } from "@/lib/schemas";
-import {
-  broadcastTableBill,
-  createGuestPayment,
-  fetchGuestState,
-  readGuestCookie,
-  startGuestMercadoPagoCheckout,
-} from "@/lib/server/tableGuest";
+import { failure, guardGuestRequest } from "@/lib/server/guestApi";
 
 export const dynamic = "force-dynamic";
 
-/* Kept for the staff-adjacent old path and retries. The guest screen now
- * defines shares via /cuenta/parte and requests via /cuenta/pedir. Mercado
- * Pago checkout still starts only when the row is `pendiente`. */
+/* El cobro del comensal es uno: definir parte + pedir cuenta, o pagar todo.
+ * Este POST era el modelo viejo (`pagar_como_comensal`) y dejaba dos caminos
+ * de cobro. Se desactiva a propósito: checkout de mercado_pago sigue en
+ * /cuenta/pedir, /cuenta/pagar-todo y /pagos/[pagoId]/checkout. */
 export const POST = async (
   req: Request,
   { params }: { params: Promise<{ token: string }> },
@@ -26,41 +19,5 @@ export const POST = async (
     mutating: true,
   });
   if (blocked) return blocked;
-
-  const creds = await readGuestCookie();
-  if (!creds) return failure("no-guest");
-
-  const parsed = guestPaymentSchema.safeParse(await readJson(req));
-  if (!parsed.success) {
-    return json(
-      { ok: false, reason: "datos-invalidos", message: parsed.error.issues[0]?.message },
-      400,
-    );
-  }
-
-  const res = await createGuestPayment(creds, paymentDatos(parsed.data));
-  if (!res.ok) {
-    const { ok: _ok, reason, ...extra } = res;
-    return failure(reason ?? "db-error", extra);
-  }
-
-  const paymentId = String(res.pago_id);
-  let checkout: string | null = null;
-
-  if (res.metodo === "mercado_pago" && res.estado === "pendiente") {
-    const mp = await startGuestMercadoPagoCheckout(token, paymentId);
-    if (!mp.ok) return failure(mp.reason);
-    checkout = mp.checkoutUrl;
-  }
-
-  const state = await fetchGuestState(creds);
-  if (state.ok) await broadcastTableBill(state.guest.sessionId);
-  return json({
-    ok: true,
-    paymentId,
-    status: res.estado,
-    total: res.monto_total,
-    checkoutUrl: checkout,
-    bill: state.ok ? state.bill : null,
-  });
+  return failure("flujo-cuenta");
 };

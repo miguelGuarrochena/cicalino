@@ -1,4 +1,4 @@
-import type { BillOrder, BillPayment, TableBill } from "@/lib/tableBill";
+import { excessPayments, type BillOrder, type BillPayment, type TableBill } from "@/lib/tableBill";
 
 /* Operational "inbox" for the restaurant panel.
  *
@@ -37,20 +37,25 @@ export const openCreatedOrders = (bill: TableBill): BillOrder[] =>
     : [];
 
 export const guestBillRequests = (bill: TableBill): BillPayment[] => {
+  const excess = excessPayments(bill);
+  if (bill.session.status === "pagada") return excess;
   if (bill.session.status !== "abierta") return [];
   /* After the table asked for the bill, the restaurant gets one request with
    * every defined share — including Mercado Pago, which still charges later. */
-  if (bill.session.requestedAt) {
-    return bill.payments.filter(
-      (p) => p.createdBy === "comensal" && (p.status === "pendiente" || p.status === "pagado"),
-    );
-  }
-  return bill.payments.filter(
-    (p) =>
-      p.status === "pendiente" &&
-      p.method !== "mercado_pago" &&
-      p.createdBy === "comensal",
-  );
+  const requested = bill.session.requestedAt
+    ? bill.payments.filter(
+        (p) =>
+          p.createdBy === "comensal" &&
+          (p.status === "pendiente" || p.status === "pagado"),
+      )
+    : bill.payments.filter(
+        (p) =>
+          p.status === "pendiente" &&
+          p.method !== "mercado_pago" &&
+          p.createdBy === "comensal",
+      );
+  const seen = new Set(requested.map((p) => p.id));
+  return [...requested, ...excess.filter((p) => !seen.has(p.id))];
 };
 
 export const pendingOrderIds = (bills: TableBill[]): string[] =>

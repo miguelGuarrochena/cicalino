@@ -18,6 +18,8 @@ const REASON_STATUS: Record<string, number> = {
   "comensal-invalido": 401,
   "otra-mesa": 409,
   "cuenta-solicitada": 409,
+  "mesa-ocupada": 409,
+  "flujo-cuenta": 410,
   "falta-definir": 409,
   "ya-solicitada": 409,
   "modo-bloqueado": 409,

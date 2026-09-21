@@ -1,6 +1,7 @@
 import type { OrderStatus } from "@/lib/types";
 import {
   billPending,
+  excessPayments,
   type BillGuest,
   type BillOrder,
   type BillPayment,
@@ -138,7 +139,11 @@ export const needsPedido = (row: FloorTable): boolean =>
   row.newOrders.length > 0 || Boolean(row.calledAt);
 
 export const needsCharge = (row: FloorTable): boolean =>
-  Boolean(row.bill && row.bill.session.status === "abierta" && row.pending > 0);
+  Boolean(
+    row.bill &&
+      ((row.bill.session.status === "abierta" && row.pending > 0) ||
+        excessPayments(row.bill).length > 0),
+  );
 
 /* After a table is paid in full, open the first one still in this list.
  * The list order is what the waiter sees (urgency on Cobrar, number on Todas),
@@ -191,7 +196,9 @@ const toRow = (
 });
 
 export const buildFloor = (tables: FloorQr[], bills: TableBill[]): FloorTable[] => {
-  const open = bills.filter((b) => b.session.status === "abierta");
+  const open = bills.filter(
+    (b) => b.session.status === "abierta" || b.session.status === "pagada",
+  );
   const byTableId = new Map<string, TableBill>();
   const byNumber = new Map<number, TableBill>();
   for (const b of open) {

@@ -44,10 +44,12 @@ const start = (branchId: string): Shared => {
     if (res.ok) {
       shared.bills = res.data;
       shared.syncError = null;
+      shared.ready = true;
     } else {
+      /* Una carga que falló no publica lista vacía ni pisa el último
+       * snapshot. ready queda en false hasta el primer ok. */
       shared.syncError = res.error;
     }
-    shared.ready = true;
     emit(shared);
   });
 

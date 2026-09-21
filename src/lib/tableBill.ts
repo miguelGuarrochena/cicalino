@@ -471,20 +471,15 @@ export const previewPayment = (
     base = Math.min(Math.max(mine - mineCommitted, 0), available);
   } else if (draft.mode === "iguales") {
     parts = Math.max(1, Math.min(50, Math.trunc(draft.parts ?? 1)));
-    if (!lockMode) {
-      const n = totalParts ?? 1;
-      base = Math.min(Math.floor(consumption / n) * parts, available);
+    const remaining = (totalParts ?? 1) - committedParts;
+    if (remaining <= 0) {
+      base = available;
+      parts = 1;
+    } else if (parts >= remaining) {
+      parts = remaining;
+      base = available;
     } else {
-      const remaining = (totalParts ?? 1) - committedParts;
-      if (remaining <= 0) {
-        base = available;
-        parts = 1;
-      } else if (parts >= remaining) {
-        parts = remaining;
-        base = available;
-      } else {
-        base = Math.floor(available / remaining) * parts;
-      }
+      base = Math.floor(available / remaining) * parts;
     }
   } else if (draft.mode === "uno") {
     base = available;
@@ -597,6 +592,9 @@ export const myDefinedPayment = (bill: TableBill, guestId: string): BillPayment 
 
 export const billRequested = (bill: TableBill): boolean =>
   Boolean(bill.session.requestedAt) || bill.session.billState === "solicitada";
+
+export const excessPayments = (bill: TableBill): BillPayment[] =>
+  bill.payments.filter((p) => p.mpStatus === "excedente");
 
 /* ---- Views ------------------------------------------------------------ */
 

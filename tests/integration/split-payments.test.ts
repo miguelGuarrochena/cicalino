@@ -345,4 +345,156 @@ describe.skipIf(!enabled)("Integration — pagos divididos", () => {
       await rechaza(`update public.pedidos set estado = 'cancelado', cancelado_en = now() where id = $1`, [pedido.id]),
     ).toBe(true);
   });
+
+  const definir = (g: { id: string; hash: string }, datos: Record<string, unknown>) =>
+    rpc(`select public.definir_parte_comensal($1, $2, $3) r`, [
+      g.id,
+      g.hash,
+      JSON.stringify({ clave: crypto.randomUUID(), ...datos }),
+    ]);
+
+  it("con la cuenta pedida no se pide ni se suma nadie", async () => {
+    await como("service_role", null);
+    const juan = await unirse("Juan");
+    await pedir(juan, [["Pizza", 1]]);
+    const parte = await definir(juan, { modo: "consumo", metodo: "efectivo" });
+    expect(parte.ok).toBe(true);
+    expect((await rpc(`select public.pedir_cuenta_comensal($1, $2) r`, [juan.id, juan.hash])).ok).toBe(
+      true,
+    );
+    expect((await pedir(juan, [["Agua", 1]])).reason).toBe("cuenta-solicitada");
+    const maria = await unirse("María");
+    expect(maria.r.reason).toBe("cuenta-solicitada");
+  });
+
+  it("partes iguales definidas: la última cierra el resto", async () => {
+    await como("service_role", null);
+    const a = await unirse("Ana");
+    const b = await unirse("Beto");
+    const c = await unirse("Caro");
+    await pedir(a, [["Pizza", 1], ["Coca-Cola", 1]]);
+    await pedir(b, [["Agua", 1]]);
+    const p1 = await definir(a, {
+      modo: "iguales",
+      metodo: "efectivo",
+      partes: 1,
+      partes_totales: 3,
+    });
+    expect(p1.monto_base).toBe(Math.floor(19000 / 3));
+    await definir(b, { modo: "iguales", metodo: "efectivo", partes: 1, partes_totales: 3 });
+    const p3 = await definir(c, {
+      modo: "iguales",
+      metodo: "efectivo",
+      partes: 1,
+      partes_totales: 3,
+    });
+    expect(Number(p1.monto_base) * 2 + Number(p3.monto_base)).toBe(19000);
+  });
+
+  it("Mercado Pago cancelado o sesión pagada no cubre: queda excedente", async () => {
+    await comoBase();
+    await sql(
+      `insert into public.mp_cuentas (local_id, mp_user_id, access_token_cifrado, refresh_token_cifrado, expira_en)
+       values ($1, '1', 'x', 'y', now() + interval '90 days')`,
+      [local],
+    );
+    await sql(`update public.local_cobros set acepta_mercado_pago = true where local_id = $1`, [local]);
+
+    await como("service_role", null);
+    const j = await unirse("Juan");
+    await pedir(j, [["Hamburguesa", 1]]);
+    const p = await pagar(j, { modo: "uno", metodo: "mercado_pago" });
+    expect(p.estado).toBe("pendiente");
+    await sql(`select public.mp_cancelar_pago($1, 'test')`, [p.pago_id]);
+
+    const tarde = await rpc(
+      `select public.mp_confirmar_pago($1, $2, '99', 'approved', 10000, 'ARS') r`,
+      [local, p.pago_id],
+    );
+    expect(tarde).toMatchObject({ ok: true, excedente: true });
+    const row = await uno<{ estado: string; mp_estado: string }>(
+      `select estado, mp_estado from public.pagos_mesa where id = $1`,
+      [p.pago_id],
+    );
+    expect(row.estado).toBe("cancelado");
+    expect(row.mp_estado).toBe("excedente");
+    const sesion = await uno<{ estado: string }>(
+      `select estado from public.mesa_sesiones where id = $1`,
+      [j.sesion],
+    );
+    expect(sesion.estado).toBe("abierta");
+  });
+
+  it("preference fallida revierte el pago total", async () => {
+    await como("service_role", null);
+    const j = await unirse("Juan");
+    await pedir(j, [["Hamburguesa", 1]]);
+    const p = await rpc(`select public.pagar_todo_comensal($1, $2, $3) r`, [
+      j.id,
+      j.hash,
+      JSON.stringify({ metodo: "efectivo", clave: crypto.randomUUID() }),
+    ]);
+    expect(p.ok).toBe(true);
+    await comoBase();
+    await sql(
+      `update public.pagos_mesa set metodo = 'mercado_pago', estado = 'pendiente' where id = $1`,
+      [p.pago_id],
+    );
+    await como("service_role", null);
+    const rev = await rpc(`select public.revertir_solicitud_mp($1) r`, [p.pago_id]);
+    expect(rev.ok).toBe(true);
+    const s = await uno<{ cuenta_solicitada_en: string | null; estado: string }>(
+      `select cuenta_solicitada_en, estado from public.mesa_sesiones where id = $1`,
+      [j.sesion],
+    );
+    expect(s.cuenta_solicitada_en).toBeNull();
+    const g = await uno<{ estado: string }>(`select estado from public.pagos_mesa where id = $1`, [
+      p.pago_id,
+    ]);
+    expect(g.estado).toBe("cancelado");
+  });
+
+  it("mesa pagada sigue ocupada y anular el cobro manual la reabre", async () => {
+    await como("service_role", null);
+    const j = await unirse("Juan");
+    await pedir(j, [["Hamburguesa", 1]]);
+    const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
+    await como("authenticated", admin);
+    expect((await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id])).ok).toBe(true);
+    let sesion = await uno<{ estado: string }>(
+      `select estado from public.mesa_sesiones where id = $1`,
+      [j.sesion],
+    );
+    expect(sesion.estado).toBe("pagada");
+    await como("service_role", null);
+    expect((await unirse("María")).r.reason).toBe("mesa-ocupada");
+    await como("authenticated", admin);
+    expect(
+      (await rpc(`select public.cancelar_pago_mesa($1, $2) r`, [p.pago_id, "cobro mal anotado"])).ok,
+    ).toBe(true);
+    sesion = await uno<{ estado: string }>(
+      `select estado from public.mesa_sesiones where id = $1`,
+      [j.sesion],
+    );
+    expect(sesion.estado).toBe("abierta");
+  });
+
+  it("cerrar la jornada cancela definido y cierra la sesión", async () => {
+    await como("service_role", null);
+    const j = await unirse("Juan");
+    await pedir(j, [["Hamburguesa", 1]]);
+    const parte = await definir(j, { modo: "consumo", metodo: "efectivo" });
+    expect(parte.estado).toBe("definido");
+    await comoBase();
+    await sql(`select public._cerrar_sesion_jornada($1)`, [j.sesion]);
+    const s = await uno<{ estado: string; cerrada_motivo: string | null }>(
+      `select estado, cerrada_motivo from public.mesa_sesiones where id = $1`,
+      [j.sesion],
+    );
+    expect(s).toMatchObject({ estado: "cerrada", cerrada_motivo: "jornada-cerrada" });
+    const g = await uno<{ estado: string }>(`select estado from public.pagos_mesa where id = $1`, [
+      parte.pago_id,
+    ]);
+    expect(g.estado).toBe("cancelado");
+  });
 });

@@ -1249,6 +1249,7 @@ const dict = {
         pagado: "Pagado",
         cancelado: "Cancelado",
         verificandoMp: "Esperando a Mercado Pago",
+        excedente: "Cobro de más",
       },
       estadoPedido: {
         creado: "Por anotar",
@@ -1266,6 +1267,7 @@ const dict = {
         "no-guest": "Tu sesión en la mesa venció. Volvé a entrar.",
         "comensal-invalido": "Tu sesión en la mesa venció. Volvé a entrar.",
         "mesa-cerrada": "Esta mesa ya está cerrada.",
+        "mesa-ocupada": "Esta mesa sigue ocupada. Pedile al personal que la cierre.",
         "cuenta-solicitada": "La cuenta ya se pidió. No se puede cambiar.",
         "falta-definir": "Todavía falta cubrir el total para pedir la cuenta.",
         "modo-bloqueado": "La mesa ya está pagando de otra forma.",
@@ -1290,6 +1292,7 @@ const dict = {
         "db-error": "Algo salió mal. Probá de nuevo.",
         "pagos-exceden": "Ese pedido ya está cubierto por un pago. Pedile al personal.",
         "ya-anotado": "El local ya lo anotó. Pedile al mozo si querés cambiarlo.",
+        "flujo-cuenta": "Este cobro ya no se usa. Pedí la cuenta desde la mesa.",
       },
     },
     mesas: {
@@ -3068,6 +3071,7 @@ const dict = {
         pagado: "Paid",
         cancelado: "Cancelled",
         verificandoMp: "Waiting for Mercado Pago",
+        excedente: "Overpaid",
       },
       estadoPedido: {
         creado: "To note",
@@ -3085,6 +3089,7 @@ const dict = {
         "no-guest": "Your table session expired. Join again.",
         "comensal-invalido": "Your table session expired. Join again.",
         "mesa-cerrada": "This table is already closed.",
+        "mesa-ocupada": "This table is still occupied. Ask staff to close it.",
         "cuenta-solicitada": "The bill was already requested. It can't be changed.",
         "falta-definir": "The total still isn't covered, so you can't ask for the bill yet.",
         "modo-bloqueado": "The table is already paying another way.",
@@ -3109,6 +3114,7 @@ const dict = {
         "db-error": "Something went wrong. Try again.",
         "pagos-exceden": "A payment already covers that order. Ask the staff.",
         "ya-anotado": "Staff already noted it. Ask your waiter if you want to change it.",
+        "flujo-cuenta": "This payment path is no longer used. Request the bill from the table.",
       },
     },
     mesas: {
