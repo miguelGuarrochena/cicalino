@@ -3,6 +3,9 @@
 import { useApp } from "@/components/providers/Providers";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
+import { InformativeQrCard } from "@/components/panel/mesas/InformativeQrCard";
+import { printAccentFor } from "@/lib/qrInformativo";
+import { useConfigStore } from "@/lib/store/config-store";
 
 export type QrDownloadKind = "solo" | "marco";
 
@@ -24,6 +27,9 @@ export const QrDownloadModal = ({
   onClose: () => void;
 }) => {
   const { t } = useApp();
+  const colorMarca = useConfigStore((s) => s.colorMarca);
+  const accent = printAccentFor(colorMarca);
+
   return (
     <ModalShell
       onClose={onClose}
@@ -49,8 +55,8 @@ export const QrDownloadModal = ({
         />
       </div>
 
-      {/* Title first so both labels share a row. The framed preview is taller;
-          if the copy sits under it, "Solo QR" drops to the bottom of the card. */}
+      {/* Title first so both labels share a row. The informative preview is
+          wider; if the copy sits under it, "Solo QR" drops to the bottom. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
         <button
           type="button"
@@ -82,18 +88,13 @@ export const QrDownloadModal = ({
           <span className="mt-0.5 text-sm text-carbon/55">
             {t("mesasQr.descargarMarcoHint")}
           </span>
-          <div className="mt-3 flex aspect-[3/4] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-400 bg-white px-3 py-3 text-center">
-            <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-gray-500">
-              {venue}
-            </p>
-            <p className="font-display text-base uppercase text-[#1b29b0]">
-              {tableLabel}
-            </p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewSrc} alt="" className="mt-1 w-[72%]" />
-            <p className="mt-1 line-clamp-2 text-[9px] font-medium text-gray-500">
-              {t("mesasQr.instruccion")}
-            </p>
+          <div className="mt-3 aspect-[180/102] overflow-hidden rounded-2xl bg-white ring-1 ring-linea">
+            <InformativeQrCard
+              qrSrc={previewSrc}
+              venue={venue}
+              tableLabel={tableLabel}
+              accent={accent}
+            />
           </div>
         </button>
       </div>
