@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent } from "react";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { watchChannel } from "@/lib/realtime";
 
@@ -8,8 +8,7 @@ import { watchChannel } from "@/lib/realtime";
  * asks the client to reload when someone else writes. Polling remains the
  * floor if the subscription drops. */
 export const useTableBillLive = (sessionId: string | null, onChange: () => void) => {
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  const notify = useEffectEvent(() => onChange());
 
   useEffect(() => {
     if (!sessionId) return;
@@ -27,7 +26,7 @@ export const useTableBillLive = (sessionId: string | null, onChange: () => void)
       channel = supabase
         .channel(`mesa-cuenta:${sessionId}`, { config: { private: false } })
         .on("broadcast", { event: "cambio" }, () => {
-          onChangeRef.current();
+          notify();
         });
       watcher = watchChannel(channel, connect);
     };
