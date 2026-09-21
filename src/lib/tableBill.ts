@@ -593,8 +593,12 @@ export const myDefinedPayment = (bill: TableBill, guestId: string): BillPayment 
 export const billRequested = (bill: TableBill): boolean =>
   Boolean(bill.session.requestedAt) || bill.session.billState === "solicitada";
 
+/* Plata de Mercado Pago que no cubrió la cuenta: no suma al consumo pagado
+ * y el encargado la ve en Cobrar. `duplicado` queda en mesa_eventos. */
+const MP_RECONCILE = new Set(["excedente", "monto-inconsistente"]);
+
 export const excessPayments = (bill: TableBill): BillPayment[] =>
-  bill.payments.filter((p) => p.mpStatus === "excedente");
+  bill.payments.filter((p) => p.mpStatus != null && MP_RECONCILE.has(p.mpStatus));
 
 /* ---- Views ------------------------------------------------------------ */
 

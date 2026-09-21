@@ -188,38 +188,28 @@ const MesasPage = () => {
   /* Mesas mueve el pedido a dos lugares y nada más: "ya lo anoté" (pasa a la
    * comanda del local) o "cancelado". Listo/entregado no viven acá: si Mesas
    * también los gestionara, el mismo pedido tendría dos dueños. */
-  /* Pintar y después mandar. El `reload` del final reconcilia en las dos
-   * ramas, así que un UPDATE que no entró vuelve solo a como estaba. */
   const moveRows = async (
     row: FloorTable,
     orders: FloorTable["newOrders"],
     to: "en_preparacion" | "cancelado",
   ) => {
     setKitchenBusy(row.key);
-    const ids = new Set(orders.map((o) => o.id));
-    if (branchId) {
-      patchTableBills(branchId, (bills) =>
-        bills.map((b) => ({
-          ...b,
-          orders: b.orders.map((o) =>
-            ids.has(o.id) ? { ...o, status: to } : o,
-          ),
-        })),
-      );
-    }
-    let ok = true;
+    let fallo: string | undefined;
     for (const o of orders) {
       const done = await updateOrderStatus(o.id, to);
-      if (!done) ok = false;
+      if (!done.ok) {
+        fallo = done.reason;
+        break;
+      }
     }
     setKitchenBusy(null);
-    if (ok) {
-      toast(t(`mesas.pedidoMovido.${to}`), "success");
-      reload();
-    } else {
-      toast(t("mesas.error.error"), "error");
-      reload();
+    if (!fallo) toast(t(`mesas.pedidoMovido.${to}`), "success");
+    else {
+      const key = `mesas.error.${fallo}`;
+      const txt = t(key);
+      toast(txt === key ? t("mesas.error.error") : txt, "error");
     }
+    reload();
   };
 
   if (!branchReady || !visibles.pagos) {

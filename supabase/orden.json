@@ -86,5 +86,6 @@
   "jornada-cerrado-corta.sql",
   "mesa-cuenta-enum.sql",
   "mesa-cuenta-compartida.sql",
-  "mesa-launch-blockers.sql"
+  "mesa-launch-blockers.sql",
+  "staff-empleado-cobro.sql"
 ]

@@ -29,10 +29,15 @@ el celular que el cliente ya tiene.
   - Pack (ambos): **$25.000** ARS / mes
 - **Unidad de cobro:** la **organización (empresa)**. Paga `cupo × precio del pack contratado`.
 - **Unidad operativa:** la **sucursal** (mostrador, pedidos / espera, personal).
-- **Cobro actual:** contacto (email / WhatsApp). Sin pasarela por ahora —
-  evita comisiones y fricción de onboarding.
-- **Gratis para el cliente final** (nunca paga ni se registra).
-- Mercado Pago queda como opción futura, no prioridad.
+- **Cobro actual (Cicalino → local):** contacto (email / WhatsApp). Sin
+  pasarela de suscripción por ahora — evita comisiones y fricción de
+  onboarding.
+- **Gratis para el cliente final** de Cicalino (nunca paga ni se registra
+  en la app).
+- **Cobro en mesa (comensal → local):** Mercado Pago está implementado. El
+  dueño conecta la cuenta del local con OAuth; las notificaciones llegan
+  por webhook firmado. El panel no marca un pago como cobrado por la URL
+  de retorno.
 
 ## Competencia (ya investigado)
 
@@ -64,7 +69,7 @@ hardware y sin obligar al local a migrar todo su sistema de gestión.
 
 ## Roadmap (alto nivel)
 
-1. **Hecho:** panel, cliente QR, auth Supabase, superadmin, demo, security SQL.
+1. **Hecho:** panel, cliente QR, auth Supabase, superadmin, demo, security SQL,
+   Mercado Pago en mesa (OAuth + webhook).
 2. Pulir métricas globales y experiencia push en iOS.
-3. Evaluar pasarela de pago (Mercado Pago) si el volumen lo justifica.
-4. Evaluar expansión a España.
+3. Evaluar expansión a España.

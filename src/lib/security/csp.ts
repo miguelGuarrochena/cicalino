@@ -1,6 +1,5 @@
 
-const supabaseHost = (): string => {
-  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const hostOf = (raw: string | undefined): string => {
   if (!raw) return "";
   try {
     return new URL(raw).host;
@@ -8,6 +7,12 @@ const supabaseHost = (): string => {
     return "";
   }
 };
+
+const supabaseHost = (): string => hostOf(process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+/* El SDK del navegador habla con el host del DSN. Sin esto, CSP_ENFORCE=1
+ * bloquearía los reportes; la app sigue, Sentry no. */
+const sentryHost = (): string => hostOf(process.env.NEXT_PUBLIC_SENTRY_DSN);
 
 /* Rutas que Next renderiza en cada request.
  *
@@ -42,10 +47,12 @@ export const buildCsp = (
   pathname = "",
 ): string => {
   const sb = supabaseHost();
+  const sentry = sentryHost();
   const conexiones = [
     "'self'",
     sb ? `https://${sb}` : "",
     sb ? `wss://${sb}` : "",
+    sentry ? `https://${sentry}` : "",
     "https://challenges.cloudflare.com",
     "https://vitals.vercel-insights.com",
   ].filter(Boolean);

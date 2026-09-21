@@ -150,8 +150,8 @@ export const TableDetail = ({
     run(
       o.id,
       async () => {
-        const ok = await updateOrderStatus(o.id, to);
-        return ok ? { ok } : { ok, reason: to === "cancelado" ? "pagos-exceden" : "error" };
+        const res = await updateOrderStatus(o.id, to);
+        return res.ok ? { ok: true } : { ok: false, reason: res.reason };
       },
       t(`mesas.pedidoMovido.${to}`),
     );

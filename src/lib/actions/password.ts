@@ -68,8 +68,12 @@ export const requestPasswordReset = async (
   const mail = v.data;
 
   const ip = await clientIp();
-  const porCuenta = await sharedRateLimit(`reset:mail:${mail}`, 3, 15 * 60_000);
-  const porIp = await sharedRateLimit(`reset:ip:${ip}`, 10, 15 * 60_000);
+  const porCuenta = await sharedRateLimit(`reset:mail:${mail}`, 3, 15 * 60_000, {
+    failClosed: true,
+  });
+  const porIp = await sharedRateLimit(`reset:ip:${ip}`, 10, 15 * 60_000, {
+    failClosed: true,
+  });
   if (!porCuenta.ok || !porIp.ok) return { ok: false, reason: "rate-limited" };
 
   const admin = createAdminSupabase();
@@ -133,8 +137,11 @@ export const resetPassword = async (
     `reset-otp:${t.data.slice(0, 24)}`,
     5,
     15 * 60_000,
+    { failClosed: true },
   );
-  const porIp = await sharedRateLimit(`reset-otp:ip:${ip}`, 20, 15 * 60_000);
+  const porIp = await sharedRateLimit(`reset-otp:ip:${ip}`, 20, 15 * 60_000, {
+    failClosed: true,
+  });
   if (!porToken.ok || !porIp.ok) return { ok: false, reason: "rate-limited" };
 
   const supabase = await createServerSupabase();

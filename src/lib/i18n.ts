@@ -1250,6 +1250,7 @@ const dict = {
         cancelado: "Cancelado",
         verificandoMp: "Esperando a Mercado Pago",
         excedente: "Cobro de más",
+        "monto-inconsistente": "Monto distinto: revisar",
       },
       estadoPedido: {
         creado: "Por anotar",
@@ -1533,6 +1534,7 @@ const dict = {
         permiso: "No tenés permiso o la suscripción está vencida.",
         "pagos-pendientes": "Hay pagos pendientes: confirmalos o cancelalos antes de cerrar la mesa.",
         "pagos-exceden": "Ese pedido ya está cubierto por pagos. Cancelá un pago primero.",
+        "ya-anotado": "El pedido ya cambió en otra pantalla. Recargá.",
         "motivo-requerido": "Contá el motivo.",
         "mesa-cerrada": "La mesa ya está cerrada.",
         "mp-solo-webhook": "Los pagos de Mercado Pago se confirman solos con el aviso de Mercado Pago.",
@@ -3072,6 +3074,7 @@ const dict = {
         cancelado: "Cancelled",
         verificandoMp: "Waiting for Mercado Pago",
         excedente: "Overpaid",
+        "monto-inconsistente": "Different amount: check",
       },
       estadoPedido: {
         creado: "To note",
@@ -3337,6 +3340,7 @@ const dict = {
         permiso: "You don't have permission or the subscription expired.",
         "pagos-pendientes": "There are pending payments: confirm or cancel them before closing the table.",
         "pagos-exceden": "Payments already cover that order. Cancel a payment first.",
+        "ya-anotado": "The order already changed on another screen. Reload.",
         "motivo-requerido": "Give a reason.",
         "mesa-cerrada": "The table is already closed.",
         "mp-solo-webhook": "Mercado Pago payments confirm themselves with Mercado Pago's notice.",

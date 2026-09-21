@@ -6,6 +6,8 @@ import {
   parseSignatureHeader,
   signatureManifest,
   verifyMercadoPagoSignature,
+  mercadoPagoTimestampFresh,
+  MAX_MP_SIGNATURE_AGE_SEC,
 } from "@/lib/mpSignature";
 import {
   guestOrderSchema,
@@ -34,6 +36,7 @@ const uuid = () => crypto.randomUUID();
 
 describe("Mercado Pago — firma del webhook", () => {
   const secret = "test-secret";
+  const nowSec = 1_704_908_010;
   const sign = (manifest: string) =>
     crypto.createHmac("sha256", secret).update(manifest).digest("hex");
 
@@ -45,18 +48,44 @@ describe("Mercado Pago — firma del webhook", () => {
         requestId: "req-1",
         dataId: "123456",
         secret,
+        nowSec,
       }),
     ).toBe(true);
   });
 
   it("rechaza otro id, otro secreto o una firma mal formada", () => {
     const v1 = sign("id:123456;request-id:req-1;ts:1704908010;");
-    const base = { header: `ts=1704908010,v1=${v1}`, requestId: "req-1", dataId: "123456", secret };
+    const base = {
+      header: `ts=1704908010,v1=${v1}`,
+      requestId: "req-1",
+      dataId: "123456",
+      secret,
+      nowSec,
+    };
     expect(verifyMercadoPagoSignature({ ...base, dataId: "999" })).toBe(false);
     expect(verifyMercadoPagoSignature({ ...base, secret: "otro" })).toBe(false);
     expect(verifyMercadoPagoSignature({ ...base, header: "ts=1,v1=zz" })).toBe(false);
     expect(verifyMercadoPagoSignature({ ...base, header: null })).toBe(false);
     expect(verifyMercadoPagoSignature({ ...base, secret: "" })).toBe(false);
+  });
+
+  it("rechaza un ts viejo o a futuro, y acepta uno dentro de la ventana", () => {
+    expect(mercadoPagoTimestampFresh(String(nowSec), nowSec)).toBe(true);
+    expect(
+      mercadoPagoTimestampFresh(String(nowSec - MAX_MP_SIGNATURE_AGE_SEC - 1), nowSec),
+    ).toBe(false);
+    expect(mercadoPagoTimestampFresh(String(nowSec + 10 * 60), nowSec)).toBe(false);
+    const stale = nowSec - MAX_MP_SIGNATURE_AGE_SEC - 1;
+    const v1 = sign(`id:123456;request-id:req-1;ts:${stale};`);
+    expect(
+      verifyMercadoPagoSignature({
+        header: `ts=${stale},v1=${v1}`,
+        requestId: "req-1",
+        dataId: "123456",
+        secret,
+        nowSec,
+      }),
+    ).toBe(false);
   });
 
   it("la ruta firma con el id del cuerpo cuando la URL no lo trae", () => {

@@ -7,6 +7,7 @@ import {
   paymentsByPayer,
   billPending,
   billStatus,
+  excessPayments,
   previewPayment,
   previewGuestShare,
   parsePartCount,
@@ -392,6 +393,20 @@ describe("semáforo de cobros", () => {
   it("lo pendiente incluye propinas ya sumadas a los pagos", () => {
     expect(billPending(withTotals({ total: 31050, paid: 13200 }))).toBe(17850);
     expect(billPending(withTotals({ total: 100, paid: 200 }))).toBe(0);
+  });
+
+  it("conciliación MP: excedente y monto-inconsistente, no un pagado normal", () => {
+    const bill = mkBill({}, [
+      payment({ id: "ok", status: "pagado", method: "mercado_pago", mpStatus: "approved" }),
+      payment({ id: "ex", status: "cancelado", method: "mercado_pago", mpStatus: "excedente" }),
+      payment({
+        id: "mi",
+        status: "pendiente",
+        method: "mercado_pago",
+        mpStatus: "monto-inconsistente",
+      }),
+    ]);
+    expect(excessPayments(bill).map((p) => p.id).sort()).toEqual(["ex", "mi"]);
   });
 });
 

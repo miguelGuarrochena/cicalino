@@ -20,10 +20,12 @@ const funcion = (nombre: string): string => {
 };
 
 describe("mesa-launch-blockers — SQL", () => {
-  it("queda al final de orden.json y el chequeo lo registra", () => {
-    expect(orden.at(-1)).toBe("mesa-launch-blockers.sql");
+  it("queda después de mesa-cuenta-compartida y el chequeo lo registra", () => {
     expect(orden.indexOf("mesa-cuenta-compartida.sql")).toBeLessThan(
       orden.indexOf("mesa-launch-blockers.sql"),
+    );
+    expect(orden.indexOf("mesa-launch-blockers.sql")).toBeLessThan(
+      orden.indexOf("staff-empleado-cobro.sql"),
     );
     expect(chequeo).toContain(
       "('mesa-launch-blockers.sql', 'function', 'revertir_solicitud_mp', 87)",

@@ -36,8 +36,12 @@ export const signIn = async (
   const hdrs = await headers();
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || "sin-ip";
   const cuenta = email.trim().toLowerCase();
-  const porCuenta = await sharedRateLimit(`login:mail:${cuenta}`, 8, 10 * 60_000);
-  const porIp = await sharedRateLimit(`login:ip:${ip}`, 30, 10 * 60_000);
+  const porCuenta = await sharedRateLimit(`login:mail:${cuenta}`, 8, 10 * 60_000, {
+    failClosed: true,
+  });
+  const porIp = await sharedRateLimit(`login:ip:${ip}`, 30, 10 * 60_000, {
+    failClosed: true,
+  });
   if (!porCuenta.ok || !porIp.ok) {
     return {
       ok: false,
@@ -122,8 +126,11 @@ export const verifyPasswordDueño = async (
     `reauth:mail:${perfil.email.toLowerCase()}`,
     6,
     10 * 60_000,
+    { failClosed: true },
   );
-  const porIp = await sharedRateLimit(`reauth:ip:${ip}`, 20, 10 * 60_000);
+  const porIp = await sharedRateLimit(`reauth:ip:${ip}`, 20, 10 * 60_000, {
+    failClosed: true,
+  });
   if (!porCuenta.ok || !porIp.ok) {
     return {
       ok: false,

@@ -38,8 +38,9 @@ export const verifyEmployeePinAction = async (
     `pin:u:${perfil.id}:${v.data.employeeId}`,
     10,
     60_000,
+    { failClosed: true },
   );
-  const porIp = await sharedRateLimit(`pin:ip:${ip}`, 30, 60_000);
+  const porIp = await sharedRateLimit(`pin:ip:${ip}`, 30, 60_000, { failClosed: true });
   if (!porUser.ok || !porIp.ok) return null;
 
   const supabase = await createServerSupabase();

@@ -5,10 +5,15 @@ import { webpush, vapidConfigured } from "@/lib/push/server";
 import { parseInput, pushNotifySchema } from "@/lib/schemas";
 import { sharedRateLimit } from "@/lib/security/rateLimitShared";
 import { clientIp } from "@/lib/security/ip";
+import { sameOrigin } from "@/lib/server/tableGuest";
 
 export const dynamic = "force-dynamic";
 
 export const POST = async (req: Request) => {
+  if (!sameOrigin(req)) {
+    return NextResponse.json({ ok: false, reason: "origin" }, { status: 403 });
+  }
+
   const v = parseInput(pushNotifySchema, await req.json().catch(() => null));
   if (!v.ok) {
     return NextResponse.json({ ok: false, reason: "bad-request" }, { status: 400 });

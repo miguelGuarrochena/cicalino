@@ -98,14 +98,15 @@ describe("floorStatus — cocina primero, después caja", () => {
     );
   });
 
-  it("listo gana sobre preparando", () => {
+  it("listo y preparando no son estados de Mesas", () => {
     expect(
       floorStatus(
         mkBill({
           orders: [order({ id: "a", status: "en_preparacion" }), order({ id: "b", status: "listo" })],
+          totals: { ...mkBill().totals, uncovered: 20000, paidBase: 0 },
         }),
       ),
-    ).toBe("listo");
+    ).toBe("pendiente");
   });
 
   it("comida entregada y sin pagar es consumiendo", () => {
