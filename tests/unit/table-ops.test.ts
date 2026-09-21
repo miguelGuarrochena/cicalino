@@ -98,14 +98,15 @@ describe("floorStatus — cocina primero, después caja", () => {
     );
   });
 
-  it("listo gana sobre preparando", () => {
+  it("listo y preparando no son estados de Mesas", () => {
     expect(
       floorStatus(
         mkBill({
           orders: [order({ id: "a", status: "en_preparacion" }), order({ id: "b", status: "listo" })],
+          totals: { ...mkBill().totals, uncovered: 20000, paidBase: 0 },
         }),
       ),
-    ).toBe("listo");
+    ).toBe("pendiente");
   });
 
   it("comida entregada y sin pagar es consumiendo", () => {
@@ -248,6 +249,23 @@ describe("buildFloor", () => {
     const list = [byN.get(4)!, byN.get(2)!, byN.get(5)!];
     expect(nextChargeAfter(list, "s5")?.tableNumber).toBe(4);
     expect(nextChargeAfter(list, "s4")?.tableNumber).toBe(2);
+  });
+
+  it("una mesa pagada sigue ocupada: no queda libre ni abre sesión nueva", () => {
+    const paid = mkBill({
+      session: { ...mkBill().session, status: "pagada", paidAt: "2026-09-16T21:00:00Z" },
+      orders: [order({ status: "retirado" })],
+      totals: {
+        ...mkBill().totals,
+        paid: 20000,
+        paidBase: 20000,
+        uncovered: 0,
+        available: 0,
+      },
+    });
+    const floor = buildFloor([{ id: "m8", number: 8, qrToken: "t8", qrActive: true }], [paid]);
+    expect(floor[0]?.status).toBe("pagada");
+    expect(floor[0]?.bill?.session.id).toBe("s1");
   });
 });
 

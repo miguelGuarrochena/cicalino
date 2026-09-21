@@ -227,14 +227,15 @@ describe("Tablero global — publicar, ver y dar por visto", () => {
     expect(getLiveAlertCounts().pedidos).toBe(0);
   });
 
-  it("lo de Mesas se marca visto en el store de Mesas, no en dos lugares", () => {
+  it("cerrar el dock no marca la mesa como atendida", () => {
     const alerts = alertaMesaLlamando();
     publishPanelAlerts("mesas", alerts);
     ackPanelAlerts(alerts);
+    expect(getLiveAlerts()).toEqual([]);
     const { seen } = getFloorAttentionState();
-    expect([...seen.cardCalls]).toEqual(["s1"]);
-    expect([...seen.cardOrders]).toEqual(["o1"]);
-    expect([...seen.cardPayments]).toEqual(["pay1"]);
+    expect([...seen.cardCalls]).toEqual([]);
+    expect([...seen.cardOrders]).toEqual([]);
+    expect([...seen.cardPayments]).toEqual([]);
   });
 
   it("entrar a la sección cuenta como haberla mirado", () => {
@@ -344,6 +345,10 @@ describe("Cableado: una sola capa, montada en el layout", () => {
     /* El sonido quedó en un solo lugar. */
     expect(hook).not.toContain("dingNew");
     expect(read("src/lib/hooks/usePanelAlerts.ts")).toContain("dingNew");
+    expect(read("src/lib/hooks/usePanelAlerts.ts")).toContain("sourceReady.mesas");
+    /* Una carga que falló no publica lista vacía. */
+    expect(hook).toMatch(/if \(!ready\) return;/);
+    expect(hook).not.toContain('ready ? mesaAlerts(bills, attention) : []');
   });
 
   it("el aviso global se ve sin bloquear y late fuerte", () => {
@@ -584,12 +589,15 @@ describe("Cobro de Mercado Pago confirmado", () => {
     const alerts = mesaAlerts([b], floorAttention([b], emptyAttentionSeen(), null));
     publishPanelAlerts("mesas", alerts);
     ackPanelAlerts(alerts);
+    expect(getLiveAlerts()).toEqual([]);
     const { seen } = getFloorAttentionState();
-    expect([...seen.navMp]).toEqual(["mp1"]);
+    expect([...seen.navMp]).toEqual([]);
     expect([...seen.cardOrders]).toEqual([]);
     expect([...seen.cardCalls]).toEqual([]);
-    /* Visto una vez, no vuelve a gritar. */
-    expect(mesaAlerts([b], floorAttention([b], seen, null))).toEqual([]);
+    /* El dock se calló; la mesa no quedó atendida. */
+    expect(mesaAlerts([b], floorAttention([b], seen, null)).map((a) => a.kind)).toEqual([
+      "mp-pagado",
+    ]);
   });
 
   it("no se pierde: el que llama gana, pero el cobro sigue en la cola", () => {
@@ -688,8 +696,8 @@ describe("Cerrar mesa accesible", () => {
     const detail = read("src/components/panel/mesas/TableDetail.tsx");
     expect(page).toContain("CloseTableModal");
     expect(page).toContain("onCloseTable");
-    /* Solo con la mesa abierta, y el modal vive una sola vez, en la página. */
-    expect(detail).toContain("{open && onCloseTable && (");
+    /* Abierta o pagada: hay que cerrar explícitamente. El modal vive una sola vez, en la página. */
+    expect(detail).toContain("{live && onCloseTable && (");
     expect(detail).not.toContain("CloseTableModal");
   });
 
@@ -704,6 +712,7 @@ describe("Cerrar mesa accesible", () => {
     expect(fn).toContain("auth_gestiona_local");
     expect(fn).toContain("repetido");
     /* UI: el modal sigue bloqueando el envío y explicando por qué. */
+    expect(modal).toContain("p.status === \"pendiente\" || p.status === \"definido\"");
     expect(modal).toContain("pending || (uncovered > 0 && !reason.trim())");
     expect(modal).toContain("mesas.error.pagos-pendientes");
   });

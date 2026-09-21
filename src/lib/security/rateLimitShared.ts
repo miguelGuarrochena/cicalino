@@ -6,10 +6,10 @@ const TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 export const distributedRateLimit = Boolean(URL_BASE && TOKEN);
 
-/* En Vercel production el rate limit ideal es global (Upstash). Sin Redis cada
- * instancia tiene su propio Map. Aun así NUNCA denegamos todo el tráfico:
- * fallar cerrado dejó a clientes sin poll ni push ("demasiados intentos" al
- * primer click). Preferimos cupo por instancia + log fuerte. */
+/* En Vercel production el rate limit tiene que ser global (Upstash). Un Map
+ * por instancia no cuenta: hay N lambdas. Los polls del comensal siguen
+ * fail-open (memoria) para no tumbar el QR si Redis falta. PIN, login, reset
+ * y otras acciones sensibles pasan `{ failClosed: true }` y se niegan. */
 export const requiresDistributedRateLimit = (): boolean =>
   process.env.VERCEL_ENV === "production" ||
   process.env.RATE_LIMIT_REQUIRE_UPSTASH === "1";
@@ -36,42 +36,58 @@ const ejecutar = async (comandos: Pipeline): Promise<unknown[] | null> => {
   }
 };
 
+const cerrado = (): RateResult => ({ ok: false, retryAfter: 60 });
+
 export const sharedRateLimit = async (
   key: string,
   limit: number,
   windowMs: number,
+  opts?: { failClosed?: boolean },
 ): Promise<RateResult> => {
   const exigeRedis = requiresDistributedRateLimit();
+  const failClosed = Boolean(opts?.failClosed);
 
-  if (exigeRedis && !distributedRateLimit) {
+  if (distributedRateLimit) {
+    const ttl = Math.ceil(windowMs / 1000);
+    const clave = `rl:${key}`;
+    const r = await ejecutar([
+      ["INCR", clave],
+      ["EXPIRE", clave, String(ttl), "NX"],
+      ["TTL", clave],
+    ]);
+
+    if (!r) {
+      if (failClosed && exigeRedis) {
+        console.error(
+          "sharedRateLimit: Upstash no respondió — fail-closed",
+        );
+        return cerrado();
+      }
+      console.error(
+        "sharedRateLimit: Upstash no respondió — fallback a límite en memoria",
+      );
+      return rateLimitLocal(key, limit, windowMs);
+    }
+
+    const cuenta = Number(r[0] ?? 0);
+    const restante = Number(r[2] ?? ttl);
+    if (cuenta > limit) {
+      return { ok: false, retryAfter: restante > 0 ? restante : ttl };
+    }
+    return { ok: true, retryAfter: 0 };
+  }
+
+  if (exigeRedis) {
+    if (failClosed) {
+      console.error(
+        "sharedRateLimit: falta UPSTASH_REDIS_REST_URL/TOKEN en producción — fail-closed",
+      );
+      return cerrado();
+    }
     console.error(
       "sharedRateLimit: falta UPSTASH_REDIS_REST_URL/TOKEN en producción — usando límite en memoria",
     );
   }
 
-  const local = rateLimitLocal(key, limit, windowMs);
-  if (!local.ok) return local;
-  if (!distributedRateLimit) return local;
-
-  const ttl = Math.ceil(windowMs / 1000);
-  const clave = `rl:${key}`;
-  const r = await ejecutar([
-    ["INCR", clave],
-    ["EXPIRE", clave, String(ttl), "NX"],
-    ["TTL", clave],
-  ]);
-
-  if (!r) {
-    console.error(
-      "sharedRateLimit: Upstash no respondió — fallback a límite en memoria",
-    );
-    return local;
-  }
-
-  const cuenta = Number(r[0] ?? 0);
-  const restante = Number(r[2] ?? ttl);
-  if (cuenta > limit) {
-    return { ok: false, retryAfter: restante > 0 ? restante : ttl };
-  }
-  return { ok: true, retryAfter: 0 };
+  return rateLimitLocal(key, limit, windowMs);
 };

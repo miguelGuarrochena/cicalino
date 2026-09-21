@@ -35,7 +35,9 @@ export const createLead = async (input: unknown): Promise<Resultado> => {
     return { ok: false, error: "No pudimos verificar que sos humano. Reintentá." };
   }
 
-  const porIp = await sharedRateLimit(`lead:ip:${ip ?? "sin-ip"}`, 5, 60 * 60_000);
+  const porIp = await sharedRateLimit(`lead:ip:${ip ?? "sin-ip"}`, 5, 60 * 60_000, {
+    failClosed: true,
+  });
   if (!porIp.ok) {
     return { ok: false, error: "Ya recibimos tu pedido. Te escribimos en breve." };
   }
@@ -50,7 +52,9 @@ export const createLead = async (input: unknown): Promise<Resultado> => {
   const cuilVal = v.data.cuil && v.data.cuil.length === 11 ? v.data.cuil : null;
   const mail = email.trim().toLowerCase();
 
-  const porMail = await sharedRateLimit(`lead:mail:${mail}`, 3, 24 * 60 * 60_000);
+  const porMail = await sharedRateLimit(`lead:mail:${mail}`, 3, 24 * 60 * 60_000, {
+    failClosed: true,
+  });
   if (!porMail.ok) {
     return {
       ok: false,

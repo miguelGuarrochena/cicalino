@@ -3,6 +3,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { sharedRateLimit } from "@/lib/security/rateLimitShared";
 import { clientIp } from "@/lib/security/ip";
 import { parseInput, pushSubscribeSchema } from "@/lib/schemas";
+import { sameOrigin } from "@/lib/server/tableGuest";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,10 @@ const qrVencido = (qrExpiraEn: string | null | undefined): boolean =>
 export const POST = async (req: Request) => {
   const admin = createAdminSupabase();
   if (!admin) return NextResponse.json({ ok: false, reason: "not-configured" });
+
+  if (!sameOrigin(req)) {
+    return NextResponse.json({ ok: false, reason: "origin" }, { status: 403 });
+  }
 
   const crudo = await req.json().catch(() => null);
   const v = parseInput(pushSubscribeSchema, crudo);

@@ -37,7 +37,17 @@ describe("Low — CSP enforce (opt-in)", () => {
   it("el nonce va en las rutas que lo pueden usar", async () => {
     const { buildCsp } = await import("@/lib/security/csp");
     expect(buildCsp("n1", true, "/p/abc")).toContain("nonce-n1");
+    expect(buildCsp("n1", true, "/m/abc")).toContain("nonce-n1");
     expect(buildCsp("n1", true, "/")).not.toContain("nonce-n1");
+  });
+
+  it("connect-src incluye el host de Sentry cuando hay DSN", async () => {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = "https://abc@o123.ingest.sentry.io/1";
+    vi.resetModules();
+    const { buildCsp } = await import("@/lib/security/csp");
+    expect(buildCsp("n1", true, "/m/abc")).toContain(
+      "https://o123.ingest.sentry.io",
+    );
   });
 });
 
@@ -53,6 +63,7 @@ describe("Low — CSP por ruta (nonce solo donde llega)", () => {
   const dinamicas = [
     "/p/2f1c9b8a-0000-4000-8000-000000000000",
     "/e/2f1c9b8a-0000-4000-8000-000000000000",
+    "/m/2f1c9b8a-0000-4000-8000-000000000000",
     "/aceptar/abcdef0123456789",
     "/admin",
     "/admin/cliente/2f1c9b8a-0000-4000-8000-000000000000",
@@ -121,12 +132,17 @@ describe("Low — CSP por ruta (nonce solo donde llega)", () => {
       ]) {
         expect(csp, `${ruta} → ${d}`).toContain(d);
       }
+      /* Next inyecta estilos inline. El nonce de style-src no está
+       * estampado, así que 'unsafe-inline' acá es a propósito. */
+      expect(csp, ruta).toContain("style-src 'self' 'unsafe-inline'");
     }
   });
 
   it("admiteNonce no se deja confundir por rutas parecidas", async () => {
     const { admiteNonce } = await import("@/lib/security/csp");
     expect(admiteNonce("/p/abc")).toBe(true);
+    expect(admiteNonce("/e/abc")).toBe(true);
+    expect(admiteNonce("/m/abc")).toBe(true);
     expect(admiteNonce("/admin")).toBe(true);
     expect(admiteNonce("/admin/cliente/1")).toBe(true);
     /* Estas empiezan parecido pero son estáticas. */

@@ -25,7 +25,9 @@ export const CloseTableModal = ({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const uncovered = bill.totals.uncovered;
-  const pending = bill.payments.some((p) => p.status === "pendiente");
+  const pending = bill.payments.some(
+    (p) => p.status === "pendiente" || p.status === "definido",
+  );
 
   const submit = async () => {
     setBusy(true);

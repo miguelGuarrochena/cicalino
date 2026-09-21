@@ -298,18 +298,30 @@ export const fetchOrderSeenAt = async (
 export const fetchOrderSeen = async (id: string): Promise<boolean> =>
   Boolean(await fetchOrderSeenAt(id));
 
+export type OrderStatusResult =
+  | { ok: true }
+  | { ok: false; reason: "pagos-exceden" | "ya-anotado" | "error" };
+
+const orderStatusFail = (
+  error: { hint?: string | null; message?: string } | null,
+): OrderStatusResult => {
+  const hint = `${error?.hint ?? ""} ${error?.message ?? ""}`;
+  if (/pagos-exceden/i.test(hint)) return { ok: false, reason: "pagos-exceden" };
+  return { ok: false, reason: "error" };
+};
+
 export const updateOrderStatus = async (
   id: string,
   estado: OrderStatus,
-): Promise<boolean> => {
+): Promise<OrderStatusResult> => {
   const supabase = createBrowserSupabase();
-  if (!supabase) return false;
+  if (!supabase) return { ok: false, reason: "error" };
   const desde = orderTransitionSources(estado);
   if (!desde.length) {
     reportWarning("panel.pedidos.estado", `sin origen válido hacia ${estado}`, {
       orderId: id,
     });
-    return false;
+    return { ok: false, reason: "error" };
   }
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = { estado: estado };
@@ -328,7 +340,7 @@ export const updateOrderStatus = async (
     .select("id");
   if (error) {
     reportError("panel.pedidos.estado", error, { orderId: id });
-    return false;
+    return orderStatusFail(error);
   }
   if (!data?.length) {
     reportWarning(
@@ -336,9 +348,9 @@ export const updateOrderStatus = async (
       `el pedido ${id} ya no estaba en ${desde.join("|")}, no se pasó a ${estado}`,
       { orderId: id },
     );
-    return false;
+    return { ok: false, reason: "ya-anotado" };
   }
-  return true;
+  return { ok: true };
 };
 
 export const subscribeOrders = (

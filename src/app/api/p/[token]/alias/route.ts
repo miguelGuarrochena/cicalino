@@ -3,6 +3,7 @@ import { sharedRateLimit } from "@/lib/security/rateLimitShared";
 import { clientIp } from "@/lib/security/ip";
 import { customerAliasSchema, qrTokenSchema } from "@/lib/schemas";
 import { updateCustomerOrderAlias } from "@/lib/data/customer-order";
+import { sameOrigin } from "@/lib/server/tableGuest";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,16 @@ export const POST = async (
     return NextResponse.json({ ok: false, reason: "not-found" }, { status: 400 });
   }
 
-  const porToken = await sharedRateLimit(`p-alias:${token}`, 8, 60_000);
-  const porIp = await sharedRateLimit(`p-alias:ip:${clientIp(req)}`, 30, 60_000);
+  if (!sameOrigin(req)) {
+    return NextResponse.json({ ok: false, reason: "origin" }, { status: 403 });
+  }
+
+  const porToken = await sharedRateLimit(`p-alias:${token}`, 8, 60_000, {
+    failClosed: true,
+  });
+  const porIp = await sharedRateLimit(`p-alias:ip:${clientIp(req)}`, 30, 60_000, {
+    failClosed: true,
+  });
   if (!porToken.ok || !porIp.ok) {
     const espera = Math.max(porToken.retryAfter, porIp.retryAfter);
     return NextResponse.json(

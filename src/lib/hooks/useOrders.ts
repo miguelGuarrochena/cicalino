@@ -222,14 +222,11 @@ export const useOrders = (
         demoChange(id, status);
         return { ok: true, notify: null };
       }
-      setLiveOrders((cur) =>
-        cur.map((o) => (o.id === id ? { ...o, status: status } : o)),
-      );
       const applied = await updateOrderStatus(id, status);
       /* Recargar siempre: el CAS usa orígenes de DB, no el snapshot de la UI.
-       * Si otra caja ganó, rollback a `desde` mentiría. */
+       * Pintar antes del UPDATE festejaba un cambio que otra caja ya ganó. */
       await reload();
-      if (!applied) return { ok: false, notify: null };
+      if (!applied.ok) return { ok: false, notify: null };
       if (status !== "listo" && status !== "retirado") {
         return { ok: true, notify: null };
       }

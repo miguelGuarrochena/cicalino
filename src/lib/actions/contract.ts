@@ -72,12 +72,14 @@ const rateLimitContract = async (
     `contrato:${action}:ip:${ip}`,
     action === "get" ? 30 : 10,
     60_000,
+    { failClosed: true },
   );
   if (!porIp.ok) return false;
   const porToken = await sharedRateLimit(
     `contrato:${action}:tok:${fingerprint}`,
     action === "get" ? 20 : 5,
     60_000,
+    { failClosed: true },
   );
   return porToken.ok;
 };

@@ -61,6 +61,7 @@ describe("Prod final — security-fixes-15 + hardening", () => {
     expect(timeClock).toContain("verifyEmployeePinAction");
     expect(timeClock).not.toContain('from "@/lib/data/branch"');
     expect(pinAction).toContain("sharedRateLimit");
+    expect(pinAction).toContain("failClosed: true");
     expect(pinAction).toContain("verificar_pin_empleado");
     expect(branch).not.toContain("verifyEmployeePin");
   });

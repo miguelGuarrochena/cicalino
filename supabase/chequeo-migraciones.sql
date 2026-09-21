@@ -213,6 +213,13 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('mesa-cuenta-compartida.sql', 'function', 'pedir_cuenta_comensal', 86),
     ('mesa-cuenta-compartida.sql', 'function', 'pagar_todo_comensal', 86),
     ('mesa-cuenta-compartida.sql', 'index', 'uq_pagos_mesa_comensal_definido', 86),
+    ('mesa-launch-blockers.sql', 'function', 'revertir_solicitud_mp', 87),
+    ('mesa-launch-blockers.sql', 'function', '_cerrar_sesion_jornada', 87),
+    ('staff-empleado-cobro.sql', 'function', '_staff_empleado_cobro', 88),
+    ('staff-empleado-cobro.sql', 'function', 'registrar_pago_personal', 88),
+    ('staff-empleado-cobro.sql', 'function', 'confirmar_pago_mesa', 88),
+    ('mesa-sesion-activa-unica.sql', 'index', 'uq_mesa_sesion_activa', 89),
+    ('mesa-sesion-activa-unica.sql', 'function', 'unirse_mesa', 89),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -377,7 +384,10 @@ requisitos (archivo, necesita) as (
     ('dias-cerrados-jornada.sql', 'reservas-horario-local.sql, liberar-mesas-jornada.sql, mesa-asignacion-jornada.sql, security-fixes-15.sql, split-payments.sql, mesa-qr-activo.sql'),
     ('jornada-cerrado-corta.sql', 'dias-cerrados-jornada.sql'),
     ('mesa-cuenta-enum.sql', 'split-payments.sql, mesa-pago-qr-mp-enum.sql'),
-    ('mesa-cuenta-compartida.sql', 'mesa-cuenta-enum.sql, mesa-llamado-mozo.sql, mesa-pedir-cuenta.sql, mesa-pago-qr-mp.sql, staff-floor-guards.sql')
+    ('mesa-cuenta-compartida.sql', 'mesa-cuenta-enum.sql, mesa-llamado-mozo.sql, mesa-pedir-cuenta.sql, mesa-pago-qr-mp.sql, staff-floor-guards.sql'),
+    ('mesa-launch-blockers.sql', 'mesa-cuenta-compartida.sql, dias-cerrados-jornada.sql, split-payments.sql, staff-floor-guards.sql'),
+    ('staff-empleado-cobro.sql', 'staff-floor-guards.sql, mesa-launch-blockers.sql'),
+    ('mesa-sesion-activa-unica.sql', 'mesa-launch-blockers.sql, staff-empleado-cobro.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

@@ -1,6 +1,7 @@
 import type { OrderStatus } from "@/lib/types";
 import {
   billPending,
+  excessPayments,
   type BillGuest,
   type BillOrder,
   type BillPayment,
@@ -15,11 +16,11 @@ export interface FloorQr {
   qrActive: boolean;
 }
 
-/* Operational view of the dining room: kitchen work vs the bill.
+/* Operational view of the dining room: new orders, waiter calls, and the bill.
  *
  * The database stays the authority (`mesa_sesiones`, `pedidos`, `pagos_mesa`).
- * This only derives what a waiter should look at first. Kitchen states beat
- * money states: a new pizza is more urgent than an unpaid Coke. */
+ * This only derives what a waiter should look at first. Kitchen prep / ready /
+ * delivered belong to Comandas, not to these tiles. */
 
 export type FloorOpStatus =
   | "libre"
@@ -118,15 +119,13 @@ export const floorStatus = (bill: TableBill | null): FloorOpStatus => {
   if (bill.session.status === "pagada") return "pagada";
 
   const created = kitchenOrders(bill, "creado").length;
-  const ready = kitchenOrders(bill, "listo").length;
-  const prep = kitchenOrders(bill, "en_preparacion").length;
   const waiting = waitingStaffPayments(bill);
 
   if (created > 0) return "pedido-nuevo";
   if (bill.session.calledAt) return "llamado";
-  if (ready > 0) return "listo";
+  /* listo / en_preparacion / entregado los opera Comandas. Mesas solo
+   * necesita lo operativo: comanda nueva, llamado, cobro, consumo. */
   if (waiting > 0) return "esperando-pago";
-  if (prep > 0) return "preparando";
   if (bill.totals.consumption <= 0) return "sin-consumo";
   if (bill.totals.uncovered <= 0) return "pagada";
   if (bill.totals.paidBase > 0) return "parcial";
@@ -138,7 +137,11 @@ export const needsPedido = (row: FloorTable): boolean =>
   row.newOrders.length > 0 || Boolean(row.calledAt);
 
 export const needsCharge = (row: FloorTable): boolean =>
-  Boolean(row.bill && row.bill.session.status === "abierta" && row.pending > 0);
+  Boolean(
+    row.bill &&
+      ((row.bill.session.status === "abierta" && row.pending > 0) ||
+        excessPayments(row.bill).length > 0),
+  );
 
 /* After a table is paid in full, open the first one still in this list.
  * The list order is what the waiter sees (urgency on Cobrar, number on Todas),
@@ -191,7 +194,9 @@ const toRow = (
 });
 
 export const buildFloor = (tables: FloorQr[], bills: TableBill[]): FloorTable[] => {
-  const open = bills.filter((b) => b.session.status === "abierta");
+  const open = bills.filter(
+    (b) => b.session.status === "abierta" || b.session.status === "pagada",
+  );
   const byTableId = new Map<string, TableBill>();
   const byNumber = new Map<number, TableBill>();
   for (const b of open) {

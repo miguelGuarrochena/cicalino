@@ -43,14 +43,33 @@ export const signatureManifest = (args: {
   );
 };
 
+/* MP reintenta notificaciones durante horas. 48 h cubre esos reintentos
+ * y corta un replay viejo. 5 min hacia adelante absorbe desfase de reloj. */
+export const MAX_MP_SIGNATURE_AGE_SEC = 48 * 60 * 60;
+export const MAX_MP_SIGNATURE_FUTURE_SEC = 5 * 60;
+
+export const mercadoPagoTimestampFresh = (
+  ts: string,
+  nowSec = Math.floor(Date.now() / 1000),
+): boolean => {
+  if (!/^\d{1,12}$/.test(ts)) return false;
+  const t = Number(ts);
+  if (!Number.isFinite(t) || t <= 0) return false;
+  if (t > nowSec + MAX_MP_SIGNATURE_FUTURE_SEC) return false;
+  if (nowSec - t > MAX_MP_SIGNATURE_AGE_SEC) return false;
+  return true;
+};
+
 export const verifyMercadoPagoSignature = (args: {
   header: string | null;
   requestId: string | null;
   dataId: string | null;
   secret: string;
+  nowSec?: number;
 }): boolean => {
   const parsed = parseSignatureHeader(args.header);
   if (!parsed || !args.secret) return false;
+  if (!mercadoPagoTimestampFresh(parsed.ts, args.nowSec)) return false;
   const expected = crypto
     .createHmac("sha256", args.secret)
     .update(

@@ -41,9 +41,13 @@ describe("Customer wait flow — negocio debe seguir vivo", () => {
   it("rate limit sin Upstash no tumba poll ni subscribe", () => {
     expect(rate).toContain("usando límite en memoria");
     expect(rate).toContain("fallback a límite en memoria");
-    expect(rate).not.toMatch(/return denegar\(/);
-    /* Primer request tiene que poder pasar: no hay denegar inmediato. */
-    expect(rate).not.toMatch(/exigeRedis && !distributedRateLimit[\s\S]{0,120}return \{/);
+    /* Polls y push siguen fail-open. failClosed es opt-in (PIN, login, alias). */
+    expect(pRoute).not.toContain("failClosed");
+    expect(eRoute).not.toContain("failClosed");
+    expect(subscribeRoute).not.toContain("failClosed");
+    expect(notifyRoute).not.toContain("failClosed");
+    expect(read("src/lib/server/guestApi.ts")).not.toContain("failClosed");
+    expect(read("src/app/api/mp/webhook/route.ts")).not.toContain("failClosed");
   });
 
   it("poll de pedido y espera se retoma al volver / al push del SW", () => {

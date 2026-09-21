@@ -36,7 +36,12 @@ export const POST = async (
   const paymentId = res.pago_id ? String(res.pago_id) : "";
   if (paymentId) {
     const mp = await startGuestMercadoPagoCheckout(token, paymentId);
-    if (mp.ok) checkout = mp.checkoutUrl;
+    if (!mp.ok) {
+      const state = await fetchGuestState(creds);
+      if (state.ok) await broadcastTableBill(state.guest.sessionId);
+      return failure(mp.reason);
+    }
+    checkout = mp.checkoutUrl;
   }
 
   const state = await fetchGuestState(creds);

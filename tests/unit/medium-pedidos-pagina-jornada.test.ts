@@ -37,6 +37,7 @@ describe("Medium — jornada de pedidos_pagina + panel de estados", () => {
     expect(orders).toMatch(/\.in\("estado", desde\)/);
     expect(hook).toContain("await updateOrderStatus(id, status)");
     expect(hook).toContain("await reload()");
+    expect(hook).not.toContain("setLiveOrders((cur) =>");
     expect(hook).not.toMatch(/updateOrderStatus\(id, status, desde\)/);
   });
 

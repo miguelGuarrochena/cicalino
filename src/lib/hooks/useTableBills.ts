@@ -44,10 +44,12 @@ const start = (branchId: string): Shared => {
     if (res.ok) {
       shared.bills = res.data;
       shared.syncError = null;
+      shared.ready = true;
     } else {
+      /* Una carga que falló no publica lista vacía ni pisa el último
+       * snapshot. ready queda en false hasta el primer ok. */
       shared.syncError = res.error;
     }
-    shared.ready = true;
     emit(shared);
   });
 
@@ -105,17 +107,14 @@ const release = (s: Shared) => {
   }, RELEASE_MS);
 };
 
-/* Pintar el cambio antes de que vuelva el servidor.
+/* Parchea el snapshot compartido. La baldosa, la campanita del header, el
+ * globo de la nav y el dock derivan todos de estas mismas cuentas, así que
+ * tocarlas acá los mueve a los cuatro en el mismo render.
  *
- * Mismo trato que `changeStatus` en useOrders: se pinta, se manda y el
- * `refresh` que viene después reconcilia. No hay rollback porque no hace
- * falta: la próxima lectura pisa esto con lo que dice la base, salga bien o
- * mal la operación.
- *
- * Toca el snapshot compartido a propósito. La baldosa, la campanita del
- * header, el globo de la nav y el dock derivan todos de estas mismas cuentas,
- * así que parchearlas acá los mueve a los cuatro en el mismo render. Parchear
- * solo la pantalla dejaría al globo diciendo que la mesa sigue llamando.
+ * Los cambios de pedido ya no se pintan antes del UPDATE: si otra caja ganó,
+ * festejarlo mentía. Un llamado que se apaga acá sí, porque el reload de
+ * cualquiera de las dos ramas lo vuelve a encender si el servidor no lo
+ * aceptó.
  *
  * No hace nada si la sucursal cambió mientras tanto. */
 export const patchTableBills = (

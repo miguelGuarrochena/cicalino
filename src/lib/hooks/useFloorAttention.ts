@@ -105,8 +105,11 @@ export const useFloorAttentionWatch = () => {
     if (view === "cobrar") navAckPayments(paymentIds);
   }, [ready, view, orderIds, paymentIds, callIds]);
 
-  /* Lo de Mesas entra a la capa global igual que cualquier otro módulo. */
+  /* Lo de Mesas entra a la capa global igual que cualquier otro módulo.
+   * Sin snapshot todavía no se publica nada: un [] acá apagaría avisos
+   * válidos o haría sonar todo como nuevo en la primera carga. */
   useEffect(() => {
-    publishPanelAlerts("mesas", ready ? mesaAlerts(bills, attention) : []);
+    if (!ready) return;
+    publishPanelAlerts("mesas", mesaAlerts(bills, attention));
   }, [ready, bills, attention]);
 };

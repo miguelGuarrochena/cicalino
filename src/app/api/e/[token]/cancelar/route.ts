@@ -4,6 +4,7 @@ import { sharedRateLimit } from "@/lib/security/rateLimitShared";
 import { clientIp } from "@/lib/security/ip";
 import { qrTokenSchema } from "@/lib/schemas";
 import { SUPABASE_URL } from "@/lib/supabase/config";
+import { sameOrigin } from "@/lib/server/tableGuest";
 
 export const dynamic = "force-dynamic";
 
@@ -53,10 +54,18 @@ export const POST = async (
     return NextResponse.json({ ok: false, reason: "not-found" }, { status: 400 });
   }
 
+  if (!sameOrigin(req)) {
+    return NextResponse.json({ ok: false, reason: "origin" }, { status: 403 });
+  }
+
   /* Este endpoint saca a alguien de la cola, así que el límite por IP es
    * ajustado: un cliente cancela su lugar una vez, no treinta. */
-  const porToken = await sharedRateLimit(`e-cancel:${token}`, 5, 60_000);
-  const porIp = await sharedRateLimit(`e-cancel:ip:${clientIp(req)}`, 20, 60_000);
+  const porToken = await sharedRateLimit(`e-cancel:${token}`, 5, 60_000, {
+    failClosed: true,
+  });
+  const porIp = await sharedRateLimit(`e-cancel:ip:${clientIp(req)}`, 20, 60_000, {
+    failClosed: true,
+  });
   if (!porToken.ok || !porIp.ok) {
     const espera = Math.max(porToken.retryAfter, porIp.retryAfter);
     return NextResponse.json(

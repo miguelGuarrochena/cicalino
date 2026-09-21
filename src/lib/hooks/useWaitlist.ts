@@ -258,7 +258,7 @@ export const useWaitlist = (branchId: string | null): UseWaitlist => {
     return created;
   };
 
-  /* Pintar primero, como hace `changeStatus` en useOrders.
+  /* Pintar primero.
    *
    * Avisar son dos viajes: el UPDATE y después el push, que sale del servidor
    * hacia FCM o APNs. El mozo tocaba el botón en el momento más cargado del

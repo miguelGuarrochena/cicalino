@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-describe("High — Upstash rate limit fail-open", () => {
+describe("High — Upstash rate limit (fail-open polls, fail-closed sensibles)", () => {
   const envBackup = { ...process.env };
 
   beforeEach(() => {
@@ -46,6 +46,14 @@ describe("High — Upstash rate limit fail-open", () => {
     expect(r.ok).toBe(true);
   });
 
+  it("en producción sin Upstash, failClosed niega (PIN/login)", async () => {
+    process.env.VERCEL_ENV = "production";
+    const { sharedRateLimit } = await import("@/lib/security/rateLimitShared");
+    const r = await sharedRateLimit("test:pin", 5, 60_000, { failClosed: true });
+    expect(r.ok).toBe(false);
+    expect(r.retryAfter).toBeGreaterThan(0);
+  });
+
   it("en production con Upstash configurado consulta Redis", async () => {
     process.env.VERCEL_ENV = "production";
     process.env.UPSTASH_REDIS_REST_URL = "https://example.upstash.io";
@@ -79,6 +87,23 @@ describe("High — Upstash rate limit fail-open", () => {
     const { sharedRateLimit } = await import("@/lib/security/rateLimitShared");
     const r = await sharedRateLimit("test:redis-down", 5, 60_000);
     expect(r.ok).toBe(true);
+  });
+
+  it("en production si Redis falla, failClosed niega", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.UPSTASH_REDIS_REST_URL = "https://example.upstash.io";
+    process.env.UPSTASH_REDIS_REST_TOKEN = "token";
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("network down")),
+    );
+
+    const { sharedRateLimit } = await import("@/lib/security/rateLimitShared");
+    const r = await sharedRateLimit("test:redis-down-closed", 5, 60_000, {
+      failClosed: true,
+    });
+    expect(r.ok).toBe(false);
   });
 
   it("en local si Redis falla cae a memoria (dev no se traba)", async () => {

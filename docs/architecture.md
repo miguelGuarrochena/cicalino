@@ -178,9 +178,11 @@ QR de mesa (/m/[token], token opaco en mesas.qr_token)
   para cubrir la cuenta. El recargo por tarjeta necesita la declaración del dueño
   (`local_cobros.recargo_declarado`, con quién y cuándo).
 - **Mercado Pago**: nunca se marca pagado por volver del checkout ni a mano;
-  solo `mp_confirmar_pago` (service_role) después de validar firma, sucursal,
-  monto y moneda. Un pago que expira libera su parte; una aprobación tardía se
-  registra igual y queda el evento `excedente` para devolver.
+  solo `mp_confirmar_pago` (service_role) después de validar firma, frescura
+  del `ts`, sucursal, monto y moneda. Un pago que no puede cubrirse
+  (excedente, monto distinto, sesión ya cobrada o cancelada) no suma al
+  consumo pagado: queda `mp_estado` identificable para conciliar. Un aviso
+  duplicado se registra en `mesa_eventos` y no aplica otra vez.
 - **Acceso**: el comensal nunca habla con PostgREST. `/api/m/*` usa service_role,
   rate limit y chequeo de origen, y las funciones validan id + hash. El panel lee
   por RLS y escribe por RPC. El alias de transferencia y la cuenta de MP los
@@ -226,7 +228,7 @@ las policies se comportan igual que en producción.
 - Faltan tests de integración de la API del QR y del cron end-to-end.
   (Aislamiento entre empresas y grants: ya cubiertos, ver abajo.)
 - `CSP_ENFORCE=1` ya se puede activar: la CSP se arma distinta según la ruta
-  (`lib/security/csp.ts`). Las dinámicas (`/p`, `/e`, `/aceptar`, `/admin`)
+  (`lib/security/csp.ts`). Las dinámicas (`/p`, `/e`, `/m`, `/aceptar`, `/admin`)
   llevan nonce y protegen contra scripts inyectados; las estáticas (`/`,
   `/login`, `/pricing`, `/faq`, `/probar`, `/terms`, `/panel/*`) se generan en
   el build —cuando todavía no hay request ni nonce— así que van con
@@ -235,4 +237,3 @@ las policies se comportan igual que en producción.
   Ojo: nonce y `'unsafe-inline'` no conviven — el navegador ignora el segundo
   cuando hay nonce. Si una ruta cambia de ○ a ƒ en `next build`, hay que
   actualizar `RUTAS_CON_NONCE`.
-- Mercado Pago automatizado si el volumen lo justifica.

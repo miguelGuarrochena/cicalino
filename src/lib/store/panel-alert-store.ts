@@ -5,7 +5,6 @@ import {
   type PanelAlert,
   type PanelAlertSource,
 } from "@/lib/panelAlerts";
-import { ackTableAttention } from "@/lib/store/attention-store";
 
 /* El tablero único de avisos del panel.
  *
@@ -14,11 +13,8 @@ import { ackTableAttention } from "@/lib/store/attention-store";
  * con listas, una novedad que se resolvió en otra tablet desaparece sola en el
  * refresco siguiente, y no hace falta inventar el evento "ya no pasa esto".
  *
- * El "visto" es del dispositivo, igual que en Mesas: dos mozos con dos
- * tablets tienen que enterarse los dos. Lo de Mesas no se copia acá — esas
- * alertas se publican ya filtradas por attention-store y descartarlas desde el
- * aviso global escribe en ese mismo store, para que la campanita de Mesas y el
- * aviso global no se contradigan. */
+ * El "visto" es del dispositivo. Cerrar el dock calla el aviso global; no
+ * marca la mesa como atendida en Mesas (eso sigue en attention-store). */
 
 const storageKey = (branchId: string) => `cicalino-panel-alertas-vistas:${branchId}`;
 
@@ -32,13 +28,21 @@ type State = {
   branchId: string | null;
   bySource: Record<PanelAlertSource, PanelAlert[]>;
   seen: ReadonlySet<string>;
+  sourceReady: Record<PanelAlertSource, boolean>;
   version: number;
+};
+
+const EMPTY_READY: Record<PanelAlertSource, boolean> = {
+  mesas: false,
+  pedidos: false,
+  recepcion: false,
 };
 
 let state: State = {
   branchId: null,
   bySource: EMPTY,
   seen: new Set(),
+  sourceReady: EMPTY_READY,
   version: 0,
 };
 
@@ -105,6 +109,7 @@ export const hydratePanelAlerts = (branchId: string | null) => {
     branchId,
     bySource: EMPTY,
     seen: branchId ? readStorage(branchId) : new Set(),
+    sourceReady: EMPTY_READY,
     version: state.version,
   };
   emit();
@@ -117,7 +122,8 @@ export const publishPanelAlerts = (
   source: PanelAlertSource,
   alerts: PanelAlert[],
 ) => {
-  if (sameIds(state.bySource[source], alerts)) return;
+  const already = state.sourceReady[source];
+  if (sameIds(state.bySource[source], alerts) && already) return;
   const bySource = { ...state.bySource, [source]: alerts };
   /* Lo visto se limpia con lo que ya no está vivo. Sin esto, la lista de ids
    * crece toda la jornada y termina en el localStorage de una tablet que no se
@@ -128,38 +134,22 @@ export const publishPanelAlerts = (
     ),
   );
   const seen = new Set([...state.seen].filter((id) => live.has(id)));
-  state = { ...state, bySource, seen };
+  state = {
+    ...state,
+    bySource,
+    seen,
+    sourceReady: { ...state.sourceReady, [source]: true },
+  };
   persist();
   emit();
 };
 
 /* Marcar visto sin resolver el trabajo: el pedido sigue pendiente, la cuenta
- * sigue sin cobrarse. Lo de Mesas va a su propio store para que la sección
- * muestre lo mismo que el aviso global. */
+ * sigue sin cobrarse. El dock calla el aviso; no marca la mesa atendida. */
 export const ackPanelAlerts = (alerts: PanelAlert[]) => {
   if (!alerts.length) return;
-  const mesaOrders: string[] = [];
-  const mesaPayments: string[] = [];
-  const mesaCalls: string[] = [];
-  const mesaMp: string[] = [];
-  const propios: string[] = [];
-
-  for (const a of alerts) {
-    const raw = a.id.slice(a.kind.length + 1);
-    if (a.kind === "pedido-mesa") mesaOrders.push(raw);
-    else if (a.kind === "cuenta") mesaPayments.push(raw);
-    else if (a.kind === "llamado") mesaCalls.push(raw);
-    else if (a.kind === "mp-pagado") mesaMp.push(raw);
-    else propios.push(a.id);
-  }
-
-  if (mesaOrders.length || mesaPayments.length || mesaCalls.length || mesaMp.length) {
-    ackTableAttention(mesaOrders, mesaPayments, mesaCalls, mesaMp);
-  }
-  if (!propios.length) return;
-
   const seen = new Set(state.seen);
-  for (const id of propios) seen.add(id);
+  for (const a of alerts) seen.add(a.id);
   if (seen.size === state.seen.size) return;
   state = { ...state, seen };
   persist();

@@ -124,7 +124,12 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
       if (!data) return;
       if (data.ok && data.bill) {
         applyBill(data.bill);
-        if (data.guest) setGuest(data.guest);
+        if (data.guest) {
+          const next = data.guest;
+          setGuest((cur) =>
+            cur && cur.id === next.id && cur.name === next.name ? cur : next,
+          );
+        }
       } else if (data.reason === "otra-mesa" && data.tableToken) {
         router.replace(`/m/${data.tableToken}`);
       } else if (data.reason === "no-guest" || data.reason === "comensal-invalido") {
@@ -154,7 +159,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
       document.removeEventListener("visibilitychange", tick);
       window.removeEventListener("online", tick);
     };
-  }, [guest, refresh]);
+  }, [guest?.id, refresh]);
 
   useTableBillLive(bill?.session.id ?? null, refresh);
 
@@ -324,6 +329,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   }
 
   const open = bill.session.status === "abierta";
+  const puedePedir = open && !billRequested(bill);
   const myOrders = bill.orders.filter((o) => o.guestId === guest.id);
   const unpaid = open && bill.totals.available > 0 && !billRequested(bill);
   const hasConsumption = bill.totals.consumption > 0;
@@ -446,7 +452,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           <MenuBrowser
             menu={initial.menu}
             cart={cart}
-            puedePedir={open}
+            puedePedir={puedePedir}
             onCantidad={setQty}
             stickyTop={navAlto}
           />
@@ -520,7 +526,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           enviando={sending}
           error={orderError}
           enviado={enviado}
-          puedePedir={open}
+          puedePedir={puedePedir}
           onCantidad={setQty}
           onEnviar={() => void sendOrder()}
           onSeguirPidiendo={() => {

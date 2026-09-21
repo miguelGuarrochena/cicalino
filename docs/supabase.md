@@ -181,13 +181,14 @@ Archivos: `src/lib/push/server.ts`, `src/app/api/push/{subscribe,notify}/route.t
 - `reservas-horario-local.sql` está en la base pero no en
   `cicalino_schema_migrations` (se corrió a mano). `pnpm db:sql` lo registra;
   el script es idempotente.
-- Upstash en Vercel (rate limit global); CSP_ENFORCE=1 cuando la consola esté limpia.
+- Upstash en Vercel (rate limit global); `CSP_ENFORCE=1` cuando la consola esté limpia.
+  PIN/login/reset fallan cerrados si falta Redis; los polls del comensal no.
 - Aplicar fixes SQL: `pnpm db:security` (o `node scripts/db-apply-security.mjs --from=12`).
 - Migraciones ordenadas: `pnpm db:sql` (pendientes) / `pnpm db:sql:baseline` (DB ya alineada).
   Orden canónico: `supabase/orden.json`. Tracker: `cicalino_schema_migrations`.
   (`pnpm db:migrate` sigue siendo Drizzle.)
 - Smoke de grants en la DB: `pnpm test:db` (requiere `DATABASE_URL` en `.env.local`).
-- Mercado Pago si el volumen lo justifica; tests E2E.
+- Mercado Pago en mesa está implementado (OAuth del local + webhook firmado).
 
 ## Archivos clave (backend de datos)
 

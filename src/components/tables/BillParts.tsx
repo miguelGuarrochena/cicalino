@@ -18,19 +18,27 @@ import {
 
 export const PaymentStatusBadge = ({ payment }: { payment: BillPayment }) => {
   const { t } = useApp();
-  /* Los pasteles crudos de Tailwind no tenían variante oscura que sirviera: en
-   * el panel oscuro y sobre un fondo de marca del comensal quedaban bloques
-   * claros sueltos. Los tokens de estado ya saben en qué fondo están. */
-  const cls =
-    payment.status === "pagado"
+  const reconcile =
+    payment.mpStatus === "excedente" || payment.mpStatus === "monto-inconsistente";
+  const cls = reconcile
+    ? "border-alerta-borde bg-alerta-fondo text-alerta"
+    : payment.status === "pagado"
       ? "border-ok-borde bg-ok-fondo text-carbon"
       : payment.status === "pendiente" || payment.status === "definido"
         ? "border-curso-borde bg-curso-fondo text-carbon"
         : "border-linea bg-carbon/5 text-suave";
-  const icon =
-    payment.status === "pagado" ? "✓" : payment.status === "pendiente" || payment.status === "definido" ? "⏳" : "✕";
-  const label =
-    payment.status === "pendiente" && payment.method === "mercado_pago"
+  const icon = reconcile
+    ? "!"
+    : payment.status === "pagado"
+      ? "✓"
+      : payment.status === "pendiente" || payment.status === "definido"
+        ? "⏳"
+        : "✕";
+  const label = payment.mpStatus === "excedente"
+    ? t("mesa.estadoPago.excedente")
+    : payment.mpStatus === "monto-inconsistente"
+      ? t("mesa.estadoPago.monto-inconsistente")
+    : payment.status === "pendiente" && payment.method === "mercado_pago"
       ? t("mesa.estadoPago.verificandoMp")
       : t(`mesa.estadoPago.${payment.status}`);
   return (

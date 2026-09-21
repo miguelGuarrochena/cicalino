@@ -406,7 +406,9 @@ export const startGuestMercadoPagoCheckout = async (
     returnUrl: `${appBaseUrl()}/m/${token}?pago=${paymentId}`,
   });
   if (!pref) {
-    await cancelMercadoPagoPayment(paymentId, "mp-preferencia-fallida");
+    /* Pago total: revierte la solicitud. División: deja el pendiente para reintentar. */
+    const { error } = await admin.rpc("revertir_solicitud_mp", { p_pago: paymentId });
+    if (error) console.error("m.revertir_solicitud_mp", error.message);
     return { ok: false, reason: "mp-error" };
   }
   await attachPreference(paymentId, pref.id);
