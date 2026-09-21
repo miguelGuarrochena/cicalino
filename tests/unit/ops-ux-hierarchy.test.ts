@@ -463,6 +463,14 @@ describe("Cobros de una mesa: sin acciones repetidas", () => {
     expect(detalle).toContain('if (!soloRegistro && p.status !== "pendiente") return null;');
   });
 
+  it("el personal puede cancelar un definido desde el registro de la cuenta", () => {
+    /* Sin esto, definido reserva el saldo, Cobrar ve disponible 0 y
+     * cerrar_mesa rechaza pagos-pendientes: la mesa queda trabada. */
+    expect(detalle).toMatch(
+      /canCancel\s*=\s*\([\s\S]*p\.status === "pendiente" \|\| p\.status === "definido"/,
+    );
+  });
+
   it("el modal de cobrar registra plata nueva; no confirma la que ya está anotada", () => {
     expect(modal).not.toContain("confirmTablePayment");
     expect(modal).not.toContain("confirmWaiting");

@@ -177,8 +177,11 @@ export const TableDetail = ({
     }
     if (!soloRegistro && p.status !== "pendiente") return null;
     const canConfirm = open && p.status === "pendiente" && p.method !== "mercado_pago";
+    /* `definido` reserva saldo y bloquea cerrar_mesa; el personal puede
+     * cancelarlo desde el registro (soloRegistro). Sin esto la mesa queda
+     * trabada: Cobrar ve disponible 0 y no hay botón de cancelar. */
     const canCancel =
-      (open && p.status === "pendiente") ||
+      (open && (p.status === "pendiente" || p.status === "definido")) ||
       (canManage && p.status === "pagado" && p.method !== "mercado_pago");
     if (!canConfirm && !canCancel && !(p.status === "pendiente" && p.method === "mercado_pago")) {
       return null;

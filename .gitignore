@@ -68,3 +68,7 @@ Thumbs.db
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# QA credentials (local only)
+.qa-mozo-credentials.local.json
+.qa-mozo-mesa.local.json
