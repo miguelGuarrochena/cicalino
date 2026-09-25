@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { saveBranchConfig } from "@/lib/data/branch";
 import {
+  validPedidosConfig,
   needsTableCount,
   pedidosEnMesa,
   pedidosMostradorQr,
@@ -137,12 +138,15 @@ type FormErrors = {
   mesas?: string;
   reservaHorario?: string;
   modalidad?: string;
+  /* Sin mostrador y sin Mesa: ninguna forma de tomar pedidos. */
+  combinacion?: string;
 };
 
 /* Lo que edita esta pantalla y viaja a la base al tocar Guardar. */
 interface Operacion {
   modo: IdentificationMode;
   pedidosModalidad: PedidosModalidad;
+  pedidosMesa: boolean;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -238,6 +242,7 @@ const ConfigPage = () => {
 
   const modo = draft.modo ?? c.modo;
   const pedidosModalidad = draft.pedidosModalidad ?? c.pedidosModalidad;
+  const pedidosMesa = draft.pedidosMesa ?? c.pedidosMesa;
   const cutoffHour = draft.cutoffHour ?? c.cutoffHour;
   const reservaAbreMin = draft.reservaAbreMin ?? c.reservaAbreMin;
   const reservaCierraMin = draft.reservaCierraMin ?? c.reservaCierraMin;
@@ -250,6 +255,7 @@ const ConfigPage = () => {
   const dirty =
     modo !== c.modo ||
     pedidosModalidad !== c.pedidosModalidad ||
+    pedidosMesa !== c.pedidosMesa ||
     tableCount !== c.tableCount ||
     cutoffHour !== c.cutoffHour ||
     reservaAbreMin !== c.reservaAbreMin ||
@@ -280,24 +286,32 @@ const ConfigPage = () => {
 
   /* La misma respuesta para la sección, la pestaña y la validación. */
   const modulos = { pedidos: c.moduloPedidos, espera: c.moduloEspera, pagos: c.moduloPagos };
-  const pideMesas = needsTableCount(modulos, modo, pedidosModalidad);
+  const pideMesas = needsTableCount(modulos, modo, pedidosMesa);
   /* Lo guardado manda para lo que depende de la base (cobros, QR, carta): con
    * la modalidad elegida pero sin guardar, la base todavía no la conoce. */
-  const enMesaGuardado = pedidosEnMesa(modulos, c.pedidosModalidad);
-  const enMesaBorrador = pedidosEnMesa(modulos, pedidosModalidad);
+  const enMesaGuardado = pedidosEnMesa(modulos, c.pedidosMesa);
+  const enMesaBorrador = pedidosEnMesa(modulos, pedidosMesa);
   const qrMostradorGuardado = pedidosMostradorQr(modulos, c.pedidosModalidad);
   const qrMostradorBorrador = pedidosMostradorQr(modulos, pedidosModalidad);
   /* Elegir Mostrador QR también muestra Cobros: sin métodos no se activa. */
-  const cobrosVisibles = usesTableMenu(modulos, c.pedidosModalidad) || qrMostradorBorrador;
+  const cobrosVisibles =
+    usesTableMenu(modulos, c.pedidosModalidad, c.pedidosMesa) || qrMostradorBorrador;
+  /* Tradicional o QR (una sola forma de mostrador), y Mesa aparte. */
+  const combinacionValida = validPedidosConfig(pedidosModalidad, pedidosMesa);
   const sinMetodos = metodos === 0;
 
+  /* El mostrador funciona de UNA sola forma. Mesa va aparte (interruptor). */
   const modalidades: { id: PedidosModalidad; label: string; det: string }[] = [
     { id: "mostrador", label: t("retiroConfig.mostrador"), det: t("retiroConfig.mostradorDet") },
-    { id: "mesa", label: t("retiroConfig.mesa"), det: t("retiroConfig.mesaDet") },
     {
       id: "mostrador_qr",
       label: t("retiroConfig.mostradorQr"),
       det: t("retiroConfig.mostradorQrDet"),
+    },
+    {
+      id: "sin_mostrador",
+      label: t("retiroConfig.sinMostrador"),
+      det: t("retiroConfig.sinMostradorDet"),
     },
   ];
 
@@ -311,6 +325,9 @@ const ConfigPage = () => {
     }
     if (qrMostradorBorrador && !qrMostradorGuardado && sinMetodos) {
       next.modalidad = t("retiroConfig.mostradorQrSinMetodos");
+    }
+    if (c.moduloPedidos && !combinacionValida) {
+      next.combinacion = t("retiroConfig.errSinModalidad");
     }
     return next;
   };
@@ -336,6 +353,7 @@ const ConfigPage = () => {
     const cfg: Operacion = {
       modo,
       pedidosModalidad,
+      pedidosMesa,
       tableCount: tableCount ?? c.tableCount,
       cutoffHour,
       reservaAbreMin,
@@ -361,7 +379,7 @@ const ConfigPage = () => {
           needsTableCount(
             { pedidos: c.moduloPedidos, espera: c.moduloEspera, pagos: c.moduloPagos },
             cfg.modo,
-            cfg.pedidosModalidad,
+            cfg.pedidosMesa,
           )
         ) {
           await syncTables(id, cfg.tableCount);
@@ -493,19 +511,27 @@ const ConfigPage = () => {
           no usa en ninguna de sus pantallas. */}
       {c.moduloPedidos && (
         <Accordion {...acc("pedidos")} title={t("config.tab.pedidos")}>
-          {/* Cómo funciona Pedidos. Va primero porque cambia todo lo demás:
-              en modalidad Mesa el cliente pide y paga solo desde el QR de su
-              mesa y retira en el mostrador. */}
+          {/* Cómo funciona Pedidos. Va primero porque cambia todo lo demás.
+              Son dos elecciones: cómo funciona el mostrador (una sola forma:
+              tradicional o QR) y si además hay pedidos desde la mesa. */}
           <p className="text-sm font-medium text-carbon/70">{t("retiroConfig.titulo")}</p>
           <p className="mb-3 mt-1 text-xs text-carbon/50">{t("retiroConfig.sub")}</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-carbon/45">
+            {t("retiroConfig.mostradorTitulo")}
+          </p>
+          <div
+            role="radiogroup"
+            aria-label={t("retiroConfig.mostradorTitulo")}
+            className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
             {modalidades.map((m) => {
               const active = pedidosModalidad === m.id;
               return (
                 <button
                   key={m.id}
                   type="button"
-                  aria-pressed={active}
+                  role="radio"
+                  aria-checked={active}
                   onClick={() => editar("pedidosModalidad", m.id)}
                   className={`flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 text-left transition hover:opacity-90 ${
                     active
@@ -519,6 +545,45 @@ const ConfigPage = () => {
               );
             })}
           </div>
+          <p className="mb-2 mt-5 text-xs font-bold uppercase tracking-wide text-carbon/45">
+            {t("retiroConfig.mesaTitulo")}
+          </p>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pedidosMesa}
+            onClick={() => editar("pedidosMesa", !pedidosMesa)}
+            className={`flex w-full cursor-pointer items-start justify-between gap-4 rounded-2xl border p-4 text-left transition hover:opacity-90 ${
+              pedidosMesa
+                ? "border-marca bg-marca/10 ring-2 ring-marca/30"
+                : "border-linea bg-crema/30"
+            }`}
+          >
+            <span className="flex flex-col gap-1">
+              <span className="font-semibold text-carbon">{t("retiroConfig.mesa")}</span>
+              <span className="text-xs leading-snug text-carbon/55">{t("retiroConfig.mesaDet")}</span>
+            </span>
+            <span
+              aria-hidden
+              className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full transition ${
+                pedidosMesa ? "bg-marca" : "bg-carbon/20"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition ${
+                  pedidosMesa ? "left-[1.375rem]" : "left-0.5"
+                }`}
+              />
+            </span>
+          </button>
+          {!combinacionValida && (
+            <p
+              role="alert"
+              className="mt-3 rounded-xl border border-alerta-borde bg-alerta-fondo px-3 py-2 text-sm font-medium text-alerta"
+            >
+              {errors.combinacion ?? t("retiroConfig.errSinModalidad")}
+            </p>
+          )}
           {enMesaBorrador && (
             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-linea bg-crema/30 p-4">
               <p className="text-sm text-carbon/70">{t("retiroConfig.mesaComo")}</p>
@@ -528,7 +593,7 @@ const ConfigPage = () => {
               {enMesaGuardado ? (
                 <div className="flex flex-wrap gap-2">
                   <Link
-                    href="/panel/pedidos/qr"
+                    href="/panel/pedidos/qr?de=mesas"
                     className="inline-flex min-h-11 items-center rounded-full border-2 border-marca px-4 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema"
                   >
                     {t("retiroConfig.irQr")}
@@ -563,7 +628,7 @@ const ConfigPage = () => {
               {qrMostradorGuardado ? (
                 <div className="flex flex-wrap gap-2">
                   <Link
-                    href="/panel/pedidos/qr"
+                    href="/panel/pedidos/qr?de=mostrador"
                     className="inline-flex min-h-11 items-center rounded-full border-2 border-marca px-4 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema"
                   >
                     {t("retiroConfig.irQrMostrador")}
@@ -581,30 +646,36 @@ const ConfigPage = () => {
             </div>
           )}
 
-          <p className="mb-4 mt-6 text-sm text-carbon/55">{t("config.seccionIdSub")}</p>
-          <p className="text-sm font-medium text-carbon/70">{t("config.seccionId")}</p>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {modes.map((m) => {
-              const active = modo === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => editar("modo", m.id)}
-                  className={`flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 text-left transition hover:opacity-90 ${
-                    active
-                      ? "border-marca bg-marca/10 ring-2 ring-marca/30"
-                      : "border-linea bg-crema/30"
-                  }`}
-                >
-                  <span className="font-semibold text-carbon">{m.label}</span>
-                  <span className="text-xs leading-snug text-carbon/55">
-                    {m.det}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {/* Cómo se identifica el pedido solo aplica a la carga tradicional:
+              en el mostrador QR y en Mesa el número lo pone la base. */}
+          {pedidosModalidad === "mostrador" && (
+            <>
+            <p className="mb-4 mt-6 text-sm text-carbon/55">{t("config.seccionIdSub")}</p>
+            <p className="text-sm font-medium text-carbon/70">{t("config.seccionId")}</p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {modes.map((m) => {
+                const active = modo === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => editar("modo", m.id)}
+                    className={`flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 text-left transition hover:opacity-90 ${
+                      active
+                        ? "border-marca bg-marca/10 ring-2 ring-marca/30"
+                        : "border-linea bg-crema/30"
+                    }`}
+                  >
+                    <span className="font-semibold text-carbon">{m.label}</span>
+                    <span className="text-xs leading-snug text-carbon/55">
+                      {m.det}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            </>
+          )}
         </Accordion>
       )}
 
@@ -655,7 +726,7 @@ const ConfigPage = () => {
               <h3 className="text-sm font-semibold text-carbon">{t("mesasQr.titulo")}</h3>
               <p className="mt-1 text-sm text-carbon/55">{t("retiroConfig.qrCtaSub")}</p>
               <Link
-                href="/panel/pedidos/qr"
+                href="/panel/pedidos/qr?de=mesas"
                 className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-[0.98]"
               >
                 {t("config.mesasQrCta")}

@@ -8,6 +8,7 @@ import {
   panelHomePath,
   pedidosEnMesa,
   pedidosMostradorQr,
+  pedidosTradicional,
   usesTableMenu,
   type ModuleFlags,
 } from "@/lib/modules";
@@ -27,7 +28,10 @@ export interface OperationalAccess {
   links: OperationalNavLink[];
   canManage: boolean;
   isOwner: boolean;
-  /* Pedidos en modalidad Mesa (el cliente pide y paga desde el QR). */
+  /* Mostrador tradicional: el empleado carga el pedido. Excluye al QR. */
+  pedidosTradicional: boolean;
+  /* Pedidos en modalidad Mesa (el cliente pide y paga desde el QR de su
+   * mesa). Independiente del mostrador. */
   pedidosEnMesa: boolean;
   /* Pedidos en modalidad Mostrador QR (un QR del local, se paga ahora o al
    * retirar). */
@@ -45,6 +49,7 @@ export const useOperationalAccess = (): OperationalAccess => {
   const moduloPagos = useConfigStore((s) => s.moduloPagos);
   const ready = useConfigStore((s) => s.branchConfigReady);
   const modalidad = useConfigStore((s) => s.pedidosModalidad);
+  const mesa = useConfigStore((s) => s.pedidosMesa);
   const dispositivo = useDeviceMode();
   const activos: ModuleFlags = {
     pedidos: moduloPedidos,
@@ -63,9 +68,10 @@ export const useOperationalAccess = (): OperationalAccess => {
     links: operationalNavLinks(role, activos),
     canManage: role === "admin" || role === "supervisor" || role === "superadmin",
     isOwner: role === "admin",
-    pedidosEnMesa: pedidosEnMesa(activos, modalidad),
+    pedidosTradicional: pedidosTradicional(activos, modalidad),
+    pedidosEnMesa: pedidosEnMesa(activos, mesa),
     pedidosMostradorQr: pedidosMostradorQr(activos, modalidad),
-    usesMenu: usesTableMenu(activos, modalidad),
+    usesMenu: usesTableMenu(activos, modalidad, mesa),
   };
 };
 

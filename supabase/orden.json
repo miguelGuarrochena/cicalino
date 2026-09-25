@@ -93,5 +93,6 @@
   "pedidos-mesa.sql",
   "pedidos-mostrador-qr.sql",
   "pedidos-mostrador-qr-metodos.sql",
-  "qr-regenerar-mesas.sql"
+  "qr-regenerar-mesas.sql",
+  "pedidos-modalidades-combinables.sql"
 ]

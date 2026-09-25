@@ -6,26 +6,47 @@ export type ModuleId = "pedidos" | "espera" | "pagos";
 
 export type DeviceMode = "pedidos" | "espera" | "ambos";
 
-/* Cómo funciona Pedidos en esta sucursal (locales.pedidos_modalidad).
+/* Cómo funciona Pedidos en esta sucursal: el mostrador y la Mesa, por separado
+ * (locales.pedidos_modalidad + locales.pedidos_mesa).
  *
- *  mostrador     la caja carga el pedido y le da el QR al cliente. La de
- *                siempre.
- *  mesa          no hay mozo: el cliente escanea el QR fijo de su mesa, pide,
- *                paga (Mercado Pago o en caja) y retira en el mostrador. El
- *                pedido recién entra a preparación cuando está pago.
- *  mostrador_qr  un solo QR para todo el local (panadería, café, mostrador):
- *                el cliente pide desde el celular, el pedido entra a
- *                preparación enseguida y paga ahora (Mercado Pago) o al
- *                retirar (en caja). */
-export type PedidosModalidad = "mostrador" | "mesa" | "mostrador_qr";
+ * El mostrador funciona de UNA sola forma (PedidosModalidad):
+ *  mostrador      tradicional: la caja carga el pedido y le da el QR al
+ *                 cliente. La de siempre.
+ *  mostrador_qr   un solo QR para todo el local (panadería, café, mostrador):
+ *                 el cliente pide desde el celular, el pedido entra a
+ *                 preparación enseguida y paga ahora (Mercado Pago) o al
+ *                 retirar (en caja).
+ *  sin_mostrador  no se toman pedidos de mostrador (solo Mesa).
+ *
+ * Mesa (`pedidosMesa`) es independiente: no hay mozo, el cliente escanea el QR
+ * fijo de su mesa, pide, paga y retira en el mostrador; el pedido recién entra
+ * a preparación cuando está pago.
+ *
+ * Combinaciones válidas: tradicional, tradicional + Mesa, QR, QR + Mesa, Mesa.
+ * Tradicional + QR no existe (es una sola elección) y sin mostrador exige
+ * Mesa (validPedidosConfig; la base tiene el mismo constraint). */
+export type PedidosModalidad = "mostrador" | "mostrador_qr" | "sin_mostrador";
 
+/* "mesa" es el valor viejo (antes de pedidos-modalidades-combinables.sql):
+ * Mesa sola, sin mostrador. */
 export const parsePedidosModalidad = (raw: unknown): PedidosModalidad =>
-  raw === "mesa" || raw === "mostrador_qr" ? raw : "mostrador";
+  raw === "mostrador_qr" || raw === "sin_mostrador"
+    ? raw
+    : raw === "mesa"
+      ? "sin_mostrador"
+      : "mostrador";
 
-export const pedidosEnMesa = (
+export const validPedidosConfig = (modalidad: PedidosModalidad, mesa: boolean): boolean =>
+  modalidad !== "sin_mostrador" || mesa;
+
+/* El empleado carga el pedido desde la caja. */
+export const pedidosTradicional = (
   m: Pick<ModuleFlags, "pedidos">,
   modalidad: PedidosModalidad,
-): boolean => m.pedidos && modalidad === "mesa";
+): boolean => m.pedidos && modalidad === "mostrador";
+
+export const pedidosEnMesa = (m: Pick<ModuleFlags, "pedidos">, mesa: boolean): boolean =>
+  m.pedidos && mesa;
 
 export const pedidosMostradorQr = (
   m: Pick<ModuleFlags, "pedidos">,
@@ -37,7 +58,8 @@ export const pedidosMostradorQr = (
 export const pedidosPorQr = (
   m: Pick<ModuleFlags, "pedidos">,
   modalidad: PedidosModalidad,
-): boolean => pedidosEnMesa(m, modalidad) || pedidosMostradorQr(m, modalidad);
+  mesa: boolean,
+): boolean => pedidosEnMesa(m, mesa) || pedidosMostradorQr(m, modalidad);
 
 /* La carta, los métodos de cobro y la cuenta de Mercado Pago. Los usa Pagos,
  * y también Pedidos cuando el cliente pide desde un QR. Mismo criterio que
@@ -45,7 +67,8 @@ export const pedidosPorQr = (
 export const usesTableMenu = (
   m: ModuleFlags,
   modalidad: PedidosModalidad,
-): boolean => m.pagos || pedidosPorQr(m, modalidad);
+  mesa: boolean,
+): boolean => m.pagos || pedidosPorQr(m, modalidad, mesa);
 
 export const DEVICE_MODE_KEY = "cicalino-dispositivo-modulo";
 export const DEVICE_MODE_EVENT = "cicalino-device-mode";
@@ -106,12 +129,12 @@ export const visibleModules = (
 export const needsTableCount = (
   m: ModuleFlags,
   modoIdentificacion: string,
-  modalidad: PedidosModalidad = "mostrador",
+  mesa = false,
 ): boolean =>
   m.espera ||
   m.pagos ||
   (m.pedidos && modoIdentificacion === "mesa") ||
-  pedidosEnMesa(m, modalidad);
+  pedidosEnMesa(m, mesa);
 
 export const hasBothModules = (m: ModuleFlags): boolean => m.pedidos && m.espera;
 

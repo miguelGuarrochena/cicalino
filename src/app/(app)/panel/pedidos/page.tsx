@@ -74,8 +74,11 @@ const PanelOrdersPage = () => {
   const mode = useConfigStore((s) => s.modo);
   const tableCount = useConfigStore((s) => s.tableCount);
   /* Modalidad Mesa: además del tablero, la caja cobra lo que piden las mesas.
-   * La modalidad de siempre no ve nada de esto. */
-  const enMesa = useConfigStore((s) => s.pedidosModalidad === "mesa");
+   * Es independiente del mostrador (tradicional o QR). */
+  const enMesa = useConfigStore((s) => s.pedidosMesa);
+  /* El empleado carga pedidos solo con el mostrador tradicional: en el
+   * mostrador QR los carga el cliente, y con solo Mesa no hay mostrador. */
+  const tradicional = useConfigStore((s) => s.pedidosModalidad === "mostrador");
   /* Mostrador QR: los pedidos llegan del QR del local y se cobran al
    * retirar, desde la tarjeta del tablero. */
   const enMostradorQr = useConfigStore((s) => s.pedidosModalidad === "mostrador_qr");
@@ -187,6 +190,7 @@ const PanelOrdersPage = () => {
   };
 
   const abrirNuevo = () => {
+    if (!tradicional) return;
     if (mode === "pedido") {
       if (creatingRef.current) return;
       creatingRef.current = true;
@@ -322,12 +326,24 @@ const PanelOrdersPage = () => {
             <HelpLink seccion="pedidos" />
           </div>
           {(enMesa || enMostradorQr) && (
-            <Link
-              href="/panel/pedidos/qr"
-              className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-marca underline-offset-2 hover:underline"
-            >
-              {enMesa ? t("retiroCaja.qrMesas") : t("mostradorQr.panel.qrLink")}
-            </Link>
+            <div className="mt-1 flex flex-wrap gap-x-4">
+              {enMostradorQr && (
+                <Link
+                  href="/panel/pedidos/qr?de=mostrador"
+                  className="inline-flex min-h-9 items-center text-sm font-semibold text-marca underline-offset-2 hover:underline"
+                >
+                  {t("mostradorQr.panel.qrLink")}
+                </Link>
+              )}
+              {enMesa && (
+                <Link
+                  href="/panel/pedidos/qr?de=mesas"
+                  className="inline-flex min-h-9 items-center text-sm font-semibold text-marca underline-offset-2 hover:underline"
+                >
+                  {t("retiroCaja.qrMesas")}
+                </Link>
+              )}
+            </div>
           )}
           {ready ? (
             <p className="mt-1 text-sm text-carbon/55">
@@ -337,14 +353,16 @@ const PanelOrdersPage = () => {
             <Skeleton className="mt-1.5 h-4 w-28" />
           )}
         </div>
-        <button
-          type="button"
-          onClick={abrirNuevo}
-          disabled={creating}
-          className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-50 sm:w-auto"
-        >
-          {creating ? "…" : `+ ${t("panel.nuevo")}`}
-        </button>
+        {tradicional && (
+          <button
+            type="button"
+            onClick={abrirNuevo}
+            disabled={creating}
+            className="w-full rounded-full bg-marca px-5 py-3 text-sm font-semibold text-crema shadow-sm transition hover:bg-marca-fuerte active:scale-95 disabled:opacity-50 sm:w-auto"
+          >
+            {creating ? "…" : `+ ${t("panel.nuevo")}`}
+          </button>
+        )}
       </div>
 
       {enMesa && branchId && isRealBranchId(branchId) && (
@@ -403,7 +421,7 @@ const PanelOrdersPage = () => {
                 : t("panel.vacioSub")}
             </p>
           </div>
-          {!q && filtro === "todos" && (
+          {tradicional && !q && filtro === "todos" && (
             <button
               type="button"
               onClick={abrirNuevo}

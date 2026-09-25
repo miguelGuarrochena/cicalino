@@ -114,9 +114,16 @@ describe.skipIf(!enabled)("Integration — regenerar QR de mesa", () => {
     const sucursal = async (o: string, n: string) =>
       (
         await uno<{ id: string }>(
-          `insert into public.locales (organizacion_id, nombre, slug, modulo_pedidos, modulo_pagos, pedidos_modalidad)
-           values ($1, $2, $3, true, $4, $5) returning id`,
-          [o, n, `${MARCA}-${n}-${crypto.randomUUID().slice(0, 8)}`, pagos, modalidad],
+          `insert into public.locales (organizacion_id, nombre, slug, modulo_pedidos, modulo_pagos, pedidos_modalidad, pedidos_mesa)
+           values ($1, $2, $3, true, $4, $5, $6) returning id`,
+          [
+            o,
+            n,
+            `${MARCA}-${n}-${crypto.randomUUID().slice(0, 8)}`,
+            pagos,
+            modalidad === "mesa" ? "sin_mostrador" : modalidad,
+            modalidad === "mesa",
+          ],
         )
       ).id;
     local = await sucursal(o1, "centro");

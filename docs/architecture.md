@@ -150,13 +150,23 @@ decide si el empleado se entera.
 Modo por local: `pedido` (turno atómico), `nombre` o `mesa`. Los pedidos no
 se borran; el QR expira al cierre de jornada.
 
-## Modalidad de Pedidos: mostrador o mesa
+## Modalidades de Pedidos: el mostrador y Mesa, por separado
 
-`locales.pedidos_modalidad` (`mostrador` | `mesa` | `mostrador_qr`, ver la
-sección siguiente). La de siempre —la caja
-carga el pedido y le pasa el QR— es `mostrador` y no cambia. En `mesa` el
-local no tiene mozos: el cliente usa el QR fijo de su mesa y retira en el
-mostrador. Script: `pedidos-mesa-enum.sql` + `pedidos-mesa.sql`.
+Dos cosas independientes (`pedidos-modalidades-combinables.sql`):
+
+- `locales.pedidos_modalidad`: cómo funciona el **mostrador**, una sola forma.
+  `mostrador` (tradicional: la caja carga el pedido y le pasa el QR, la de
+  siempre), `mostrador_qr` (ver la sección siguiente) o `sin_mostrador`.
+- `locales.pedidos_mesa`: **Mesa** prendida o apagada. El local no tiene
+  mozos: el cliente usa el QR fijo de su mesa y retira en el mostrador.
+  Script: `pedidos-mesa-enum.sql` + `pedidos-mesa.sql`.
+
+Combinaciones válidas: tradicional, tradicional + Mesa, QR, QR + Mesa y solo
+Mesa. Tradicional + QR no se puede expresar (es una sola columna) y
+`sin_mostrador` exige Mesa (constraint `locales_pedidos_alguna_modalidad`).
+`crear_pedido` (la carga del empleado) solo anda en modo tradicional; en el
+panel, "+ Nuevo pedido" aparece solo ahí. El valor viejo `mesa` se migró a
+`sin_mostrador` + `pedidos_mesa = true`.
 
 ```
 QR de mesa (/m/[token]) → mesa_por_qr devuelve flujo = autoservicio
@@ -301,7 +311,7 @@ QR de mesa (/m/[token], token opaco en mesas.qr_token)
   mapearlos sin tocar el flujo del comensal.
 - **Stickers**: el PNG de `/panel/pagos/qr` es lo que se manda a imprimir. La
   impresión física queda afuera de Cicalino.
-- **Modalidad Mesa**: si Pedidos está en modalidad `mesa`, el QR de las mesas
+- **Modalidad Mesa**: si Pedidos tiene Mesa activada (`pedidos_mesa`), el QR de las mesas
   abre ese flujo y no la cuenta compartida (ver arriba).
 
 ## Tests contra la base (`pnpm test:db`)

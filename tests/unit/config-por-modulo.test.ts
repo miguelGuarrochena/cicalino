@@ -65,7 +65,7 @@ describe("Configuración: visible según lo contratado", () => {
     /* Elegir Mostrador QR (que cuelga de Pedidos) también la muestra: sin
      * métodos de pago no se puede activar. */
     expect(page).toContain(
-      "const cobrosVisibles = usesTableMenu(modulos, c.pedidosModalidad) || qrMostradorBorrador;",
+      "usesTableMenu(modulos, c.pedidosModalidad, c.pedidosMesa) || qrMostradorBorrador;",
     );
     expect(page).toContain("const qrMostradorBorrador = pedidosMostradorQr(modulos, pedidosModalidad);");
     expect(page).toContain("{c.moduloEspera && (");

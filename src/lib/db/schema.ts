@@ -140,11 +140,14 @@ export const branches = pgTable("locales", {
   moduloEspera: boolean("modulo_espera").notNull().default(false),
   /* supabase/split-payments-module.sql. Superadmin only (trigger). */
   moduloPagos: boolean("modulo_pagos").notNull().default(false),
-  /* supabase/pedidos-mesa.sql + pedidos-mostrador-qr.sql. "mostrador" (the
-   * counter creates the order), "mesa" (the guest orders and pays from the
-   * table QR, picks up at the counter) or "mostrador_qr" (one QR for the
-   * branch; the order is prepared right away, paid now or at pickup). */
+  /* supabase/pedidos-modalidades-combinables.sql. How the counter works:
+   * "mostrador" (traditional, the counter creates the order), "mostrador_qr"
+   * (one QR for the branch; the guest places the order) or "sin_mostrador"
+   * (Mesa only). */
   pedidosModalidad: text("pedidos_modalidad").notNull().default("mostrador"),
+  /* Mesa (the guest orders and pays from the table QR), independent of the
+   * counter. */
+  pedidosMesa: boolean("pedidos_mesa").notNull().default(false),
   /* supabase/pedidos-mostrador-qr.sql — the branch's counter QR. Opaque,
    * regenerable only through regenerar_qr_mostrador. */
   mostradorQrToken: text("mostrador_qr_token").notNull(),
