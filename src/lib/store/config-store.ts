@@ -36,6 +36,8 @@ interface ConfigState {
   direccion: string;
   modo: IdentificationMode;
   pedidosModalidad: PedidosModalidad;
+  /* Pedidos en modalidad Mesa, independiente del mostrador. */
+  pedidosMesa: boolean;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -69,6 +71,7 @@ interface ConfigState {
         | "direccion"
         | "modo"
         | "pedidosModalidad"
+        | "pedidosMesa"
         | "tableCount"
         | "cutoffHour"
         | "reservaAbreMin"
@@ -127,6 +130,7 @@ const INICIAL = supabaseConfigured
       direccion: "",
       modo: "pedido" as IdentificationMode,
       pedidosModalidad: "mostrador" as PedidosModalidad,
+      pedidosMesa: false,
       tableCount: 10,
       cutoffHour: 6,
       reservaAbreMin: 660,
@@ -147,6 +151,7 @@ const INICIAL = supabaseConfigured
       direccion: "Calle Falsa 742, Rosario",
       modo: "pedido" as IdentificationMode,
       pedidosModalidad: "mostrador" as PedidosModalidad,
+      pedidosMesa: false,
       tableCount: 10,
       cutoffHour: 6,
       reservaAbreMin: 660,
@@ -235,6 +240,7 @@ export const useConfigStore = create<ConfigState>()(
         const operacion = {
           modo: s.modo,
           pedidosModalidad: s.pedidosModalidad,
+          pedidosMesa: s.pedidosMesa,
           tableCount: s.tableCount,
           cutoffHour: s.cutoffHour,
           reservaAbreMin: s.reservaAbreMin,

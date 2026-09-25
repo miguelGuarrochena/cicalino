@@ -27,30 +27,32 @@ const soloPedidos = { pedidos: true, espera: false, pagos: false };
 
 describe("modalidad de Pedidos", () => {
   it("la de siempre es mostrador, y cualquier otra cosa también", () => {
-    expect(parsePedidosModalidad("mesa")).toBe("mesa");
+    /* "mesa" es el valor de antes de separar Mesa del mostrador: Mesa sola. */
+    expect(parsePedidosModalidad("mesa")).toBe("sin_mostrador");
     expect(parsePedidosModalidad("mostrador")).toBe("mostrador");
     expect(parsePedidosModalidad(null)).toBe("mostrador");
     expect(parsePedidosModalidad("otra")).toBe("mostrador");
   });
 
   it("es de Pedidos: sin el módulo no hay modalidad Mesa", () => {
-    expect(pedidosEnMesa(soloPedidos, "mesa")).toBe(true);
-    expect(pedidosEnMesa({ pedidos: false }, "mesa")).toBe(false);
-    expect(pedidosEnMesa(soloPedidos, "mostrador")).toBe(false);
+    expect(pedidosEnMesa(soloPedidos, true)).toBe(true);
+    expect(pedidosEnMesa({ pedidos: false }, true)).toBe(false);
+    expect(pedidosEnMesa(soloPedidos, false)).toBe(false);
   });
 
   it("en modalidad Mesa hace falta saber cuántas mesas hay", () => {
     expect(needsTableCount(soloPedidos, "pedido")).toBe(false);
-    expect(needsTableCount(soloPedidos, "pedido", "mesa")).toBe(true);
+    expect(needsTableCount(soloPedidos, "pedido", true)).toBe(true);
     /* La de siempre no cambia. */
     expect(needsTableCount(soloPedidos, "mesa")).toBe(true);
-    expect(needsTableCount(soloPedidos, "nombre", "mostrador")).toBe(false);
+    expect(needsTableCount(soloPedidos, "nombre", false)).toBe(false);
   });
 
   it("carta y cobros: Pagos, o Pedidos en modalidad Mesa", () => {
-    expect(usesTableMenu(soloPedidos, "mostrador")).toBe(false);
-    expect(usesTableMenu(soloPedidos, "mesa")).toBe(true);
-    expect(usesTableMenu({ pedidos: false, espera: false, pagos: true }, "mostrador")).toBe(true);
+    expect(usesTableMenu(soloPedidos, "mostrador", false)).toBe(false);
+    expect(usesTableMenu(soloPedidos, "mostrador", true)).toBe(true);
+    expect(usesTableMenu(soloPedidos, "sin_mostrador", true)).toBe(true);
+    expect(usesTableMenu({ pedidos: false, espera: false, pagos: true }, "mostrador", false)).toBe(true);
   });
 
   it("se guarda con la operación de la sucursal, con default mostrador", () => {
@@ -63,14 +65,18 @@ describe("modalidad de Pedidos", () => {
       diasCerrados: [],
     };
     expect(branchOperacionSchema.parse(base).pedidosModalidad).toBe("mostrador");
-    expect(branchOperacionSchema.parse({ ...base, pedidosModalidad: "mesa" }).pedidosModalidad).toBe(
-      "mesa",
-    );
+    expect(branchOperacionSchema.parse(base).pedidosMesa).toBe(false);
+    expect(
+      branchOperacionSchema.parse({ ...base, pedidosModalidad: "sin_mostrador", pedidosMesa: true }),
+    ).toMatchObject({ pedidosModalidad: "sin_mostrador", pedidosMesa: true });
+    /* El valor viejo ya no se guarda. */
+    expect(branchOperacionSchema.safeParse({ ...base, pedidosModalidad: "mesa" }).success).toBe(false);
     expect(branchOperacionSchema.safeParse({ ...base, pedidosModalidad: "delivery" }).success).toBe(
       false,
     );
     const branch = read("src/lib/data/branch.ts");
     expect(branch).toContain("pedidos_modalidad: v.data.pedidosModalidad");
+    expect(branch).toContain("pedidos_mesa: v.data.pedidosMesa");
     expect(branch).toContain("pedidosModalidad: parsePedidosModalidad(data.pedidos_modalidad)");
   });
 });
@@ -226,7 +232,8 @@ describe("cableado del flujo", () => {
 
   it("la caja ve lo que tiene que cobrar solo en modalidad Mesa", () => {
     const page = read("src/app/(app)/panel/pedidos/page.tsx");
-    expect(page).toContain('useConfigStore((s) => s.pedidosModalidad === "mesa")');
+    /* Mesa es independiente del mostrador: su propia columna. */
+    expect(page).toContain("useConfigStore((s) => s.pedidosMesa)");
     expect(page).toContain("<PickupChargeInbox");
     expect(page).toContain("enMesa && visibles.pedidos");
   });

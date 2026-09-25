@@ -248,6 +248,8 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('pedidos-mostrador-qr-metodos.sql', 'function', '_mostrador_caja_habilitada', 93),
     ('pedidos-mostrador-qr-metodos.sql', 'function', '_mostrador_metodos_ok', 93),
     ('qr-regenerar-mesas.sql', 'function', 'regenerar_qr_mesas', 94),
+    ('pedidos-modalidades-combinables.sql', 'column', 'locales.pedidos_mesa', 95),
+    ('pedidos-modalidades-combinables.sql', 'function', 'local_pedidos_tradicional', 95),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -420,7 +422,8 @@ requisitos (archivo, necesita) as (
     ('pedidos-mesa.sql', 'pedidos-mesa-enum.sql, mesa-sesion-activa-unica.sql, staff-empleado-cobro.sql, mesa-launch-blockers.sql, mesa-pedido-comensal.sql, mesas-historial.sql, dias-cerrados-jornada.sql, pedidos-en-preparacion.sql'),
     ('pedidos-mostrador-qr.sql', 'pedidos-mesa.sql'),
     ('pedidos-mostrador-qr-metodos.sql', 'pedidos-mostrador-qr.sql'),
-    ('qr-regenerar-mesas.sql', 'pedidos-mesa.sql')
+    ('qr-regenerar-mesas.sql', 'pedidos-mesa.sql'),
+    ('pedidos-modalidades-combinables.sql', 'pedidos-mostrador-qr-metodos.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { translate, type Locale } from "@/lib/i18n";
 
 let locale: Locale = "es";
-let acceso = { pedidosEnMesa: false, pedidosMostradorQr: false };
+let acceso = { pedidosEnMesa: false, pedidosMostradorQr: false, pedidosTradicional: true };
 
 vi.mock("@/components/providers/Providers", () => ({
   useApp: () => ({
@@ -48,7 +48,7 @@ const sinClaves = (html: string) =>
 describe.each(["es", "en"] as const)("documentación de modalidades (%s)", (l) => {
   it("la ayuda muestra las tres modalidades, la del local y las diferencias", () => {
     locale = l;
-    acceso = { pedidosEnMesa: false, pedidosMostradorQr: true };
+    acceso = { pedidosEnMesa: false, pedidosMostradorQr: true, pedidosTradicional: false };
     const html = render(createElement(AyudaPage));
     sinClaves(html);
     const t = (k: string) => translate(l, k);
@@ -79,7 +79,7 @@ describe.each(["es", "en"] as const)("documentación de modalidades (%s)", (l) =
 
   it("un local en Mostrador clásico también puede leer Mesa y Mostrador QR", () => {
     locale = l;
-    acceso = { pedidosEnMesa: false, pedidosMostradorQr: false };
+    acceso = { pedidosEnMesa: false, pedidosMostradorQr: false, pedidosTradicional: true };
     const html = render(createElement(AyudaPage));
     sinClaves(html);
     expect(html).toContain(translate(l, "ayuda.pedidos.intro"));

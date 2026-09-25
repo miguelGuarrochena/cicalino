@@ -50,7 +50,7 @@ const pedido = (over: Partial<PickupOrder> = {}): PickupOrder => ({
 describe("Mostrador QR — la modalidad", () => {
   it("es una tercera modalidad y la de siempre sigue siendo el default", () => {
     expect(parsePedidosModalidad("mostrador_qr")).toBe("mostrador_qr");
-    expect(parsePedidosModalidad("mesa")).toBe("mesa");
+    expect(parsePedidosModalidad("mesa")).toBe("sin_mostrador");
     expect(parsePedidosModalidad(undefined)).toBe("mostrador");
     expect(branchOperacionSchema.safeParse({
       modo: "pedido",
@@ -65,16 +65,16 @@ describe("Mostrador QR — la modalidad", () => {
 
   it("no es Mesa, pero usa carta y cobros como Mesa", () => {
     expect(pedidosMostradorQr(soloPedidos, "mostrador_qr")).toBe(true);
-    expect(pedidosEnMesa(soloPedidos, "mostrador_qr")).toBe(false);
-    expect(pedidosPorQr(soloPedidos, "mostrador_qr")).toBe(true);
-    expect(pedidosPorQr(soloPedidos, "mostrador")).toBe(false);
-    expect(usesTableMenu(soloPedidos, "mostrador_qr")).toBe(true);
+    expect(pedidosEnMesa(soloPedidos, false)).toBe(false);
+    expect(pedidosPorQr(soloPedidos, "mostrador_qr", false)).toBe(true);
+    expect(pedidosPorQr(soloPedidos, "mostrador", false)).toBe(false);
+    expect(usesTableMenu(soloPedidos, "mostrador_qr", false)).toBe(true);
     expect(pedidosMostradorQr({ pedidos: false }, "mostrador_qr")).toBe(false);
   });
 
   it("no pide cantidad de mesas", () => {
-    expect(needsTableCount(soloPedidos, "pedido", "mostrador_qr")).toBe(false);
-    expect(needsTableCount(soloPedidos, "pedido", "mesa")).toBe(true);
+    expect(needsTableCount(soloPedidos, "pedido", false)).toBe(false);
+    expect(needsTableCount(soloPedidos, "pedido", true)).toBe(true);
   });
 });
 

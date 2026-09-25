@@ -144,16 +144,17 @@ describe.skipIf(!enabled)("Integration — Pedidos en modalidad Mesa", () => {
         [`${MARCA} otra`, `${MARCA}-otra@test.invalid`],
       )
     ).id;
-    const nuevaSucursal = async (o: string, n: string, modalidad: string) =>
+    /* Mesa sola (sin mostrador): pedidos-modalidades-combinables.sql. */
+    const nuevaSucursal = async (o: string, n: string) =>
       (
         await uno<{ id: string }>(
-          `insert into public.locales (organizacion_id, nombre, slug, modulo_pedidos, pedidos_modalidad)
-           values ($1, $2, $3, true, $4) returning id`,
-          [o, n, `${MARCA}-${n}-${crypto.randomUUID().slice(0, 8)}`, modalidad],
+          `insert into public.locales (organizacion_id, nombre, slug, modulo_pedidos, pedidos_modalidad, pedidos_mesa)
+           values ($1, $2, $3, true, 'sin_mostrador', true) returning id`,
+          [o, n, `${MARCA}-${n}-${crypto.randomUUID().slice(0, 8)}`],
         )
       ).id;
-    local = await nuevaSucursal(org, "centro", "mesa");
-    otraLocal = await nuevaSucursal(otraOrg, "otra", "mesa");
+    local = await nuevaSucursal(org, "centro");
+    otraLocal = await nuevaSucursal(otraOrg, "otra");
 
     admin = await crearUsuario("admin", { rol: "admin", organizacion_id: org });
     otroAdmin = await crearUsuario("otro", { rol: "admin", organizacion_id: otraOrg });

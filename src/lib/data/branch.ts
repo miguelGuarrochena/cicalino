@@ -27,6 +27,8 @@ export interface BranchConfig {
   direccion: string;
   modo: IdentificationMode;
   pedidosModalidad: PedidosModalidad;
+  /* Pedidos en modalidad Mesa, independiente del mostrador. */
+  pedidosMesa: boolean;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -59,7 +61,7 @@ export const fetchBranchConfig = async (
   const { data, error } = await supabase
     .from("locales")
     .select(
-      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, pedidos_modalidad, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera, modulo_pagos, logo_url, color_marca",
+      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, pedidos_modalidad, pedidos_mesa, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera, modulo_pagos, logo_url, color_marca",
     )
     .eq("id", branchId)
     .single();
@@ -71,6 +73,9 @@ export const fetchBranchConfig = async (
     direccion: data.direccion ?? "",
     modo: (data.modo_identificacion as IdentificationMode) ?? "pedido",
     pedidosModalidad: parsePedidosModalidad(data.pedidos_modalidad),
+    /* Antes de pedidos-modalidades-combinables.sql, Mesa era un valor de
+     * pedidos_modalidad. */
+    pedidosMesa: data.pedidos_mesa === true || data.pedidos_modalidad === "mesa",
     tableCount: data.cantidad_mesas ?? 10,
     cutoffHour: data.hora_corte ?? 6,
     reservaAbreMin: data.reserva_abre_min ?? 660,
@@ -90,6 +95,7 @@ export const saveBranchConfig = async (
     BranchConfig,
     | "modo"
     | "pedidosModalidad"
+    | "pedidosMesa"
     | "tableCount"
     | "cutoffHour"
     | "reservaAbreMin"
@@ -102,6 +108,7 @@ export const saveBranchConfig = async (
   const v = parseInput(branchOperacionSchema, {
     modo: cfg.modo,
     pedidosModalidad: cfg.pedidosModalidad,
+    pedidosMesa: cfg.pedidosMesa,
     tableCount: cfg.tableCount,
     cutoffHour: cfg.cutoffHour,
     reservaAbreMin: cfg.reservaAbreMin,
@@ -117,6 +124,7 @@ export const saveBranchConfig = async (
     .update({
       modo_identificacion: v.data.modo,
       pedidos_modalidad: v.data.pedidosModalidad,
+      pedidos_mesa: v.data.pedidosMesa,
       cantidad_mesas: v.data.tableCount,
       hora_corte: v.data.cutoffHour,
       reserva_abre_min: v.data.reservaAbreMin,

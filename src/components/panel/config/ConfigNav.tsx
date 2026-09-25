@@ -29,7 +29,7 @@ export const ConfigNav = () => {
   const path = usePathname();
   const { isOwner, visibles, usesMenu } = useOperationalAccess();
   const modo = useConfigStore((s) => s.modo);
-  const modalidad = useConfigStore((s) => s.pedidosModalidad);
+  const mesa = useConfigStore((s) => s.pedidosMesa);
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
   /* La misma regla que usa la sección: la cantidad de mesas la piden
@@ -37,7 +37,7 @@ export const ConfigNav = () => {
   const showMesas = needsTableCount(
     { pedidos: moduloPedidos, espera: visibles.espera, pagos: visibles.pagos },
     modo,
-    modalidad,
+    mesa,
   );
   const onMetrics = path.startsWith("/panel/config/metricas");
   const onConfigHome = path === "/panel/config";

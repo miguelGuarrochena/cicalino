@@ -167,7 +167,9 @@ export const branchConfigSchema = z
   });
 export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 
-export const pedidosModalidad = z.enum(["mostrador", "mesa", "mostrador_qr"], {
+/* Cómo funciona el mostrador (una sola forma). Mesa va aparte (`pedidosMesa`).
+ * Ver modules.ts. */
+export const pedidosModalidad = z.enum(["mostrador", "mostrador_qr", "sin_mostrador"], {
   errorMap: () => ({ message: "Modalidad de Pedidos inválida." }),
 });
 
@@ -175,6 +177,7 @@ export const branchOperacionSchema = z
   .object({
     modo: identificationMode,
     pedidosModalidad: pedidosModalidad.default("mostrador"),
+    pedidosMesa: z.boolean().default(false),
     tableCount: z.coerce
       .number()
       .int()
@@ -205,6 +208,12 @@ export const branchOperacionSchema = z
   .refine((v) => v.modo !== "mesa" || v.tableCount >= 1, {
     message: "Con modo 'mesa' necesitás definir la cantidad de mesas.",
     path: ["tableCount"],
+  })
+  /* Sin mostrador, Mesa tiene que estar prendida (mismo constraint que la
+   * base: locales_pedidos_alguna_modalidad). */
+  .refine((v) => v.pedidosModalidad !== "sin_mostrador" || v.pedidosMesa, {
+    message: "Elegí cómo funciona el mostrador o activá Mesa.",
+    path: ["pedidosModalidad"],
   })
   .refine((v) => v.reservaAbreMin < v.reservaCierraMin, {
     message: "La apertura tiene que ser antes del cierre.",

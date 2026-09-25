@@ -6,7 +6,9 @@ import { useApp } from "@/components/providers/Providers";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import type { AyudaSeccion } from "@/components/panel/HelpLink";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
-import type { PedidosModalidad } from "@/lib/modules";
+/* Las tres formas de tomar pedidos que explica la ayuda. No es el valor de la
+ * base: el mostrador es tradicional o QR, y Mesa va aparte (puede sumarse). */
+type VistaPedidos = "mostrador" | "mesa" | "mostrador_qr";
 
 type Paso = { t: string; d: string };
 
@@ -154,15 +156,23 @@ const accentNum = {
 
 const AyudaPage = () => {
   const { t } = useApp();
-  const { pedidosEnMesa, pedidosMostradorQr } = useOperationalAccess();
-  const modalidadLocal: PedidosModalidad = pedidosEnMesa
-    ? "mesa"
-    : pedidosMostradorQr
-      ? "mostrador_qr"
-      : "mostrador";
+  const { pedidosEnMesa, pedidosMostradorQr, pedidosTradicional } = useOperationalAccess();
+  /* Lo que usa la sucursal: puede ser más de una (mostrador + Mesa). */
+  const enUso: Record<VistaPedidos, boolean> = {
+    mostrador: pedidosTradicional,
+    mesa: pedidosEnMesa,
+    mostrador_qr: pedidosMostradorQr,
+  };
+  const modalidadLocal: VistaPedidos = pedidosMostradorQr
+    ? "mostrador_qr"
+    : pedidosTradicional
+      ? "mostrador"
+      : pedidosEnMesa
+        ? "mesa"
+        : "mostrador";
   /* Hasta que alguien elija otra pestaña, se ve la de la sucursal (que puede
    * llegar después del primer render, cuando hidrata la config). */
-  const [elegida, setElegida] = useState<PedidosModalidad | null>(null);
+  const [elegida, setElegida] = useState<VistaPedidos | null>(null);
   const modalidad = elegida ?? modalidadLocal;
 
   useEffect(() => {
@@ -256,9 +266,12 @@ const AyudaPage = () => {
                   { id: "mostrador_qr", label: t("retiroConfig.mostradorQr") },
                 ]}
               />
-              <p className="mt-2 text-xs text-carbon/50">
+              <p className="mt-3 text-sm leading-relaxed text-carbon/60">
+                {t("ayuda.pedidos.combinaciones")}
+              </p>
+              <p className="mt-1 text-xs text-carbon/50">
                 {t(
-                  modalidad === modalidadLocal
+                  enUso[modalidad]
                     ? "ayuda.pedidos.modalidadActual"
                     : "ayuda.pedidos.modalidadOtra",
                 )}
