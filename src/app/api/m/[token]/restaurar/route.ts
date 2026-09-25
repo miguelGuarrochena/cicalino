@@ -7,12 +7,18 @@ import {
   parseGuestCookieValue,
   resolveTableQr,
 } from "@/lib/server/tableGuest";
+import { fetchPickupState } from "@/lib/server/tablePickup";
 
 export const dynamic = "force-dynamic";
 
 /* Same phone, same table, session still open: put the cookie back without
  * creating another comensal. Camera browsers often drop the httpOnly cookie
- * when the diner leaves and scans again. */
+ * when the diner leaves and scans again.
+ *
+ * The counter QR (Pedidos in Mostrador QR mode) has no table: the credential
+ * is good if it belongs to a guest of that branch's counter. A regenerated
+ * counter QR still restores it (to follow orders already placed; see
+ * mostrador_qr_estado). */
 
 export const POST = async (
   req: Request,
@@ -36,7 +42,16 @@ export const POST = async (
   if (!creds) return failure("no-guest");
 
   const mesa = await resolveTableQr(token);
-  if (!mesa.ok) return failure(mesa.reason);
+  if (!mesa.ok) {
+    const pickup = await fetchPickupState(token, creds, "mostrador_qr");
+    if (!pickup.ok) return failure(pickup.reason === "not-found" ? mesa.reason : pickup.reason);
+    if (!pickup.state.guest) return failure("no-guest");
+    return attachGuestCookie(
+      json({ ok: true, guest: pickup.state.guest }),
+      creds.guestId,
+      creds.secret,
+    );
+  }
 
   const state = await fetchGuestState(creds);
   if (!state.ok) return failure(state.reason);

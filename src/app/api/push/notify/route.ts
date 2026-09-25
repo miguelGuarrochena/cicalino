@@ -129,16 +129,31 @@ export const POST = async (req: Request) => {
         .select("id, endpoint, p256dh, auth")
         .eq("pedido_id", orderId!);
 
+  /* Mostrador QR: el aviso lleva al link de ESE pedido (`/m/<qr_token del
+   * pedido>`), no al QR del local: si el encargado lo regeneró mientras
+   * esperaba, el aviso sigue abriendo su pedido. Si eligió pagar en caja y
+   * todavía no pagó, se lo recuerda. */
   let url = `/p/${pedido.qr_token}`;
+  let pagaEnCaja = false;
   if (autoservicio && pedido.sesion_id) {
     const { data: sesion } = await admin
       .from("mesa_sesiones")
-      .select("mesas(qr_token)")
+      .select("flujo, mesas(qr_token)")
       .eq("id", pedido.sesion_id)
       .maybeSingle();
+    const mostradorQr = sesion?.flujo === "mostrador_qr";
     const mesa = sesion?.mesas as { qr_token?: string } | { qr_token?: string }[] | null | undefined;
     const mesaToken = Array.isArray(mesa) ? mesa[0]?.qr_token : mesa?.qr_token;
-    if (mesaToken) url = `/m/${mesaToken}`;
+    if (mostradorQr) url = `/m/${pedido.qr_token}`;
+    else if (mesaToken) url = `/m/${mesaToken}`;
+    if (mostradorQr) {
+      const { count } = await admin
+        .from("pagos_mesa")
+        .select("id", { count: "exact", head: true })
+        .eq("pedido_id", orderId!)
+        .eq("estado", "pagado");
+      pagaEnCaja = (count ?? 0) === 0;
+    }
   }
 
   const esRetirado = pedido.estado === "retirado";
@@ -149,9 +164,11 @@ export const POST = async (req: Request) => {
     titulo: "Cicalino",
     body: esRetirado
       ? `Pedido ${pedido.referencia} retirado. Ya podés cerrar la pestaña.`
-      : autoservicio
-        ? `Pedido ${pedido.referencia} listo. Retiralo en el mostrador.`
-        : `Pedido ${pedido.referencia} listo para retirar.`,
+      : pagaEnCaja
+        ? `Pedido ${pedido.referencia} listo. Retiralo y pagalo en el mostrador.`
+        : autoservicio
+          ? `Pedido ${pedido.referencia} listo. Retiralo en el mostrador.`
+          : `Pedido ${pedido.referencia} listo para retirar.`,
     url,
     pedidoId: orderId,
     tag,

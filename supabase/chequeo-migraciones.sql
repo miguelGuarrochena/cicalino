@@ -235,6 +235,18 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('pedidos-mesa.sql', 'function', 'pedir_autoservicio', 91),
     ('pedidos-mesa.sql', 'function', 'pedidos_por_cobrar', 91),
     ('pedidos-mesa.sql', 'function', 'cobrar_pedido_autoservicio', 91),
+    ('pedidos-mostrador-qr.sql', 'column', 'locales.mostrador_qr_token', 92),
+    ('pedidos-mostrador-qr.sql', 'index', 'uq_locales_mostrador_qr_token', 92),
+    ('pedidos-mostrador-qr.sql', 'column', 'pedidos.pagado_en', 92),
+    ('pedidos-mostrador-qr.sql', 'trigger', 'locales_mostrador_qr_guard', 92),
+    ('pedidos-mostrador-qr.sql', 'function', 'local_pedidos_mostrador_qr', 92),
+    ('pedidos-mostrador-qr.sql', 'function', 'unirse_mostrador_qr', 92),
+    ('pedidos-mostrador-qr.sql', 'function', 'mostrador_qr_estado', 92),
+    ('pedidos-mostrador-qr.sql', 'function', 'pedir_mostrador_qr', 92),
+    ('pedidos-mostrador-qr.sql', 'function', 'regenerar_qr_mostrador', 92),
+    ('pedidos-mostrador-qr-metodos.sql', 'trigger', 'locales_mostrador_qr_metodos', 93),
+    ('pedidos-mostrador-qr-metodos.sql', 'function', '_mostrador_caja_habilitada', 93),
+    ('pedidos-mostrador-qr-metodos.sql', 'function', '_mostrador_metodos_ok', 93),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -404,7 +416,9 @@ requisitos (archivo, necesita) as (
     ('staff-empleado-cobro.sql', 'staff-floor-guards.sql, mesa-launch-blockers.sql'),
     ('mesa-sesion-activa-unica.sql', 'mesa-launch-blockers.sql, staff-empleado-cobro.sql'),
     ('pedidos-mesa-enum.sql', 'setup.sql'),
-    ('pedidos-mesa.sql', 'pedidos-mesa-enum.sql, mesa-sesion-activa-unica.sql, staff-empleado-cobro.sql, mesa-launch-blockers.sql, mesa-pedido-comensal.sql, mesas-historial.sql, dias-cerrados-jornada.sql, pedidos-en-preparacion.sql')
+    ('pedidos-mesa.sql', 'pedidos-mesa-enum.sql, mesa-sesion-activa-unica.sql, staff-empleado-cobro.sql, mesa-launch-blockers.sql, mesa-pedido-comensal.sql, mesas-historial.sql, dias-cerrados-jornada.sql, pedidos-en-preparacion.sql'),
+    ('pedidos-mostrador-qr.sql', 'pedidos-mesa.sql'),
+    ('pedidos-mostrador-qr-metodos.sql', 'pedidos-mostrador-qr.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

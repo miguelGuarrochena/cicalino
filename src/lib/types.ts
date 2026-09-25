@@ -82,6 +82,12 @@ export interface OrderView {
   total?: number | null;
   paidMethod?: string | null;
   confirmedAt?: string | null;
+  /* Mostrador QR: el pedido entró desde el QR del local, sin mesa. El pago va
+   * aparte de la preparación: `paidMethod` dice si ya se cobró, y si no,
+   * `payAtCounterAt` (paga al retirar) o `mpPending` (está en el checkout). */
+  counterQr?: boolean;
+  payAtCounterAt?: string | null;
+  mpPending?: boolean;
 }
 
 export interface CustomerStatusView {

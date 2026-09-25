@@ -7,6 +7,7 @@ import { useConfigStore } from "@/lib/store/config-store";
 import {
   panelHomePath,
   pedidosEnMesa,
+  pedidosMostradorQr,
   usesTableMenu,
   type ModuleFlags,
 } from "@/lib/modules";
@@ -28,7 +29,10 @@ export interface OperationalAccess {
   isOwner: boolean;
   /* Pedidos en modalidad Mesa (el cliente pide y paga desde el QR). */
   pedidosEnMesa: boolean;
-  /* Carta, métodos de cobro y Mercado Pago: Pagos o Pedidos en modalidad Mesa. */
+  /* Pedidos en modalidad Mostrador QR (un QR del local, se paga ahora o al
+   * retirar). */
+  pedidosMostradorQr: boolean;
+  /* Carta, métodos de cobro y Mercado Pago: Pagos o Pedidos desde un QR. */
   usesMenu: boolean;
 }
 
@@ -60,6 +64,7 @@ export const useOperationalAccess = (): OperationalAccess => {
     canManage: role === "admin" || role === "supervisor" || role === "superadmin",
     isOwner: role === "admin",
     pedidosEnMesa: pedidosEnMesa(activos, modalidad),
+    pedidosMostradorQr: pedidosMostradorQr(activos, modalidad),
     usesMenu: usesTableMenu(activos, modalidad),
   };
 };

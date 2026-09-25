@@ -62,7 +62,12 @@ describe("Configuración: visible según lo contratado", () => {
     /* Cobros es de Pagos, y también de Pedidos cuando el cliente paga desde
      * la mesa (modalidad Mesa): los dos cobran con los mismos métodos. */
     expect(page).toContain("{cobrosVisibles && isRealBranchId(branchId) && (");
-    expect(page).toContain("const cobrosVisibles = usesTableMenu(modulos, c.pedidosModalidad);");
+    /* Elegir Mostrador QR (que cuelga de Pedidos) también la muestra: sin
+     * métodos de pago no se puede activar. */
+    expect(page).toContain(
+      "const cobrosVisibles = usesTableMenu(modulos, c.pedidosModalidad) || qrMostradorBorrador;",
+    );
+    expect(page).toContain("const qrMostradorBorrador = pedidosMostradorQr(modulos, pedidosModalidad);");
     expect(page).toContain("{c.moduloEspera && (");
     expect(page).toContain("{c.moduloPedidos && c.moduloEspera && (");
   });

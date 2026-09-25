@@ -1,16 +1,18 @@
 import { failure, guardGuestRequest, json, readJson } from "@/lib/server/guestApi";
 import { pickupPaySchema, uuid } from "@/lib/schemas";
-import { readGuestCookie, resolveTableQr } from "@/lib/server/tableGuest";
+import { readGuestCookie } from "@/lib/server/tableGuest";
 import {
   changePickupPayment,
   fetchPickupState,
+  resolvePickupAccess,
   startPickupCheckout,
 } from "@/lib/server/tablePickup";
 
 export const dynamic = "force-dynamic";
 
-/* Pagar un pedido que sigue esperando: abrir (o reabrir) Mercado Pago, o
- * pasar a pagar en caja. Solo el teléfono que lo pidió. */
+/* Pagar un pedido que todavía no está pago: abrir (o reabrir) Mercado Pago, o
+ * pasar a pagar en caja. Solo el teléfono que lo pidió. En el mostrador anda
+ * aunque el QR se haya regenerado: el pedido ya existe. */
 export const POST = async (
   req: Request,
   { params }: { params: Promise<{ token: string; pedidoId: string }> },
@@ -32,25 +34,25 @@ export const POST = async (
   const parsed = pickupPaySchema.safeParse(await readJson(req));
   if (!parsed.success) return failure("datos-invalidos");
 
+  const qr = await resolvePickupAccess(token, creds);
+  if (!qr.ok) return failure(qr.reason);
+
   const res = await changePickupPayment(creds, pedidoId, parsed.data.method);
   if (!res.ok) return failure(res.reason ?? "db-error");
 
   let checkoutUrl: string | null = null;
   if (parsed.data.method === "mercado_pago" && res.pago_id) {
-    const [mesa, before] = await Promise.all([
-      resolveTableQr(token),
-      fetchPickupState(token, creds),
-    ]);
+    const before = await fetchPickupState(token, creds, qr.flow);
     const order = before.ok ? before.state.orders.find((o) => o.id === pedidoId) : undefined;
     const mp = await startPickupCheckout(token, String(res.pago_id), {
-      branchName: mesa.ok ? mesa.branchName : "",
+      branchName: qr.branchName,
       reference: order?.reference ?? "",
-      tableNumber: mesa.ok ? mesa.tableNumber : 0,
+      tableNumber: qr.tableNumber,
     });
     if (!mp.ok) return failure(mp.reason);
     checkoutUrl = mp.checkoutUrl;
   }
 
-  const state = await fetchPickupState(token, creds);
+  const state = await fetchPickupState(token, creds, qr.flow);
   return json({ ok: true, checkoutUrl, state: state.ok ? state.state : null });
 };

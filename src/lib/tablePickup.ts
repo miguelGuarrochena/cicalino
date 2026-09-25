@@ -1,19 +1,27 @@
 import type { OrderStatus } from "@/lib/types";
-import type { PaymentMethod } from "@/lib/tableBill";
+import { enabledMethods, type PaymentMethod, type PaymentSettings } from "@/lib/tableBill";
 
-/* Pedidos en modalidad Mesa, del lado del cliente y de la caja.
+/* Pedidos hechos desde un QR, del lado del cliente y de la caja.
  *
- * La mesa no tiene mozo: el cliente pide desde el QR, paga (Mercado Pago o
- * en caja) y retira en el mostrador. Las reglas viven en la base
- * (supabase/pedidos-mesa.sql); esto solo traduce lo que devuelve a algo que
- * una pantalla pueda mostrar. */
+ * Dos modalidades con la misma base:
+ *   autoservicio  (Mesa) la mesa no tiene mozo: el cliente pide desde el QR
+ *                 de su mesa, paga y recién ahí se prepara.
+ *   mostrador_qr  (Mostrador QR) un QR para todo el local: el pedido entra a
+ *                 preparación enseguida y se paga ahora (Mercado Pago) o al
+ *                 retirar (en caja).
+ * Las reglas viven en la base (supabase/pedidos-mesa.sql y
+ * pedidos-mostrador-qr.sql); esto solo traduce lo que devuelve a algo que una
+ * pantalla pueda mostrar. */
 
 export type PickupPayChoice = "caja" | "mercado_pago";
+
+export type PickupFlow = "autoservicio" | "mostrador_qr";
 
 /* Lo que ve el cliente. Son cuatro estados y nada más: el resto de los que
  * tiene el pedido (creado, en_preparacion) son detalle del mostrador. */
 export type PickupStage =
   | "esperando-pago"
+  | "recibido"
   | "en-preparacion"
   | "listo"
   | "retirado"
@@ -43,6 +51,7 @@ export interface PickupOrder {
   reference: string;
   alias: string | null;
   status: OrderStatus;
+  flow: PickupFlow;
   tableNumber: number | null;
   guestId: string | null;
   createdAt: string;
@@ -68,8 +77,17 @@ export interface TablePickupSummary {
 }
 
 export interface PickupState {
-  table: { id: string; number: number };
+  flow: PickupFlow;
+  /* La mesa del QR. En el mostrador no hay. */
+  table: { id: string; number: number } | null;
+  /* El local (Mostrador QR). */
+  branch: { id: string; name: string } | null;
   operational: boolean;
+  /* Mostrador QR: false si se entró con un QR regenerado. Se siguen viendo
+   * (y pagando) los pedidos del teléfono, pero no se inicia uno nuevo. */
+  qrValid: boolean;
+  /* Mostrador QR: se entró por el link de un pedido (el push de "listo"). */
+  orderLink: boolean;
   guest: { id: string; name: string; sessionId: string } | null;
   /* Puede seguir pidiendo con esta identidad (su sesión es la de hoy). */
   canOrder: boolean;
@@ -123,6 +141,7 @@ export const mapPickupOrder = (raw: unknown): PickupOrder | null => {
     reference: String(p.referencia ?? ""),
     alias: str(p.alias),
     status: orderStatus(p.estado),
+    flow: p.flujo === "mostrador_qr" ? "mostrador_qr" : "autoservicio",
     tableNumber: p.mesa_numero == null ? null : num(p.mesa_numero),
     guestId: str(p.comensal_id),
     createdAt: String(p.creado_en ?? ""),
@@ -154,12 +173,18 @@ export const mapPickupState = (raw: unknown): PickupState | null => {
   const r = raw as Json;
   if (r.ok === false) return null;
   const mesa = (r.mesa ?? {}) as Json;
-  if (!str(mesa.id)) return null;
+  const local = (r.local ?? {}) as Json;
+  /* La mesa (modalidad Mesa) o el local (Mostrador QR): uno de los dos. */
+  if (!str(mesa.id) && !str(local.id)) return null;
   const c = r.comensal as Json | null | undefined;
   const tableOrders = Array.isArray(r.mesa_pedidos) ? (r.mesa_pedidos as Json[]) : [];
   return {
-    table: { id: String(mesa.id), number: num(mesa.numero) },
+    flow: str(mesa.id) ? "autoservicio" : "mostrador_qr",
+    table: str(mesa.id) ? { id: String(mesa.id), number: num(mesa.numero) } : null,
+    branch: str(local.id) ? { id: String(local.id), name: String(local.nombre ?? "") } : null,
     operational: r.operativo !== false,
+    qrValid: r.qr_vigente !== false,
+    orderLink: r.pedido_link === true,
     guest:
       c && str(c.id)
         ? { id: String(c.id), name: String(c.nombre ?? ""), sessionId: String(c.sesion_id ?? "") }
@@ -175,8 +200,11 @@ export const mapPickupState = (raw: unknown): PickupState | null => {
   };
 };
 
-export const pickupStage = (status: OrderStatus): PickupStage => {
+/* En el mostrador el pedido recién hecho se ve "Recibido": entró, todavía
+ * nadie lo empezó. En la mesa `creado` ya es "pago y en la cola". */
+export const pickupStage = (status: OrderStatus, flow: PickupFlow = "autoservicio"): PickupStage => {
   if (status === "pendiente_pago") return "esperando-pago";
+  if (status === "creado" && flow === "mostrador_qr") return "recibido";
   if (status === "listo") return "listo";
   if (status === "retirado") return "retirado";
   if (status === "cancelado") return "cancelado";
@@ -236,3 +264,47 @@ export const sortToCharge = (orders: PickupOrder[]): PickupOrder[] =>
     if (ac !== bc) return ac - bc;
     return (a.payAtCounterAt ?? a.createdAt).localeCompare(b.payAtCounterAt ?? b.createdAt);
   });
+
+/* ---- Mostrador QR: el pago va aparte de la preparación ------------------
+ *
+ * El pedido está en el tablero desde que se hizo; lo que cambia es si ya se
+ * cobró y cómo. Uno pago no vuelve a pagarse (lo impide la base). */
+export type CounterPayState =
+  | "pagado"
+  | "mercado_pago" /* en el checkout ahora mismo */
+  | "caja" /* paga al retirar */
+  | "sin-pagar"; /* Mercado Pago no se completó y no eligió caja */
+
+export const counterPayState = (o: PickupOrder, now: number = Date.now()): CounterPayState => {
+  const p = o.payment;
+  if (p?.status === "pagado") return "pagado";
+  if (
+    p &&
+    p.method === "mercado_pago" &&
+    p.status === "pendiente" &&
+    (!p.expiresAt || new Date(p.expiresAt).getTime() > now)
+  ) {
+    return "mercado_pago";
+  }
+  if (o.payAtCounterAt) return "caja";
+  return "sin-pagar";
+};
+
+/* Qué formas de pago ofrece el mostrador, desde la configuración real del
+ * local (mismo criterio que _mostrador_caja_habilitada en la base):
+ *   mercadoPago  método propio: habilitado y con la cuenta conectada.
+ *   caja         NO es un método: pagar al retirar, en persona, con alguno de
+ *                los otros habilitados (efectivo, tarjetas, transferencia, QR).
+ * Sin ninguno de los dos, Mostrador QR no toma pedidos. */
+export const counterPayOptions = (
+  settings: PaymentSettings,
+  mercadoPagoReady: boolean,
+): { caja: boolean; mercadoPago: boolean } => ({
+  caja: enabledMethods(settings, { mercadoPagoConnected: false, forStaff: true }).length > 0,
+  mercadoPago: mercadoPagoReady,
+});
+
+/* ¿Se puede cambiar cómo paga? Mientras no esté pago ni retirado/cancelado. */
+export const counterCanPay = (o: PickupOrder): boolean =>
+  o.status !== "cancelado" && o.status !== "retirado" && counterPayState(o) !== "pagado";
+

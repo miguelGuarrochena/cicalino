@@ -14,7 +14,12 @@ import {
   resolveTableQr,
   type GuestCredentials,
 } from "@/lib/server/tableGuest";
-import { fetchPickupState } from "@/lib/server/tablePickup";
+import {
+  fetchPickupState,
+  resolveCounterQr,
+  resolvePickupAccess,
+} from "@/lib/server/tablePickup";
+import { counterPayOptions, type PickupFlow } from "@/lib/tablePickup";
 
 /* Table QR landing. Rendered on the server with everything resolved: the
  * first HTML already has the menu and, for a returning guest, the bill. */
@@ -30,9 +35,16 @@ export const generateMetadata = async ({
     return { robots: { index: false, follow: false } };
   }
   const mesa = await resolveTableQr(token);
+  if (!mesa.ok) {
+    const counter = await resolveCounterQr(token);
+    return {
+      robots: { index: false, follow: false },
+      title: counter.ok ? counter.branchName || "Cicalino" : "Cicalino",
+    };
+  }
   return {
     robots: { index: false, follow: false },
-    title: mesa.ok ? `${mesa.branchName} · Mesa ${mesa.tableNumber}` : "Cicalino",
+    title: `${mesa.branchName} · Mesa ${mesa.tableNumber}`,
   };
 };
 
@@ -53,7 +65,32 @@ const TablePage = async ({
   /* Pedidos en modalidad Mesa: el mismo QR, otro flujo. Pedir, pagar y
    * retirar en el mostrador; sin cuenta compartida. */
   if (mesa.ok && mesa.flow === "autoservicio") {
-    return <PickupPage token={token} mesa={mesa} creds={creds} pago={pago} />;
+    return (
+      <PickupPage
+        token={token}
+        qr={{ ...mesa, flow: "autoservicio" }}
+        creds={creds}
+        pago={pago}
+      />
+    );
+  }
+
+  /* Pedidos en modalidad Mostrador QR: un QR para todo el local. El token no
+   * es de una mesa; el pedido de cada teléfono sale de su cookie. Un cartel
+   * regenerado ya no inicia pedidos, pero quien ya pidió con él sigue viendo
+   * (y pagando) lo suyo ahí mismo: sin redirigir al QR nuevo. */
+  if (!mesa.ok) {
+    const counter = await resolvePickupAccess(token, creds);
+    if (counter.ok && counter.flow === "mostrador_qr") {
+      return (
+        <PickupPage
+          token={token}
+          qr={{ ...counter, tableNumber: null }}
+          creds={creds}
+          pago={pago}
+        />
+      );
+    }
   }
 
   const state = await fetchGuestState(creds);
@@ -127,32 +164,47 @@ const TablePage = async ({
 
 const PickupPage = async ({
   token,
-  mesa,
+  qr,
   creds,
   pago,
 }: {
   token: string;
-  mesa: Extract<Awaited<ReturnType<typeof resolveTableQr>>, { ok: true }>;
+  qr: {
+    flow: PickupFlow;
+    branchId: string;
+    branchName: string;
+    operational: boolean;
+    tableNumber: number | null;
+  };
   creds: GuestCredentials | null;
   pago: string | undefined;
 }) => {
   const [menu, payment, brand, pickup] = await Promise.all([
-    fetchMenu(mesa.branchId),
-    fetchGuestPaymentOptions(mesa.branchId),
-    fetchBranchBrand(mesa.branchId),
-    fetchPickupState(token, creds),
+    fetchMenu(qr.branchId),
+    fetchGuestPaymentOptions(qr.branchId),
+    fetchBranchBrand(qr.branchId),
+    fetchPickupState(token, creds, qr.flow),
   ]);
+  const mercadoPagoReady = payment.mercadoPagoReady && payment.settings.mercadoPago;
+  /* En la mesa "pagar en caja" se ofrece como siempre; en el mostrador sale
+   * de los métodos que el local tiene habilitados. */
+  const cashReady =
+    qr.flow === "mostrador_qr"
+      ? counterPayOptions(payment.settings, mercadoPagoReady).caja
+      : true;
   return (
     <TablePickupApp
       initial={{
         token,
-        tableNumber: mesa.tableNumber,
-        branchName: brand.name || mesa.branchName,
+        flow: qr.flow,
+        tableNumber: qr.tableNumber,
+        branchName: brand.name || qr.branchName,
         logoUrl: brand.logoUrl,
         colorMarca: brand.color,
-        operational: mesa.operational,
+        operational: qr.operational,
         menu,
-        mercadoPagoReady: payment.mercadoPagoReady && payment.settings.mercadoPago,
+        mercadoPagoReady,
+        cashReady,
         state: pickup.ok ? pickup.state : null,
         returningPaymentId: uuid.safeParse(pago).success ? pago! : null,
       }}

@@ -84,7 +84,7 @@ describe("mapPickupState", () => {
     })!;
     expect(s.guest).toBeNull();
     expect(s.canOrder).toBe(false);
-    expect(s.table.number).toBe(5);
+    expect(s.table?.number).toBe(5);
     expect(s.tableOrders).toEqual([
       { reference: "12", status: "listo", createdAt: "2026-09-22T19:00:00Z", total: 5000 },
     ]);

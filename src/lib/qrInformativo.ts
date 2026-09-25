@@ -30,19 +30,41 @@ export type InformativeQrCopy = {
   byline: string;
 };
 
-/* A qué flujo lleva el QR: la cuenta de Pagos (con mozo) o el pedido con
- * pago previo y retiro en el mostrador. */
-export type InformativeQrFlow = "cuenta" | "autoservicio";
+/* A qué flujo lleva el QR: la cuenta de Pagos (con mozo), el pedido de la
+ * mesa con pago previo, o el QR único del mostrador (se paga ahora o al
+ * retirar). */
+export type InformativeQrFlow = "cuenta" | "autoservicio" | "mostrador_qr";
 
 export const informativeQrCopy = (
   t: (key: string) => string,
   flow: InformativeQrFlow = "cuenta",
 ): InformativeQrCopy =>
-  flow === "autoservicio" ? pickupQrCopy(t) : tableBillQrCopy(t);
+  flow === "mostrador_qr"
+    ? counterQrCopy(t)
+    : flow === "autoservicio"
+      ? pickupQrCopy(t)
+      : tableBillQrCopy(t);
 
 /* Número del primer paso del segundo grupo. */
 export const secondGroupStart = (copy: InformativeQrCopy): number =>
   copy.orderSteps.length + 1;
+
+/* Pedí desde tu celular: escaneá, elegí, confirmá y elegí cómo pagar; después
+ * esperá el aviso y retirá. Sin mesa y sin nada que sobre. */
+const counterQrCopy = (t: (key: string) => string): InformativeQrCopy => ({
+  title: t("mostradorQr.cartel.titulo"),
+  orderLabel: t("mostradorQr.cartel.pedi"),
+  payLabel: t("mostradorQr.cartel.retira"),
+  orderSteps: [
+    t("mostradorQr.cartel.pedi1"),
+    t("mostradorQr.cartel.pedi2"),
+    t("mostradorQr.cartel.pedi3"),
+  ],
+  orderNote: t("mostradorQr.cartel.pediNota"),
+  paySteps: [t("mostradorQr.cartel.retira1"), t("mostradorQr.cartel.retira2")],
+  payNote: t("mostradorQr.cartel.retiraNota"),
+  byline: t("mesasQr.cartelBy"),
+});
 
 const pickupQrCopy = (t: (key: string) => string): InformativeQrCopy => ({
   title: t("retiroQr.cartelTitulo"),

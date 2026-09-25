@@ -167,7 +167,7 @@ export const branchConfigSchema = z
   });
 export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 
-export const pedidosModalidad = z.enum(["mostrador", "mesa"], {
+export const pedidosModalidad = z.enum(["mostrador", "mesa", "mostrador_qr"], {
   errorMap: () => ({ message: "Modalidad de Pedidos inválida." }),
 });
 
@@ -421,12 +421,14 @@ export const guestOrderSchema = z.object({
     ),
 });
 
-/* Pedidos en modalidad Mesa: el pedido sale con la forma de pago elegida.
- * Lo que cuesta lo vuelve a calcular la base con los precios de la carta. */
+/* Pedidos desde un QR (Mesa o Mostrador QR): el pedido sale con la forma de
+ * pago elegida. Lo que cuesta lo vuelve a calcular la base con los precios
+ * de la carta. En el mostrador el nombre es opcional y va con el pedido. */
 export const pickupPayMethodSchema = z.enum(["caja", "mercado_pago"]);
 
 export const pickupOrderSchema = guestOrderSchema.extend({
   method: pickupPayMethodSchema,
+  name: customerAliasSchema.optional(),
 });
 
 export const pickupPaySchema = z.object({ method: pickupPayMethodSchema });

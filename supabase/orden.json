@@ -90,5 +90,7 @@
   "staff-empleado-cobro.sql",
   "mesa-sesion-activa-unica.sql",
   "pedidos-mesa-enum.sql",
-  "pedidos-mesa.sql"
+  "pedidos-mesa.sql",
+  "pedidos-mostrador-qr.sql",
+  "pedidos-mostrador-qr-metodos.sql"
 ]

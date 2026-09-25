@@ -8,27 +8,44 @@ export type DeviceMode = "pedidos" | "espera" | "ambos";
 
 /* Cómo funciona Pedidos en esta sucursal (locales.pedidos_modalidad).
  *
- *  mostrador  la caja carga el pedido y le da el QR al cliente. La de siempre.
- *  mesa       no hay mozo: el cliente escanea el QR fijo de su mesa, pide,
- *             paga (Mercado Pago o en caja) y retira en el mostrador. El
- *             pedido recién entra a preparación cuando está pago. */
-export type PedidosModalidad = "mostrador" | "mesa";
+ *  mostrador     la caja carga el pedido y le da el QR al cliente. La de
+ *                siempre.
+ *  mesa          no hay mozo: el cliente escanea el QR fijo de su mesa, pide,
+ *                paga (Mercado Pago o en caja) y retira en el mostrador. El
+ *                pedido recién entra a preparación cuando está pago.
+ *  mostrador_qr  un solo QR para todo el local (panadería, café, mostrador):
+ *                el cliente pide desde el celular, el pedido entra a
+ *                preparación enseguida y paga ahora (Mercado Pago) o al
+ *                retirar (en caja). */
+export type PedidosModalidad = "mostrador" | "mesa" | "mostrador_qr";
 
 export const parsePedidosModalidad = (raw: unknown): PedidosModalidad =>
-  raw === "mesa" ? "mesa" : "mostrador";
+  raw === "mesa" || raw === "mostrador_qr" ? raw : "mostrador";
 
 export const pedidosEnMesa = (
   m: Pick<ModuleFlags, "pedidos">,
   modalidad: PedidosModalidad,
 ): boolean => m.pedidos && modalidad === "mesa";
 
+export const pedidosMostradorQr = (
+  m: Pick<ModuleFlags, "pedidos">,
+  modalidad: PedidosModalidad,
+): boolean => m.pedidos && modalidad === "mostrador_qr";
+
+/* El cliente pide solo desde un QR (el de su mesa o el del mostrador): hay
+ * carta, cobros y una caja que cobra lo que se paga ahí. */
+export const pedidosPorQr = (
+  m: Pick<ModuleFlags, "pedidos">,
+  modalidad: PedidosModalidad,
+): boolean => pedidosEnMesa(m, modalidad) || pedidosMostradorQr(m, modalidad);
+
 /* La carta, los métodos de cobro y la cuenta de Mercado Pago. Los usa Pagos,
- * y también Pedidos cuando el cliente pide desde la mesa. Mismo criterio que
+ * y también Pedidos cuando el cliente pide desde un QR. Mismo criterio que
  * local_usa_carta en la base. */
 export const usesTableMenu = (
   m: ModuleFlags,
   modalidad: PedidosModalidad,
-): boolean => m.pagos || pedidosEnMesa(m, modalidad);
+): boolean => m.pagos || pedidosPorQr(m, modalidad);
 
 export const DEVICE_MODE_KEY = "cicalino-dispositivo-modulo";
 export const DEVICE_MODE_EVENT = "cicalino-device-mode";

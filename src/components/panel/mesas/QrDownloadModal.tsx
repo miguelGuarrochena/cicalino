@@ -88,9 +88,11 @@ export const QrDownloadModal = ({
             {t("mesasQr.descargarMarco")}
           </span>
           <span className="mt-0.5 text-sm text-carbon/55">
-            {flow === "autoservicio"
-              ? t("retiroQr.descargarMarcoHint")
-              : t("mesasQr.descargarMarcoHint")}
+            {flow === "mostrador_qr"
+              ? t("mostradorQr.qr.descargarMarcoHint")
+              : flow === "autoservicio"
+                ? t("retiroQr.descargarMarcoHint")
+                : t("mesasQr.descargarMarcoHint")}
           </span>
           <div className="mt-3 aspect-[180/102] overflow-hidden rounded-2xl bg-white ring-1 ring-linea">
             <InformativeQrCard

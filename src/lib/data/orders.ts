@@ -35,6 +35,9 @@ type Row = {
   total?: number | null;
   pago_metodo?: string | null;
   items?: { nombre: string; cantidad: number }[] | null;
+  flujo?: string | null;
+  pago_caja_en?: string | null;
+  pago_mp_pendiente?: boolean | null;
 };
 
 const mapRow = (r: Row): OrderView => ({
@@ -60,6 +63,9 @@ const mapRow = (r: Row): OrderView => ({
   total: r.total ?? null,
   paidMethod: r.pago_metodo ?? null,
   items: (r.items ?? []).map((i) => ({ name: i.nombre, quantity: i.cantidad })),
+  counterQr: r.flujo === "mostrador_qr",
+  payAtCounterAt: r.pago_caja_en ?? null,
+  mpPending: Boolean(r.pago_mp_pendiente),
 });
 
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;

@@ -9,16 +9,19 @@ import type { AyudaSeccion } from "@/components/panel/HelpLink";
 type Paso = { t: string; d: string };
 
 /* `pasosMesa` es Pedidos en modalidad Mesa: el cliente pide y paga desde el
- * QR de su mesa. Es otro flujo, no un paso más, así que reemplaza la lista en
- * vez de sumarse. */
+ * QR de su mesa. `pasosQr` es Mostrador QR: un QR para todo el local, el
+ * pedido se prepara enseguida y se paga ahora o al retirar. Son otros flujos,
+ * no un paso más, así que reemplazan la lista en vez de sumarse. */
 const SECCIONES: {
   id: AyudaSeccion;
   accent: "marca" | "espera" | "pagos" | "carbon";
   href?: string;
   pasos: Paso[];
   pasosMesa?: Paso[];
+  pasosQr?: Paso[];
   tips?: string[];
   tipsMesa?: string[];
+  tipsQr?: string[];
 }[] = [
   {
     id: "pedidos",
@@ -42,6 +45,14 @@ const SECCIONES: {
     ],
     tips: ["ayuda.pedidos.tip1", "ayuda.pedidos.tip2"],
     tipsMesa: ["ayuda.pedidos.tipMesa1", "ayuda.pedidos.tipMesa2"],
+    pasosQr: [
+      { t: "ayuda.pedidos.q1t", d: "ayuda.pedidos.q1d" },
+      { t: "ayuda.pedidos.q2t", d: "ayuda.pedidos.q2d" },
+      { t: "ayuda.pedidos.q3t", d: "ayuda.pedidos.q3d" },
+      { t: "ayuda.pedidos.q4t", d: "ayuda.pedidos.q4d" },
+      { t: "ayuda.pedidos.q5t", d: "ayuda.pedidos.q5d" },
+    ],
+    tipsQr: ["ayuda.pedidos.tipQr1", "ayuda.pedidos.tipQr2"],
   },
   {
     id: "espera",
@@ -124,7 +135,7 @@ const accentNum = {
 
 const AyudaPage = () => {
   const { t } = useApp();
-  const { pedidosEnMesa } = useOperationalAccess();
+  const { pedidosEnMesa, pedidosMostradorQr } = useOperationalAccess();
 
   useEffect(() => {
     const scrollHash = () => {
@@ -169,8 +180,10 @@ const AyudaPage = () => {
 
       {SECCIONES.map((s) => {
         const enMesa = pedidosEnMesa && s.id === "pedidos";
-        const pasos = enMesa && s.pasosMesa ? s.pasosMesa : s.pasos;
-        const tips = enMesa && s.tipsMesa ? s.tipsMesa : s.tips;
+        const enQr = pedidosMostradorQr && s.id === "pedidos";
+        const pasos =
+          enMesa && s.pasosMesa ? s.pasosMesa : enQr && s.pasosQr ? s.pasosQr : s.pasos;
+        const tips = enMesa && s.tipsMesa ? s.tipsMesa : enQr && s.tipsQr ? s.tipsQr : s.tips;
         return (
         <section
           key={s.id}
@@ -183,7 +196,13 @@ const AyudaPage = () => {
                 {t(`ayuda.${s.id}.titulo`)}
               </h2>
               <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-carbon/60">
-                {t(enMesa ? "ayuda.pedidos.introMesa" : `ayuda.${s.id}.intro`)}
+                {t(
+                  enMesa
+                    ? "ayuda.pedidos.introMesa"
+                    : enQr
+                      ? "ayuda.pedidos.introQr"
+                      : `ayuda.${s.id}.intro`,
+                )}
               </p>
             </div>
             {s.href && (

@@ -1,16 +1,22 @@
 import { failure, guardGuestRequest, json, readJson } from "@/lib/server/guestApi";
 import { pickupOrderSchema } from "@/lib/schemas";
-import { readGuestCookie, resolveTableQr } from "@/lib/server/tableGuest";
+import { readGuestCookie } from "@/lib/server/tableGuest";
 import {
   fetchPickupState,
+  placeCounterOrder,
   placePickupOrder,
+  resolvePickupAccess,
+  resolvePickupQr,
   startPickupCheckout,
 } from "@/lib/server/tablePickup";
 
 export const dynamic = "force-dynamic";
 
-/* Confirmar el pedido: sale con la forma de pago elegida y queda esperando el
- * pago. Con Mercado Pago devuelve el checkout; en caja, la caja ya lo ve. */
+/* Confirmar el pedido con la forma de pago elegida. Con Mercado Pago devuelve
+ * el checkout; en caja, no hay nada más que hacer acá.
+ *
+ * En la mesa el pedido queda esperando el pago. En el mostrador entra al
+ * tablero en el acto y el pago va aparte. */
 export const POST = async (
   req: Request,
   { params }: { params: Promise<{ token: string }> },
@@ -30,36 +36,47 @@ export const POST = async (
 
   const parsed = pickupOrderSchema.safeParse(await readJson(req));
   if (!parsed.success) {
+    const nombre = parsed.error.issues.some((i) => i.path[0] === "name");
     return json(
-      { ok: false, reason: "items-invalidos", message: parsed.error.issues[0]?.message },
+      {
+        ok: false,
+        reason: nombre ? "nombre-invalido" : "items-invalidos",
+        message: parsed.error.issues[0]?.message,
+      },
       400,
     );
   }
 
-  const res = await placePickupOrder(
-    creds,
-    parsed.data.items,
-    parsed.data.key,
-    parsed.data.method,
-  );
+  /* Un pedido nuevo sale solo de un QR vigente. Si es el cartel regenerado
+   * de un mostrador donde este teléfono ya pidió, se lo dice claro. */
+  const qr = await resolvePickupQr(token);
+  if (!qr.ok) {
+    const stale = qr.reason === "not-found" && (await resolvePickupAccess(token, creds)).ok;
+    return failure(stale ? "qr-vencido" : qr.reason);
+  }
+
+  const { items, key, method, name } = parsed.data;
+  const res =
+    qr.flow === "mostrador_qr"
+      ? await placeCounterOrder(token, creds, items, key, method, name ?? null)
+      : await placePickupOrder(creds, items, key, method);
   if (!res.ok) return failure(res.reason ?? "db-error");
 
   let checkoutUrl: string | null = null;
   let checkoutError: string | null = null;
-  if (parsed.data.method === "mercado_pago" && res.pago_id) {
-    const mesa = await resolveTableQr(token);
+  if (method === "mercado_pago" && res.pago_id) {
     const mp = await startPickupCheckout(token, String(res.pago_id), {
-      branchName: mesa.ok ? mesa.branchName : "",
+      branchName: qr.branchName,
       reference: String(res.referencia ?? ""),
-      tableNumber: mesa.ok ? mesa.tableNumber : 0,
+      tableNumber: qr.tableNumber,
     });
-    /* El pedido ya existe y espera el pago: si Mercado Pago no respondió, el
-     * cliente puede reintentar o pasar a pagar en caja desde su pantalla. */
+    /* El pedido ya existe: si Mercado Pago no respondió, el cliente puede
+     * reintentar o pasar a pagar en caja desde su pantalla. */
     if (mp.ok) checkoutUrl = mp.checkoutUrl;
     else checkoutError = mp.reason;
   }
 
-  const state = await fetchPickupState(token, creds);
+  const state = await fetchPickupState(token, creds, qr.flow);
   return json({
     ok: true,
     orderId: res.pedido_id,

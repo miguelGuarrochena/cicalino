@@ -40,6 +40,20 @@ export const canOfferWebPush = (): boolean => {
   return pushManagerSupported();
 };
 
+/**
+ * ¿Este navegador puede recibir el aviso con la pestaña cerrada?
+ * Por capacidad, no por plataforma: contexto seguro, Service Worker + Push +
+ * Notification disponibles, clave VAPID configurada y el permiso sin
+ * denegar. Un iPhone en Safari no expone PushManager (da false); instalado
+ * en la pantalla de inicio sí, y ahí el aviso llega.
+ */
+export const webPushAvailable = (): boolean => {
+  if (typeof window === "undefined" || !window.isSecureContext) return false;
+  if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return false;
+  if (!pushManagerSupported()) return false;
+  return Notification.permission !== "denied";
+};
+
 export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
     return null;

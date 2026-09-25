@@ -59,3 +59,45 @@ export const chargePickupOrder = async (
  * compare-and-swap que el resto del tablero; el trigger suelta su checkout. */
 export const cancelUnpaidOrder = (orderId: string): Promise<OrderStatusResult> =>
   updateOrderStatus(orderId, "cancelado");
+
+/* ---- QR del mostrador (Mostrador QR) --------------------------------------
+ * Un solo QR para todo el local: identifica la entrada, no el pedido. */
+
+export interface CounterQrView {
+  token: string;
+  generatedAt: string | null;
+}
+
+export const fetchCounterQr = async (
+  branchId: string,
+): Promise<DataResult<CounterQrView | null>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok(null);
+  const { data, error } = await supabase
+    .from("locales")
+    .select("mostrador_qr_token, mostrador_qr_generado_en")
+    .eq("id", branchId)
+    .maybeSingle();
+  if (error) {
+    reportError("panel.pedidos.qr-mostrador", error, { branchId });
+    return fail(desdeSupabase(error));
+  }
+  if (!data?.mostrador_qr_token) return ok(null);
+  return ok({
+    token: String(data.mostrador_qr_token),
+    generatedAt: (data.mostrador_qr_generado_en as string | null) ?? null,
+  });
+};
+
+/* El cartel impreso deja de andar; quien estaba esperando su pedido lo sigue
+ * encontrando (el QR viejo lo lleva al nuevo por su cookie). */
+export const regenerateCounterQr = async (branchId: string): Promise<boolean> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return false;
+  const { data, error } = await supabase.rpc("regenerar_qr_mostrador", { p_local: branchId });
+  if (error) {
+    reportError("panel.pedidos.qr-mostrador.regenerar", error, { branchId });
+    return false;
+  }
+  return Boolean((data as { ok?: boolean } | null)?.ok);
+};

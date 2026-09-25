@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/Providers";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -19,7 +26,7 @@ import { PickupOrderCard } from "@/components/customer/table/PickupOrderCard";
 import { useErrorText } from "@/components/customer/table/TransferDetails";
 import type { GuestMenuProduct } from "@/components/customer/table/TableGuestApp";
 import type { BrandColorId } from "@/lib/customerBrand";
-import { guestNameSchema } from "@/lib/schemas";
+import { customerAliasSchema, guestNameSchema } from "@/lib/schemas";
 import { clearGuestCred, loadGuestCred, saveGuestCred } from "@/lib/guestSession";
 import { formatMoney } from "@/lib/tableBill";
 import {
@@ -30,9 +37,11 @@ import {
   totalCarrito,
 } from "@/lib/cart";
 import {
+  counterPayState,
   newlyReady,
   pickupActive,
   pickupStage,
+  type PickupFlow,
   type PickupPayChoice,
   type PickupState,
 } from "@/lib/tablePickup";
@@ -43,22 +52,30 @@ import {
   requestNotificationPermission,
   showReadyNotice,
   subscribeWebPush,
+  webPushAvailable,
 } from "@/lib/notifications";
 import type { OrderStatus } from "@/lib/types";
 
-/* Pedidos en modalidad Mesa, en el teléfono del cliente.
+/* Pedidos desde un QR, en el teléfono del cliente. Dos modalidades:
  *
- * QR de la mesa → carta → pedido → pago → preparación → listo → retiro.
+ *  autoservicio  (Mesa) QR de la mesa → nombre → carta → pedido → pago →
+ *                preparación → listo → retiro. La pantalla tiene que dejar
+ *                claro que el pedido se prepara recién cuando está pago.
+ *  mostrador_qr  (Mostrador QR) QR del local → carta → pedido (nombre
+ *                opcional) → pago ahora o en caja → preparación → listo →
+ *                retiro. El pedido entra al local en cuanto se confirma; el
+ *                pago solo cambia cuándo se cobra. No hay paso previo: la
+ *                identidad del teléfono se crea recién al confirmar.
  *
- * No hay mozo, así que la pantalla tiene que dejar claro dos cosas en todo
- * momento: que el pedido se prepara recién cuando está pago, y dónde está el
- * suyo. Todo sale del servidor (supabase/pedidos-mesa.sql): cerrar la pestaña,
- * perder el aviso o volver a escanear el QR más tarde devuelve el mismo
- * estado. */
+ * Todo sale del servidor (supabase/pedidos-mesa.sql y
+ * pedidos-mostrador-qr.sql): cerrar la pestaña, perder el aviso o volver a
+ * escanear el QR más tarde devuelve el mismo estado. */
 
 export interface TablePickupInitial {
   token: string;
-  tableNumber: number;
+  flow: PickupFlow;
+  /* La mesa del QR. En el mostrador no hay. */
+  tableNumber: number | null;
   branchName: string;
   logoUrl: string | null;
   colorMarca: BrandColorId | null;
@@ -66,6 +83,9 @@ export interface TablePickupInitial {
   menu: GuestMenuProduct[];
   /* El local acepta Mercado Pago y la cuenta está conectada. */
   mercadoPagoReady: boolean;
+  /* Se ofrece "Pagar en caja": en el mostrador, si hay algún método
+   * presencial habilitado (counterPayOptions). En la mesa, siempre. */
+  cashReady: boolean;
   state: PickupState | null;
   returningPaymentId: string | null;
 }
@@ -79,21 +99,59 @@ const newKey = () => crypto.randomUUID();
 
 type ApiState = { ok: boolean; reason?: string; state?: PickupState | null };
 
+/* En el mostrador la identidad del teléfono vence con la jornada (o se pierde
+ * con la cookie): se abre otra y el pedido se reintenta una vez. */
+const REJOIN_REASONS = new Set(["no-guest", "comensal-invalido", "mesa-cerrada"]);
+
+const noSubscribe = () => () => {};
+
+/* Los navegadores de la cámara pierden la cookie httpOnly al cerrar; la copia
+ * local la repone sin crear otro comensal. */
+const restoreGuest = async (token: string): Promise<boolean> => {
+  const cred = loadGuestCred(token);
+  if (!cred) return false;
+  const res = await fetch(`/api/m/${token}/restaurar`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cred }),
+  });
+  const data = (await res.json().catch(() => null)) as { ok: boolean } | null;
+  if (data?.ok) return true;
+  clearGuestCred(token);
+  return false;
+};
+
 export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => {
   const { t } = useApp();
   const router = useRouter();
   const confirmar = useConfirm();
   const errorText = useErrorText();
   const { token } = initial;
+  const counter = initial.flow === "mostrador_qr";
 
   const [state, setState] = useState<PickupState | null>(initial.state);
   const guest = state?.guest ?? null;
-  const canOrder = Boolean(guest && state?.canOrder && initial.operational);
+  /* Mostrador: se entró con un QR regenerado. Se ven y se pagan los pedidos
+   * que ya tiene el teléfono; para uno nuevo hay que escanear el cartel
+   * vigente. */
+  const qrStale = counter && state?.qrValid === false;
+  /* Mostrador: sin ningún método de pago habilitado no se toman pedidos. */
+  const sinMetodos = counter && !initial.cashReady && !initial.mercadoPagoReady;
+  /* Mostrador: los textos que hablan de cómo pagar dicen solo lo que el local
+   * ofrece ("" = las dos opciones). */
+  const pagoTexto = counterPayTextKey(initial.cashReady, initial.mercadoPagoReady);
+  /* En el mostrador se puede pedir sin identidad previa: se crea al confirmar. */
+  const canOrder = counter
+    ? initial.operational && state?.operational !== false && !qrStale && !sinMetodos
+    : Boolean(guest && state?.canOrder && initial.operational);
   const orders = useMemo(() => state?.orders ?? [], [state]);
   const hasActive = orders.some((o) => pickupActive(o.status));
 
   const [tab, setTab] = useState<Tab>(
-    initial.returningPaymentId || (initial.state?.orders ?? []).some((o) => pickupActive(o.status))
+    initial.returningPaymentId ||
+      initial.state?.qrValid === false ||
+      (initial.state?.orders ?? []).some((o) => pickupActive(o.status))
       ? "pedidos"
       : "carta",
   );
@@ -110,6 +168,13 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
   const [flashIds, setFlashIds] = useState<ReadonlySet<string>>(new Set());
   const [pushOn, setPushOn] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  /* Se lee en el cliente: el servidor no sabe qué navegador es. */
+  const pushCapable = useSyncExternalStore(
+    noSubscribe,
+    () => (counter ? webPushAvailable() : canOfferWebPush()),
+    () => false,
+  );
 
   const applyState = useCallback((next: PickupState | null | undefined) => {
     if (next) setState(next);
@@ -168,15 +233,18 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
     for (const id of ready) {
       const o = orders.find((x) => x.id === id);
       if (!o) continue;
+      const pagaAlRetirar = counter && counterPayState(o) !== "pagado";
       void showReadyNotice({
         reference: o.reference,
         url: `/m/${token}`,
-        body: t("retiro.pushListo", { n: o.reference }),
+        body: t(pagaAlRetirar ? "mostradorQr.pushListoCaja" : "retiro.pushListo", {
+          n: o.reference,
+        }),
       });
     }
     setFlashIds(new Set(ready));
     setTab("pedidos");
-  }, [orders, token, t]);
+  }, [orders, token, t, counter]);
 
   /* El destello dura unos segundos; el estado "Listo" queda. */
   useEffect(() => {
@@ -191,16 +259,33 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
     if (!checking || !state) return;
     const order = orders.find((o) => o.payment?.id === checking);
     if (order?.payment?.status === "pendiente") return;
-    if (order?.payment?.status === "pagado") setNotice(t("retiro.mpAprobado"));
-    else if (order) setNotice(t("retiro.mpNoAprobado"));
+    const ns = counter ? "mostradorQr" : "retiro";
+    if (order?.payment?.status === "pagado") setNotice(t(`${ns}.mpAprobado`));
+    else if (order) setNotice(t(`${ns}.mpNoAprobado`));
     setChecking(null);
     router.replace(`/m/${token}`);
-  }, [checking, state, orders, router, token, t]);
+  }, [checking, state, orders, router, token, t, counter]);
+
+  /* Mostrador: sin la cookie no hay pedidos a la vista. Si el teléfono tiene
+   * la copia local, se repone en silencio y aparecen. */
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (!counter || guest || restoredRef.current) return;
+    restoredRef.current = true;
+    void restoreGuest(token)
+      .then((ok) => (ok ? refresh() : undefined))
+      .catch(() => {
+        /* Sin red: la copia queda para el próximo escaneo. */
+      });
+  }, [counter, guest, token, refresh]);
 
   /* Quien ya dio permiso de avisos sigue suscripto al volver a escanear: la
-   * suscripción se vuelve a atar a este comensal sin preguntar de nuevo. */
+   * suscripción se vuelve a atar a este comensal sin preguntar de nuevo. Va
+   * por el id y no por el objeto: cada poll trae un `guest` nuevo y no hay
+   * que volver a suscribir cada cinco segundos. */
+  const guestId = guest?.id ?? null;
   useEffect(() => {
-    if (!guest || !canOfferWebPush() || !notificationPermissionGranted()) return;
+    if (!guestId || !pushCapable || !notificationPermissionGranted()) return;
     let alive = true;
     void subscribeWebPush(token, { url: `/api/m/${token}/autoservicio/avisos` }).then((r) => {
       if (alive && r.ok) setPushOn(true);
@@ -208,18 +293,19 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
     return () => {
       alive = false;
     };
-  }, [guest, token]);
+  }, [guestId, token, pushCapable]);
 
   const activarAvisos = async () => {
+    const ns = counter ? "mostradorQr" : "retiro";
     setPushError(null);
     const permitido = await requestNotificationPermission();
     if (!permitido) {
-      setPushError(t("retiro.avisosDenegados"));
+      setPushError(t(`${ns}.avisosDenegados`));
       return;
     }
     const r = await subscribeWebPush(token, { url: `/api/m/${token}/autoservicio/avisos` });
     if (r.ok) setPushOn(true);
-    else setPushError(t("retiro.avisosError"));
+    else setPushError(t(`${ns}.avisosError`));
   };
 
   const products = useMemo(
@@ -253,21 +339,72 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
     window.location.assign(url);
   };
 
+  /* Mostrador: la identidad del teléfono (cookie + copia local), sin nombre. */
+  const joinCounter = async (): Promise<boolean> => {
+    const res = await fetch(`/api/m/${token}/autoservicio/unirse`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const data = (await res.json().catch(() => null)) as (ApiState & { cred?: string }) | null;
+    if (!data?.ok || !data.state) {
+      setSendError(errorText(data?.reason));
+      return false;
+    }
+    if (typeof data.cred === "string") saveGuestCred(token, data.cred);
+    setState(data.state);
+    return true;
+  };
+
+  const openPay = () => {
+    setSendError(null);
+    if (counter) setName((n) => n || guest?.name || "");
+    setPayOpen(true);
+  };
+
   const confirmOrder = async (method: PickupPayChoice) => {
     if (sending || !cartLines.length) return;
+    let alias: string | null = null;
+    if (counter) {
+      const parsed = customerAliasSchema.safeParse(name);
+      if (!parsed.success) {
+        setSendError(parsed.error.issues[0]?.message ?? t("mesa.error.nombre-invalido"));
+        return;
+      }
+      alias = parsed.data;
+    }
     setSending(true);
     setSendError(null);
     try {
-      const res = await fetch(`/api/m/${token}/autoservicio/pedidos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: orderKey, items: itemsParaEnviar(cartLines), method }),
-      });
-      const data = (await res.json().catch(() => null)) as
-        | (ApiState & { checkoutUrl?: string | null; checkoutError?: string | null; reference?: string })
-        | null;
+      if (counter && !(guest && state?.canOrder) && !(await joinCounter())) return;
+      const send = async () => {
+        const res = await fetch(`/api/m/${token}/autoservicio/pedidos`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            key: orderKey,
+            items: itemsParaEnviar(cartLines),
+            method,
+            ...(counter ? { name: alias ?? "" } : {}),
+          }),
+        });
+        return (await res.json().catch(() => null)) as
+          | (ApiState & {
+              checkoutUrl?: string | null;
+              checkoutError?: string | null;
+              reference?: string;
+              message?: string;
+            })
+          | null;
+      };
+      let data = await send();
+      if (counter && !data?.ok && REJOIN_REASONS.has(data?.reason ?? "")) {
+        if (!(await joinCounter())) return;
+        data = await send();
+      }
       if (!data?.ok) {
-        setSendError(errorText(data?.reason));
+        setSendError(data?.message ?? errorText(data?.reason));
         return;
       }
       applyState(data.state);
@@ -283,10 +420,11 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
           irAlCheckout(data.checkoutUrl);
           return;
         }
-        setError(t("retiro.mpNoAbrio"));
+        setError(t(counter ? "mostradorQr.mpNoAbrio" : "retiro.mpNoAbrio"));
         return;
       }
-      setNotice(t("retiro.pedidoACaja", { n: data.reference ?? "" }));
+      /* En el mostrador la tarjeta del pedido ya dice "Pedido recibido". */
+      if (!counter) setNotice(t("retiro.pedidoACaja", { n: data.reference ?? "" }));
     } catch {
       setSendError(t("mesa.error.red"));
     } finally {
@@ -317,7 +455,9 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
         irAlCheckout(data.checkoutUrl);
         return;
       }
-      if (method === "caja") setNotice(t("retiro.pasasteACaja"));
+      if (method === "caja") {
+        setNotice(t(counter ? "mostradorQr.pasasteACaja" : "retiro.pasasteACaja"));
+      }
     } catch {
       setError(t("mesa.error.red"));
     } finally {
@@ -356,7 +496,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
     }
   };
 
-  if (!guest || !canOrder) {
+  if (!counter && (!guest || !canOrder)) {
     return (
       <CustomerBrandShell color={initial.colorMarca}>
         <PickupJoin
@@ -372,13 +512,11 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
     );
   }
 
-  const tableNumber = state?.table.number ?? initial.tableNumber;
+  const tableNumber = state?.table?.number ?? initial.tableNumber;
   const activeOrders = orders.filter((o) => pickupActive(o.status));
   const pastOrders = orders.filter((o) => !pickupActive(o.status));
-  const showPushOffer =
-    !pushOn &&
-    canOfferWebPush() &&
-    activeOrders.some((o) => pickupStage(o.status) !== "listo");
+  const esperando = activeOrders.some((o) => o.status !== "listo");
+  const showPushOffer = !counter && !pushOn && pushCapable && esperando;
   const showBar = tab === "carta" && cartCount > 0;
 
   return (
@@ -394,15 +532,29 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
               align="start"
             />
             <h1 className="font-display text-3xl uppercase text-marca">
-              {t("mesa.mesaN", { n: tableNumber })}
+              {counter ? t("mostradorQr.titulo") : t("mesa.mesaN", { n: tableNumber ?? "" })}
             </h1>
-            <p className="mt-0.5 text-base text-suave">{t("mesa.hola", { n: guest.name })}</p>
+            {guest?.name && (
+              <p className="mt-0.5 text-base text-suave">{t("mesa.hola", { n: guest.name })}</p>
+            )}
           </div>
           <Controls showTheme={false} />
         </header>
 
-        <PickupSteps className="mt-4" />
+        <PickupSteps flow={initial.flow} pagoTexto={pagoTexto} className="mt-4" />
 
+        {sinMetodos && !qrStale && (
+          <CustomerNotice tone="curso" className="mt-4">
+            <p className="font-semibold">{t("mostradorQr.sinMetodosTitulo")}</p>
+            <p className="mt-0.5">{t("mostradorQr.sinMetodosCuerpo")}</p>
+          </CustomerNotice>
+        )}
+        {qrStale && !state?.orderLink && (
+          <CustomerNotice tone="curso" className="mt-4">
+            <p className="font-semibold">{t("mostradorQr.qrVencidoTitulo")}</p>
+            <p className="mt-0.5">{t("mostradorQr.qrVencidoCuerpo")}</p>
+          </CustomerNotice>
+        )}
         {notice && (
           <CustomerNotice
             tone="marca"
@@ -482,6 +634,14 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
 
         {tab === "pedidos" && (
           <section className="mt-4 flex flex-col gap-4">
+            {counter && esperando && (
+              <CounterNoticeBox
+                pushOn={pushOn}
+                pushCapable={pushCapable}
+                pushError={pushError}
+                onActivate={() => void activarAvisos()}
+              />
+            )}
             {showPushOffer && (
               <div className="flex flex-col gap-2 rounded-2xl border border-linea bg-surface p-4">
                 <p className="text-base text-carbon">{t("retiro.avisosPregunta")}</p>
@@ -495,12 +655,15 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
                 {pushError && <p className="text-sm text-alerta">{pushError}</p>}
               </div>
             )}
-            {pushOn && activeOrders.length > 0 && (
+            {!counter && pushOn && activeOrders.length > 0 && (
               <p className="text-sm text-suave">{t("retiro.avisosActivos")}</p>
             )}
 
             {orders.length === 0 ? (
-              <CustomerEmpty titulo={t("retiro.sinPedidos")} cuerpo={t("retiro.sinPedidosAyuda")} />
+              <CustomerEmpty
+                titulo={t("retiro.sinPedidos")}
+                cuerpo={t(counter ? "mostradorQr.sinPedidosAyuda" : "retiro.sinPedidosAyuda")}
+              />
             ) : (
               <>
                 {activeOrders.map((o) => (
@@ -509,6 +672,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
                     order={o}
                     tableNumber={tableNumber}
                     mercadoPagoReady={initial.mercadoPagoReady}
+                    cashReady={initial.cashReady}
                     busy={busyOrder === o.id}
                     flash={flashIds.has(o.id)}
                     onPayMercadoPago={() => void changePayment(o.id, "mercado_pago")}
@@ -527,6 +691,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
                         order={o}
                         tableNumber={tableNumber}
                         mercadoPagoReady={false}
+                        cashReady={false}
                         busy={false}
                         onPayMercadoPago={() => {}}
                         onPayAtCounter={() => {}}
@@ -538,7 +703,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
               </>
             )}
 
-            <TableOrdersList state={state} className="mt-2" />
+            {!counter && <TableOrdersList state={state} className="mt-2" />}
 
             <button
               type="button"
@@ -576,10 +741,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
             enviado={null}
             puedePedir={canOrder}
             onCantidad={setQty}
-            onEnviar={() => {
-              setSendError(null);
-              setPayOpen(true);
-            }}
+            onEnviar={openPay}
             onSeguirPidiendo={() => {
               setReviewOpen(false);
               setTab("carta");
@@ -590,14 +752,23 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
             }}
             onClose={() => setReviewOpen(false)}
             enviarLabel={t("retiro.confirmarPedido")}
-            enviarAyuda={t("retiro.confirmarPedidoAyuda")}
+            enviarAyuda={t(
+              counter ? `mostradorQr.confirmarPedidoAyuda${pagoTexto}` : "retiro.confirmarPedidoAyuda",
+            )}
           />
         )}
 
         {payOpen && (
           <PayChoiceSheet
+            flow={initial.flow}
+            name={name}
+            onName={(v) => {
+              setName(v);
+              setSendError(null);
+            }}
             total={cartTotal}
             mercadoPagoReady={initial.mercadoPagoReady}
+            cashReady={initial.cashReady}
             sending={sending}
             error={sendError}
             onChoose={(m) => void confirmOrder(m)}
@@ -612,10 +783,25 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
   );
 };
 
+/* Sufijo de los textos del mostrador que hablan de cómo pagar: las dos
+ * opciones (""), solo en caja ("Caja") o solo Mercado Pago ("Mp"). */
+const counterPayTextKey = (cash: boolean, mp: boolean): "" | "Caja" | "Mp" =>
+  cash && !mp ? "Caja" : mp && !cash ? "Mp" : "";
+
 /* Los tres pasos, siempre a la vista: acá no hay mozo que lo explique. */
-const PickupSteps = ({ className = "" }: { className?: string }) => {
+const PickupSteps = ({
+  flow,
+  pagoTexto = "",
+  className = "",
+}: {
+  flow: PickupFlow;
+  pagoTexto?: string;
+  className?: string;
+}) => {
   const { t } = useApp();
-  const pasos = [t("retiro.paso1"), t("retiro.paso2"), t("retiro.paso3")];
+  const counter = flow === "mostrador_qr";
+  const ns = counter ? "mostradorQr" : "retiro";
+  const pasos = [t(`${ns}.paso1`), t(`${ns}.paso2${counter ? pagoTexto : ""}`), t(`${ns}.paso3`)];
   return (
     <ol className={`grid grid-cols-3 gap-2 ${className}`.trim()}>
       {pasos.map((p, i) => (
@@ -675,24 +861,71 @@ const TableOrdersList = ({
   );
 };
 
-/* Elegir cómo pagar es lo que confirma el pedido. Por eso la aclaración va
- * pegada a los botones: sin pago, la cocina no lo ve. */
+/* Mostrador: cómo se va a enterar de que está listo. El botón aparece solo
+ * si este navegador de verdad puede recibir el aviso; si no, lo único que
+ * sirve es dejar la pestaña abierta, y eso es lo que dice. */
+const CounterNoticeBox = ({
+  pushOn,
+  pushCapable,
+  pushError,
+  onActivate,
+}: {
+  pushOn: boolean;
+  pushCapable: boolean;
+  pushError: string | null;
+  onActivate: () => void;
+}) => {
+  const { t } = useApp();
+  if (pushOn) return <p className="text-sm text-suave">{t("retiro.avisosActivos")}</p>;
+  return (
+    <div className="flex flex-col gap-2 rounded-2xl border border-linea bg-surface p-4">
+      <p className="text-base text-carbon">
+        {pushCapable ? t("mostradorQr.avisosDisponible") : t("mostradorQr.avisosNoDisponible")}
+      </p>
+      {pushCapable && (
+        <button
+          type="button"
+          onClick={onActivate}
+          className="min-h-12 w-full rounded-full border-2 border-marca px-4 text-base font-semibold text-marca"
+        >
+          {t("mostradorQr.avisosActivar")}
+        </button>
+      )}
+      {pushError && <p className="text-sm text-alerta">{pushError}</p>}
+    </div>
+  );
+};
+
+/* Elegir cómo pagar es lo que confirma el pedido.
+ *
+ * Mesa: la aclaración va pegada a los botones porque sin pago la cocina no
+ * lo ve. Mostrador: el pedido sale igual con los dos botones; lo único que
+ * cambia es cuándo se cobra. Arriba, el nombre, que es opcional. */
 const PayChoiceSheet = ({
+  flow,
+  name,
+  onName,
   total,
   mercadoPagoReady,
+  cashReady,
   sending,
   error,
   onChoose,
   onClose,
 }: {
+  flow: PickupFlow;
+  name: string;
+  onName: (v: string) => void;
   total: number;
   mercadoPagoReady: boolean;
+  cashReady: boolean;
   sending: boolean;
   error: string | null;
   onChoose: (m: PickupPayChoice) => void;
   onClose: () => void;
 }) => {
   const { t } = useApp();
+  const counter = flow === "mostrador_qr";
   return (
     <ModalShell
       onClose={onClose}
@@ -717,19 +950,21 @@ const PayChoiceSheet = ({
               {t("retiro.pagarMp", { n: formatMoney(total) })}
             </button>
           )}
-          <button
-            type="button"
-            disabled={sending}
-            onClick={() => onChoose("caja")}
-            className={`flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-5 text-base font-semibold disabled:opacity-50 ${
-              mercadoPagoReady
-                ? "border-2 border-marca text-marca"
-                : "bg-marca text-crema"
-            }`}
-          >
-            {sending && !mercadoPagoReady && <Spinner inline className="size-4" />}
-            {t("retiro.pagarEnCaja")}
-          </button>
+          {cashReady && (
+            <button
+              type="button"
+              disabled={sending}
+              onClick={() => onChoose("caja")}
+              className={`flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-5 text-base font-semibold disabled:opacity-50 ${
+                mercadoPagoReady
+                  ? "border-2 border-marca text-marca"
+                  : "bg-marca text-crema"
+              }`}
+            >
+              {sending && !mercadoPagoReady && <Spinner inline className="size-4" />}
+              {t(counter ? "mostradorQr.pagarEnCaja" : "retiro.pagarEnCaja")}
+            </button>
+          )}
         </div>
       }
     >
@@ -743,11 +978,34 @@ const PayChoiceSheet = ({
         {t("mesa.totalPedido")}
         <span className="font-display text-2xl tabular-nums text-marca">{formatMoney(total)}</span>
       </p>
+      {counter && (
+        <label className="mt-4 flex flex-col gap-1.5">
+          <span className="text-base font-semibold text-carbon">{t("mostradorQr.nombreLabel")}</span>
+          <input
+            value={name}
+            onChange={(e) => onName(e.target.value)}
+            disabled={sending}
+            autoComplete="given-name"
+            maxLength={24}
+            className="min-h-12 w-full rounded-2xl border-2 border-linea bg-surface px-4 text-base text-carbon outline-none placeholder:text-suave focus:border-marca focus:ring-2 focus:ring-marca/20"
+            placeholder={t("mesa.nombrePlaceholder")}
+          />
+          <span className="text-sm leading-snug text-suave">{t("mostradorQr.nombreAyuda")}</span>
+        </label>
+      )}
       <CustomerNotice tone="curso" className="mt-4">
-        {t("retiro.seCocinaAlPagar")}
+        {t(
+          counter
+            ? `mostradorQr.seEnviaYa${counterPayTextKey(cashReady, mercadoPagoReady)}`
+            : "retiro.seCocinaAlPagar",
+        )}
       </CustomerNotice>
       <p className="mt-3 text-base leading-snug text-suave">
-        {mercadoPagoReady ? t("retiro.comoPagarAyuda") : t("retiro.comoPagarSoloCaja")}
+        {t(
+          `${counter ? "mostradorQr" : "retiro"}.${
+            !cashReady ? "comoPagarSoloMp" : mercadoPagoReady ? "comoPagarAyuda" : "comoPagarSoloCaja"
+          }`,
+        )}
       </p>
     </ModalShell>
   );
@@ -779,24 +1037,13 @@ const PickupJoin = ({
     if (state?.guest) return;
     let cancelled = false;
     const restore = async () => {
-      const cred = loadGuestCred(token);
-      if (!cred) return;
       try {
-        const res = await fetch(`/api/m/${token}/restaurar`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cred }),
-        });
-        const data = (await res.json().catch(() => null)) as { ok: boolean } | null;
-        if (cancelled) return;
-        if (data?.ok) {
-          const again = await fetch(`/api/m/${token}/autoservicio`, { cache: "no-store" });
-          const next = (await again.json().catch(() => null)) as ApiState | null;
-          if (!cancelled && next?.ok && next.state?.guest && next.state.canOrder) {
-            onJoined(next.state);
-            return;
-          }
+        if (!(await restoreGuest(token)) || cancelled) return;
+        const again = await fetch(`/api/m/${token}/autoservicio`, { cache: "no-store" });
+        const next = (await again.json().catch(() => null)) as ApiState | null;
+        if (!cancelled && next?.ok && next.state?.guest && next.state.canOrder) {
+          onJoined(next.state);
+          return;
         }
         clearGuestCred(token);
       } catch {
@@ -844,7 +1091,7 @@ const PickupJoin = ({
     }
   };
 
-  const tableNumber = state?.table.number ?? initial.tableNumber;
+  const tableNumber = state?.table?.number ?? initial.tableNumber ?? "";
   const previous = (state?.orders ?? []).filter((o) => pickupActive(o.status));
 
   return (
@@ -855,7 +1102,7 @@ const PickupJoin = ({
         {t("mesa.mesaN", { n: tableNumber })}
       </h1>
       <p className="mt-2 text-lg font-semibold text-carbon">{t("retiro.titulo")}</p>
-      <PickupSteps className="mt-4" />
+      <PickupSteps flow="autoservicio" className="mt-4" />
 
       {previous.length > 0 && (
         <section className="mt-6">

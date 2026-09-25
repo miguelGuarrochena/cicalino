@@ -39,25 +39,12 @@ export const PickupChargeInbox = ({
   const { t } = useApp();
   const toast = useToast();
   const confirmar = useConfirm();
-  const [settings, setSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
+  const methods = useCounterChargeMethods(branchId);
   const [charging, setCharging] = useState<PickupOrder | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    void fetchPaymentSettings(branchId).then((r) => {
-      if (alive && r.ok) setSettings(r.data.settings);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [branchId]);
-
   if (!orders.length) return null;
 
-  const methods = enabledMethods(settings, { mercadoPagoConnected: false, forStaff: true }).filter(
-    (m): m is CounterChargeMethod => m !== "mercado_pago",
-  );
   const enCaja = orders.filter((o) => pickupPaying(o) === "caja").length;
 
   const cancel = async (o: PickupOrder) => {
@@ -163,6 +150,9 @@ export const PickupChargeInbox = ({
       {charging && (
         <ChargeModal
           order={charging}
+          label={t("retiroCaja.pedidoDeMesa", { n: charging.tableNumber ?? "—" })}
+          mpInProgress={pickupPaying(charging) === "mercado_pago"}
+          note={t("retiroCaja.alCobrar")}
           methods={methods}
           employeeId={employeeId}
           onClose={() => setCharging(null)}
@@ -182,24 +172,58 @@ export const PickupChargeInbox = ({
   );
 };
 
-const ChargeModal = ({
+/* Los métodos con los que la caja puede cobrar en esta sucursal: los de
+ * Cobros, sin el checkout online (ese lo confirma solo el webhook). */
+export const useCounterChargeMethods = (branchId: string | null): CounterChargeMethod[] => {
+  const [settings, setSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS);
+  useEffect(() => {
+    if (!branchId) return;
+    let alive = true;
+    void fetchPaymentSettings(branchId).then((r) => {
+      if (alive && r.ok) setSettings(r.data.settings);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [branchId]);
+  return enabledMethods(settings, { mercadoPagoConnected: false, forStaff: true }).filter(
+    (m): m is CounterChargeMethod => m !== "mercado_pago",
+  );
+};
+
+/* Cobrar un pedido hecho desde un QR, con plata en mano. Lo usan "Por
+ * cobrar" (modalidad Mesa) y el tablero (Mostrador QR, al retirar): el mismo
+ * RPC, la misma validación del empleado. */
+export const ChargeModal = ({
   order,
+  label,
+  mpInProgress,
+  note,
   methods,
   employeeId,
   onClose,
   onDone,
 }: {
-  order: PickupOrder;
+  order: { id: string; reference: string; total: number };
+  /* Arriba del número: "Mesa 4", o "Mostrador QR · Sofía". */
+  label: string;
+  /* El cliente está en el checkout de Mercado Pago: cobrar acá lo cancela. */
+  mpInProgress: boolean;
+  /* Qué pasa al cobrar (en la mesa entra a preparación; en el mostrador no
+   * cambia nada de la preparación). */
+  note: string;
   methods: CounterChargeMethod[];
   employeeId: string | null;
   onClose: () => void;
   onDone: (repeated: boolean) => void;
 }) => {
   const { t } = useApp();
-  const [method, setMethod] = useState<CounterChargeMethod | null>(methods[0] ?? null);
+  const [picked, setMethod] = useState<CounterChargeMethod | null>(null);
+  /* Los métodos llegan después del primer render: hasta que alguien elija,
+   * va el primero que haya. */
+  const method = picked ?? methods[0] ?? null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const mpEnCurso = pickupPaying(order) === "mercado_pago";
 
   const cobrar = async () => {
     if (!method || busy) return;
@@ -246,9 +270,7 @@ const ChargeModal = ({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">
-            {t("retiroCaja.pedidoDeMesa", { n: order.tableNumber ?? "—" })}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-carbon/45">{label}</p>
           <h3 id="cobrar-pedido" className="font-display text-2xl uppercase tracking-tight text-carbon">
             {t("retiroCaja.cobrarTitulo", { n: order.reference })}
           </h3>
@@ -259,7 +281,7 @@ const ChargeModal = ({
         {t("retiroCaja.total")}
         <span className="font-display text-3xl tabular-nums text-marca">{formatMoney(order.total)}</span>
       </p>
-      {mpEnCurso && (
+      {mpInProgress && (
         <p className="mt-3 rounded-xl border border-curso-borde bg-curso-fondo px-3 py-2 text-sm text-curso">
           {t("retiroCaja.mpEnCurso")}
         </p>
@@ -286,7 +308,7 @@ const ChargeModal = ({
       ) : (
         <p className="mt-2 text-sm text-alerta">{t("retiroCaja.sinMetodos")}</p>
       )}
-      <p className="mt-3 text-xs text-carbon/50">{t("retiroCaja.alCobrar")}</p>
+      <p className="mt-3 text-xs text-carbon/50">{note}</p>
       {error && <p className="mt-3 text-sm font-medium text-alerta">{error}</p>}
     </ModalShell>
   );

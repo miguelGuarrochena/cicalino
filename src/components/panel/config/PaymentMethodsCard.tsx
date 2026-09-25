@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 import { fetchPaymentSettings, savePaymentSettings } from "@/lib/data/tables";
 import { disconnectMercadoPago, mercadoPagoAvailable } from "@/lib/actions/mercadopago";
-import type { PaymentSettings } from "@/lib/tableBill";
+import { enabledMethods, type PaymentSettings } from "@/lib/tableBill";
 import { goToConfigSection } from "@/components/panel/config/configHash";
 
 const INPUT =
@@ -74,10 +74,14 @@ export const PaymentMethodsCard = ({
   branchId,
   canEdit,
   hideHeading = false,
+  onMethodsChange,
 }: {
   branchId: string;
   canEdit: boolean;
   hideHeading?: boolean;
+  /* Cuántos métodos quedaron habilitados (Mercado Pago cuenta solo si está
+   * conectado). Configuración lo usa para Mostrador QR. */
+  onMethodsChange?: (count: number) => void;
 }) => {
   const { t } = useApp();
   const toast = useToast();
@@ -99,6 +103,9 @@ export const PaymentMethodsCard = ({
       setS(r.data.settings);
       setSaved(r.data.settings);
       setMp(r.data.mercadoPago);
+      onMethodsChange?.(
+        enabledMethods(r.data.settings, { mercadoPagoConnected: r.data.mercadoPago.connected }).length,
+      );
     }
   };
 
@@ -137,6 +144,7 @@ export const PaymentMethodsCard = ({
       return;
     }
     setSaved(s);
+    onMethodsChange?.(enabledMethods(s, { mercadoPagoConnected: Boolean(mp?.connected) }).length);
     toast(t("cobros.guardado"), "success");
   };
 

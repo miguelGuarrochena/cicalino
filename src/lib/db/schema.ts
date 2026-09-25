@@ -140,10 +140,15 @@ export const branches = pgTable("locales", {
   moduloEspera: boolean("modulo_espera").notNull().default(false),
   /* supabase/split-payments-module.sql. Superadmin only (trigger). */
   moduloPagos: boolean("modulo_pagos").notNull().default(false),
-  /* supabase/pedidos-mesa.sql. "mostrador" (the counter creates the order) or
-   * "mesa" (the guest orders and pays from the table QR, picks up at the
-   * counter). */
+  /* supabase/pedidos-mesa.sql + pedidos-mostrador-qr.sql. "mostrador" (the
+   * counter creates the order), "mesa" (the guest orders and pays from the
+   * table QR, picks up at the counter) or "mostrador_qr" (one QR for the
+   * branch; the order is prepared right away, paid now or at pickup). */
   pedidosModalidad: text("pedidos_modalidad").notNull().default("mostrador"),
+  /* supabase/pedidos-mostrador-qr.sql — the branch's counter QR. Opaque,
+   * regenerable only through regenerar_qr_mostrador. */
+  mostradorQrToken: text("mostrador_qr_token").notNull(),
+  mostradorQrGeneradoEn: timestamp("mostrador_qr_generado_en", { withTimezone: true }),
   /* Guest identity only. null = Cicalino cobalt, no logo. */
   logoUrl: text("logo_url"),
   colorMarca: text("color_marca"),
@@ -250,6 +255,9 @@ export const orders = pgTable(
     selfService: boolean("autoservicio").notNull().default(false),
     confirmedAt: timestamp("confirmado_en", { withTimezone: true }),
     payAtCounterAt: timestamp("pago_caja_en", { withTimezone: true }),
+    /* supabase/pedidos-mostrador-qr.sql — when the payment was confirmed
+     * (counter QR orders). Written only by the database. */
+    paidAt: timestamp("pagado_en", { withTimezone: true }),
   },
   (t) => [
     index("idx_pedidos_local_estado").on(t.localId, t.estado),
@@ -644,7 +652,8 @@ export const tableSessions = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
     mesaId: uuid("mesa_id").references(() => tables.id, { onDelete: "set null" }),
-    mesaNumero: integer("mesa_numero").notNull(),
+    /* null only for a counter QR session (flujo = mostrador_qr): no table. */
+    mesaNumero: integer("mesa_numero"),
     estado: tableSessionStatusEnum("estado").notNull().default("abierta"),
     modoDivision: splitModeEnum("modo_division"),
     partes: integer("partes"),
@@ -659,7 +668,8 @@ export const tableSessions = pgTable(
     cuentaSolicitadaPor: uuid("cuenta_solicitada_por"),
     cuentaPagadorTotalId: uuid("cuenta_pagador_total_id"),
     cuentaPagadorTotalNombre: text("cuenta_pagador_total_nombre"),
-    /* supabase/pedidos-mesa.sql — "cuenta" (Pagos) or "autoservicio". */
+    /* supabase/pedidos-mesa.sql — "cuenta" (Pagos), "autoservicio" (Mesa) or
+     * "mostrador_qr" (pedidos-mostrador-qr.sql, one session per phone). */
     flujo: text("flujo").notNull().default("cuenta"),
   },
   (t) => [
@@ -674,7 +684,8 @@ export const guests = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     sesionId: uuid("sesion_id").notNull().references(() => tableSessions.id, { onDelete: "cascade" }),
     localId: uuid("local_id").notNull().references(() => branches.id, { onDelete: "cascade" }),
-    nombre: text("nombre").notNull(),
+    /* Optional only at the counter QR (pedidos-mostrador-qr.sql). */
+    nombre: text("nombre"),
     /* sha256 of the browser secret. Not granted to authenticated. */
     tokenHash: text("token_hash").notNull(),
     createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),

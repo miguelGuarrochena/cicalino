@@ -37,7 +37,12 @@ import { dingNew, notifyReady } from "@/lib/sound";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 import { usePickupToCharge } from "@/lib/hooks/usePickupToCharge";
-import { PickupChargeInbox } from "@/components/panel/pedidos/PickupChargeInbox";
+import {
+  ChargeModal,
+  PickupChargeInbox,
+  useCounterChargeMethods,
+} from "@/components/panel/pedidos/PickupChargeInbox";
+import { formatMoney } from "@/lib/tableBill";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
 const PAGE_SIZE = 9;
@@ -71,6 +76,9 @@ const PanelOrdersPage = () => {
   /* Modalidad Mesa: además del tablero, la caja cobra lo que piden las mesas.
    * La modalidad de siempre no ve nada de esto. */
   const enMesa = useConfigStore((s) => s.pedidosModalidad === "mesa");
+  /* Mostrador QR: los pedidos llegan del QR del local y se cobran al
+   * retirar, desde la tarjeta del tablero. */
+  const enMostradorQr = useConfigStore((s) => s.pedidosModalidad === "mostrador_qr");
   const { visibles } = useOperationalAccess();
   const jornadaActiva = useJornadaActiva();
   const activeEmployee = useActiveEmployee();
@@ -110,6 +118,8 @@ const PanelOrdersPage = () => {
   );
 
   const qr = useQrSeenClose<OrderView>(fetchOrderSeenAt, orders);
+  const chargeMethods = useCounterChargeMethods(enMostradorQr ? branchId : null);
+  const [charging, setCharging] = useState<OrderView | null>(null);
   const [createOpen, setCrearOpen] = useState(false);
   const [refDraft, setRefDraft] = useState("");
   const [creating, setCreando] = useState(false);
@@ -311,12 +321,12 @@ const PanelOrdersPage = () => {
             </h1>
             <HelpLink seccion="pedidos" />
           </div>
-          {enMesa && (
+          {(enMesa || enMostradorQr) && (
             <Link
               href="/panel/pedidos/qr"
               className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-marca underline-offset-2 hover:underline"
             >
-              {t("retiroCaja.qrMesas")}
+              {enMesa ? t("retiroCaja.qrMesas") : t("mostradorQr.panel.qrLink")}
             </Link>
           )}
           {ready ? (
@@ -414,6 +424,7 @@ const PanelOrdersPage = () => {
                 onCambiarEstado={changeStatusUX}
                 onMostrarQr={qr.abrirVerQr}
                 onReavisar={live ? reavisar : undefined}
+                onCobrar={enMostradorQr && live ? setCharging : undefined}
               />
             ))}
           </div>
@@ -522,6 +533,34 @@ const PanelOrdersPage = () => {
             </p>
           )}
         </ModalShell>
+      )}
+
+      {charging && (
+        <ChargeModal
+          order={{
+            id: charging.id,
+            reference: charging.reference,
+            total: charging.total ?? 0,
+          }}
+          label={`${t("mostradorQr.panel.etiqueta")}${charging.alias ? ` · ${charging.alias}` : ""}`}
+          mpInProgress={Boolean(charging.mpPending)}
+          note={t("mostradorQr.panel.alCobrar")}
+          methods={chargeMethods}
+          employeeId={activeEmployee?.id ?? null}
+          onClose={() => setCharging(null)}
+          onDone={(repeated) => {
+            toast(
+              repeated
+                ? t("retiroCaja.yaCobrado", { n: charging.reference })
+                : t("mostradorQr.panel.cobrado", {
+                    n: charging.reference,
+                    total: formatMoney(charging.total ?? 0),
+                  }),
+              "success",
+            );
+            setCharging(null);
+          }}
+        />
       )}
 
       {qrLive && (
