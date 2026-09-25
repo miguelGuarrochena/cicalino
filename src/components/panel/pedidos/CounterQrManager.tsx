@@ -8,7 +8,6 @@ import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useToast } from "@/components/ui/Toast";
-import { useConfirm } from "@/components/ui/Confirm";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SubPageHeader } from "@/components/panel/SubPageHeader";
@@ -25,6 +24,7 @@ import {
   printAccentFor,
 } from "@/lib/qrInformativo";
 import { fetchCounterQr, regenerateCounterQr } from "@/lib/data/pickup";
+import { useQrRegeneration } from "@/lib/hooks/useQrRegeneration";
 
 type Qr = { url: string; image: string; printImage: string };
 
@@ -56,7 +56,7 @@ const noSubscribe = () => () => {};
 export const CounterQrManager = () => {
   const { t } = useApp();
   const toast = useToast();
-  const confirmar = useConfirm();
+  const { regenerar, regenerando } = useQrRegeneration();
   const branchId = useSessionStore((s) => s.sucursalId);
   const branchName = useConfigStore((s) => s.name);
   const colorMarca = useConfigStore((s) => s.colorMarca);
@@ -69,7 +69,8 @@ export const CounterQrManager = () => {
   const [qr, setQr] = useState<Qr | null | undefined>(undefined);
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [download, setDownload] = useState(false);
+  /* "fresh": se acaba de regenerar; el modal lo dice y ofrece imprimir. */
+  const [download, setDownload] = useState<false | "normal" | "fresh">(false);
   const onClient = useSyncExternalStore(noSubscribe, () => true, () => false);
 
   useEffect(() => {
@@ -103,26 +104,22 @@ export const CounterQrManager = () => {
     };
   }, []);
 
-  const regenerate = async () => {
+  /* Regenerar y ofrecer en el acto imprimir o descargar el QR nuevo. */
+  const regenerate = () => {
     if (!branchId || busy) return;
-    const ok = await confirmar({
+    void regenerar({
       title: t("mostradorQr.qr.regenerarTitulo"),
       body: t("mostradorQr.qr.regenerarCuerpo"),
-      confirmLabel: t("mesasQr.regenerarSi"),
-      cancelLabel: t("acciones.volver"),
-      tone: "peligro",
+      run: () => regenerateCounterQr(branchId),
+      refresh: () => buildQr(branchId),
+      onFresh: (next) => {
+        setQr(next);
+        if (next) setDownload("fresh");
+      },
     });
-    if (!ok) return;
-    setBusy(true);
-    const done = await regenerateCounterQr(branchId);
-    setBusy(false);
-    if (done) {
-      toast(t("mostradorQr.qr.regenerado"), "success");
-      reload();
-    } else {
-      toast(t("mesas.error.error"), "error");
-    }
   };
+
+  const print = () => window.setTimeout(() => window.print(), 50);
 
   const runDownload = async (kind: QrDownloadKind) => {
     if (!qr) return;
@@ -143,7 +140,8 @@ export const CounterQrManager = () => {
           "cicalino-mostrador-qr-cartel.png",
         );
       }
-      setDownload(false);
+      /* Recién regenerado, el modal queda abierto para imprimir también. */
+      if (download !== "fresh") setDownload(false);
     } catch {
       toast(t("mesasQr.errorDescarga"), "error");
     } finally {
@@ -193,14 +191,14 @@ export const CounterQrManager = () => {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => setDownload(true)}
+                onClick={() => setDownload("normal")}
                 className="min-h-11 rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
               >
                 {t("mesasQr.descargar")}
               </button>
               <button
                 type="button"
-                onClick={() => window.setTimeout(() => window.print(), 50)}
+                onClick={print}
                 className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/75"
               >
                 {t("mesasQr.imprimir")}
@@ -208,8 +206,8 @@ export const CounterQrManager = () => {
               {canManage && (
                 <button
                   type="button"
-                  disabled={busy}
-                  onClick={() => void regenerate()}
+                  disabled={busy || regenerando}
+                  onClick={regenerate}
                   className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/60 disabled:opacity-50"
                 >
                   {t("mesasQr.regenerar")}
@@ -242,6 +240,8 @@ export const CounterQrManager = () => {
           tableLabel={label}
           busy={busy}
           flow="mostrador_qr"
+          notice={download === "fresh" ? t("mostradorQr.qr.regeneradoAviso") : undefined}
+          onPrint={download === "fresh" ? print : undefined}
           onPick={(kind) => void runDownload(kind)}
           onClose={() => {
             if (!busy) setDownload(false);

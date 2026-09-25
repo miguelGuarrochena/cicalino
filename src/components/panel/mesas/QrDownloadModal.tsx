@@ -9,6 +9,11 @@ import { useConfigStore } from "@/lib/store/config-store";
 
 export type QrDownloadKind = "solo" | "marco";
 
+/* Descargar un QR impreso (o una plancha): solo el código o con instrucciones.
+ *
+ * Es también lo que se abre apenas se regenera uno (useQrRegeneration): con
+ * `notice` dice que es el QR nuevo y qué pasó con el anterior, y con
+ * `onPrint` suma imprimir, para no tener que salir a buscarlo. */
 export const QrDownloadModal = ({
   title,
   previewSrc,
@@ -16,6 +21,9 @@ export const QrDownloadModal = ({
   tableLabel,
   busy,
   flow = "cuenta",
+  notice,
+  onPrint,
+  printLabel,
   onPick,
   onClose,
 }: {
@@ -25,6 +33,11 @@ export const QrDownloadModal = ({
   tableLabel: string;
   busy: boolean;
   flow?: InformativeQrFlow;
+  /* Recién regenerado: qué cambió y qué hay que reimprimir. */
+  notice?: string;
+  /* Imprimir lo mismo que se ve (un cartel o toda la plancha). */
+  onPrint?: () => void;
+  printLabel?: string;
   onPick: (kind: QrDownloadKind) => void;
   onClose: () => void;
 }) => {
@@ -59,6 +72,15 @@ export const QrDownloadModal = ({
 
       {/* Title first so both labels share a row. The informative preview is
           wider; if the copy sits under it, "Solo QR" drops to the bottom. */}
+      {notice && (
+        <p
+          role="status"
+          className="mb-4 rounded-xl border border-ok-borde bg-ok-fondo px-3 py-2 text-sm font-medium text-ok"
+        >
+          {notice}
+        </p>
+      )}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
         <button
           type="button"
@@ -105,6 +127,29 @@ export const QrDownloadModal = ({
           </div>
         </button>
       </div>
+
+      {(onPrint || notice) && (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          {onPrint && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onPrint}
+              className="min-h-11 rounded-full bg-marca px-5 text-sm font-semibold text-crema disabled:opacity-50"
+            >
+              {printLabel ?? t("qr.imprimir")}
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+            className="min-h-11 rounded-full border border-linea px-5 text-sm font-semibold text-carbon/70 disabled:opacity-50"
+          >
+            {t("mesasQr.listo")}
+          </button>
+        </div>
+      )}
     </ModalShell>
   );
 };

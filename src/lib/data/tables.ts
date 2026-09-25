@@ -259,6 +259,23 @@ export const setTableQrs = (
 export const regenerateTableQr = (tableId: string) =>
   rpc("regenerar_qr_mesa", { p_mesa: tableId }, "panel.mesas.regenerar-qr");
 
+/* Varias mesas de una vez, en una transacción (qr-regenerar-mesas.sql): las
+ * mismas reglas que regenerar una. */
+export const regenerateTableQrs = (branchId: string, tableIds: string[]) =>
+  rpc(
+    "regenerar_qr_mesas",
+    { p_local: branchId, p_mesas: tableIds },
+    "panel.mesas.regenerar-qrs",
+  );
+
+/* Qué QR regenera "Regenerar todos": los que hoy están impresos. En Pagos,
+ * las mesas con el QR activo (regenerar activa, así que incluir las otras
+ * les prendería un QR que nadie pidió); en modalidad Mesa todas tienen QR. */
+export const tablesToRegenerate = <T extends { id: string; qrActive: boolean }>(
+  tables: readonly T[],
+  flow: "cuenta" | "autoservicio",
+): T[] => (flow === "autoservicio" ? [...tables] : tables.filter((m) => m.qrActive));
+
 /* ---- Menu ---------------------------------------------------------------- */
 
 export {

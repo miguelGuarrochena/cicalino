@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import type { AyudaSeccion } from "@/components/panel/HelpLink";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import type { PedidosModalidad } from "@/lib/modules";
 
 type Paso = { t: string; d: string };
 
 /* `pasosMesa` es Pedidos en modalidad Mesa: el cliente pide y paga desde el
  * QR de su mesa. `pasosQr` es Mostrador QR: un QR para todo el local, el
  * pedido se prepara enseguida y se paga ahora o al retirar. Son otros flujos,
- * no un paso más, así que reemplazan la lista en vez de sumarse. */
+ * no un paso más, así que reemplazan la lista en vez de sumarse. La sección
+ * de Pedidos deja ver cualquiera de las tres modalidades (arranca en la de la
+ * sucursal), así se puede entender la otra antes de cambiarla. */
 const SECCIONES: {
   id: AyudaSeccion;
   accent: "marca" | "espera" | "pagos" | "carbon";
@@ -52,7 +56,12 @@ const SECCIONES: {
       { t: "ayuda.pedidos.q4t", d: "ayuda.pedidos.q4d" },
       { t: "ayuda.pedidos.q5t", d: "ayuda.pedidos.q5d" },
     ],
-    tipsQr: ["ayuda.pedidos.tipQr1", "ayuda.pedidos.tipQr2"],
+    tipsQr: [
+      "ayuda.pedidos.tipQr1",
+      "ayuda.pedidos.tipQr2",
+      "ayuda.pedidos.tipQr3",
+      "ayuda.pedidos.tipQr4",
+    ],
   },
   {
     id: "espera",
@@ -119,6 +128,16 @@ const SECCIONES: {
   },
 ];
 
+/* Lo que cambia entre Mesa y Mostrador QR, fila por fila. */
+const DIFERENCIAS = ["qr", "pedido", "pago", "preparacion", "listo", "cancelar"] as const;
+
+/* Los materiales para imprimir: dos por modalidad, con los mismos nombres
+ * que el modal de descarga («Con instrucciones» / «Solo QR»). */
+const MATERIALES = [
+  { modalidad: "retiroConfig.mesa", marco: "mesaMarco", solo: "mesaSolo" },
+  { modalidad: "retiroConfig.mostradorQr", marco: "qrMarco", solo: "qrSolo" },
+] as const;
+
 const accentRing = {
   marca: "border-marca/25 ring-marca/15",
   espera: "border-espera/25 ring-espera/15",
@@ -136,6 +155,15 @@ const accentNum = {
 const AyudaPage = () => {
   const { t } = useApp();
   const { pedidosEnMesa, pedidosMostradorQr } = useOperationalAccess();
+  const modalidadLocal: PedidosModalidad = pedidosEnMesa
+    ? "mesa"
+    : pedidosMostradorQr
+      ? "mostrador_qr"
+      : "mostrador";
+  /* Hasta que alguien elija otra pestaña, se ve la de la sucursal (que puede
+   * llegar después del primer render, cuando hidrata la config). */
+  const [elegida, setElegida] = useState<PedidosModalidad | null>(null);
+  const modalidad = elegida ?? modalidadLocal;
 
   useEffect(() => {
     const scrollHash = () => {
@@ -179,8 +207,9 @@ const AyudaPage = () => {
       </nav>
 
       {SECCIONES.map((s) => {
-        const enMesa = pedidosEnMesa && s.id === "pedidos";
-        const enQr = pedidosMostradorQr && s.id === "pedidos";
+        const esPedidos = s.id === "pedidos";
+        const enMesa = esPedidos && modalidad === "mesa";
+        const enQr = esPedidos && modalidad === "mostrador_qr";
         const pasos =
           enMesa && s.pasosMesa ? s.pasosMesa : enQr && s.pasosQr ? s.pasosQr : s.pasos;
         const tips = enMesa && s.tipsMesa ? s.tipsMesa : enQr && s.tipsQr ? s.tipsQr : s.tips;
@@ -215,6 +244,28 @@ const AyudaPage = () => {
             )}
           </div>
 
+          {esPedidos && (
+            <div className="mt-5">
+              <SegmentedTabs
+                ariaLabel={t("ayuda.pedidos.modalidadLabel")}
+                value={modalidad}
+                onChange={setElegida}
+                options={[
+                  { id: "mostrador", label: t("retiroConfig.mostrador") },
+                  { id: "mesa", label: t("retiroConfig.mesa") },
+                  { id: "mostrador_qr", label: t("retiroConfig.mostradorQr") },
+                ]}
+              />
+              <p className="mt-2 text-xs text-carbon/50">
+                {t(
+                  modalidad === modalidadLocal
+                    ? "ayuda.pedidos.modalidadActual"
+                    : "ayuda.pedidos.modalidadOtra",
+                )}
+              </p>
+            </div>
+          )}
+
           <ol className="mt-6 flex flex-col gap-4">
             {pasos.map((p, i) => (
               <li key={p.t} className="flex gap-3 sm:gap-4">
@@ -248,6 +299,81 @@ const AyudaPage = () => {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {esPedidos && (
+            <div className="mt-6 rounded-2xl border border-linea px-4 py-4 sm:px-5">
+              <h3 className="font-semibold text-carbon">{t("ayuda.pedidos.difTitulo")}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-carbon/60">
+                {t("ayuda.pedidos.difSub")}
+              </p>
+              <div
+                className="mt-4 hidden grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)] gap-x-4 text-[10px] font-bold uppercase tracking-wide text-carbon/45 sm:grid"
+                aria-hidden
+              >
+                <span />
+                <span>{t("retiroConfig.mesa")}</span>
+                <span>{t("retiroConfig.mostradorQr")}</span>
+              </div>
+              <dl className="mt-2 flex flex-col divide-y divide-linea/70">
+                {DIFERENCIAS.map((d) => (
+                  <div
+                    key={d}
+                    className="grid gap-1 py-3 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)] sm:gap-x-4"
+                  >
+                    <dt className="text-sm font-semibold text-carbon">
+                      {t(`ayuda.pedidos.dif.${d}.label`)}
+                    </dt>
+                    <dd className="text-sm leading-relaxed text-carbon/65">
+                      <span className="font-semibold text-carbon/80 sm:hidden">
+                        {t("retiroConfig.mesa")}:{" "}
+                      </span>
+                      {t(`ayuda.pedidos.dif.${d}.mesa`)}
+                    </dd>
+                    <dd className="text-sm leading-relaxed text-carbon/65">
+                      <span className="font-semibold text-carbon/80 sm:hidden">
+                        {t("retiroConfig.mostradorQr")}:{" "}
+                      </span>
+                      {t(`ayuda.pedidos.dif.${d}.qr`)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+
+          {esPedidos && (
+            <div className="mt-6 rounded-2xl border border-linea px-4 py-4 sm:px-5">
+              <h3 className="font-semibold text-carbon">{t("ayuda.pedidos.matTitulo")}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-carbon/60">
+                {t("ayuda.pedidos.matSub")}
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {MATERIALES.map((m) => (
+                  <div key={m.marco} className="rounded-2xl bg-crema/70 px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-carbon/45">
+                      {t(m.modalidad)}
+                    </p>
+                    <dl className="mt-2 flex flex-col gap-2.5">
+                      {([
+                        ["mesasQr.descargarMarco", m.marco],
+                        ["mesasQr.descargarSolo", m.solo],
+                      ] as const).map(([variante, texto]) => (
+                        <div key={texto}>
+                          <dt className="text-sm font-semibold text-carbon">{t(variante)}</dt>
+                          <dd className="mt-0.5 text-sm leading-relaxed text-carbon/65">
+                            {t(`ayuda.pedidos.mat.${texto}`)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-carbon/60">
+                {t("ayuda.pedidos.matNota")}
+              </p>
             </div>
           )}
         </section>

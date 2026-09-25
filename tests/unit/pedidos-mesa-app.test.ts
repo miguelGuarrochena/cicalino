@@ -145,11 +145,22 @@ describe("cartel imprimible de la modalidad Mesa", () => {
     expect(copy.orderSteps).toEqual([
       "Escaneá el QR",
       "Elegí tu pedido",
-      "Confirmalo pagando con Mercado Pago o en caja",
+      "Confirmalo y pagalo según lo que acepte el local",
     ]);
     expect(copy.orderNote).toBe("Tu pedido se prepara después de confirmar el pago.");
     expect(copy.paySteps).toEqual(["Te avisamos cuando esté listo", "Retiralo en el mostrador"]);
     expect(secondGroupStart(copy)).toBe(4);
+  });
+
+  it("ningún cartel de pedidos promete un medio de pago puntual", () => {
+    /* Se imprime una vez; los métodos del local pueden cambiar después. */
+    for (const l of ["es", "en"] as const) {
+      for (const flow of ["autoservicio", "mostrador_qr"] as const) {
+        const c = informativeQrCopy((k) => translate(l, k), flow);
+        const todo = [c.title, ...c.orderSteps, c.orderNote, ...c.paySteps, c.payNote].join(" ");
+        expect(todo, `${l} ${flow}`).not.toMatch(/Mercado Pago/);
+      }
+    }
   });
 
   it("el cartel de Pagos queda igual", () => {

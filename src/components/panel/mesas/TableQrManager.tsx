@@ -9,7 +9,6 @@ import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useSessionStore } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
 import { useToast } from "@/components/ui/Toast";
-import { useConfirm } from "@/components/ui/Confirm";
 import { MascotLoader } from "@/components/ui/MascotLoader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SubPageHeader } from "@/components/panel/SubPageHeader";
@@ -31,9 +30,12 @@ import {
 import {
   fetchTableQrs,
   regenerateTableQr,
+  regenerateTableQrs,
   setTableQrs,
+  tablesToRegenerate,
   type TableQrView,
 } from "@/lib/data/tables";
+import { useQrRegeneration } from "@/lib/hooks/useQrRegeneration";
 
 type WithImage = TableQrView & {
   url: string;
@@ -70,7 +72,7 @@ export const TableQrManager = ({ flow }: { flow: TableQrFlow }) => {
   const { t } = useApp();
   const autoservicio = flow === "autoservicio";
   const toast = useToast();
-  const confirmar = useConfirm();
+  const { regenerar, regenerando } = useQrRegeneration();
   const branchId = useSessionStore((s) => s.sucursalId);
   const branchName = useConfigStore((s) => s.name);
   const colorMarca = useConfigStore((s) => s.colorMarca);
@@ -84,17 +86,21 @@ export const TableQrManager = ({ flow }: { flow: TableQrFlow }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [printIds, setPrintIds] = useState<Set<string> | null>(null);
   const [onClient, setOnClient] = useState(false);
+  /* `fresh`: se acaba de regenerar; el modal lo dice y ofrece imprimir. */
   const [download, setDownload] = useState<
-    null | { kind: "one"; table: WithImage } | { kind: "sheet"; tables: WithImage[] }
+    | null
+    | { kind: "one"; table: WithImage; fresh?: boolean }
+    | { kind: "sheet"; tables: WithImage[]; fresh?: boolean }
   >(null);
 
-  const load = useCallback(async () => {
-    if (!branchId) return;
+  /* Devuelve lo que cargó: después de regenerar hace falta el QR nuevo. */
+  const load = useCallback(async (): Promise<WithImage[] | null> => {
+    if (!branchId) return null;
     const res = await fetchTableQrs(branchId);
     if (!res.ok) {
       setTables([]);
       setLoadError(true);
-      return;
+      return null;
     }
     setLoadError(false);
     const origin = window.location.origin;
@@ -119,6 +125,7 @@ export const TableQrManager = ({ flow }: { flow: TableQrFlow }) => {
       }),
     );
     setTables(withImages);
+    return withImages;
   }, [branchId, autoservicio]);
 
   useEffect(() => {
@@ -158,24 +165,39 @@ export const TableQrManager = ({ flow }: { flow: TableQrFlow }) => {
     }
   };
 
-  const regenerate = async (m: WithImage) => {
-    const ok = await confirmar({
+  /* Regenerar una mesa y ofrecer en el acto imprimir o descargar la nueva. */
+  const regenerate = (m: WithImage) =>
+    regenerar({
       title: t("mesasQr.regenerarTitulo"),
       body: t("mesasQr.regenerarConfirmar", { n: m.number }),
-      confirmLabel: t("mesasQr.regenerarSi"),
-      cancelLabel: t("acciones.volver"),
-      tone: "peligro",
+      run: async () => (await regenerateTableQr(m.id)).ok,
+      refresh: load,
+      onFresh: (fresh) => {
+        const nueva = fresh?.find((x) => x.id === m.id);
+        if (nueva?.image) setDownload({ kind: "one", table: nueva, fresh: true });
+      },
     });
-    if (!ok) return;
-    setBusy(true);
-    const res = await regenerateTableQr(m.id);
-    setBusy(false);
-    if (res.ok) {
-      toast(t("mesasQr.regenerado", { n: m.number }), "success");
-      await load();
-    } else {
-      toast(t("mesas.error.error"), "error");
+
+  /* Todos los que están impresos (tablesToRegenerate), de una vez, y después
+   * la plancha nueva para imprimir o descargar. */
+  const regenerateAll = () => {
+    if (!branchId || !tables) return;
+    const targets = tablesToRegenerate(tables, flow);
+    if (!targets.length) {
+      toast(t("mesasQr.nadaParaRegenerar"), "error");
+      return;
     }
+    const ids = new Set(targets.map((m) => m.id));
+    void regenerar({
+      title: t("mesasQr.regenerarTodosTitulo"),
+      body: t("mesasQr.regenerarTodosCuerpo", { n: targets.length }),
+      run: async () => (await regenerateTableQrs(branchId, [...ids])).ok,
+      refresh: load,
+      onFresh: (fresh) => {
+        const nuevas = (fresh ?? []).filter((x) => ids.has(x.id) && x.image);
+        if (nuevas.length) setDownload({ kind: "sheet", tables: nuevas, fresh: true });
+      },
+    });
   };
 
   const stickerOf = (m: WithImage, qr: string | null): StickerCard | null => {
@@ -260,12 +282,21 @@ export const TableQrManager = ({ flow }: { flow: TableQrFlow }) => {
           `cicalino-plancha-${suffix}.png`,
         );
       }
-      setDownload(null);
+      /* Recién regenerado, el modal queda abierto: puede querer las dos
+       * versiones, o imprimir además de descargar. */
+      if (!download.fresh) setDownload(null);
     } catch {
       toast(t("mesasQr.errorDescarga"), "error");
     } finally {
       setBusy(false);
     }
+  };
+
+  const printIdsNow = (ids: Set<string>) => {
+    setPrintIds(ids);
+    window.setTimeout(() => {
+      window.print();
+    }, 50);
   };
 
   const printSelected = () => {
@@ -277,10 +308,7 @@ export const TableQrManager = ({ flow }: { flow: TableQrFlow }) => {
       toast(t("mesasQr.nadaParaImprimir"), "error");
       return;
     }
-    setPrintIds(ids);
-    window.setTimeout(() => {
-      window.print();
-    }, 50);
+    printIdsNow(ids);
   };
 
   if (!ready || !enabled) return null;
@@ -348,6 +376,14 @@ export const TableQrManager = ({ flow }: { flow: TableQrFlow }) => {
             className="min-h-11 text-sm font-semibold text-carbon/60 disabled:opacity-40"
           >
             {t("mesasQr.descargarPlancha")}
+          </button>
+          <button
+            type="button"
+            disabled={busy || regenerando || !tablesToRegenerate(tables, flow).length}
+            onClick={regenerateAll}
+            className="min-h-11 text-sm font-semibold text-carbon/60 disabled:opacity-40"
+          >
+            {t("mesasQr.regenerarTodos")}
           </button>
         </div>
       )}
@@ -431,7 +467,7 @@ export const TableQrManager = ({ flow }: { flow: TableQrFlow }) => {
                 {canManage && on && (
                   <button
                     type="button"
-                    disabled={busy}
+                    disabled={busy || regenerando}
                     onClick={() => void regenerate(m)}
                     className="min-h-11 rounded-full border border-linea px-4 text-sm font-semibold text-carbon/60 disabled:opacity-50"
                   >
@@ -533,6 +569,28 @@ export const TableQrManager = ({ flow }: { flow: TableQrFlow }) => {
           }
           busy={busy}
           flow={flow}
+          notice={
+            download.fresh
+              ? download.kind === "one"
+                ? t("mesasQr.regeneradoAviso")
+                : t("mesasQr.regeneradosAviso", { n: download.tables.length })
+              : undefined
+          }
+          onPrint={
+            download.fresh
+              ? () =>
+                  printIdsNow(
+                    new Set(
+                      download.kind === "one"
+                        ? [download.table.id]
+                        : download.tables.map((x) => x.id),
+                    ),
+                  )
+              : undefined
+          }
+          printLabel={
+            download.kind === "sheet" ? t("mesasQr.imprimirTodos") : undefined
+          }
           onPick={(kind) => void runDownload(kind)}
           onClose={() => {
             if (!busy) setDownload(null);
