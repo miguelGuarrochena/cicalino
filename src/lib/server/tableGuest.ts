@@ -91,6 +91,10 @@ export const sameOrigin = (req: Request): boolean => {
 
 /* ---- Reads -------------------------------------------------------------- */
 
+/* A qué lleva el QR de la mesa: la cuenta compartida de Pagos, o Pedidos en
+ * modalidad Mesa (pedir, pagar y retirar en el mostrador). */
+export type TableFlow = "cuenta" | "autoservicio";
+
 export type TableQr =
   | {
       ok: true;
@@ -99,6 +103,7 @@ export type TableQr =
       branchId: string;
       branchName: string;
       operational: boolean;
+      flow: TableFlow;
     }
   | { ok: false; reason: "not-found" | "not-available" | "not-configured" };
 
@@ -118,6 +123,7 @@ export const resolveTableQr = async (token: string): Promise<TableQr> => {
     branchId: String(r.local_id),
     branchName: String(r.local_nombre ?? ""),
     operational: Boolean(r.operativo),
+    flow: r.flujo === "autoservicio" ? "autoservicio" : "cuenta",
   };
 };
 
@@ -252,9 +258,9 @@ export const fetchGuestState = async (
 
 /* ---- Writes (thin wrappers; the rules live in SQL) ------------------------ */
 
-type RpcResult = Record<string, unknown> & { ok: boolean; reason?: string };
+export type RpcResult = Record<string, unknown> & { ok: boolean; reason?: string };
 
-const callRpc = async (
+export const callRpc = async (
   fn: string,
   args: Record<string, unknown>,
 ): Promise<RpcResult> => {
@@ -377,10 +383,13 @@ const checkoutUrl = (preferenceId: string) =>
   `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(preferenceId)}`;
 
 /* Preference + redirect URL for a pending Mercado Pago row. Defining a share
- * does not call this; requesting the bill (or paying all) does. */
+ * does not call this; requesting the bill (or paying all) does. A pickup
+ * order (Pedidos in Mesa mode) passes its own title, so the guest sees the
+ * order number in Mercado Pago. */
 export const startGuestMercadoPagoCheckout = async (
   token: string,
   paymentId: string,
+  opts: { title?: string } = {},
 ): Promise<{ ok: true; checkoutUrl: string } | { ok: false; reason: string }> => {
   const admin = createAdminSupabase();
   if (!admin) return { ok: false, reason: "not-configured" };
@@ -400,7 +409,9 @@ export const startGuestMercadoPagoCheckout = async (
   const pref = await createPreference({
     localId: row.local_id as string,
     pagoId: paymentId,
-    title: mesa.ok ? `${mesa.branchName} · Mesa ${mesa.tableNumber}` : "Cuenta de la mesa",
+    title:
+      opts.title ??
+      (mesa.ok ? `${mesa.branchName} · Mesa ${mesa.tableNumber}` : "Cuenta de la mesa"),
     amount: row.monto_total as number,
     expiresAt: row.expira_en as string,
     returnUrl: `${appBaseUrl()}/m/${token}?pago=${paymentId}`,

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { TableGuestApp } from "@/components/customer/table/TableGuestApp";
 import { TableNotFound } from "@/components/customer/table/TableNotFound";
+import { TablePickupApp } from "@/components/customer/table/TablePickupApp";
 import { qrTokenSchema, uuid } from "@/lib/schemas";
 import { guestSessionHere } from "@/lib/guestSession";
 import {
@@ -11,7 +12,14 @@ import {
   fetchBranchBrand,
   readGuestCookie,
   resolveTableQr,
+  type GuestCredentials,
 } from "@/lib/server/tableGuest";
+import {
+  fetchPickupState,
+  resolveCounterQr,
+  resolvePickupAccess,
+} from "@/lib/server/tablePickup";
+import { counterPayOptions, type PickupFlow } from "@/lib/tablePickup";
 
 /* Table QR landing. Rendered on the server with everything resolved: the
  * first HTML already has the menu and, for a returning guest, the bill. */
@@ -27,9 +35,16 @@ export const generateMetadata = async ({
     return { robots: { index: false, follow: false } };
   }
   const mesa = await resolveTableQr(token);
+  if (!mesa.ok) {
+    const counter = await resolveCounterQr(token);
+    return {
+      robots: { index: false, follow: false },
+      title: counter.ok ? counter.branchName || "Cicalino" : "Cicalino",
+    };
+  }
   return {
     robots: { index: false, follow: false },
-    title: mesa.ok ? `${mesa.branchName} · Mesa ${mesa.tableNumber}` : "Cicalino",
+    title: `${mesa.branchName} · Mesa ${mesa.tableNumber}`,
   };
 };
 
@@ -45,10 +60,40 @@ const TablePage = async ({
 
   if (!qrTokenSchema.safeParse(token).success) return <TableNotFound />;
 
-  const [mesa, state] = await Promise.all([
-    resolveTableQr(token),
-    readGuestCookie().then(fetchGuestState),
-  ]);
+  const [mesa, creds] = await Promise.all([resolveTableQr(token), readGuestCookie()]);
+
+  /* Pedidos en modalidad Mesa: el mismo QR, otro flujo. Pedir, pagar y
+   * retirar en el mostrador; sin cuenta compartida. */
+  if (mesa.ok && mesa.flow === "autoservicio") {
+    return (
+      <PickupPage
+        token={token}
+        qr={{ ...mesa, flow: "autoservicio" }}
+        creds={creds}
+        pago={pago}
+      />
+    );
+  }
+
+  /* Pedidos en modalidad Mostrador QR: un QR para todo el local. El token no
+   * es de una mesa; el pedido de cada teléfono sale de su cookie. Un cartel
+   * regenerado ya no inicia pedidos, pero quien ya pidió con él sigue viendo
+   * (y pagando) lo suyo ahí mismo: sin redirigir al QR nuevo. */
+  if (!mesa.ok) {
+    const counter = await resolvePickupAccess(token, creds);
+    if (counter.ok && counter.flow === "mostrador_qr") {
+      return (
+        <PickupPage
+          token={token}
+          qr={{ ...counter, tableNumber: null }}
+          creds={creds}
+          pago={pago}
+        />
+      );
+    }
+  }
+
+  const state = await fetchGuestState(creds);
 
   if (!mesa.ok) {
     /* An old printed QR (regenerated since) still works for someone already
@@ -111,6 +156,56 @@ const TablePage = async ({
         mercadoPagoReady: payment.mercadoPagoReady,
         guest: here && state.ok ? { id: state.guest.id, name: state.guest.name } : null,
         bill: here && state.ok ? state.bill : null,
+        returningPaymentId: uuid.safeParse(pago).success ? pago! : null,
+      }}
+    />
+  );
+};
+
+const PickupPage = async ({
+  token,
+  qr,
+  creds,
+  pago,
+}: {
+  token: string;
+  qr: {
+    flow: PickupFlow;
+    branchId: string;
+    branchName: string;
+    operational: boolean;
+    tableNumber: number | null;
+  };
+  creds: GuestCredentials | null;
+  pago: string | undefined;
+}) => {
+  const [menu, payment, brand, pickup] = await Promise.all([
+    fetchMenu(qr.branchId),
+    fetchGuestPaymentOptions(qr.branchId),
+    fetchBranchBrand(qr.branchId),
+    fetchPickupState(token, creds, qr.flow),
+  ]);
+  const mercadoPagoReady = payment.mercadoPagoReady && payment.settings.mercadoPago;
+  /* En la mesa "pagar en caja" se ofrece como siempre; en el mostrador sale
+   * de los métodos que el local tiene habilitados. */
+  const cashReady =
+    qr.flow === "mostrador_qr"
+      ? counterPayOptions(payment.settings, mercadoPagoReady).caja
+      : true;
+  return (
+    <TablePickupApp
+      initial={{
+        token,
+        flow: qr.flow,
+        tableNumber: qr.tableNumber,
+        branchName: brand.name || qr.branchName,
+        logoUrl: brand.logoUrl,
+        colorMarca: brand.color,
+        operational: qr.operational,
+        menu,
+        mercadoPagoReady,
+        cashReady,
+        state: pickup.ok ? pickup.state : null,
         returningPaymentId: uuid.safeParse(pago).success ? pago! : null,
       }}
     />

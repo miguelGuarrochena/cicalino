@@ -1,5 +1,8 @@
 
 export type OrderStatus =
+  /* Pedidos en modalidad Mesa: el cliente lo armó y todavía no lo pagó. No
+   * es trabajo de la cocina y no aparece en el tablero. */
+  | "pendiente_pago"
   | "creado"
   | "en_preparacion"
   | "listo"
@@ -70,6 +73,21 @@ export interface OrderView {
    * le dice al mostrador si este pedido se va a avisar solo o hay que
    * cantarlo. Lo cuenta `pedidos_pagina`; un alta nueva arranca en false. */
   hasPush?: boolean;
+  /* Pedido que el cliente hizo y pagó desde el QR de la mesa (modalidad
+   * Mesa). Trae la mesa y lo que hay que preparar, porque nadie lo cargó en
+   * la caja. */
+  selfService?: boolean;
+  tableNumber?: number | null;
+  items?: { name: string; quantity: number }[];
+  total?: number | null;
+  paidMethod?: string | null;
+  confirmedAt?: string | null;
+  /* Mostrador QR: el pedido entró desde el QR del local, sin mesa. El pago va
+   * aparte de la preparación: `paidMethod` dice si ya se cobró, y si no,
+   * `payAtCounterAt` (paga al retirar) o `mpPending` (está en el checkout). */
+  counterQr?: boolean;
+  payAtCounterAt?: string | null;
+  mpPending?: boolean;
 }
 
 export interface CustomerStatusView {
@@ -88,6 +106,7 @@ export interface DailyMetrics {
 }
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
+  pendiente_pago: "Esperando pago",
   creado: "En curso",
   en_preparacion: "En curso",
   listo: "Listo",

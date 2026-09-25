@@ -94,7 +94,7 @@ export const MenuWorkspace = () => {
   const confirmar = useConfirm();
   const branchId = useSessionStore((s) => s.sucursalId);
   const branchName = useConfigStore((s) => s.name);
-  const { visibles, canManage, ready } = useOperationalAccess();
+  const { usesMenu, canManage, ready } = useOperationalAccess();
   const real = isRealBranchId(branchId);
 
   const [categories, setCategories] = useState<MenuCategoryView[] | null>(null);
@@ -131,10 +131,10 @@ export const MenuWorkspace = () => {
   };
 
   useEffect(() => {
-    if (!real || !canManage || !visibles.pagos) return;
+    if (!real || !canManage || !usesMenu) return;
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchId, real, canManage, visibles.pagos]);
+  }, [branchId, real, canManage, usesMenu]);
 
   const sortedCats = useMemo(() => [...(categories ?? [])].sort(byOrder), [categories]);
   const allProducts = useMemo(() => products ?? [], [products]);
@@ -190,7 +190,7 @@ export const MenuWorkspace = () => {
     );
   }
   if (!canManage) return <NoAccess />;
-  if (!visibles.pagos) {
+  if (!usesMenu) {
     return <EmptyState title={t("carta.titulo")} body={t("carta.sinModulo")} />;
   }
   if (!real) return <EmptyState title={t("carta.titulo")} body={t("carta.elegirSucursal")} />;

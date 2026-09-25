@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import type { OrderStatus, OrderView } from "@/lib/types";
 import { orderClosed } from "@/lib/types";
 import { useApp } from "@/components/providers/Providers";
+import { useConfirm } from "@/components/ui/Confirm";
 import { useConfigStore } from "@/lib/store/config-store";
+import { formatMoney } from "@/lib/tableBill";
 
 const PILL: Record<OrderStatus, string> = {
+  pendiente_pago: "bg-curso-fondo text-curso",
   creado: "bg-curso-fondo text-curso",
   en_preparacion: "bg-curso-fondo text-curso",
   listo: "bg-ok-fondo text-ok",
@@ -59,7 +62,26 @@ interface Props {
   onCambiarEstado: (id: string, status: OrderStatus) => void | Promise<void>;
   onMostrarQr?: (order: OrderView) => void;
   onReavisar?: (id: string) => void;
+  /* Mostrador QR: cobrar en caja un pedido que no está pago. */
+  onCobrar?: (order: OrderView) => void;
 }
+
+/* Mostrador QR: cómo está el pago, aparte de la preparación. */
+type PagoMostrador = "pagado" | "caja" | "mercado_pago" | "sin-pagar";
+
+const pagoMostrador = (o: OrderView): PagoMostrador => {
+  if (o.paidMethod) return "pagado";
+  if (o.mpPending) return "mercado_pago";
+  if (o.payAtCounterAt) return "caja";
+  return "sin-pagar";
+};
+
+const PAGO_CLASS: Record<PagoMostrador, string> = {
+  pagado: "bg-ok-fondo text-ok",
+  caja: "bg-curso-fondo text-curso",
+  mercado_pago: "bg-curso-fondo text-curso",
+  "sin-pagar": "bg-alerta-fondo text-alerta",
+};
 
 export const OrderCard = ({
   pedido: order,
@@ -67,8 +89,10 @@ export const OrderCard = ({
   onCambiarEstado,
   onMostrarQr,
   onReavisar,
+  onCobrar,
 }: Props) => {
   const { t, locale } = useApp();
+  const confirmar = useConfirm();
   const mode = useConfigStore((s) => s.modo);
   const [now, setNow] = useState(() => Date.now());
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -80,7 +104,13 @@ export const OrderCard = ({
     return () => window.clearInterval(id);
   }, [order.status]);
 
-  const wait = minutosDesde(order.createdAt, now);
+  /* Un pedido de la mesa (modalidad Mesa) espera desde que quedó pago: antes
+   * de eso no era trabajo de nadie. */
+  const mesa = Boolean(order.selfService);
+  /* Mostrador QR: sin mesa, y el pedido puede estar listo sin estar pago. */
+  const mostradorQr = Boolean(order.counterQr);
+  const pago = mostradorQr ? pagoMostrador(order) : null;
+  const wait = minutosDesde(mesa ? (order.confirmedAt ?? order.createdAt) : order.createdAt, now);
   const enCurso =
     order.status === "creado" || order.status === "en_preparacion";
   const listo = order.status === "listo";
@@ -88,8 +118,25 @@ export const OrderCard = ({
   const urgente = wait !== null && wait >= 15 && !cerrado;
   const aviso = avisoDe(order);
 
-  const cambiar = (status: OrderStatus) => {
+  const porCobrar = pago !== null && pago !== "pagado" && !cerrado;
+
+  const cambiar = async (status: OrderStatus) => {
     if (busy) return;
+    /* Entregar sin cobrar es posible (el local decide), pero no por un toque
+     * distraído: el pedido todavía debe la plata. */
+    if (status === "retirado" && porCobrar) {
+      const ok = await confirmar({
+        title: t("mostradorQr.panel.entregarSinCobrarTitulo"),
+        body: t("mostradorQr.panel.entregarSinCobrarCuerpo", {
+          n: order.reference,
+          total: formatMoney(order.total ?? 0),
+        }),
+        confirmLabel: t("mostradorQr.panel.entregarSinCobrarSi"),
+        cancelLabel: t("acciones.volver"),
+        tone: "peligro",
+      });
+      if (!ok) return;
+    }
     setBusy(true);
     void Promise.resolve(onCambiarEstado(order.id, status)).finally(() => {
       setBusy(false);
@@ -112,13 +159,21 @@ export const OrderCard = ({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-carbon/40">
-            {t(`modo.${mode}`)}
+            {mostradorQr
+              ? t("mostradorQr.panel.etiqueta")
+              : mesa
+                ? t("retiroCaja.pedidoDeMesa", { n: order.tableNumber ?? "—" })
+                : t(`modo.${mode}`)}
           </p>
           <div className="grid min-h-8 min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
             <span className="font-display text-3xl leading-none text-carbon">
               {order.reference}
             </span>
-            {order.alias ? (
+            {mostradorQr && !order.alias ? (
+              <span className="truncate text-sm leading-tight text-carbon/45">
+                {t("mostradorQr.panel.sinNombre")}
+              </span>
+            ) : order.alias ? (
               /* `leading-tight` y no `leading-none`: `truncate` es
                * `overflow:hidden`, y con la caja del alto exacto de la letra la
                * panza de la "g" de un nombre como Miguel queda cortada. El
@@ -154,6 +209,43 @@ export const OrderCard = ({
           )}
         </div>
       </div>
+
+      {/* Lo que hay que preparar. Un pedido del mostrador no trae ítems (la
+          caja lo anota a su manera); el de la mesa sí, porque nadie lo cargó. */}
+      {mesa && (
+        <div className="flex flex-col gap-2 rounded-2xl border border-linea bg-crema/40 p-3">
+          <ul className="flex flex-col gap-0.5 text-sm text-carbon">
+            {(order.items ?? []).map((i, n) => (
+              <li key={`${i.name}-${n}`}>
+                <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
+              </li>
+            ))}
+          </ul>
+          <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-carbon/55">
+            {pago ? (
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${PAGO_CLASS[pago]}`}
+              >
+                {pago === "pagado"
+                  ? t("mostradorQr.panel.pagado", {
+                      m: t(`mesa.metodo.${order.paidMethod}`),
+                    })
+                  : t(`mostradorQr.panel.pendiente.${pago}`)}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-ok-fondo px-2 py-0.5 font-semibold text-ok">
+                {t("retiroCaja.pagado")}
+                {order.paidMethod ? ` · ${t(`mesa.metodo.${order.paidMethod}`)}` : ""}
+              </span>
+            )}
+            {order.total != null && (
+              <span className="font-semibold tabular-nums text-carbon/70">
+                {formatMoney(order.total)}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:grid-cols-3">
         <div>
@@ -197,18 +289,36 @@ export const OrderCard = ({
         <button
           type="button"
           disabled={busy}
-          onClick={() => cambiar("listo")}
+          onClick={() => void cambiar("listo")}
           className="w-full rounded-full bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.97] disabled:opacity-50 sm:py-3"
         >
           {busy ? "…" : t("card.marcarListo")}
+        </button>
+      )}
+      {porCobrar && onCobrar && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onCobrar(order)}
+          className={`w-full rounded-full px-4 py-3.5 text-sm font-semibold transition active:scale-[0.97] disabled:opacity-50 sm:py-3 ${
+            listo
+              ? "bg-marca text-crema hover:bg-marca-fuerte"
+              : "border-2 border-marca text-marca hover:bg-marca/5"
+          }`}
+        >
+          {t("retiroCaja.cobrar", { n: formatMoney(order.total ?? 0) })}
         </button>
       )}
       {listo && (
         <button
           type="button"
           disabled={busy}
-          onClick={() => cambiar("retirado")}
-          className="w-full rounded-full bg-marca px-4 py-3.5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.97] disabled:opacity-50 sm:py-3"
+          onClick={() => void cambiar("retirado")}
+          className={`w-full rounded-full px-4 py-3.5 text-sm font-semibold transition active:scale-[0.97] disabled:opacity-50 sm:py-3 ${
+            porCobrar
+              ? "border border-linea text-carbon/70 hover:bg-carbon/5"
+              : "bg-marca text-crema hover:bg-marca-fuerte"
+          }`}
         >
           {busy ? "…" : t("card.marcarRetirado")}
         </button>
@@ -228,14 +338,14 @@ export const OrderCard = ({
         (confirmCancel ? (
           <div className="flex flex-col gap-2 rounded-2xl border border-alerta-borde bg-alerta-fondo p-2">
             <p className="px-1 text-center text-xs font-medium text-alerta">
-              {t("card.confirmarCancel")}
+              {mesa && !porCobrar ? t("retiroCaja.cancelarPagado") : t("card.confirmarCancel")}
             </p>
             <div className="flex gap-2">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => {
-                  cambiar("cancelado");
+                  void cambiar("cancelado");
                   setConfirmCancel(false);
                 }}
                 className="flex min-h-11 flex-1 items-center justify-center rounded-full bg-red-500 px-4 text-sm font-semibold text-white transition hover:bg-red-600 active:scale-[0.97] disabled:opacity-50"
@@ -253,7 +363,7 @@ export const OrderCard = ({
           </div>
         ) : (
           <div className="flex gap-2">
-            {onMostrarQr && !cerrado && (
+            {onMostrarQr && !cerrado && !mesa && (
               <button
                 type="button"
                 onClick={() => onMostrarQr(order)}

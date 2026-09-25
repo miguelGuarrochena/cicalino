@@ -88,5 +88,10 @@
   "mesa-cuenta-compartida.sql",
   "mesa-launch-blockers.sql",
   "staff-empleado-cobro.sql",
-  "mesa-sesion-activa-unica.sql"
+  "mesa-sesion-activa-unica.sql",
+  "pedidos-mesa-enum.sql",
+  "pedidos-mesa.sql",
+  "pedidos-mostrador-qr.sql",
+  "pedidos-mostrador-qr-metodos.sql",
+  "qr-regenerar-mesas.sql"
 ]

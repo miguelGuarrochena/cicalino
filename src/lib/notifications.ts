@@ -40,6 +40,20 @@ export const canOfferWebPush = (): boolean => {
   return pushManagerSupported();
 };
 
+/**
+ * ¿Este navegador puede recibir el aviso con la pestaña cerrada?
+ * Por capacidad, no por plataforma: contexto seguro, Service Worker + Push +
+ * Notification disponibles, clave VAPID configurada y el permiso sin
+ * denegar. Un iPhone en Safari no expone PushManager (da false); instalado
+ * en la pantalla de inicio sí, y ahí el aviso llega.
+ */
+export const webPushAvailable = (): boolean => {
+  if (typeof window === "undefined" || !window.isSecureContext) return false;
+  if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return false;
+  if (!pushManagerSupported()) return false;
+  return Notification.permission !== "denied";
+};
+
 export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
     return null;
@@ -97,12 +111,18 @@ const reasonFromServer = (
   return "server";
 };
 
+/* Por defecto la suscripción es de un pedido o una espera (el token del QR).
+ * Pedidos en modalidad Mesa la manda a su propia ruta, que la ata al comensal
+ * con la cookie: ahí `token` es el de la mesa. */
+export type PushTarget = { url?: string };
+
 const postSubscription = async (
   token: string,
   sub: PushSubscription,
+  target: PushTarget = {},
 ): Promise<PushSubscribeResult> => {
   const json = sub.toJSON();
-  const res = await fetch("/api/push/subscribe", {
+  const res = await fetch(target.url ?? "/api/push/subscribe", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -134,6 +154,7 @@ export const notificationPermissionGranted = (): boolean =>
 
 export const subscribeWebPush = async (
   token: string,
+  target: PushTarget = {},
 ): Promise<PushSubscribeResult> => {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   if (!publicKey) return { ok: false, reason: "no-vapid" };
@@ -160,7 +181,7 @@ export const subscribeWebPush = async (
       });
     }
 
-    return await postSubscription(token, sub);
+    return await postSubscription(token, sub, target);
   } catch (err) {
     console.error("subscribeWebPush", err);
     /* No reintentar con unsubscribe si el permiso se negó a mitad de camino:
@@ -176,7 +197,7 @@ export const subscribeWebPush = async (
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
       });
-      return await postSubscription(token, sub);
+      return await postSubscription(token, sub, target);
     } catch (err2) {
       console.error("subscribeWebPush/retry", err2);
       return { ok: false, reason: "error" };

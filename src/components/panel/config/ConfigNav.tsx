@@ -27,8 +27,9 @@ type Tab = {
 export const ConfigNav = () => {
   const { t } = useApp();
   const path = usePathname();
-  const { isOwner, visibles } = useOperationalAccess();
+  const { isOwner, visibles, usesMenu } = useOperationalAccess();
   const modo = useConfigStore((s) => s.modo);
+  const modalidad = useConfigStore((s) => s.pedidosModalidad);
   const moduloPedidos = useConfigStore((s) => s.moduloPedidos);
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
   /* La misma regla que usa la sección: la cantidad de mesas la piden
@@ -36,6 +37,7 @@ export const ConfigNav = () => {
   const showMesas = needsTableCount(
     { pedidos: moduloPedidos, espera: visibles.espera, pagos: visibles.pagos },
     modo,
+    modalidad,
   );
   const onMetrics = path.startsWith("/panel/config/metricas");
   const onConfigHome = path === "/panel/config";
@@ -51,7 +53,8 @@ export const ConfigNav = () => {
     { id: "identidad", href: "/panel/config#identidad", key: "config.tab.identidad", show: true, inPage: true },
     /* Cómo se identifica un pedido: solo para quien tiene Pedidos. */
     { id: "pedidos", href: "/panel/config#pedidos", key: "config.tab.pedidos", show: moduloPedidos, inPage: true },
-    { id: "pagos", href: "/panel/config#pagos", key: "config.tab.pagos", show: visibles.pagos, inPage: true },
+    /* Cobros: Pagos, o Pedidos cuando el cliente paga desde la mesa. */
+    { id: "pagos", href: "/panel/config#pagos", key: visibles.pagos ? "config.tab.pagos" : "retiroConfig.cobrosTab", show: usesMenu, inPage: true },
     { id: "mesas", href: "/panel/config#mesas", key: "config.tab.mesas", show: showMesas, inPage: true },
     { id: "empleados", href: "/panel/config#empleados", key: "config.tab.empleados", show: true, inPage: true },
     {
@@ -62,7 +65,7 @@ export const ConfigNav = () => {
       inPage: true,
     },
     { id: "avanzado", href: "/panel/config#avanzado", key: "config.tab.avanzado", show: true, inPage: true },
-    { id: "carta", href: "/panel/menu", key: "config.tab.carta", show: visibles.pagos, inPage: false },
+    { id: "carta", href: "/panel/menu", key: "config.tab.carta", show: usesMenu, inPage: false },
     { id: "metricas", href: "/panel/config/metricas", key: "config.tab.metricas", show: isOwner, inPage: false },
   ];
 

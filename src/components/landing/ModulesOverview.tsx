@@ -77,6 +77,14 @@ export const ModulesOverview = () => {
             <p className="mt-4 text-xs text-carbon/50">
               {t("home.desde", { monto: money.format(m.price) })}
             </p>
+            {m.id === "pedidos" && (
+              <a
+                href="#pedidos-desde-el-celular"
+                className="mt-3 text-sm font-semibold text-marca underline-offset-4 hover:underline"
+              >
+                {t("home.modos.verComo")} →
+              </a>
+            )}
             {m.id === "pagos" && (
               <a
                 href="#pagos-divididos"

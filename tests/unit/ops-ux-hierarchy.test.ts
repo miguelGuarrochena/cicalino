@@ -7,7 +7,7 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 
 describe("Operación — jerarquía y layout", () => {
   it("QR: una columna en mobile, dos en tablet, tres o más en desktop", () => {
-    const qr = read("src/app/(app)/panel/pagos/qr/page.tsx");
+    const qr = read("src/components/panel/mesas/TableQrManager.tsx");
     const modal = read("src/components/panel/mesas/QrDownloadModal.tsx");
     expect(qr).toContain("grid-cols-1");
     expect(qr).toContain("md:grid-cols-2");
@@ -441,7 +441,7 @@ describe("Impresión del QR", () => {
   });
 
   it("la descarga del PNG sigue siendo el otro camino", () => {
-    const qr = read("src/app/(app)/panel/pagos/qr/page.tsx");
+    const qr = read("src/components/panel/mesas/TableQrManager.tsx");
     expect(qr).toContain("QrDownloadModal");
     expect(read("src/components/panel/mesas/QrDownloadModal.tsx")).toContain("descargarSolo");
   });

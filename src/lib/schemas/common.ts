@@ -74,7 +74,7 @@ export const identificationMode = z.enum(["pedido", "nombre", "mesa"], {
 });
 
 export const orderStatus = z.enum(
-  ["creado", "en_preparacion", "listo", "retirado", "cancelado"],
+  ["pendiente_pago", "creado", "en_preparacion", "listo", "retirado", "cancelado"],
   { errorMap: () => ({ message: "Estado de pedido inválido." }) },
 );
 

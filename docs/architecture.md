@@ -150,6 +150,107 @@ decide si el empleado se entera.
 Modo por local: `pedido` (turno atómico), `nombre` o `mesa`. Los pedidos no
 se borran; el QR expira al cierre de jornada.
 
+## Modalidad de Pedidos: mostrador o mesa
+
+`locales.pedidos_modalidad` (`mostrador` | `mesa` | `mostrador_qr`, ver la
+sección siguiente). La de siempre —la caja
+carga el pedido y le pasa el QR— es `mostrador` y no cambia. En `mesa` el
+local no tiene mozos: el cliente usa el QR fijo de su mesa y retira en el
+mostrador. Script: `pedidos-mesa-enum.sql` + `pedidos-mesa.sql`.
+
+```
+QR de mesa (/m/[token]) → mesa_por_qr devuelve flujo = autoservicio
+  → nombre → comensales (misma identidad que Pagos: id + sha256 en cookie)
+  → carta (productos) → pedir_autoservicio
+       · pedidos.autoservicio, estado `pendiente_pago`, número de la jornada
+         (misma serie que crear_pedido, bajo el lock de `locales`)
+       · pedido_items + pagos_mesa.pedido_id (el importe sale de los ítems)
+  → pago
+      ├─ "en caja"      → pedidos.pago_caja_en → bandeja "Por cobrar" de
+      │                   /panel/pedidos → cobrar_pedido_autoservicio
+      └─ Mercado Pago   → misma preference y mismo /api/mp/webhook
+                        → mp_confirmar_pago (rama por pedido)
+  → estado `creado` (confirmado_en) → tablero de Pedidos → listo → avisos
+  → retirado en el mostrador
+```
+
+- **La garantía**: `pendiente_pago → creado` solo pasa si hay `pagos_mesa`
+  `pagado` de ese pedido que cubren su total. Lo exige el trigger
+  `pedidos_autoservicio_guard`, no la pantalla; `chequear_transicion_pedido`
+  además impide saltar a `listo` o `en_preparacion`.
+- **Un flujo por mesa**: `mesa_sesiones.flujo` (`cuenta` | `autoservicio`).
+  Los triggers `pagos_mesa_flujo_guard` y `mesa_sesiones_flujo_guard` impiden
+  que las funciones de la cuenta compartida operen sobre una mesa de
+  autoservicio (y al revés). El piso y el historial de Pagos filtran por
+  `flujo = 'cuenta'`.
+- **Volver a escanear**: el mismo QR sirve para pedir de nuevo y para ver el
+  estado. `mesa_autoservicio_estado` devuelve los pedidos del teléfono (por la
+  cookie) y, sin cookie, los pedidos vivos de esa mesa con número y estado.
+- **Avisos**: `push_subscriptions.comensal_id` ata la suscripción al comensal,
+  así un teléfono con dos pedidos se entera de los dos; el push lleva a
+  `/m/[token]`.
+- **Sin propina ni recargo**: el cliente ve un total y paga ese total.
+- **Carta y cobros**: `local_usa_carta` = módulo Pagos **o** Pedidos en
+  modalidad Mesa. Es lo que habilita `/panel/menu`, `local_cobros` y la
+  conexión de Mercado Pago.
+- **Métricas**: un pedido que nunca se pagó no cuenta, y la espera se mide
+  desde `confirmado_en`.
+- **Cartel**: `/panel/pedidos/qr` usa el mismo generador que Pagos
+  (`TableQrManager` + `qrSticker`) con la copia de "Confirmá tu pedido".
+
+## Modalidad de Pedidos: Mostrador QR
+
+`locales.pedidos_modalidad = 'mostrador_qr'`. Para panaderías, cafés y
+mostradores: un solo QR para todo el local, el pedido entra a preparación en
+el acto y el cliente paga ahora (Mercado Pago) o al retirar (en caja). Script:
+`pedidos-mostrador-qr.sql` (después de `pedidos-mesa.sql`). Usa la misma
+infraestructura que Mesa, sin mesas.
+
+```
+QR del local (/m/[locales.mostrador_qr_token]) → mostrador_qr_por_token
+  → carta (sin paso previo)
+  → confirmar: unirse_mostrador_qr (si el teléfono no tiene identidad)
+               + pedir_mostrador_qr (nombre opcional, forma de pago)
+       · mesa_sesiones flujo = mostrador_qr, UNA POR TELÉFONO, sin mesa
+       · pedidos.autoservicio, estado `creado` desde el vamos (confirmado_en
+         = ahora), número de la jornada (misma serie y mismo lock)
+  ├─ Mercado Pago → misma preference y webhook → mp_confirmar_pago lo deja
+  │                 pago (no toca el estado de preparación)
+  └─ en caja      → pedidos.pago_caja_en; la caja cobra desde la tarjeta del
+                    tablero con cobrar_pedido_autoservicio (ChargeModal)
+  → tablero (creado → en_preparacion → listo, o creado → listo) → aviso
+  → retiro (+ cobro si era en caja)
+```
+
+- **Preparación y pago separados**: "está pago" = hay un `pagos_mesa`
+  `pagado` de ese pedido. `uq_pagos_mesa_pedido_activo` + los chequeos de
+  cobrar/pagar/webhook impiden cobrarlo dos veces; un pago de Mercado Pago que
+  llega después de cobrado en caja queda como excedente para devolver.
+  `pedidos.pagado_en` lo escribe solo la base al confirmar el cobro, así el
+  tablero se entera por realtime.
+- **El QR no identifica el pedido**: identifica la entrada. Los pedidos de
+  cada teléfono salen de la cookie del comensal (misma identidad que Mesa y
+  Pagos, con copia local y `/restaurar`). Regenerar el QR
+  (`regenerar_qr_mostrador`) invalida el cartel para pedidos nuevos
+  (`pedir_mostrador_qr` exige el token vigente de su local). Los pedidos que
+  ya existen no dependen del QR: con la credencial del teléfono, el token
+  viejo sigue mostrando los suyos (`qr_vigente = false`, solo seguimiento y
+  pago), sin redirigir al cartel nuevo.
+- **Cierre de jornada**: la sesión del teléfono se cierra, pero sus pedidos
+  abiertos (p. ej. listo sin cobrar) siguen: el cliente los ve y los paga, y
+  `pedidos_pagina` los arrastra al tablero hasta que se retiren o cancelen.
+- **Sin mesa**: `mesa_sesiones.mesa_id` y `mesa_numero` en null (constraint
+  por flujo). Las funciones de la cuenta compartida no operan estas sesiones
+  (mismos triggers que autoservicio).
+- **Avisos**: el push de listo lleva al link del pedido (`/m/<pedidos.qr_token>`,
+  que `mostrador_qr_estado` resuelve a ese pedido aunque el QR del local se
+  haya regenerado; no inicia pedidos) y, si no está pago, le
+  recuerda que paga al retirar. La pantalla ofrece activar notificaciones
+  solo si el navegador puede recibirlas (`webPushAvailable`: capacidad, no
+  sistema operativo); si no, pide no cerrar la pestaña.
+- **Cartel**: `/panel/pedidos/qr` muestra `CounterQrManager` (mismo
+  `InformativeQrCard` + `qrSticker`, copia "Pedí desde tu celular").
+
 ## Pagos divididos (módulo `pagos`)
 
 Tercer módulo comercial, al mismo nivel que Pedidos y Espera: `locales.modulo_pagos`
@@ -198,8 +299,10 @@ QR de mesa (/m/[token], token opaco en mesas.qr_token)
 - **POS externos**: fuera de alcance. Los pedidos, las mesas y los pagos tienen
   ids propios y estados explícitos, así que una integración futura puede
   mapearlos sin tocar el flujo del comensal.
-- **Stickers**: el PNG de `/panel/mesas/qr` es lo que se manda a imprimir. La
+- **Stickers**: el PNG de `/panel/pagos/qr` es lo que se manda a imprimir. La
   impresión física queda afuera de Cicalino.
+- **Modalidad Mesa**: si Pedidos está en modalidad `mesa`, el QR de las mesas
+  abre ese flujo y no la cuenta compartida (ver arriba).
 
 ## Tests contra la base (`pnpm test:db`)
 
@@ -209,6 +312,10 @@ Requiere `DATABASE_URL` en `.env.local`. Dos archivos:
   columna. Solo lectura del catálogo.
 - `split-payments.test.ts` — montos, sobrepago, propina, recargo, webhook de
   Mercado Pago y permisos de pagos divididos. Misma técnica (rollback).
+- `pedidos-mesa.test.ts` — Pedidos en modalidad Mesa: que un pedido sin cobro
+  no entre a preparación por ningún camino, que la caja y el webhook sean los
+  únicos que lo confirman, y que las funciones de la cuenta compartida no
+  puedan operar esa mesa.
 - `rls-aislamiento.test.ts` — que la empresa A no vea nada de la B, que un
   supervisor no salga de su sucursal, que nadie se auto-ascienda de rol y que
   una cuenta cortada pueda leer pero no escribir. **Cada test corre dentro de

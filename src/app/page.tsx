@@ -10,6 +10,7 @@ import { LastVisitBanner } from "@/components/customer/LastVisitBanner";
 import { PricingTeaser } from "@/components/landing/PricingTeaser";
 import { ModulesOverview } from "@/components/landing/ModulesOverview";
 import { SplitBillSection } from "@/components/landing/SplitBillSection";
+import { OrderModesSection } from "@/components/landing/OrderModesSection";
 import { CustomerWalkthrough } from "@/components/landing/CustomerWalkthrough";
 import { FaqContent } from "@/components/faq/FaqContent";
 import { useApp } from "@/components/providers/Providers";
@@ -163,6 +164,8 @@ const Home = () => {
             ))}
           </ol>
         </section>
+
+        <OrderModesSection />
 
         <section className="border-y border-linea/80 bg-surface/60 px-6 py-16 sm:px-8 sm:py-20">
           <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center sm:flex-row sm:text-left">

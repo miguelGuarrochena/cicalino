@@ -1,7 +1,11 @@
 "use client";
 
 import { useApp } from "@/components/providers/Providers";
-import { informativeQrCopy } from "@/lib/qrInformativo";
+import {
+  informativeQrCopy,
+  secondGroupStart,
+  type InformativeQrFlow,
+} from "@/lib/qrInformativo";
 
 /* Cartel horizontal de mesa: nombre del local, QR e instrucciones Pedí / Pagá.
  *
@@ -79,14 +83,16 @@ export const InformativeQrCard = ({
   venue,
   tableLabel,
   accent,
+  flow = "cuenta",
 }: {
   qrSrc: string;
   venue: string;
   tableLabel: string;
   accent: string;
+  flow?: InformativeQrFlow;
 }) => {
   const { t } = useApp();
-  const copy = informativeQrCopy(t);
+  const copy = informativeQrCopy(t, flow);
 
   return (
     <div
@@ -151,7 +157,7 @@ export const InformativeQrCard = ({
           <Group
             label={copy.payLabel}
             steps={copy.paySteps}
-            start={4}
+            start={secondGroupStart(copy)}
             note={copy.payNote}
             accent={accent}
           />

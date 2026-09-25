@@ -4,7 +4,13 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSessionStore, type CurrentRole } from "@/lib/store/session-store";
 import { useConfigStore } from "@/lib/store/config-store";
-import { panelHomePath, type ModuleFlags } from "@/lib/modules";
+import {
+  panelHomePath,
+  pedidosEnMesa,
+  pedidosMostradorQr,
+  usesTableMenu,
+  type ModuleFlags,
+} from "@/lib/modules";
 import { useDeviceMode } from "@/lib/hooks/useDeviceMode";
 import {
   fallbackPath,
@@ -21,6 +27,13 @@ export interface OperationalAccess {
   links: OperationalNavLink[];
   canManage: boolean;
   isOwner: boolean;
+  /* Pedidos en modalidad Mesa (el cliente pide y paga desde el QR). */
+  pedidosEnMesa: boolean;
+  /* Pedidos en modalidad Mostrador QR (un QR del local, se paga ahora o al
+   * retirar). */
+  pedidosMostradorQr: boolean;
+  /* Carta, métodos de cobro y Mercado Pago: Pagos o Pedidos desde un QR. */
+  usesMenu: boolean;
 }
 
 /* Branch contract + device preference + the signed-in role. Nav, redirects
@@ -31,6 +44,7 @@ export const useOperationalAccess = (): OperationalAccess => {
   const moduloEspera = useConfigStore((s) => s.moduloEspera);
   const moduloPagos = useConfigStore((s) => s.moduloPagos);
   const ready = useConfigStore((s) => s.branchConfigReady);
+  const modalidad = useConfigStore((s) => s.pedidosModalidad);
   const dispositivo = useDeviceMode();
   const activos: ModuleFlags = {
     pedidos: moduloPedidos,
@@ -49,6 +63,9 @@ export const useOperationalAccess = (): OperationalAccess => {
     links: operationalNavLinks(role, activos),
     canManage: role === "admin" || role === "supervisor" || role === "superadmin",
     isOwner: role === "admin",
+    pedidosEnMesa: pedidosEnMesa(activos, modalidad),
+    pedidosMostradorQr: pedidosMostradorQr(activos, modalidad),
+    usesMenu: usesTableMenu(activos, modalidad),
   };
 };
 

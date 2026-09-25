@@ -18,11 +18,19 @@ import {
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { saveBranchConfig } from "@/lib/data/branch";
-import { needsTableCount } from "@/lib/modules";
+import {
+  needsTableCount,
+  pedidosEnMesa,
+  pedidosMostradorQr,
+  usesTableMenu,
+  type PedidosModalidad,
+} from "@/lib/modules";
 import { syncTables } from "@/lib/data/waitlist";
 import { PedirSucursalCard } from "@/components/panel/PedirSucursalCard";
 import { HelpLink } from "@/components/panel/HelpLink";
 import { PaymentMethodsCard } from "@/components/panel/config/PaymentMethodsCard";
+import { fetchPaymentSettings } from "@/lib/data/tables";
+import { enabledMethods } from "@/lib/tableBill";
 import { BrandIdentityCard } from "@/components/panel/config/BrandIdentityCard";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { isRealBranchId } from "@/lib/data/orders";
@@ -128,11 +136,13 @@ const Campo = ({
 type FormErrors = {
   mesas?: string;
   reservaHorario?: string;
+  modalidad?: string;
 };
 
 /* Lo que edita esta pantalla y viaja a la base al tocar Guardar. */
 interface Operacion {
   modo: IdentificationMode;
+  pedidosModalidad: PedidosModalidad;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -183,6 +193,23 @@ const ConfigPage = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [draft, setDraft] = useState<Draft>({});
   const [openId, setOpenId] = useState("");
+  /* Métodos de pago habilitados de la sucursal (null: todavía no se sabe).
+   * Mostrador QR necesita al menos uno; la base también lo exige. */
+  const [metodos, setMetodos] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!branchId || !isRealBranchId(branchId)) return;
+    let alive = true;
+    void fetchPaymentSettings(branchId).then((r) => {
+      if (!alive || !r.ok) return;
+      setMetodos(
+        enabledMethods(r.data.settings, { mercadoPagoConnected: r.data.mercadoPago.connected }).length,
+      );
+    });
+    return () => {
+      alive = false;
+    };
+  }, [branchId]);
 
   useEffect(() => {
     const sync = () => setOpenId(readConfigSection());
@@ -210,6 +237,7 @@ const ConfigPage = () => {
   };
 
   const modo = draft.modo ?? c.modo;
+  const pedidosModalidad = draft.pedidosModalidad ?? c.pedidosModalidad;
   const cutoffHour = draft.cutoffHour ?? c.cutoffHour;
   const reservaAbreMin = draft.reservaAbreMin ?? c.reservaAbreMin;
   const reservaCierraMin = draft.reservaCierraMin ?? c.reservaCierraMin;
@@ -221,6 +249,7 @@ const ConfigPage = () => {
    * estaba tiene que apagar el aviso de cambios sin guardar. */
   const dirty =
     modo !== c.modo ||
+    pedidosModalidad !== c.pedidosModalidad ||
     tableCount !== c.tableCount ||
     cutoffHour !== c.cutoffHour ||
     reservaAbreMin !== c.reservaAbreMin ||
@@ -250,10 +279,27 @@ const ConfigPage = () => {
   ];
 
   /* La misma respuesta para la sección, la pestaña y la validación. */
-  const pideMesas = needsTableCount(
-    { pedidos: c.moduloPedidos, espera: c.moduloEspera, pagos: c.moduloPagos },
-    modo,
-  );
+  const modulos = { pedidos: c.moduloPedidos, espera: c.moduloEspera, pagos: c.moduloPagos };
+  const pideMesas = needsTableCount(modulos, modo, pedidosModalidad);
+  /* Lo guardado manda para lo que depende de la base (cobros, QR, carta): con
+   * la modalidad elegida pero sin guardar, la base todavía no la conoce. */
+  const enMesaGuardado = pedidosEnMesa(modulos, c.pedidosModalidad);
+  const enMesaBorrador = pedidosEnMesa(modulos, pedidosModalidad);
+  const qrMostradorGuardado = pedidosMostradorQr(modulos, c.pedidosModalidad);
+  const qrMostradorBorrador = pedidosMostradorQr(modulos, pedidosModalidad);
+  /* Elegir Mostrador QR también muestra Cobros: sin métodos no se activa. */
+  const cobrosVisibles = usesTableMenu(modulos, c.pedidosModalidad) || qrMostradorBorrador;
+  const sinMetodos = metodos === 0;
+
+  const modalidades: { id: PedidosModalidad; label: string; det: string }[] = [
+    { id: "mostrador", label: t("retiroConfig.mostrador"), det: t("retiroConfig.mostradorDet") },
+    { id: "mesa", label: t("retiroConfig.mesa"), det: t("retiroConfig.mesaDet") },
+    {
+      id: "mostrador_qr",
+      label: t("retiroConfig.mostradorQr"),
+      det: t("retiroConfig.mostradorQrDet"),
+    },
+  ];
 
   const validar = (): FormErrors => {
     const next: FormErrors = {};
@@ -262,6 +308,9 @@ const ConfigPage = () => {
     }
     if (c.moduloEspera && reservaAbreMin >= reservaCierraMin) {
       next.reservaHorario = t("config.errReservaHorario");
+    }
+    if (qrMostradorBorrador && !qrMostradorGuardado && sinMetodos) {
+      next.modalidad = t("retiroConfig.mostradorQrSinMetodos");
     }
     return next;
   };
@@ -286,6 +335,7 @@ const ConfigPage = () => {
      * módulo no la usa, se guarda lo que había. */
     const cfg: Operacion = {
       modo,
+      pedidosModalidad,
       tableCount: tableCount ?? c.tableCount,
       cutoffHour,
       reservaAbreMin,
@@ -311,6 +361,7 @@ const ConfigPage = () => {
           needsTableCount(
             { pedidos: c.moduloPedidos, espera: c.moduloEspera, pagos: c.moduloPagos },
             cfg.modo,
+            cfg.pedidosModalidad,
           )
         ) {
           await syncTables(id, cfg.tableCount);
@@ -442,7 +493,95 @@ const ConfigPage = () => {
           no usa en ninguna de sus pantallas. */}
       {c.moduloPedidos && (
         <Accordion {...acc("pedidos")} title={t("config.tab.pedidos")}>
-          <p className="mb-4 text-sm text-carbon/55">{t("config.seccionIdSub")}</p>
+          {/* Cómo funciona Pedidos. Va primero porque cambia todo lo demás:
+              en modalidad Mesa el cliente pide y paga solo desde el QR de su
+              mesa y retira en el mostrador. */}
+          <p className="text-sm font-medium text-carbon/70">{t("retiroConfig.titulo")}</p>
+          <p className="mb-3 mt-1 text-xs text-carbon/50">{t("retiroConfig.sub")}</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {modalidades.map((m) => {
+              const active = pedidosModalidad === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => editar("pedidosModalidad", m.id)}
+                  className={`flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 text-left transition hover:opacity-90 ${
+                    active
+                      ? "border-marca bg-marca/10 ring-2 ring-marca/30"
+                      : "border-linea bg-crema/30"
+                  }`}
+                >
+                  <span className="font-semibold text-carbon">{m.label}</span>
+                  <span className="text-xs leading-snug text-carbon/55">{m.det}</span>
+                </button>
+              );
+            })}
+          </div>
+          {enMesaBorrador && (
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-linea bg-crema/30 p-4">
+              <p className="text-sm text-carbon/70">{t("retiroConfig.mesaComo")}</p>
+              {c.moduloPagos && (
+                <p className="text-xs font-medium text-curso">{t("retiroConfig.conPagos")}</p>
+              )}
+              {enMesaGuardado ? (
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/panel/pedidos/qr"
+                    className="inline-flex min-h-11 items-center rounded-full border-2 border-marca px-4 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema"
+                  >
+                    {t("retiroConfig.irQr")}
+                  </Link>
+                  <Link
+                    href="/panel/menu"
+                    className="inline-flex min-h-11 items-center rounded-full border border-linea px-4 text-sm font-semibold text-carbon/75"
+                  >
+                    {t("retiroConfig.irCarta")}
+                  </Link>
+                </div>
+              ) : (
+                <p className="text-xs text-carbon/55">{t("retiroConfig.guardaPrimero")}</p>
+              )}
+            </div>
+          )}
+          {/* Mostrador QR: un QR para todo el local. El pedido se prepara
+              enseguida; el cliente paga ahora o en caja al retirar. */}
+          {qrMostradorBorrador && (
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-linea bg-crema/30 p-4">
+              <p className="text-sm text-carbon/70">{t("retiroConfig.mostradorQrComo")}</p>
+              {sinMetodos && (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-alerta-borde bg-alerta-fondo px-3 py-2 text-sm font-medium text-alerta"
+                >
+                  {qrMostradorGuardado
+                    ? t("retiroConfig.mostradorQrPausado")
+                    : (errors.modalidad ?? t("retiroConfig.mostradorQrSinMetodos"))}
+                </p>
+              )}
+              {qrMostradorGuardado ? (
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/panel/pedidos/qr"
+                    className="inline-flex min-h-11 items-center rounded-full border-2 border-marca px-4 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema"
+                  >
+                    {t("retiroConfig.irQrMostrador")}
+                  </Link>
+                  <Link
+                    href="/panel/menu"
+                    className="inline-flex min-h-11 items-center rounded-full border border-linea px-4 text-sm font-semibold text-carbon/75"
+                  >
+                    {t("retiroConfig.irCarta")}
+                  </Link>
+                </div>
+              ) : (
+                <p className="text-xs text-carbon/55">{t("retiroConfig.guardaPrimeroMostrador")}</p>
+              )}
+            </div>
+          )}
+
+          <p className="mb-4 mt-6 text-sm text-carbon/55">{t("config.seccionIdSub")}</p>
           <p className="text-sm font-medium text-carbon/70">{t("config.seccionId")}</p>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {modes.map((m) => {
@@ -469,12 +608,22 @@ const ConfigPage = () => {
         </Accordion>
       )}
 
-      {c.moduloPagos && isRealBranchId(branchId) && (
-        <Accordion {...acc("pagos")} title={t("config.tab.pagos")}>
+      {cobrosVisibles && isRealBranchId(branchId) && (
+        <Accordion
+          {...acc("pagos")}
+          title={c.moduloPagos ? t("config.tab.pagos") : t("retiroConfig.cobrosTab")}
+        >
+          {!c.moduloPagos && enMesaGuardado && (
+            <p className="mb-4 text-sm text-carbon/55">{t("retiroConfig.cobrosSub")}</p>
+          )}
+          {!c.moduloPagos && qrMostradorGuardado && (
+            <p className="mb-4 text-sm text-carbon/55">{t("retiroConfig.cobrosSubMostrador")}</p>
+          )}
           <PaymentMethodsCard
             branchId={branchId}
             canEdit={role === "admin"}
             hideHeading
+            onMethodsChange={setMetodos}
           />
         </Accordion>
       )}
@@ -501,7 +650,18 @@ const ConfigPage = () => {
               {c.moduloPagos ? t("config.mesasAplicarQr") : t("config.mesasAplicar")}
             </p>
           </div>
-          {c.moduloPagos && isRealBranchId(branchId) && (
+          {enMesaGuardado && isRealBranchId(branchId) ? (
+            <div className="mt-5 border-t border-linea pt-5">
+              <h3 className="text-sm font-semibold text-carbon">{t("mesasQr.titulo")}</h3>
+              <p className="mt-1 text-sm text-carbon/55">{t("retiroConfig.qrCtaSub")}</p>
+              <Link
+                href="/panel/pedidos/qr"
+                className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-5 text-sm font-semibold text-marca transition hover:bg-marca hover:text-crema active:scale-[0.98]"
+              >
+                {t("config.mesasQrCta")}
+              </Link>
+            </div>
+          ) : c.moduloPagos && isRealBranchId(branchId) && (
             <div className="mt-5 border-t border-linea pt-5">
               <h3 className="text-sm font-semibold text-carbon">{t("mesasQr.titulo")}</h3>
               <p className="mt-1 text-sm text-carbon/55">{t("config.mesasQrCtaSub")}</p>

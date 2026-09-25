@@ -26,6 +26,7 @@ export type PanelAlertKind =
   | "cuenta"
   | "mp-pagado"
   | "pedido-mostrador"
+  | "cobro-caja"
   | "espera-nueva";
 
 export interface PanelAlert {
@@ -89,6 +90,16 @@ export const ALERT_META: Record<PanelAlertKind, KindMeta> = {
     priority: 1,
     titleKey: "alertas.pedidoMostrador",
     icon: "🧾",
+  },
+  /* Pedidos en modalidad Mesa: alguien eligió pagar en caja y se va a
+   * acercar. Hasta que lo cobren, el pedido no entra a la cocina: por eso va
+   * por encima del pedido nuevo del mostrador. */
+  "cobro-caja": {
+    source: "pedidos",
+    href: "/panel/pedidos",
+    priority: 3,
+    titleKey: "retiroCaja.alerta",
+    icon: "💵",
   },
   "espera-nueva": {
     source: "recepcion",
@@ -166,6 +177,21 @@ export const counterAlerts = (orders: CounterOrderRef[]): PanelAlert[] =>
   orders.map((o) =>
     build("pedido-mostrador", o.id, o.createdAt, null, o.reference),
   );
+
+/* Pedidos en modalidad Mesa: lo que la caja tiene que cobrar porque el
+ * cliente eligió pagar ahí. El que está pagando con Mercado Pago no avisa:
+ * no hay nada que hacer hasta que venga o se apruebe. */
+export type CounterChargeRef = {
+  id: string;
+  reference: string;
+  tableNumber: number | null;
+  payAtCounterAt: string | null;
+};
+
+export const cajaAlerts = (orders: CounterChargeRef[]): PanelAlert[] =>
+  orders
+    .filter((o) => o.payAtCounterAt)
+    .map((o) => build("cobro-caja", o.id, o.payAtCounterAt, o.tableNumber, o.reference));
 
 /* Recepción: alguien nuevo en la lista. La cancelación del cliente ya tiene
  * su propio popup bloqueante (EsperaCancelWatch) y no se duplica acá. */
