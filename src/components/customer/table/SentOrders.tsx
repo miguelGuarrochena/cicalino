@@ -17,6 +17,9 @@ import type { OrderStatus } from "@/lib/types";
  * listas parecidas en la misma pantalla, lo peor que puede pasar es creer que
  * lo de abajo ya se mandó. */
 const ORDER_GLYPH: Record<OrderStatus, React.ReactNode> = {
+  /* No aparece en la cuenta de la mesa (es de Pedidos en modalidad Mesa),
+   * pero el mapa es de todos los estados. */
+  pendiente_pago: <path d="M12 7v5l3 2" />,
   creado: <path d="M12 7v5l3 2" />,
   en_preparacion: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   listo: <path d="m5 12.5 4.5 4.5L19 7.5" />,

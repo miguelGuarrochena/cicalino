@@ -167,9 +167,14 @@ export const branchConfigSchema = z
   });
 export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 
+export const pedidosModalidad = z.enum(["mostrador", "mesa"], {
+  errorMap: () => ({ message: "Modalidad de Pedidos inválida." }),
+});
+
 export const branchOperacionSchema = z
   .object({
     modo: identificationMode,
+    pedidosModalidad: pedidosModalidad.default("mostrador"),
     tableCount: z.coerce
       .number()
       .int()
@@ -255,7 +260,11 @@ export const customerAliasSchema = z
   .transform((s) => (s === "" ? null : s));
 export type CustomerAlias = z.infer<typeof customerAliasSchema>;
 
+/* Espejo de chequear_transicion_pedido (pedidos-mesa.sql). `pendiente_pago`
+ * es el pedido de la mesa que todavía no se pagó: solo sale cobrándolo (lo
+ * decide la base, que además exige el cobro) o cancelándolo. */
 const TRANSICIONES: Record<string, readonly string[]> = {
+  pendiente_pago: ["creado", "cancelado"],
   creado: ["en_preparacion", "listo", "cancelado"],
   en_preparacion: ["listo", "cancelado"],
   listo: ["retirado", "cancelado"],
@@ -411,6 +420,26 @@ export const guestOrderSchema = z.object({
       "Producto repetido.",
     ),
 });
+
+/* Pedidos en modalidad Mesa: el pedido sale con la forma de pago elegida.
+ * Lo que cuesta lo vuelve a calcular la base con los precios de la carta. */
+export const pickupPayMethodSchema = z.enum(["caja", "mercado_pago"]);
+
+export const pickupOrderSchema = guestOrderSchema.extend({
+  method: pickupPayMethodSchema,
+});
+
+export const pickupPaySchema = z.object({ method: pickupPayMethodSchema });
+
+/* Lo que la caja puede elegir al cobrar: la plata en mano, nunca el checkout
+ * online (ese lo confirma solo el webhook). */
+export const counterChargeMethodSchema = z.enum([
+  "efectivo",
+  "tarjeta_debito",
+  "tarjeta_credito",
+  "transferencia",
+  "qr_mercado_pago",
+]);
 
 export const splitModeSchema = z.enum(["consumo", "iguales", "uno", "monto", "porcentaje"]);
 export const guestShareModeSchema = z.enum(["consumo", "iguales", "monto", "porcentaje"]);

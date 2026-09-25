@@ -1,5 +1,6 @@
 import {
   INFORMATIVE_QR_PX,
+  secondGroupStart,
   type InformativeQrCopy,
 } from "@/lib/qrInformativo";
 
@@ -194,7 +195,7 @@ const drawCard = (
   ctx.lineTo(rightX + rightW, gy);
   ctx.stroke();
   gy += h * 0.038;
-  drawGroup(copy.payLabel, copy.paySteps, 4, copy.payNote, gy);
+  drawGroup(copy.payLabel, copy.paySteps, secondGroupStart(copy), copy.payNote, gy);
 
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.font = `400 ${h * 0.022}px ${sans}`;

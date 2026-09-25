@@ -109,17 +109,37 @@ export const POST = async (req: Request) => {
 
   const { data: pedido } = await supabase
     .from("pedidos")
-    .select("id, referencia, qr_token, estado")
+    .select("id, referencia, qr_token, estado, autoservicio, comensal_id, sesion_id")
     .eq("id", orderId!)
     .single();
   if (!pedido) {
     return NextResponse.json({ ok: false, reason: "forbidden" }, { status: 403 });
   }
 
-  const { data: subs } = await admin
-    .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
-    .eq("pedido_id", orderId!);
+  /* Pedidos en modalidad Mesa: el aviso es del comensal (un teléfono puede
+   * tener varios pedidos en la mesa) y lleva de vuelta al QR de la mesa. */
+  const autoservicio = Boolean(pedido.autoservicio) && Boolean(pedido.comensal_id);
+  const { data: subs } = autoservicio
+    ? await admin
+        .from("push_subscriptions")
+        .select("id, endpoint, p256dh, auth")
+        .or(`pedido_id.eq.${orderId},comensal_id.eq.${pedido.comensal_id}`)
+    : await admin
+        .from("push_subscriptions")
+        .select("id, endpoint, p256dh, auth")
+        .eq("pedido_id", orderId!);
+
+  let url = `/p/${pedido.qr_token}`;
+  if (autoservicio && pedido.sesion_id) {
+    const { data: sesion } = await admin
+      .from("mesa_sesiones")
+      .select("mesas(qr_token)")
+      .eq("id", pedido.sesion_id)
+      .maybeSingle();
+    const mesa = sesion?.mesas as { qr_token?: string } | { qr_token?: string }[] | null | undefined;
+    const mesaToken = Array.isArray(mesa) ? mesa[0]?.qr_token : mesa?.qr_token;
+    if (mesaToken) url = `/m/${mesaToken}`;
+  }
 
   const esRetirado = pedido.estado === "retirado";
   const tag = esRetirado
@@ -129,8 +149,10 @@ export const POST = async (req: Request) => {
     titulo: "Cicalino",
     body: esRetirado
       ? `Pedido ${pedido.referencia} retirado. Ya podés cerrar la pestaña.`
-      : `Pedido ${pedido.referencia} listo para retirar.`,
-    url: `/p/${pedido.qr_token}`,
+      : autoservicio
+        ? `Pedido ${pedido.referencia} listo. Retiralo en el mostrador.`
+        : `Pedido ${pedido.referencia} listo para retirar.`,
+    url,
     pedidoId: orderId,
     tag,
   });

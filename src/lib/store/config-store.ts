@@ -4,7 +4,9 @@ import { supabaseConfigured } from "@/lib/supabase/config";
 
 import type { BusinessType } from "@/lib/types";
 import type { BrandColorId } from "@/lib/customerBrand";
+import type { PedidosModalidad } from "@/lib/modules";
 export type { BusinessType };
+export type { PedidosModalidad };
 export { BUSINESS_TYPE_LABEL, BUSINESS_TYPES } from "@/lib/types";
 
 export type IdentificationMode = "pedido" | "nombre" | "mesa";
@@ -33,6 +35,7 @@ interface ConfigState {
   whatsapp: string;
   direccion: string;
   modo: IdentificationMode;
+  pedidosModalidad: PedidosModalidad;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -65,6 +68,7 @@ interface ConfigState {
         | "whatsapp"
         | "direccion"
         | "modo"
+        | "pedidosModalidad"
         | "tableCount"
         | "cutoffHour"
         | "reservaAbreMin"
@@ -122,6 +126,7 @@ const INICIAL = supabaseConfigured
       whatsapp: "",
       direccion: "",
       modo: "pedido" as IdentificationMode,
+      pedidosModalidad: "mostrador" as PedidosModalidad,
       tableCount: 10,
       cutoffHour: 6,
       reservaAbreMin: 660,
@@ -141,6 +146,7 @@ const INICIAL = supabaseConfigured
       whatsapp: "+54 9 341 555 1234",
       direccion: "Calle Falsa 742, Rosario",
       modo: "pedido" as IdentificationMode,
+      pedidosModalidad: "mostrador" as PedidosModalidad,
       tableCount: 10,
       cutoffHour: 6,
       reservaAbreMin: 660,
@@ -228,6 +234,7 @@ export const useConfigStore = create<ConfigState>()(
       partialize: (s) => {
         const operacion = {
           modo: s.modo,
+          pedidosModalidad: s.pedidosModalidad,
           tableCount: s.tableCount,
           cutoffHour: s.cutoffHour,
           reservaAbreMin: s.reservaAbreMin,

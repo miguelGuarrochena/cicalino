@@ -12,7 +12,13 @@ import {
   subscribeOrders,
 } from "@/lib/data/orders";
 import { attachLiveRefresh, coalesced } from "@/lib/realtime";
-import { arrivedIds, counterAlerts, type PanelAlert } from "@/lib/panelAlerts";
+import {
+  arrivedIds,
+  cajaAlerts,
+  counterAlerts,
+  type PanelAlert,
+} from "@/lib/panelAlerts";
+import { fetchOrdersToCharge } from "@/lib/data/pickup";
 import {
   ackPanelSource,
   getLiveAlertCounts,
@@ -50,7 +56,7 @@ export const usePanelAlertCounts = (): Record<PanelAlertSource, number> => {
  * resto: realtime primero y el poll como piso si la suscripción se cayó. */
 const useCounterAlertsFeed = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
-  const { visibles } = useOperationalAccess();
+  const { visibles, pedidosEnMesa } = useOperationalAccess();
   const jornadaActiva = useJornadaActiva();
   const live =
     supabaseConfigured && isRealBranchId(branchId) && visibles.pedidos && jornadaActiva;
@@ -62,11 +68,17 @@ const useCounterAlertsFeed = () => {
     }
     let alive = true;
     const reload = coalesced(async () => {
-      const res = await fetchPendingCounterOrders(branchId);
+      const [res, caja] = await Promise.all([
+        fetchPendingCounterOrders(branchId),
+        pedidosEnMesa ? fetchOrdersToCharge(branchId) : Promise.resolve(null),
+      ]);
       /* Un refresco que falló no apaga los avisos: se queda con los últimos
        * buenos, como hacen las listas de Pedidos y Recepción. */
-      if (!alive || !res.ok) return;
-      publishPanelAlerts("pedidos", counterAlerts(res.data));
+      if (!alive || !res.ok || (caja && !caja.ok)) return;
+      publishPanelAlerts("pedidos", [
+        ...(caja?.ok ? cajaAlerts(caja.data) : []),
+        ...counterAlerts(res.data),
+      ]);
     });
     const stop = attachLiveRefresh({
       subscribe: (onChange) => subscribeOrders(branchId, onChange, ":alertas"),
@@ -79,7 +91,7 @@ const useCounterAlertsFeed = () => {
       stop();
       publishPanelAlerts("pedidos", []);
     };
-  }, [live, branchId]);
+  }, [live, branchId, pedidosEnMesa]);
 };
 
 /* El sonido de todo el panel, en un solo lugar.

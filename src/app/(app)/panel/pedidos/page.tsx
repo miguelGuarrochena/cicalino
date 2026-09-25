@@ -3,7 +3,11 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { findOpenOrderWithReference, fetchOrderSeenAt } from "@/lib/data/orders";
+import {
+  findOpenOrderWithReference,
+  fetchOrderSeenAt,
+  isRealBranchId,
+} from "@/lib/data/orders";
 import { useQrSeenClose } from "@/lib/hooks/useQrSeenClose";
 import { notifyCustomer } from "@/lib/notify";
 import { OrderCard } from "@/components/panel/OrderCard";
@@ -32,6 +36,8 @@ import { useAvisoToast } from "@/lib/hooks/useAvisoToast";
 import { dingNew, notifyReady } from "@/lib/sound";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
+import { usePickupToCharge } from "@/lib/hooks/usePickupToCharge";
+import { PickupChargeInbox } from "@/components/panel/pedidos/PickupChargeInbox";
 import type { OrderStatus, OrderView } from "@/lib/types";
 
 const PAGE_SIZE = 9;
@@ -62,6 +68,9 @@ const PanelOrdersPage = () => {
   const toast = useToast();
   const mode = useConfigStore((s) => s.modo);
   const tableCount = useConfigStore((s) => s.tableCount);
+  /* Modalidad Mesa: además del tablero, la caja cobra lo que piden las mesas.
+   * La modalidad de siempre no ve nada de esto. */
+  const enMesa = useConfigStore((s) => s.pedidosModalidad === "mesa");
   const { visibles } = useOperationalAccess();
   const jornadaActiva = useJornadaActiva();
   const activeEmployee = useActiveEmployee();
@@ -94,6 +103,11 @@ const PanelOrdersPage = () => {
   const branchNameLabel = live
     ? liveBranchName
     : branchById(orgs, branchId)?.name;
+
+  const porCobrar = usePickupToCharge(
+    jornadaActiva ? branchId : null,
+    enMesa && visibles.pedidos,
+  );
 
   const qr = useQrSeenClose<OrderView>(fetchOrderSeenAt, orders);
   const [createOpen, setCrearOpen] = useState(false);
@@ -297,6 +311,14 @@ const PanelOrdersPage = () => {
             </h1>
             <HelpLink seccion="pedidos" />
           </div>
+          {enMesa && (
+            <Link
+              href="/panel/pedidos/qr"
+              className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-marca underline-offset-2 hover:underline"
+            >
+              {t("retiroCaja.qrMesas")}
+            </Link>
+          )}
           {ready ? (
             <p className="mt-1 text-sm text-carbon/55">
               {t("panel.activos", { n: activos })}
@@ -314,6 +336,15 @@ const PanelOrdersPage = () => {
           {creating ? "…" : `+ ${t("panel.nuevo")}`}
         </button>
       </div>
+
+      {enMesa && branchId && isRealBranchId(branchId) && (
+        <PickupChargeInbox
+          branchId={branchId}
+          orders={porCobrar.orders}
+          employeeId={activeEmployee?.id ?? null}
+          onChanged={porCobrar.refresh}
+        />
+      )}
 
       <div className="flex flex-col gap-3">
         <SegmentedTabs

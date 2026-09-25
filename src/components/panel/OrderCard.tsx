@@ -5,8 +5,10 @@ import type { OrderStatus, OrderView } from "@/lib/types";
 import { orderClosed } from "@/lib/types";
 import { useApp } from "@/components/providers/Providers";
 import { useConfigStore } from "@/lib/store/config-store";
+import { formatMoney } from "@/lib/tableBill";
 
 const PILL: Record<OrderStatus, string> = {
+  pendiente_pago: "bg-curso-fondo text-curso",
   creado: "bg-curso-fondo text-curso",
   en_preparacion: "bg-curso-fondo text-curso",
   listo: "bg-ok-fondo text-ok",
@@ -80,7 +82,10 @@ export const OrderCard = ({
     return () => window.clearInterval(id);
   }, [order.status]);
 
-  const wait = minutosDesde(order.createdAt, now);
+  /* Un pedido de la mesa (modalidad Mesa) espera desde que quedó pago: antes
+   * de eso no era trabajo de nadie. */
+  const mesa = Boolean(order.selfService);
+  const wait = minutosDesde(mesa ? (order.confirmedAt ?? order.createdAt) : order.createdAt, now);
   const enCurso =
     order.status === "creado" || order.status === "en_preparacion";
   const listo = order.status === "listo";
@@ -112,7 +117,9 @@ export const OrderCard = ({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-carbon/40">
-            {t(`modo.${mode}`)}
+            {mesa
+              ? t("retiroCaja.pedidoDeMesa", { n: order.tableNumber ?? "—" })
+              : t(`modo.${mode}`)}
           </p>
           <div className="grid min-h-8 min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
             <span className="font-display text-3xl leading-none text-carbon">
@@ -154,6 +161,31 @@ export const OrderCard = ({
           )}
         </div>
       </div>
+
+      {/* Lo que hay que preparar. Un pedido del mostrador no trae ítems (la
+          caja lo anota a su manera); el de la mesa sí, porque nadie lo cargó. */}
+      {mesa && (
+        <div className="flex flex-col gap-2 rounded-2xl border border-linea bg-crema/40 p-3">
+          <ul className="flex flex-col gap-0.5 text-sm text-carbon">
+            {(order.items ?? []).map((i, n) => (
+              <li key={`${i.name}-${n}`}>
+                <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
+              </li>
+            ))}
+          </ul>
+          <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-carbon/55">
+            <span className="inline-flex items-center gap-1 rounded-full bg-ok-fondo px-2 py-0.5 font-semibold text-ok">
+              {t("retiroCaja.pagado")}
+              {order.paidMethod ? ` · ${t(`mesa.metodo.${order.paidMethod}`)}` : ""}
+            </span>
+            {order.total != null && (
+              <span className="font-semibold tabular-nums text-carbon/70">
+                {formatMoney(order.total)}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:grid-cols-3">
         <div>
@@ -228,7 +260,7 @@ export const OrderCard = ({
         (confirmCancel ? (
           <div className="flex flex-col gap-2 rounded-2xl border border-alerta-borde bg-alerta-fondo p-2">
             <p className="px-1 text-center text-xs font-medium text-alerta">
-              {t("card.confirmarCancel")}
+              {mesa ? t("retiroCaja.cancelarPagado") : t("card.confirmarCancel")}
             </p>
             <div className="flex gap-2">
               <button
@@ -253,7 +285,7 @@ export const OrderCard = ({
           </div>
         ) : (
           <div className="flex gap-2">
-            {onMostrarQr && !cerrado && (
+            {onMostrarQr && !cerrado && !mesa && (
               <button
                 type="button"
                 onClick={() => onMostrarQr(order)}

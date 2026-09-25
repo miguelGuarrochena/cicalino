@@ -4,7 +4,7 @@ import { useApp } from "@/components/providers/Providers";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { InformativeQrCard } from "@/components/panel/mesas/InformativeQrCard";
-import { printAccentFor } from "@/lib/qrInformativo";
+import { printAccentFor, type InformativeQrFlow } from "@/lib/qrInformativo";
 import { useConfigStore } from "@/lib/store/config-store";
 
 export type QrDownloadKind = "solo" | "marco";
@@ -15,6 +15,7 @@ export const QrDownloadModal = ({
   venue,
   tableLabel,
   busy,
+  flow = "cuenta",
   onPick,
   onClose,
 }: {
@@ -23,6 +24,7 @@ export const QrDownloadModal = ({
   venue: string;
   tableLabel: string;
   busy: boolean;
+  flow?: InformativeQrFlow;
   onPick: (kind: QrDownloadKind) => void;
   onClose: () => void;
 }) => {
@@ -86,7 +88,9 @@ export const QrDownloadModal = ({
             {t("mesasQr.descargarMarco")}
           </span>
           <span className="mt-0.5 text-sm text-carbon/55">
-            {t("mesasQr.descargarMarcoHint")}
+            {flow === "autoservicio"
+              ? t("retiroQr.descargarMarcoHint")
+              : t("mesasQr.descargarMarcoHint")}
           </span>
           <div className="mt-3 aspect-[180/102] overflow-hidden rounded-2xl bg-white ring-1 ring-linea">
             <InformativeQrCard
@@ -94,6 +98,7 @@ export const QrDownloadModal = ({
               venue={venue}
               tableLabel={tableLabel}
               accent={accent}
+              flow={flow}
             />
           </div>
         </button>

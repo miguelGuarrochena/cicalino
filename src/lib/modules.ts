@@ -6,6 +6,30 @@ export type ModuleId = "pedidos" | "espera" | "pagos";
 
 export type DeviceMode = "pedidos" | "espera" | "ambos";
 
+/* Cómo funciona Pedidos en esta sucursal (locales.pedidos_modalidad).
+ *
+ *  mostrador  la caja carga el pedido y le da el QR al cliente. La de siempre.
+ *  mesa       no hay mozo: el cliente escanea el QR fijo de su mesa, pide,
+ *             paga (Mercado Pago o en caja) y retira en el mostrador. El
+ *             pedido recién entra a preparación cuando está pago. */
+export type PedidosModalidad = "mostrador" | "mesa";
+
+export const parsePedidosModalidad = (raw: unknown): PedidosModalidad =>
+  raw === "mesa" ? "mesa" : "mostrador";
+
+export const pedidosEnMesa = (
+  m: Pick<ModuleFlags, "pedidos">,
+  modalidad: PedidosModalidad,
+): boolean => m.pedidos && modalidad === "mesa";
+
+/* La carta, los métodos de cobro y la cuenta de Mercado Pago. Los usa Pagos,
+ * y también Pedidos cuando el cliente pide desde la mesa. Mismo criterio que
+ * local_usa_carta en la base. */
+export const usesTableMenu = (
+  m: ModuleFlags,
+  modalidad: PedidosModalidad,
+): boolean => m.pagos || pedidosEnMesa(m, modalidad);
+
 export const DEVICE_MODE_KEY = "cicalino-dispositivo-modulo";
 export const DEVICE_MODE_EVENT = "cicalino-device-mode";
 
@@ -65,7 +89,12 @@ export const visibleModules = (
 export const needsTableCount = (
   m: ModuleFlags,
   modoIdentificacion: string,
-): boolean => m.espera || m.pagos || (m.pedidos && modoIdentificacion === "mesa");
+  modalidad: PedidosModalidad = "mostrador",
+): boolean =>
+  m.espera ||
+  m.pagos ||
+  (m.pedidos && modoIdentificacion === "mesa") ||
+  pedidosEnMesa(m, modalidad);
 
 export const hasBothModules = (m: ModuleFlags): boolean => m.pedidos && m.espera;
 

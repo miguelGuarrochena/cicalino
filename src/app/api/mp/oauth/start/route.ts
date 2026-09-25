@@ -24,8 +24,10 @@ export const GET = async (req: Request) => {
   }
 
   const supabase = await createServerSupabase();
+  /* Pagos, o Pedidos en modalidad Mesa: los dos cobran con Mercado Pago
+   * desde el QR de la mesa (local_usa_carta, pedidos-mesa.sql). */
   const { data: tieneModulo, error } = supabase
-    ? await supabase.rpc("local_tiene_modulo", { p_local: localId, p_modulo: "pagos" })
+    ? await supabase.rpc("local_usa_carta", { p_local: localId })
     : { data: false, error: null };
   const { error: errAcceso } = supabase
     ? await supabase.rpc("mp_estado_local", { p_local: localId })

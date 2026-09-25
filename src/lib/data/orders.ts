@@ -29,6 +29,12 @@ type Row = {
   qr_token: string;
   avisos_activos?: boolean | null;
   empleados?: { nombre: string | null } | null;
+  autoservicio?: boolean | null;
+  mesa_numero?: number | null;
+  confirmado_en?: string | null;
+  total?: number | null;
+  pago_metodo?: string | null;
+  items?: { nombre: string; cantidad: number }[] | null;
 };
 
 const mapRow = (r: Row): OrderView => ({
@@ -41,10 +47,19 @@ const mapRow = (r: Row): OrderView => ({
   readyAt: r.listo_en,
   pickedUpAt: r.retirado_en,
   cancelledAt: r.cancelado_en,
-  seenAt: r.visto_en,
+  /* El pedido de la mesa no pasa por /p: el cliente lo sigue desde el QR de
+   * la mesa, que tiene abierto desde que pagó. Para el mostrador eso cuenta
+   * como "lo vio" (el aviso le llega a la pantalla). */
+  seenAt: r.visto_en ?? (r.autoservicio ? (r.confirmado_en ?? null) : null),
   qrToken: r.qr_token,
   hasPush: Boolean(r.avisos_activos),
   employee: r.empleados?.nombre ?? null,
+  selfService: Boolean(r.autoservicio),
+  tableNumber: r.mesa_numero ?? null,
+  confirmedAt: r.confirmado_en ?? null,
+  total: r.total ?? null,
+  paidMethod: r.pago_metodo ?? null,
+  items: (r.items ?? []).map((i) => ({ name: i.nombre, quantity: i.cantidad })),
 });
 
 const cutoffHour = (): number => useConfigStore.getState().cutoffHour;
@@ -159,8 +174,9 @@ export const markInPreparation = async (branchId: string): Promise<void> => {
 /* Lo mínimo para el aviso global: qué pedidos del mostrador siguen sin que
  * nadie los toque. Es una lectura chica a propósito — corre en todo el panel,
  * no solo en la pantalla de Pedidos, así que no se trae la página entera ni
- * los contadores. Los de mesa (`sesion_id`) quedan afuera: esos son de Mesas
- * y ya avisan por su lado. */
+ * los contadores. Los de la cuenta de la mesa (`sesion_id`) quedan afuera:
+ * esos son de Pagos y ya avisan por su lado. Los de Pedidos en modalidad Mesa
+ * (`autoservicio`) sí entran: ya pagos, son trabajo del mostrador. */
 export const fetchPendingCounterOrders = async (
   branchId: string,
 ): Promise<DataResult<{ id: string; reference: string; createdAt: string }[]>> => {
@@ -171,7 +187,7 @@ export const fetchPendingCounterOrders = async (
     .select("id, referencia, creado_en")
     .eq("local_id", branchId)
     .eq("estado", "creado")
-    .is("sesion_id", null)
+    .or("sesion_id.is.null,autoservicio.eq.true")
     .gte("creado_en", startOfBusinessDay())
     .order("creado_en", { ascending: false })
     .limit(30);

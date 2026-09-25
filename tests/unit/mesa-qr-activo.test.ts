@@ -42,7 +42,7 @@ describe("mesa-qr-activo", () => {
 
   it("se puede descargar solo el QR, con marco, o una plancha", () => {
     const page = readFileSync(
-      join(root, "src/app/(app)/panel/pagos/qr/page.tsx"),
+      join(root, "src/components/panel/mesas/TableQrManager.tsx"),
       "utf8",
     );
     const sticker = readFileSync(join(root, "src/lib/qrSticker.ts"), "utf8");

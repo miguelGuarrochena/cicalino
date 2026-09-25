@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { TableGuestApp } from "@/components/customer/table/TableGuestApp";
 import { TableNotFound } from "@/components/customer/table/TableNotFound";
+import { TablePickupApp } from "@/components/customer/table/TablePickupApp";
 import { qrTokenSchema, uuid } from "@/lib/schemas";
 import { guestSessionHere } from "@/lib/guestSession";
 import {
@@ -11,7 +12,9 @@ import {
   fetchBranchBrand,
   readGuestCookie,
   resolveTableQr,
+  type GuestCredentials,
 } from "@/lib/server/tableGuest";
+import { fetchPickupState } from "@/lib/server/tablePickup";
 
 /* Table QR landing. Rendered on the server with everything resolved: the
  * first HTML already has the menu and, for a returning guest, the bill. */
@@ -45,10 +48,15 @@ const TablePage = async ({
 
   if (!qrTokenSchema.safeParse(token).success) return <TableNotFound />;
 
-  const [mesa, state] = await Promise.all([
-    resolveTableQr(token),
-    readGuestCookie().then(fetchGuestState),
-  ]);
+  const [mesa, creds] = await Promise.all([resolveTableQr(token), readGuestCookie()]);
+
+  /* Pedidos en modalidad Mesa: el mismo QR, otro flujo. Pedir, pagar y
+   * retirar en el mostrador; sin cuenta compartida. */
+  if (mesa.ok && mesa.flow === "autoservicio") {
+    return <PickupPage token={token} mesa={mesa} creds={creds} pago={pago} />;
+  }
+
+  const state = await fetchGuestState(creds);
 
   if (!mesa.ok) {
     /* An old printed QR (regenerated since) still works for someone already
@@ -111,6 +119,41 @@ const TablePage = async ({
         mercadoPagoReady: payment.mercadoPagoReady,
         guest: here && state.ok ? { id: state.guest.id, name: state.guest.name } : null,
         bill: here && state.ok ? state.bill : null,
+        returningPaymentId: uuid.safeParse(pago).success ? pago! : null,
+      }}
+    />
+  );
+};
+
+const PickupPage = async ({
+  token,
+  mesa,
+  creds,
+  pago,
+}: {
+  token: string;
+  mesa: Extract<Awaited<ReturnType<typeof resolveTableQr>>, { ok: true }>;
+  creds: GuestCredentials | null;
+  pago: string | undefined;
+}) => {
+  const [menu, payment, brand, pickup] = await Promise.all([
+    fetchMenu(mesa.branchId),
+    fetchGuestPaymentOptions(mesa.branchId),
+    fetchBranchBrand(mesa.branchId),
+    fetchPickupState(token, creds),
+  ]);
+  return (
+    <TablePickupApp
+      initial={{
+        token,
+        tableNumber: mesa.tableNumber,
+        branchName: brand.name || mesa.branchName,
+        logoUrl: brand.logoUrl,
+        colorMarca: brand.color,
+        operational: mesa.operational,
+        menu,
+        mercadoPagoReady: payment.mercadoPagoReady && payment.settings.mercadoPago,
+        state: pickup.ok ? pickup.state : null,
         returningPaymentId: uuid.safeParse(pago).success ? pago! : null,
       }}
     />

@@ -59,7 +59,10 @@ describe("Configuración: visible según lo contratado", () => {
   });
 
   it("las secciones de un módulo siguen colgando de su módulo", () => {
-    expect(page).toContain("{c.moduloPagos && isRealBranchId(branchId) && (");
+    /* Cobros es de Pagos, y también de Pedidos cuando el cliente paga desde
+     * la mesa (modalidad Mesa): los dos cobran con los mismos métodos. */
+    expect(page).toContain("{cobrosVisibles && isRealBranchId(branchId) && (");
+    expect(page).toContain("const cobrosVisibles = usesTableMenu(modulos, c.pedidosModalidad);");
     expect(page).toContain("{c.moduloEspera && (");
     expect(page).toContain("{c.moduloPedidos && c.moduloEspera && (");
   });

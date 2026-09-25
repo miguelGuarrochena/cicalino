@@ -37,6 +37,8 @@ export const OrderReview = ({
   onSeguirPidiendo,
   onVerPedidos,
   onClose,
+  enviarLabel,
+  enviarAyuda,
 }: {
   lineas: CartLine[];
   enviando: boolean;
@@ -50,6 +52,10 @@ export const OrderReview = ({
   onSeguirPidiendo: () => void;
   onVerPedidos: () => void;
   onClose: () => void;
+  /* Pedidos en modalidad Mesa: el botón no manda a la cocina, lleva a elegir
+   * cómo pagar. Cambia lo que dice y lo que explica, no lo que hace. */
+  enviarLabel?: string;
+  enviarAyuda?: string;
 }) => {
   const { t } = useApp();
   const total = totalCarrito(lineas);
@@ -136,12 +142,12 @@ export const OrderReview = ({
         className="flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-marca px-5 text-base font-semibold text-crema disabled:opacity-50"
       >
         {enviando && <Spinner inline className="size-4" />}
-        {enviando ? t("mesa.enviandoPedido") : t("mesa.enviarPedido")}
+        {enviando ? t("mesa.enviandoPedido") : (enviarLabel ?? t("mesa.enviarPedido"))}
       </button>
       {/* Que el botón diga "Enviar pedido" no alcanza: hace falta decir a
           dónde va y qué pasa después. */}
       <p className="text-center text-sm leading-snug text-suave">
-        {t("mesa.enviarPedidoAyuda")}
+        {enviarAyuda ?? t("mesa.enviarPedidoAyuda")}
       </p>
     </div>
   );

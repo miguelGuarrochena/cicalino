@@ -58,6 +58,10 @@ interface Result {
  * en 3 s en el peor caso, "retirado" en ~2 s, y además llega el push.
  */
 const INTERVALO_MS: Record<OrderStatus, number> = {
+  /* Un pedido de la mesa esperando el pago (modalidad Mesa). Esa pantalla es
+   * /m, no esta; si alguien llega por el link del pedido, se consulta como
+   * uno recién creado. */
+  pendiente_pago: 8_000,
   creado: 8_000,
   en_preparacion: 3_000,
   /* Listo: el próximo cambio que importa es "retirado". Tiene que notarse

@@ -220,6 +220,21 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('staff-empleado-cobro.sql', 'function', 'confirmar_pago_mesa', 88),
     ('mesa-sesion-activa-unica.sql', 'index', 'uq_mesa_sesion_activa', 89),
     ('mesa-sesion-activa-unica.sql', 'function', 'unirse_mesa', 89),
+    ('pedidos-mesa-enum.sql', 'enum_value', 'order_status.pendiente_pago', 90),
+    ('pedidos-mesa.sql', 'column', 'locales.pedidos_modalidad', 91),
+    ('pedidos-mesa.sql', 'column', 'mesa_sesiones.flujo', 91),
+    ('pedidos-mesa.sql', 'column', 'pedidos.autoservicio', 91),
+    ('pedidos-mesa.sql', 'column', 'pedidos.confirmado_en', 91),
+    ('pedidos-mesa.sql', 'column', 'pagos_mesa.pedido_id', 91),
+    ('pedidos-mesa.sql', 'column', 'push_subscriptions.comensal_id', 91),
+    ('pedidos-mesa.sql', 'index', 'uq_pagos_mesa_pedido_activo', 91),
+    ('pedidos-mesa.sql', 'trigger', 'pedidos_autoservicio_guard', 91),
+    ('pedidos-mesa.sql', 'trigger', 'pagos_mesa_flujo_guard', 91),
+    ('pedidos-mesa.sql', 'trigger', 'mesa_sesiones_flujo_guard', 91),
+    ('pedidos-mesa.sql', 'function', 'unirse_mesa_autoservicio', 91),
+    ('pedidos-mesa.sql', 'function', 'pedir_autoservicio', 91),
+    ('pedidos-mesa.sql', 'function', 'pedidos_por_cobrar', 91),
+    ('pedidos-mesa.sql', 'function', 'cobrar_pedido_autoservicio', 91),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -387,7 +402,9 @@ requisitos (archivo, necesita) as (
     ('mesa-cuenta-compartida.sql', 'mesa-cuenta-enum.sql, mesa-llamado-mozo.sql, mesa-pedir-cuenta.sql, mesa-pago-qr-mp.sql, staff-floor-guards.sql'),
     ('mesa-launch-blockers.sql', 'mesa-cuenta-compartida.sql, dias-cerrados-jornada.sql, split-payments.sql, staff-floor-guards.sql'),
     ('staff-empleado-cobro.sql', 'staff-floor-guards.sql, mesa-launch-blockers.sql'),
-    ('mesa-sesion-activa-unica.sql', 'mesa-launch-blockers.sql, staff-empleado-cobro.sql')
+    ('mesa-sesion-activa-unica.sql', 'mesa-launch-blockers.sql, staff-empleado-cobro.sql'),
+    ('pedidos-mesa-enum.sql', 'setup.sql'),
+    ('pedidos-mesa.sql', 'pedidos-mesa-enum.sql, mesa-sesion-activa-unica.sql, staff-empleado-cobro.sql, mesa-launch-blockers.sql, mesa-pedido-comensal.sql, mesas-historial.sql, dias-cerrados-jornada.sql, pedidos-en-preparacion.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

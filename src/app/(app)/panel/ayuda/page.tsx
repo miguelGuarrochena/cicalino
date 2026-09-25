@@ -3,16 +3,22 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useApp } from "@/components/providers/Providers";
+import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import type { AyudaSeccion } from "@/components/panel/HelpLink";
 
 type Paso = { t: string; d: string };
 
+/* `pasosMesa` es Pedidos en modalidad Mesa: el cliente pide y paga desde el
+ * QR de su mesa. Es otro flujo, no un paso más, así que reemplaza la lista en
+ * vez de sumarse. */
 const SECCIONES: {
   id: AyudaSeccion;
   accent: "marca" | "espera" | "pagos" | "carbon";
   href?: string;
   pasos: Paso[];
+  pasosMesa?: Paso[];
   tips?: string[];
+  tipsMesa?: string[];
 }[] = [
   {
     id: "pedidos",
@@ -26,7 +32,16 @@ const SECCIONES: {
       { t: "ayuda.pedidos.p5t", d: "ayuda.pedidos.p5d" },
       { t: "ayuda.pedidos.p6t", d: "ayuda.pedidos.p6d" },
     ],
+    pasosMesa: [
+      { t: "ayuda.pedidos.m1t", d: "ayuda.pedidos.m1d" },
+      { t: "ayuda.pedidos.m2t", d: "ayuda.pedidos.m2d" },
+      { t: "ayuda.pedidos.m3t", d: "ayuda.pedidos.m3d" },
+      { t: "ayuda.pedidos.m4t", d: "ayuda.pedidos.m4d" },
+      { t: "ayuda.pedidos.m5t", d: "ayuda.pedidos.m5d" },
+      { t: "ayuda.pedidos.m6t", d: "ayuda.pedidos.m6d" },
+    ],
     tips: ["ayuda.pedidos.tip1", "ayuda.pedidos.tip2"],
+    tipsMesa: ["ayuda.pedidos.tipMesa1", "ayuda.pedidos.tipMesa2"],
   },
   {
     id: "espera",
@@ -109,6 +124,7 @@ const accentNum = {
 
 const AyudaPage = () => {
   const { t } = useApp();
+  const { pedidosEnMesa } = useOperationalAccess();
 
   useEffect(() => {
     const scrollHash = () => {
@@ -151,7 +167,11 @@ const AyudaPage = () => {
         ))}
       </nav>
 
-      {SECCIONES.map((s) => (
+      {SECCIONES.map((s) => {
+        const enMesa = pedidosEnMesa && s.id === "pedidos";
+        const pasos = enMesa && s.pasosMesa ? s.pasosMesa : s.pasos;
+        const tips = enMesa && s.tipsMesa ? s.tipsMesa : s.tips;
+        return (
         <section
           key={s.id}
           id={s.id}
@@ -163,7 +183,7 @@ const AyudaPage = () => {
                 {t(`ayuda.${s.id}.titulo`)}
               </h2>
               <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-carbon/60">
-                {t(`ayuda.${s.id}.intro`)}
+                {t(enMesa ? "ayuda.pedidos.introMesa" : `ayuda.${s.id}.intro`)}
               </p>
             </div>
             {s.href && (
@@ -177,7 +197,7 @@ const AyudaPage = () => {
           </div>
 
           <ol className="mt-6 flex flex-col gap-4">
-            {s.pasos.map((p, i) => (
+            {pasos.map((p, i) => (
               <li key={p.t} className="flex gap-3 sm:gap-4">
                 <span
                   className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${accentNum[s.accent]}`}
@@ -194,13 +214,13 @@ const AyudaPage = () => {
             ))}
           </ol>
 
-          {s.tips && s.tips.length > 0 && (
+          {tips && tips.length > 0 && (
             <div className="mt-6 rounded-2xl bg-crema/70 px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-wide text-carbon/45">
                 {t("ayuda.tipsLabel")}
               </p>
               <ul className="mt-2 flex flex-col gap-1.5">
-                {s.tips.map((tip) => (
+                {tips.map((tip) => (
                   <li
                     key={tip}
                     className="text-sm leading-relaxed text-carbon/65"
@@ -212,7 +232,8 @@ const AyudaPage = () => {
             </div>
           )}
         </section>
-      ))}
+        );
+      })}
 
       <p className="text-center text-xs text-carbon/45">
         <Link

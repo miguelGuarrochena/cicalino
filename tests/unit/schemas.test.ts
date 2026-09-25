@@ -252,13 +252,22 @@ describe("transicionValida", () => {
   });
 
   it("retirado y cancelado no tienen orígenes hacia atrás", () => {
-    expect(orderTransitionSources("creado")).toEqual([]);
+    /* A `creado` solo se llega cobrando un pedido de la mesa (modalidad
+     * Mesa): nunca se vuelve desde en_preparacion, listo ni retirado. */
+    expect(orderTransitionSources("creado")).toEqual(["pendiente_pago"]);
     expect(orderTransitionSources("retirado").sort()).toEqual(["listo"]);
     expect(orderTransitionSources("cancelado").sort()).toEqual([
       "creado",
       "en_preparacion",
       "listo",
+      "pendiente_pago",
     ]);
+  });
+
+  it("un pedido sin pagar no se marca listo ni en preparación", () => {
+    expect(orderTransitionSources("listo")).not.toContain("pendiente_pago");
+    expect(orderTransitionSources("en_preparacion")).not.toContain("pendiente_pago");
+    expect(orderTransitionSources("retirado")).not.toContain("pendiente_pago");
   });
 });
 

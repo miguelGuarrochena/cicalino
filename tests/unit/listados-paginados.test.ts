@@ -64,7 +64,7 @@ describe("Listados: paginación donde la lista crece", () => {
     /* El salón: una baldosa por mesa. Paginar el plano del salón sería
      * esconder mesas que el mozo tiene enfrente. */
     const mesas = read("src/app/(app)/panel/pagos/page.tsx");
-    const qr = read("src/app/(app)/panel/pagos/qr/page.tsx");
+    const qr = read("src/components/panel/mesas/TableQrManager.tsx");
     for (const src of [mesas, qr]) {
       expect(src).not.toContain("@/components/ui/Pagination");
     }
