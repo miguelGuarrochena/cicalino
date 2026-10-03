@@ -122,7 +122,12 @@ describe("pedidos-modalidades-combinables.sql", () => {
     expect(sql).toContain("if not public.local_pedidos_tradicional(p_local) then");
     expect(sql).toContain("'mostrador-no-tradicional'");
     const orden = JSON.parse(read("supabase/orden.json")) as string[];
-    expect(orden.at(-1)).toBe("pedidos-modalidades-combinables.sql");
+    const i = orden.indexOf("pedidos-modalidades-combinables.sql");
+    expect(i).toBeGreaterThan(orden.indexOf("pedidos-mostrador-qr-metodos.sql"));
+    /* Ninguna migración posterior vuelve a definir crear_pedido. */
+    for (const f of orden.slice(i + 1)) {
+      expect(read(`supabase/${f}`)).not.toContain("function public.crear_pedido(");
+    }
   });
 });
 

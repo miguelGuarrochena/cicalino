@@ -152,6 +152,9 @@ export const branches = pgTable("locales", {
    * regenerable only through regenerar_qr_mostrador. */
   mostradorQrToken: text("mostrador_qr_token").notNull(),
   mostradorQrGeneradoEn: timestamp("mostrador_qr_generado_en", { withTimezone: true }),
+  /* supabase/mostrador-qr-pago-previo.sql — counter QR orders wait in
+   * pendiente_pago until paid (Mercado Pago or till), like Mesa. */
+  mostradorQrPagoPrevio: boolean("mostrador_qr_pago_previo").notNull().default(false),
   /* Guest identity only. null = Cicalino cobalt, no logo. */
   logoUrl: text("logo_url"),
   colorMarca: text("color_marca"),

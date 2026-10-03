@@ -43,6 +43,24 @@ export const resolveCounterQr = async (token: string): Promise<CounterQr> => {
   };
 };
 
+/* Mostrador QR con "Requerir pago antes de preparar". Solo para los textos de
+ * la pantalla: el estado inicial del pedido lo decide pedir_mostrador_qr con
+ * la misma columna, y lo que diga el teléfono no cuenta. */
+export const fetchCounterPayFirst = async (branchId: string): Promise<boolean> => {
+  const admin = createAdminSupabase();
+  if (!admin) return false;
+  const { data, error } = await admin
+    .from("locales")
+    .select("mostrador_qr_pago_previo")
+    .eq("id", branchId)
+    .maybeSingle();
+  if (error) {
+    console.error("m.mostrador_qr_pago_previo", error.message);
+    return false;
+  }
+  return data?.mostrador_qr_pago_previo === true;
+};
+
 /* A qué pedido-desde-QR lleva el token: el de una mesa (modalidad Mesa) o el
  * del mostrador. La cuenta compartida de Pagos no es de acá. */
 export type PickupQr =

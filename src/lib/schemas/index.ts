@@ -178,6 +178,8 @@ export const branchOperacionSchema = z
     modo: identificationMode,
     pedidosModalidad: pedidosModalidad.default("mostrador"),
     pedidosMesa: z.boolean().default(false),
+    /* Mostrador QR: el pedido se paga antes de entrar al local. */
+    mostradorQrPagoPrevio: z.boolean().default(false),
     tableCount: z.coerce
       .number()
       .int()

@@ -20,7 +20,8 @@ import {
 } from "@/lib/tableBill";
 import { pickupPaying, type PickupOrder } from "@/lib/tablePickup";
 
-/* "Por cobrar": los pedidos de las mesas que esperan el pago.
+/* "Por cobrar": los pedidos de las mesas que esperan el pago, y los del
+ * Mostrador QR con pago previo (sin mesa: se nombran como de mostrador).
  *
  * Es el aviso de la caja. Arriba, los que eligieron pagar en caja (van a
  * acercarse); abajo, los que están pagando con Mercado Pago, por si el
@@ -46,6 +47,12 @@ export const PickupChargeInbox = ({
   if (!orders.length) return null;
 
   const enCaja = orders.filter((o) => pickupPaying(o) === "caja").length;
+  /* Un pedido sin mesa es del Mostrador QR. */
+  const origen = (o: PickupOrder) =>
+    o.tableNumber == null
+      ? t("retiroCaja.pedidoMostrador")
+      : t("retiroCaja.pedidoDeMesa", { n: o.tableNumber });
+  const conMostrador = orders.some((o) => o.tableNumber == null);
 
   const cancel = async (o: PickupOrder) => {
     const ok = await confirmar({
@@ -81,7 +88,9 @@ export const PickupChargeInbox = ({
           <p className="text-xs font-semibold text-curso">{t("retiroCaja.vienenN", { n: enCaja })}</p>
         )}
       </div>
-      <p className="mt-1 text-sm text-carbon/60">{t("retiroCaja.ayuda")}</p>
+      <p className="mt-1 text-sm text-carbon/60">
+        {t(conMostrador ? "retiroCaja.ayudaConMostrador" : "retiroCaja.ayuda")}
+      </p>
       <ul className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {orders.map((o) => {
           const paying = pickupPaying(o);
@@ -95,7 +104,7 @@ export const PickupChargeInbox = ({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-carbon/45">
-                    {t("retiroCaja.pedidoDeMesa", { n: o.tableNumber ?? "—" })}
+                    {origen(o)}
                   </p>
                   <p className="font-display text-3xl leading-none text-carbon">
                     {o.reference}
@@ -150,7 +159,7 @@ export const PickupChargeInbox = ({
       {charging && (
         <ChargeModal
           order={charging}
-          label={t("retiroCaja.pedidoDeMesa", { n: charging.tableNumber ?? "—" })}
+          label={origen(charging)}
           mpInProgress={pickupPaying(charging) === "mercado_pago"}
           note={t("retiroCaja.alCobrar")}
           methods={methods}

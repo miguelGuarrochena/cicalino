@@ -29,6 +29,8 @@ export interface BranchConfig {
   pedidosModalidad: PedidosModalidad;
   /* Pedidos en modalidad Mesa, independiente del mostrador. */
   pedidosMesa: boolean;
+  /* Mostrador QR: el pedido se paga antes de entrar al local. */
+  mostradorQrPagoPrevio: boolean;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -61,7 +63,7 @@ export const fetchBranchConfig = async (
   const { data, error } = await supabase
     .from("locales")
     .select(
-      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, pedidos_modalidad, pedidos_mesa, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera, modulo_pagos, logo_url, color_marca",
+      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, pedidos_modalidad, pedidos_mesa, mostrador_qr_pago_previo, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera, modulo_pagos, logo_url, color_marca",
     )
     .eq("id", branchId)
     .single();
@@ -76,6 +78,7 @@ export const fetchBranchConfig = async (
     /* Antes de pedidos-modalidades-combinables.sql, Mesa era un valor de
      * pedidos_modalidad. */
     pedidosMesa: data.pedidos_mesa === true || data.pedidos_modalidad === "mesa",
+    mostradorQrPagoPrevio: data.mostrador_qr_pago_previo === true,
     tableCount: data.cantidad_mesas ?? 10,
     cutoffHour: data.hora_corte ?? 6,
     reservaAbreMin: data.reserva_abre_min ?? 660,
@@ -96,6 +99,7 @@ export const saveBranchConfig = async (
     | "modo"
     | "pedidosModalidad"
     | "pedidosMesa"
+    | "mostradorQrPagoPrevio"
     | "tableCount"
     | "cutoffHour"
     | "reservaAbreMin"
@@ -109,6 +113,7 @@ export const saveBranchConfig = async (
     modo: cfg.modo,
     pedidosModalidad: cfg.pedidosModalidad,
     pedidosMesa: cfg.pedidosMesa,
+    mostradorQrPagoPrevio: cfg.mostradorQrPagoPrevio,
     tableCount: cfg.tableCount,
     cutoffHour: cfg.cutoffHour,
     reservaAbreMin: cfg.reservaAbreMin,
@@ -125,6 +130,7 @@ export const saveBranchConfig = async (
       modo_identificacion: v.data.modo,
       pedidos_modalidad: v.data.pedidosModalidad,
       pedidos_mesa: v.data.pedidosMesa,
+      mostrador_qr_pago_previo: v.data.mostradorQrPagoPrevio,
       cantidad_mesas: v.data.tableCount,
       hora_corte: v.data.cutoffHour,
       reserva_abre_min: v.data.reservaAbreMin,

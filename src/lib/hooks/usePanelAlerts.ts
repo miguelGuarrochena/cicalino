@@ -3,6 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useSessionStore } from "@/lib/store/session-store";
+import { useConfigStore } from "@/lib/store/config-store";
 import { useOperationalAccess } from "@/lib/hooks/useOperationalAccess";
 import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 import { supabaseConfigured } from "@/lib/supabase/config";
@@ -56,8 +57,14 @@ export const usePanelAlertCounts = (): Record<PanelAlertSource, number> => {
  * resto: realtime primero y el poll como piso si la suscripción se cayó. */
 const useCounterAlertsFeed = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
-  const { visibles, pedidosEnMesa } = useOperationalAccess();
+  const { visibles, pedidosEnMesa, pedidosMostradorQr } = useOperationalAccess();
+  const pagoPrevio = useConfigStore((s) => s.mostradorQrPagoPrevio);
   const jornadaActiva = useJornadaActiva();
+  /* El aviso de "viene a pagar a la caja": Mesa, y el Mostrador QR solo con
+   * pago previo prendido. Esto corre en todo el panel, así que con la opción
+   * apagada no consulta nada de más. Lo que haya quedado esperando el pago
+   * al apagarla se sigue viendo y cobrando en Pedidos ("Por cobrar"). */
+  const conCobros = pedidosEnMesa || (pedidosMostradorQr && pagoPrevio);
   const live =
     supabaseConfigured && isRealBranchId(branchId) && visibles.pedidos && jornadaActiva;
 
@@ -70,7 +77,7 @@ const useCounterAlertsFeed = () => {
     const reload = coalesced(async () => {
       const [res, caja] = await Promise.all([
         fetchPendingCounterOrders(branchId),
-        pedidosEnMesa ? fetchOrdersToCharge(branchId) : Promise.resolve(null),
+        conCobros ? fetchOrdersToCharge(branchId) : Promise.resolve(null),
       ]);
       /* Un refresco que falló no apaga los avisos: se queda con los últimos
        * buenos, como hacen las listas de Pedidos y Recepción. */
@@ -91,7 +98,7 @@ const useCounterAlertsFeed = () => {
       stop();
       publishPanelAlerts("pedidos", []);
     };
-  }, [live, branchId, pedidosEnMesa]);
+  }, [live, branchId, conCobros]);
 };
 
 /* El sonido de todo el panel, en un solo lugar.

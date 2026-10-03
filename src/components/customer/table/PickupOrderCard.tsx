@@ -63,6 +63,7 @@ export const PickupOrderCard = ({
         flash={flash}
         onPayMercadoPago={onPayMercadoPago}
         onPayAtCounter={onPayAtCounter}
+        onCancel={onCancel}
       />
     );
   }
@@ -184,7 +185,11 @@ export const PickupOrderCard = ({
 
 /* Mostrador QR. El pedido ya está en el local desde que se confirmó: arriba
  * va cómo viene la preparación y, aparte, cómo está el pago. Lo único que el
- * cliente puede hacer es pagar (o cambiar cómo), mientras no esté pago. */
+ * cliente puede hacer es pagar (o cambiar cómo), mientras no esté pago.
+ *
+ * Con "Requerir pago antes de preparar" el pedido nace esperando el pago
+ * (pendiente_pago): todavía no está en el local, así que la tarjeta lo dice
+ * así y deja cancelarlo. Al pagarse sigue igual que cualquier otro. */
 const CounterOrderCard = ({
   order,
   mercadoPagoReady,
@@ -193,6 +198,7 @@ const CounterOrderCard = ({
   flash,
   onPayMercadoPago,
   onPayAtCounter,
+  onCancel,
 }: {
   order: PickupOrder;
   mercadoPagoReady: boolean;
@@ -201,9 +207,12 @@ const CounterOrderCard = ({
   flash: boolean;
   onPayMercadoPago: () => void;
   onPayAtCounter: () => void;
+  onCancel: () => void;
 }) => {
   const { t } = useApp();
   const stage = pickupStage(order.status, "mostrador_qr");
+  /* Pago previo: todavía no se confirmó ni se envió al local. */
+  const esperaPago = order.status === "pendiente_pago";
   const pay = counterPayState(order);
   const pagado = pay === "pagado";
   const active = pickupActive(order.status);
@@ -219,7 +228,7 @@ const CounterOrderCard = ({
     : pay === "mercado_pago"
       ? t("mostradorQr.estadoPago.pendienteMp")
       : pay === "caja"
-        ? t("mostradorQr.estadoPago.pendienteCaja")
+        ? t(esperaPago ? "mostradorQr.pagoPrevio.estadoPagoCaja" : "mostradorQr.estadoPago.pendienteCaja")
         : t("mostradorQr.estadoPago.sinPagar");
 
   return (
@@ -237,7 +246,7 @@ const CounterOrderCard = ({
           <p
             className={`mt-2 inline-flex items-center rounded-full border px-3 py-1 text-base font-bold ${STAGE_TONE[stage]}`}
           >
-            {t(`retiro.estado.${stage}`)}
+            {esperaPago ? t("mostradorQr.pagoPrevio.estado") : t(`retiro.estado.${stage}`)}
           </p>
         </div>
         <p className="shrink-0 font-display text-2xl tabular-nums text-carbon">
@@ -259,7 +268,31 @@ const CounterOrderCard = ({
         </CustomerNotice>
       )}
 
-      {active && stage !== "listo" && (
+      {esperaPago && (
+        <div className="mt-3">
+          {pay === "mercado_pago" ? (
+            <CustomerNotice tone="curso">
+              <span className="flex items-center gap-2">
+                <Spinner inline className="size-4" /> {t("mostradorQr.pagoPrevio.mpEsperando")}
+              </span>
+            </CustomerNotice>
+          ) : pay === "caja" ? (
+            <CustomerNotice tone="curso">
+              <p className="font-semibold">{t("mostradorQr.pagoPrevio.cajaTitulo")}</p>
+              <p className="mt-0.5">{t("mostradorQr.pagoPrevio.cajaCuerpo")}</p>
+            </CustomerNotice>
+          ) : pickupPaymentFailed(order) ? (
+            <CustomerNotice tone="alerta">{t("mostradorQr.pagoPrevio.mpNoAprobado")}</CustomerNotice>
+          ) : (
+            <CustomerNotice tone="curso">
+              <p className="font-semibold">{t("mostradorQr.pagoPrevio.pendienteTitulo")}</p>
+              <p className="mt-0.5">{t("mostradorQr.pagoPrevio.pendienteCuerpo")}</p>
+            </CustomerNotice>
+          )}
+        </div>
+      )}
+
+      {active && !esperaPago && stage !== "listo" && (
         <div className="mt-3">
           {pagado ? (
             <CustomerNotice tone="ok">
@@ -327,6 +360,9 @@ const CounterOrderCard = ({
                 : t("retiro.pagarMp", { n: formatMoney(order.total) })}
             </button>
           )}
+          {esperaPago && mercadoPagoReady && (
+            <p className="text-sm leading-snug text-suave">{t("mostradorQr.pagoPrevio.mpAyuda")}</p>
+          )}
           {cashReady && (
             <button
               type="button"
@@ -334,7 +370,7 @@ const CounterOrderCard = ({
               onClick={onPayAtCounter}
               className="min-h-12 w-full rounded-full border-2 border-marca px-5 text-base font-semibold text-marca disabled:opacity-50"
             >
-              {t("mostradorQr.pagarEnCaja")}
+              {t(esperaPago ? "mostradorQr.pagoPrevio.pagarEnCaja" : "mostradorQr.pagarEnCaja")}
             </button>
           )}
         </div>
@@ -347,6 +383,18 @@ const CounterOrderCard = ({
           className="mt-3 min-h-11 self-start rounded-full px-2 text-sm font-semibold text-marca disabled:opacity-50"
         >
           {t("mostradorQr.mejorPagarAhora", { n: formatMoney(order.total) })}
+        </button>
+      )}
+      {/* Solo mientras espera el pago: ya confirmado, el cliente no lo cancela
+          (cancelar_pedido_autoservicio tampoco lo dejaría). */}
+      {esperaPago && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onCancel}
+          className="mt-2 min-h-11 self-start rounded-full px-2 text-sm font-semibold text-alerta disabled:opacity-50"
+        >
+          {t("retiro.cancelarPedido")}
         </button>
       )}
     </article>
