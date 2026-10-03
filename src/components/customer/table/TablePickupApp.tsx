@@ -38,6 +38,7 @@ import {
 } from "@/lib/cart";
 import {
   counterPayState,
+  newlyConfirmed,
   newlyReady,
   pickupActive,
   pickupStage,
@@ -65,7 +66,9 @@ import type { OrderStatus } from "@/lib/types";
  *                opcional) → pago ahora o en caja → preparación → listo →
  *                retiro. El pedido entra al local en cuanto se confirma; el
  *                pago solo cambia cuándo se cobra. No hay paso previo: la
- *                identidad del teléfono se crea recién al confirmar.
+ *                identidad del teléfono se crea recién al confirmar. Con
+ *                "Requerir pago antes de preparar" (`payFirst`) espera el
+ *                pago como uno de Mesa y entra al local al pagarse.
  *
  * Todo sale del servidor (supabase/pedidos-mesa.sql y
  * pedidos-mostrador-qr.sql): cerrar la pestaña, perder el aviso o volver a
@@ -86,6 +89,10 @@ export interface TablePickupInitial {
   /* Se ofrece "Pagar en caja": en el mostrador, si hay algún método
    * presencial habilitado (counterPayOptions). En la mesa, siempre. */
   cashReady: boolean;
+  /* Mostrador QR con "Requerir pago antes de preparar": el pedido espera el
+   * pago antes de entrar al local. Solo cambia los textos; el estado lo
+   * decide la base. */
+  payFirst?: boolean;
   state: PickupState | null;
   returningPaymentId: string | null;
 }
@@ -141,6 +148,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
   /* Mostrador: los textos que hablan de cómo pagar dicen solo lo que el local
    * ofrece ("" = las dos opciones). */
   const pagoTexto = counterPayTextKey(initial.cashReady, initial.mercadoPagoReady);
+  const payFirst = counter && Boolean(initial.payFirst);
   /* En el mostrador se puede pedir sin identidad previa: se crea al confirmar. */
   const canOrder = counter
     ? initial.operational && state?.operational !== false && !qrStale && !sinMetodos
@@ -246,6 +254,21 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
     setTab("pedidos");
   }, [orders, token, t, counter]);
 
+  /* Mostrador QR con pago previo: el pago se confirmó y el pedido entró al
+   * local. Los que pasaron por pendiente_pago quedan anotados para que la
+   * vuelta de Mercado Pago diga lo mismo. */
+  const confirmedNotice = `${t("mostradorQr.pagoPrevio.confirmadoTitulo")}. ${t("mostradorQr.pagoPrevio.confirmadoCuerpo")}`;
+  const lastConfirmStatuses = useRef<Map<string, OrderStatus> | null>(null);
+  const pendingSeen = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!counter) return;
+    for (const o of orders) if (o.status === "pendiente_pago") pendingSeen.current.add(o.id);
+    const prev = lastConfirmStatuses.current;
+    lastConfirmStatuses.current = new Map(orders.map((o) => [o.id, o.status]));
+    if (!prev) return;
+    if (newlyConfirmed(prev, orders).length) setNotice(confirmedNotice);
+  }, [orders, counter, confirmedNotice]);
+
   /* El destello dura unos segundos; el estado "Listo" queda. */
   useEffect(() => {
     if (!flashIds.size) return;
@@ -260,11 +283,18 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
     const order = orders.find((o) => o.payment?.id === checking);
     if (order?.payment?.status === "pendiente") return;
     const ns = counter ? "mostradorQr" : "retiro";
-    if (order?.payment?.status === "pagado") setNotice(t(`${ns}.mpAprobado`));
-    else if (order) setNotice(t(`${ns}.mpNoAprobado`));
+    /* Mostrador con pago previo: lo pagado ya entró al local; lo que no, sigue
+     * sin confirmar. */
+    const previo =
+      counter && order && (order.status === "pendiente_pago" || pendingSeen.current.has(order.id));
+    if (order?.payment?.status === "pagado") {
+      setNotice(previo ? confirmedNotice : t(`${ns}.mpAprobado`));
+    } else if (order) {
+      setNotice(t(previo ? "mostradorQr.pagoPrevio.mpNoAprobado" : `${ns}.mpNoAprobado`));
+    }
     setChecking(null);
     router.replace(`/m/${token}`);
-  }, [checking, state, orders, router, token, t, counter]);
+  }, [checking, state, orders, router, token, t, counter, confirmedNotice]);
 
   /* Mostrador: sin la cookie no hay pedidos a la vista. Si el teléfono tiene
    * la copia local, se repone en silencio y aparecen. */
@@ -420,7 +450,15 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
           irAlCheckout(data.checkoutUrl);
           return;
         }
-        setError(t(counter ? "mostradorQr.mpNoAbrio" : "retiro.mpNoAbrio"));
+        setError(
+          t(
+            payFirst
+              ? "mostradorQr.pagoPrevio.mpNoAbrio"
+              : counter
+                ? "mostradorQr.mpNoAbrio"
+                : "retiro.mpNoAbrio",
+          ),
+        );
         return;
       }
       /* En el mostrador la tarjeta del pedido ya dice "Pedido recibido". */
@@ -456,7 +494,17 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
         return;
       }
       if (method === "caja") {
-        setNotice(t(counter ? "mostradorQr.pasasteACaja" : "retiro.pasasteACaja"));
+        const esperaPago =
+          counter && orders.find((o) => o.id === orderId)?.status === "pendiente_pago";
+        setNotice(
+          t(
+            esperaPago
+              ? "mostradorQr.pagoPrevio.pasasteACaja"
+              : counter
+                ? "mostradorQr.pasasteACaja"
+                : "retiro.pasasteACaja",
+          ),
+        );
       }
     } catch {
       setError(t("mesa.error.red"));
@@ -469,7 +517,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
     if (busyOrder) return;
     const ok = await confirmar({
       title: t("retiro.cancelarTitulo"),
-      body: t("retiro.cancelarCuerpo"),
+      body: t(counter ? "mostradorQr.pagoPrevio.cancelarCuerpo" : "retiro.cancelarCuerpo"),
       confirmLabel: t("retiro.cancelarSi"),
       cancelLabel: t("acciones.volver"),
       tone: "peligro",
@@ -541,7 +589,12 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
           <Controls showTheme={false} />
         </header>
 
-        <PickupSteps flow={initial.flow} pagoTexto={pagoTexto} className="mt-4" />
+        <PickupSteps
+          flow={initial.flow}
+          pagoTexto={pagoTexto}
+          payFirst={payFirst}
+          className="mt-4"
+        />
 
         {sinMetodos && !qrStale && (
           <CustomerNotice tone="curso" className="mt-4">
@@ -753,7 +806,11 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
             onClose={() => setReviewOpen(false)}
             enviarLabel={t("retiro.confirmarPedido")}
             enviarAyuda={t(
-              counter ? `mostradorQr.confirmarPedidoAyuda${pagoTexto}` : "retiro.confirmarPedidoAyuda",
+              payFirst
+                ? "mostradorQr.pagoPrevio.confirmarPedidoAyuda"
+                : counter
+                  ? `mostradorQr.confirmarPedidoAyuda${pagoTexto}`
+                  : "retiro.confirmarPedidoAyuda",
             )}
           />
         )}
@@ -761,6 +818,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
         {payOpen && (
           <PayChoiceSheet
             flow={initial.flow}
+            payFirst={payFirst}
             name={name}
             onName={(v) => {
               setName(v);
@@ -792,16 +850,21 @@ const counterPayTextKey = (cash: boolean, mp: boolean): "" | "Caja" | "Mp" =>
 const PickupSteps = ({
   flow,
   pagoTexto = "",
+  payFirst = false,
   className = "",
 }: {
   flow: PickupFlow;
   pagoTexto?: string;
+  payFirst?: boolean;
   className?: string;
 }) => {
   const { t } = useApp();
   const counter = flow === "mostrador_qr";
   const ns = counter ? "mostradorQr" : "retiro";
-  const pasos = [t(`${ns}.paso1`), t(`${ns}.paso2${counter ? pagoTexto : ""}`), t(`${ns}.paso3`)];
+  const paso2 = payFirst
+    ? "mostradorQr.pagoPrevio.paso2"
+    : `${ns}.paso2${counter ? pagoTexto : ""}`;
+  const pasos = [t(`${ns}.paso1`), t(paso2), t(`${ns}.paso3`)];
   return (
     <ol className={`grid grid-cols-3 gap-2 ${className}`.trim()}>
       {pasos.map((p, i) => (
@@ -903,6 +966,7 @@ const CounterNoticeBox = ({
  * cambia es cuándo se cobra. Arriba, el nombre, que es opcional. */
 const PayChoiceSheet = ({
   flow,
+  payFirst = false,
   name,
   onName,
   total,
@@ -914,6 +978,8 @@ const PayChoiceSheet = ({
   onClose,
 }: {
   flow: PickupFlow;
+  /* Mostrador QR con pago previo: el pedido se confirma al pagarse. */
+  payFirst?: boolean;
   name: string;
   onName: (v: string) => void;
   total: number;
@@ -962,7 +1028,13 @@ const PayChoiceSheet = ({
               }`}
             >
               {sending && !mercadoPagoReady && <Spinner inline className="size-4" />}
-              {t(counter ? "mostradorQr.pagarEnCaja" : "retiro.pagarEnCaja")}
+              {t(
+                payFirst
+                  ? "mostradorQr.pagoPrevio.pagarEnCaja"
+                  : counter
+                    ? "mostradorQr.pagarEnCaja"
+                    : "retiro.pagarEnCaja",
+              )}
             </button>
           )}
         </div>
@@ -995,14 +1067,16 @@ const PayChoiceSheet = ({
       )}
       <CustomerNotice tone="curso" className="mt-4">
         {t(
-          counter
-            ? `mostradorQr.seEnviaYa${counterPayTextKey(cashReady, mercadoPagoReady)}`
-            : "retiro.seCocinaAlPagar",
+          payFirst
+            ? "mostradorQr.pagoPrevio.seConfirmaAlPagar"
+            : counter
+              ? `mostradorQr.seEnviaYa${counterPayTextKey(cashReady, mercadoPagoReady)}`
+              : "retiro.seCocinaAlPagar",
         )}
       </CustomerNotice>
       <p className="mt-3 text-base leading-snug text-suave">
         {t(
-          `${counter ? "mostradorQr" : "retiro"}.${
+          `${payFirst ? "mostradorQr.pagoPrevio" : counter ? "mostradorQr" : "retiro"}.${
             !cashReady ? "comoPagarSoloMp" : mercadoPagoReady ? "comoPagarAyuda" : "comoPagarSoloCaja"
           }`,
         )}

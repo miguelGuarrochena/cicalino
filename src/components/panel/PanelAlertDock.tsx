@@ -59,6 +59,11 @@ const TONE: Record<PanelAlertKind, { card: string; halo: string; chip: string }>
     halo: "u-alert-halo u-alert-halo-curso",
     chip: "bg-curso text-crema",
   },
+  "cobro-caja-mostrador": {
+    card: "border-curso-borde bg-curso-fondo text-curso",
+    halo: "u-alert-halo u-alert-halo-curso",
+    chip: "bg-curso text-crema",
+  },
   "espera-nueva": {
     card: "border-espera bg-espera/10 text-espera",
     halo: "u-alert-halo u-alert-halo-marca",

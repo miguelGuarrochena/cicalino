@@ -230,12 +230,15 @@ describe("cableado del flujo", () => {
     );
   });
 
-  it("la caja ve lo que tiene que cobrar solo en modalidad Mesa", () => {
+  it("la caja ve lo que tiene que cobrar en Mesa y en Mostrador QR (pago previo)", () => {
     const page = read("src/app/(app)/panel/pedidos/page.tsx");
     /* Mesa es independiente del mostrador: su propia columna. */
     expect(page).toContain("useConfigStore((s) => s.pedidosMesa)");
     expect(page).toContain("<PickupChargeInbox");
-    expect(page).toContain("enMesa && visibles.pedidos");
+    expect(page).toContain("const conCobros = enMesa || enMostradorQr;");
+    expect(page).toContain("conCobros && visibles.pedidos");
+    /* Sin Mesa ni Mostrador QR (el tradicional) no hay nada que cobrar. */
+    expect(page).not.toContain("tradicional && visibles.pedidos");
   });
 
   it("el tablero sigue sin poder marcar listo un pedido sin pagar", () => {

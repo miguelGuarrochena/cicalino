@@ -147,6 +147,7 @@ interface Operacion {
   modo: IdentificationMode;
   pedidosModalidad: PedidosModalidad;
   pedidosMesa: boolean;
+  mostradorQrPagoPrevio: boolean;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -243,6 +244,7 @@ const ConfigPage = () => {
   const modo = draft.modo ?? c.modo;
   const pedidosModalidad = draft.pedidosModalidad ?? c.pedidosModalidad;
   const pedidosMesa = draft.pedidosMesa ?? c.pedidosMesa;
+  const mostradorQrPagoPrevio = draft.mostradorQrPagoPrevio ?? c.mostradorQrPagoPrevio;
   const cutoffHour = draft.cutoffHour ?? c.cutoffHour;
   const reservaAbreMin = draft.reservaAbreMin ?? c.reservaAbreMin;
   const reservaCierraMin = draft.reservaCierraMin ?? c.reservaCierraMin;
@@ -256,6 +258,7 @@ const ConfigPage = () => {
     modo !== c.modo ||
     pedidosModalidad !== c.pedidosModalidad ||
     pedidosMesa !== c.pedidosMesa ||
+    mostradorQrPagoPrevio !== c.mostradorQrPagoPrevio ||
     tableCount !== c.tableCount ||
     cutoffHour !== c.cutoffHour ||
     reservaAbreMin !== c.reservaAbreMin ||
@@ -354,6 +357,7 @@ const ConfigPage = () => {
       modo,
       pedidosModalidad,
       pedidosMesa,
+      mostradorQrPagoPrevio,
       tableCount: tableCount ?? c.tableCount,
       cutoffHour,
       reservaAbreMin,
@@ -614,7 +618,48 @@ const ConfigPage = () => {
               enseguida; el cliente paga ahora o en caja al retirar. */}
           {qrMostradorBorrador && (
             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-linea bg-crema/30 p-4">
-              <p className="text-sm text-carbon/70">{t("retiroConfig.mostradorQrComo")}</p>
+              <p className="text-sm text-carbon/70">
+                {t(
+                  mostradorQrPagoPrevio
+                    ? "retiroConfig.mostradorQrComoPagoPrevio"
+                    : "retiroConfig.mostradorQrComo",
+                )}
+              </p>
+              {/* Mismo interruptor que Mesa. La base decide con lo guardado:
+                  los pedidos que ya esperan el pago se confirman igual al
+                  pagarse aunque esto se apague después. */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={mostradorQrPagoPrevio}
+                onClick={() => editar("mostradorQrPagoPrevio", !mostradorQrPagoPrevio)}
+                className={`flex w-full cursor-pointer items-start justify-between gap-4 rounded-2xl border p-4 text-left transition hover:opacity-90 ${
+                  mostradorQrPagoPrevio
+                    ? "border-marca bg-marca/10 ring-2 ring-marca/30"
+                    : "border-linea bg-surface"
+                }`}
+              >
+                <span className="flex flex-col gap-1">
+                  <span className="font-semibold text-carbon">
+                    {t("retiroConfig.pagoPrevio")}
+                  </span>
+                  <span className="text-xs leading-snug text-carbon/55">
+                    {t("retiroConfig.pagoPrevioDet")}
+                  </span>
+                </span>
+                <span
+                  aria-hidden
+                  className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full transition ${
+                    mostradorQrPagoPrevio ? "bg-marca" : "bg-carbon/20"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition ${
+                      mostradorQrPagoPrevio ? "left-[1.375rem]" : "left-0.5"
+                    }`}
+                  />
+                </span>
+              </button>
               {sinMetodos && (
                 <p
                   role="alert"

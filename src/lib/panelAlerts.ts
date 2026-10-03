@@ -27,6 +27,7 @@ export type PanelAlertKind =
   | "mp-pagado"
   | "pedido-mostrador"
   | "cobro-caja"
+  | "cobro-caja-mostrador"
   | "espera-nueva";
 
 export interface PanelAlert {
@@ -99,6 +100,15 @@ export const ALERT_META: Record<PanelAlertKind, KindMeta> = {
     href: "/panel/pedidos",
     priority: 3,
     titleKey: "retiroCaja.alerta",
+    icon: "💵",
+  },
+  /* Mostrador QR con pago previo: lo mismo, sin mesa. Se nombra por el
+   * número del pedido. */
+  "cobro-caja-mostrador": {
+    source: "pedidos",
+    href: "/panel/pedidos",
+    priority: 3,
+    titleKey: "retiroCaja.alertaMostrador",
     icon: "💵",
   },
   "espera-nueva": {
@@ -191,7 +201,11 @@ export type CounterChargeRef = {
 export const cajaAlerts = (orders: CounterChargeRef[]): PanelAlert[] =>
   orders
     .filter((o) => o.payAtCounterAt)
-    .map((o) => build("cobro-caja", o.id, o.payAtCounterAt, o.tableNumber, o.reference));
+    .map((o) =>
+      o.tableNumber == null
+        ? build("cobro-caja-mostrador", o.id, o.payAtCounterAt, null, o.reference)
+        : build("cobro-caja", o.id, o.payAtCounterAt, o.tableNumber, o.reference),
+    );
 
 /* Recepción: alguien nuevo en la lista. La cancelación del cliente ya tiene
  * su propio popup bloqueante (EsperaCancelWatch) y no se duplica acá. */

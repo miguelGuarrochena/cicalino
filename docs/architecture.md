@@ -260,6 +260,18 @@ QR del local (/m/[locales.mostrador_qr_token]) → mostrador_qr_por_token
   sistema operativo); si no, pide no cerrar la pestaña.
 - **Cartel**: `/panel/pedidos/qr` muestra `CounterQrManager` (mismo
   `InformativeQrCard` + `qrSticker`, copia "Pedí desde tu celular").
+- **Requerir pago antes de preparar** (`locales.mostrador_qr_pago_previo`,
+  apagado por defecto; `mostrador-qr-pago-previo.sql`): prendido, el pedido
+  nace en `pendiente_pago` (confirmado_en null) igual que uno de Mesa, no
+  entra al tablero y sale a `creado` solo cuando `mp_confirmar_pago` o
+  `cobrar_pedido_autoservicio` registran un pago que cubre el total (la
+  guardia lo vuelve a comprobar y fija confirmado_en). Desde `creado`, el
+  flujo de siempre. Se cobra desde la misma bandeja "Por cobrar"
+  (`pedidos_por_cobrar`), el cliente puede cancelarlo mientras espera el pago
+  (`cancelar_pedido_autoservicio`) y `_cerrar_sesion` cancela al cierre de
+  jornada lo que nadie pagó; un pago de Mercado Pago tardío queda como
+  excedente. La liberación sale del estado del pedido, no de la opción: lo
+  que ya espera el pago se confirma aunque el dueño la apague.
 
 ## Pagos divididos (módulo `pagos`)
 

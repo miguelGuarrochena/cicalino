@@ -115,9 +115,15 @@ const PanelOrdersPage = () => {
     ? liveBranchName
     : branchById(orgs, branchId)?.name;
 
+  /* "Por cobrar": Mesa, y el Mostrador QR con pago previo. Acá va por la
+   * modalidad y no por la opción a propósito: es donde la caja cobra, y lo
+   * que quedó esperando el pago al apagar la opción se tiene que poder cobrar.
+   * Sin nada pendiente la bandeja no se muestra. El aviso global
+   * (usePanelAlerts) sí mira la opción. */
+  const conCobros = enMesa || enMostradorQr;
   const porCobrar = usePickupToCharge(
     jornadaActiva ? branchId : null,
-    enMesa && visibles.pedidos,
+    conCobros && visibles.pedidos,
   );
 
   const qr = useQrSeenClose<OrderView>(fetchOrderSeenAt, orders);
@@ -365,7 +371,7 @@ const PanelOrdersPage = () => {
         )}
       </div>
 
-      {enMesa && branchId && isRealBranchId(branchId) && (
+      {conCobros && branchId && isRealBranchId(branchId) && (
         <PickupChargeInbox
           branchId={branchId}
           orders={porCobrar.orders}

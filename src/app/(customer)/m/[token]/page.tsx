@@ -15,6 +15,7 @@ import {
   type GuestCredentials,
 } from "@/lib/server/tableGuest";
 import {
+  fetchCounterPayFirst,
   fetchPickupState,
   resolveCounterQr,
   resolvePickupAccess,
@@ -179,11 +180,12 @@ const PickupPage = async ({
   creds: GuestCredentials | null;
   pago: string | undefined;
 }) => {
-  const [menu, payment, brand, pickup] = await Promise.all([
+  const [menu, payment, brand, pickup, payFirst] = await Promise.all([
     fetchMenu(qr.branchId),
     fetchGuestPaymentOptions(qr.branchId),
     fetchBranchBrand(qr.branchId),
     fetchPickupState(token, creds, qr.flow),
+    qr.flow === "mostrador_qr" ? fetchCounterPayFirst(qr.branchId) : Promise.resolve(false),
   ]);
   const mercadoPagoReady = payment.mercadoPagoReady && payment.settings.mercadoPago;
   /* En la mesa "pagar en caja" se ofrece como siempre; en el mostrador sale
@@ -205,6 +207,7 @@ const PickupPage = async ({
         menu,
         mercadoPagoReady,
         cashReady,
+        payFirst,
         state: pickup.ok ? pickup.state : null,
         returningPaymentId: uuid.safeParse(pago).success ? pago! : null,
       }}

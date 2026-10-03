@@ -256,6 +256,18 @@ export const newlyReady = (
     })
     .map((o) => o.id);
 
+/* ¿Cuáles acaban de confirmarse? Un pedido que esperaba el pago (Mesa, o
+ * Mostrador QR con pago previo) y ya entró al local. Como newlyReady, solo
+ * un cambio visto en vivo. */
+export const newlyConfirmed = (
+  before: ReadonlyMap<string, OrderStatus>,
+  orders: PickupOrder[],
+): string[] =>
+  orders
+    .filter((o) => o.status !== "pendiente_pago" && pickupActive(o.status))
+    .filter((o) => before.get(o.id) === "pendiente_pago")
+    .map((o) => o.id);
+
 /* Los pedidos para la caja, con el aviso de "paga en caja" arriba. */
 export const sortToCharge = (orders: PickupOrder[]): PickupOrder[] =>
   [...orders].sort((a, b) => {

@@ -38,6 +38,8 @@ interface ConfigState {
   pedidosModalidad: PedidosModalidad;
   /* Pedidos en modalidad Mesa, independiente del mostrador. */
   pedidosMesa: boolean;
+  /* Mostrador QR: el pedido se paga antes de entrar al local. */
+  mostradorQrPagoPrevio: boolean;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -72,6 +74,7 @@ interface ConfigState {
         | "modo"
         | "pedidosModalidad"
         | "pedidosMesa"
+        | "mostradorQrPagoPrevio"
         | "tableCount"
         | "cutoffHour"
         | "reservaAbreMin"
@@ -131,6 +134,7 @@ const INICIAL = supabaseConfigured
       modo: "pedido" as IdentificationMode,
       pedidosModalidad: "mostrador" as PedidosModalidad,
       pedidosMesa: false,
+      mostradorQrPagoPrevio: false,
       tableCount: 10,
       cutoffHour: 6,
       reservaAbreMin: 660,
@@ -152,6 +156,7 @@ const INICIAL = supabaseConfigured
       modo: "pedido" as IdentificationMode,
       pedidosModalidad: "mostrador" as PedidosModalidad,
       pedidosMesa: false,
+      mostradorQrPagoPrevio: false,
       tableCount: 10,
       cutoffHour: 6,
       reservaAbreMin: 660,
@@ -241,6 +246,7 @@ export const useConfigStore = create<ConfigState>()(
           modo: s.modo,
           pedidosModalidad: s.pedidosModalidad,
           pedidosMesa: s.pedidosMesa,
+          mostradorQrPagoPrevio: s.mostradorQrPagoPrevio,
           tableCount: s.tableCount,
           cutoffHour: s.cutoffHour,
           reservaAbreMin: s.reservaAbreMin,
