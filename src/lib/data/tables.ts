@@ -51,10 +51,19 @@ export const fetchTableBills = async (
 ): Promise<DataResult<TableBill[]>> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return ok([]);
-  const { data, error } = await supabase.rpc("mesas_cuentas", { p_local: branchId });
+  const { data, error, status } = await supabase.rpc("mesas_cuentas", { p_local: branchId });
   if (error) {
-    reportError("panel.mesas.cuentas", error, { branchId });
-    return fail(desdeSupabase(error));
+    const fallo = desdeSupabase(error);
+    /* Sin respuesta HTTP (status 0): el fetch ni llegó, casi siempre el wifi
+     * del local o la Mac despertando. Esto se pollea cada pocos segundos y la
+     * UI ya muestra el aviso de sincronización, así que no va a Sentry. Un
+     * PGRST303 también es "conexion" pero trae 401: ese sí se reporta. */
+    if (fallo.kind === "conexion" && status === 0) {
+      console.warn(`[panel.mesas.cuentas] ${fallo.message}`, { branchId });
+    } else {
+      reportError("panel.mesas.cuentas", error, { branchId });
+    }
+    return fail(fallo);
   }
   return ok(
     ((data as unknown[] | null) ?? [])
