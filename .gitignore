@@ -12,6 +12,8 @@
 # --- Next.js / build ---
 /.next/
 /out/
+# Copia local de /como-funciona (pnpm presentacion:exportar)
+/presentacion-offline/
 /build
 next-env.d.ts
 

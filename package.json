@@ -21,7 +21,9 @@
     "db:sql:baseline": "node scripts/db-migrate.mjs --baseline",
     "test:e2e": "playwright test",
     "lint:fix": "eslint . --fix",
-    "db:pull": "drizzle-kit pull"
+    "db:pull": "drizzle-kit pull",
+    "presentacion:exportar": "node scripts/presentacion-offline/exportar.mjs",
+    "presentacion": "node presentacion-offline/servidor.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.69.0",
