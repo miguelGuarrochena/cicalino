@@ -4,6 +4,10 @@
  */
 
 const CACHE = "cicalino-v8";
+/* La presentación de /como-funciona tiene su propia caché: es lo único del
+ * sitio que tiene que andar entero sin conexión (se usa en locales con Wi-Fi
+ * malo). La llena la propia página con un mensaje (ver más abajo). */
+const PRESENTACION = "cicalino-presentacion-v1";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [
   OFFLINE_URL,
@@ -25,7 +29,11 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
+        Promise.all(
+          keys
+            .filter((k) => k !== CACHE && k !== PRESENTACION)
+            .map((k) => caches.delete(k)),
+        ),
       )
       .then(() => self.clients.claim()),
   );
@@ -56,6 +64,14 @@ self.addEventListener("fetch", (event) => {
           caches.match(request).then((cached) => cached || caches.match(OFFLINE_URL)),
         ),
     );
+    return;
+  }
+
+  // JS y CSS del build: tienen el hash en el nombre, así que una copia
+  // guardada nunca queda vieja. Solo se guardan los de la presentación; acá
+  // se sirven de la caché si están y, si no, de la red como siempre.
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
     return;
   }
 
@@ -95,6 +111,40 @@ const avisarClientes = async (targetPath) => {
     }
   }
 };
+
+/* ---- Presentación offline ----
+ * La página manda la lista de lo que cargó (HTML, JS, CSS, imágenes y
+ * fuentes). Se baja todo primero y recién si la página llegó se reemplaza la
+ * caché: así, abrirla sin conexión no borra la copia buena, y cada versión
+ * nueva del sitio pisa a la anterior en vez de acumularse. */
+const guardarPresentacion = async (urls) => {
+  const propias = [...new Set(urls)].filter((u) => {
+    try {
+      const url = new URL(u, self.location.origin);
+      return url.origin === self.location.origin && !url.pathname.startsWith("/api/");
+    } catch {
+      return false;
+    }
+  });
+  const bajadas = await Promise.all(
+    propias.map((u) =>
+      fetch(u, { cache: "no-cache" })
+        .then((res) => (res.ok ? [u, res] : null))
+        .catch(() => null),
+    ),
+  );
+  const ok = bajadas.filter(Boolean);
+  if (!ok.some(([u]) => new URL(u, self.location.origin).pathname === "/como-funciona")) return;
+  await caches.delete(PRESENTACION);
+  const cache = await caches.open(PRESENTACION);
+  await Promise.all(ok.map(([u, res]) => cache.put(u, res)));
+};
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "cicalino-guardar-presentacion") return;
+  if (!Array.isArray(event.data.urls)) return;
+  event.waitUntil(guardarPresentacion(event.data.urls));
+});
 
 /* ---- Web Push ---- */
 self.addEventListener("push", (event) => {
