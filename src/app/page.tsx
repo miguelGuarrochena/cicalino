@@ -231,6 +231,14 @@ const Home = () => {
               {t("home.ctaProbar")}
             </Link>
             <p className="text-xs text-carbon/50">{t("home.ctaProbarNota")}</p>
+            {/* Para el que llega al final y todavía duda: la presentación
+                de /como-funciona, la misma que se muestra en persona. */}
+            <Link
+              href="/como-funciona"
+              className="mt-3 flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-semibold text-marca/80 underline-offset-4 transition hover:text-marca hover:underline"
+            >
+              {t("home.ctaComoFunciona")}
+            </Link>
           </div>
         </section>
       </main>

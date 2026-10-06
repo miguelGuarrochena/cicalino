@@ -4,6 +4,10 @@ Herramienta de venta para usar en persona, con la notebook o la tablet abierta
 frente al dueño o el encargado. No es la demo: es lo que hace que la demo tenga
 sentido. Vive en `/como-funciona`, fuera del sitemap y con `noindex`.
 
+También está linkeada desde el sitio (header, footer y el cierre de la home)
+y se puede mandar por link, así que tiene que entenderse sin nadie al lado.
+Por eso el cierre lleva a `/probar`, y el panel queda como link chico abajo.
+
 ---
 
 ## 1. Qué es Cicalino (según el código)
@@ -100,7 +104,7 @@ recargo en Mesa (ahí el cliente paga el total), impresión física.
 | 6 | Los momentos | **Tres momentos. Un solo Cicalino.** · Cuando el pedido está listo / Cuando hay mesa / Cuando piden la cuenta | Tres mini-historias cliente → local, con el color de cada módulo |
 | 7 | Todo conectado | **Todo en un solo lugar.** · "Arrancás con lo que necesitás y sumás el resto cuando quieras." | Tres QR (mostrador, espera, mesa) que se conectan a Cicalino y de ahí a un panel con Pedidos · Recepción · Pagos |
 | 8 | Beneficios | **Lo que cambia.** · El aviso llega solo · Sin buzzers ni apps · Pagar es más simple · Menos idas y vueltas | Cuatro bloques con su dibujo, aparecen de a uno |
-| 9 | Cierre | **Esto es Cicalino.** → "¿Lo vemos funcionando en tu local?" | Cicalino haciendo "ok"; botón "Ver el producto real" |
+| 9 | Cierre | **Esto es Cicalino.** → "¿Lo vemos funcionando en tu local?" | Cicalino haciendo "ok"; botón "Probá gratis 30 días" y link a "Ver el producto real" |
 
 Transición entre escenas: fundido con un deslizamiento corto en la dirección
 en la que se avanza.
@@ -140,8 +144,8 @@ En la presentación no se menciona Mercado Pago como diferencial (que se
 confirma solo es un detalle para la demo): el cliente elige cómo paga. Qué medios
 activa el local se explica en otro momento.
 
-Cierre de cada tema: *¿Lo vemos en tu local?* con "Ver el producto real",
-"Elegir otro tema" y "Ver la presentación completa".
+Cierre de cada tema: *¿Lo vemos en tu local?* con "Probá gratis 30 días",
+"Elegir otro tema", "Ver la presentación completa" y el link al panel.
 
 ## 8. Assets que se reutilizan
 
@@ -210,7 +214,7 @@ dependencias. `pnpm presentacion` la abre en `http://localhost:4321`. La
 carpeta se puede copiar a cualquier lado: con doble clic en
 `Abrir presentación.command` se abre sola.
 
-"Ver el producto real" lleva al Cicalino de verdad (`NEXT_PUBLIC_APP_URL` si es
+"Probá gratis 30 días" y "Ver el producto real" llevan al Cicalino de verdad (`NEXT_PUBLIC_APP_URL` si es
 https, si no `https://www.cicalino.net`): la demo sí necesita internet.
 
 Hay que volver a exportar después de cambiar la presentación.

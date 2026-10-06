@@ -16,6 +16,7 @@ const dict = {
       precios: "Precios",
       entrar: "Entrar",
       probar: "Probar gratis",
+      comoFunciona: "Cómo funciona",
       faq: "FAQ",
       ayuda: "Ayuda",
       verWeb: "Ver la web",
@@ -157,6 +158,7 @@ const dict = {
       ctaProbarNota: "No pedimos tarjeta. Empezás hoy y decidís en 30 días.",
       ctaEntrar: "Ya tengo cuenta",
       ctaWalk: "¿Cómo lo ve el cliente?",
+      ctaComoFunciona: "Mirá cómo funciona en 3 minutos",
       localKicker: "Para el local",
       localTitulo: "Tres toques en el mostrador",
       localSub:
@@ -2268,6 +2270,7 @@ const dict = {
       precios: "Pricing",
       entrar: "Sign in",
       probar: "Try free",
+      comoFunciona: "How it works",
       faq: "FAQ",
       ayuda: "Help",
       verWeb: "See the website",
@@ -2399,6 +2402,7 @@ const dict = {
       ctaProbarNota: "No card required. Start today, decide in 30 days.",
       ctaEntrar: "I already have an account",
       ctaWalk: "How does the customer see it?",
+      ctaComoFunciona: "See how it works in 3 minutes",
       localKicker: "For the venue",
       localTitulo: "Three taps at the counter",
       localSub:

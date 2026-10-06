@@ -91,7 +91,7 @@ const STATIONS: Station[] = [
 
 export const Selector = ({ onStart }: { onStart: (id: TourId) => void }) => (
   <div className="show-scene-next mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center-safe gap-[clamp(1.5rem,5vh,3.25rem)] px-5 py-2 sm:px-10">
-    <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:justify-center sm:gap-[clamp(2rem,5vw,4.5rem)] sm:text-left">
+    <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:justify-center sm:gap-[4.5rem] sm:text-left">
       <div className="show-pop relative shrink-0" style={d(0.05)}>
         <span className="absolute inset-[10%] rounded-full bg-marca/8" aria-hidden />
         <div className="show-ring" style={d(0.9)}>

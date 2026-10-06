@@ -363,11 +363,14 @@ export const Closing = ({
         {question}
       </p>
       <div className="show-in flex flex-col items-center gap-3 sm:flex-row" style={d(1.9)}>
+        {/* La página también está en el sitio y se manda por link: quien la
+         * ve solo no tiene cuenta, así que el paso siguiente es probarlo. En
+         * persona, el panel queda abajo a un toque. */}
         <a
-          href="/panel"
+          href="/probar"
           className="flex min-h-14 items-center justify-center gap-2 rounded-full bg-marca px-9 text-lg font-semibold text-crema transition hover:bg-marca-fuerte active:scale-95"
         >
-          Ver el producto real
+          Probá gratis 30 días
           <span aria-hidden>→</span>
         </a>
         {full ? (
@@ -398,7 +401,10 @@ export const Closing = ({
         )}
       </div>
       <p className="show-in text-center text-sm text-suave" style={d(2.2)}>
-        Probá gratis 30 días. No pedimos tarjeta.
+        No pedimos tarjeta. ·{" "}
+        <a href="/panel" className="font-semibold text-marca/80 underline-offset-4 hover:underline">
+          Ver el producto real
+        </a>
       </p>
     </SceneFrame>
   );

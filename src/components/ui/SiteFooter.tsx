@@ -43,6 +43,12 @@ export const SiteFooter = ({
 
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-3 font-medium text-carbon/55 sm:justify-self-end">
           <Link
+            href="/como-funciona"
+            className="underline-offset-2 transition hover:text-carbon hover:underline"
+          >
+            {t("nav.comoFunciona")}
+          </Link>
+          <Link
             href="/pricing"
             className="underline-offset-2 transition hover:text-carbon hover:underline"
           >
