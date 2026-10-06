@@ -57,6 +57,9 @@ export const LandingHeader = ({
         </div>
 
         <nav className="ml-4 hidden items-center gap-1 sm:flex">
+          <Link href="/como-funciona" className={navLink}>
+            {t("nav.comoFunciona")}
+          </Link>
           <Link href="/pricing" className={navLink}>
             {t("nav.precios")}
           </Link>

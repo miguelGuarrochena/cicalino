@@ -89,5 +89,5 @@ console.log(`
   Para abrirla:   pnpm presentacion
   o doble clic en presentacion-offline/Abrir presentación.command
 
-  "Ver el producto real" lleva a ${appUrl}/panel (eso sí necesita internet).
+  "Probá gratis" y "Ver el producto real" llevan a ${appUrl} (eso sí necesita internet).
 `);
