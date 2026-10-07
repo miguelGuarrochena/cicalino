@@ -95,5 +95,6 @@
   "pedidos-mostrador-qr-metodos.sql",
   "qr-regenerar-mesas.sql",
   "pedidos-modalidades-combinables.sql",
-  "mostrador-qr-pago-previo.sql"
+  "mostrador-qr-pago-previo.sql",
+  "propina-habilitada.sql"
 ]

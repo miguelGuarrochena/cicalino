@@ -299,7 +299,10 @@ QR de mesa (/m/[token], token opaco en mesas.qr_token)
   pagos activos.
 - **Propina y recargo**: por pago, sobre la parte del consumo que cubre. No cuentan
   para cubrir la cuenta. El recargo por tarjeta necesita la declaración del dueño
-  (`local_cobros.recargo_declarado`, con quién y cuándo).
+  (`local_cobros.recargo_declarado`, con quién y cuándo). "Mostrar propina al
+  cliente" (`local_cobros.propina_habilitada`, prendida por defecto): apagada,
+  la base descarta la propina que mande un comensal (queda en 0, sin rechazar
+  el pago); el personal puede seguir registrándola desde el panel.
 - **Mercado Pago**: nunca se marca pagado por volver del checkout ni a mano;
   solo `mp_confirmar_pago` (service_role) después de validar firma, frescura
   del `ts`, sucursal, monto y moneda. Un pago que no puede cubrirse

@@ -112,7 +112,7 @@ const PreciosPage = () => {
           "Cuenta por comensal",
           "Quién atiende cada mesa (propina y orden)",
           "Dividir: mi consumo, partes iguales, uno paga o monto",
-          "Propina por persona",
+          "Propina por persona (si el local la habilita)",
           "Mercado Pago, transferencia, efectivo y tarjeta",
         ],
       }
@@ -133,7 +133,7 @@ const PreciosPage = () => {
           "Bill per guest",
           "Who is on each table (tips and order)",
           "Split: my items, equal parts, one pays or amount",
-          "Per-person tip",
+          "Per-person tip (if the venue enables it)",
           "Mercado Pago, bank transfer, cash and card",
         ],
       };

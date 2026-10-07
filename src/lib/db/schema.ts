@@ -627,6 +627,7 @@ export const branchPaymentSettings = pgTable("local_cobros", {
   recargoDeclarado: boolean("recargo_declarado").notNull().default(false),
   recargoDeclaradoEn: timestamp("recargo_declarado_en", { withTimezone: true }),
   recargoDeclaradoPor: uuid("recargo_declarado_por"),
+  propinaHabilitada: boolean("propina_habilitada").notNull().default(true),
   updatedAt: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
 });
 

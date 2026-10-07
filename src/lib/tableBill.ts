@@ -250,6 +250,9 @@ export interface PaymentSettings {
   debitSurchargePct: number;
   creditSurchargePct: number;
   surchargeDeclared: boolean;
+  /* "Mostrar propina al cliente". Off: guests don't see it and the database
+   * drops any tip they send. Staff can still add one. */
+  tipsEnabled: boolean;
 }
 
 /* Same defaults as a branch without a local_cobros row. */
@@ -266,6 +269,7 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   debitSurchargePct: 0,
   creditSurchargePct: 0,
   surchargeDeclared: false,
+  tipsEnabled: true,
 };
 
 export const mapPaymentSettings = (row: Json | null | undefined): PaymentSettings =>
@@ -283,6 +287,7 @@ export const mapPaymentSettings = (row: Json | null | undefined): PaymentSetting
         debitSurchargePct: num(row.recargo_debito_pct),
         creditSurchargePct: num(row.recargo_credito_pct),
         surchargeDeclared: Boolean(row.recargo_declarado),
+        tipsEnabled: row.propina_habilitada !== false,
       }
     : { ...DEFAULT_PAYMENT_SETTINGS };
 
@@ -505,14 +510,19 @@ export const previewPayment = (
 
   if (!(base > 0)) return { ok: false, reason: "nada-que-pagar" };
 
+  /* Same as _crear_pago_mesa / _propina_y_recargo: with tips off, a guest's
+   * tip is dropped (not rejected). Staff can still add one. */
+  const tipAllowed = actor === "personal" || settings.tipsEnabled !== false;
+  const tipPercent = tipAllowed ? draft.tipPercent : null;
+  const tipAmount = tipAllowed ? draft.tipAmount : null;
   let tip = 0;
-  if (draft.tipPercent != null && draft.tipPercent !== 0) {
-    if (![5, 10, 15].includes(draft.tipPercent)) {
+  if (tipPercent != null && tipPercent !== 0) {
+    if (![5, 10, 15].includes(tipPercent)) {
       return { ok: false, reason: "propina-invalida" };
     }
-    tip = pgRound((base * draft.tipPercent) / 100);
-  } else if (draft.tipPercent == null && draft.tipAmount != null) {
-    tip = Math.trunc(draft.tipAmount);
+    tip = pgRound((base * tipPercent) / 100);
+  } else if (tipPercent == null && tipAmount != null) {
+    tip = Math.trunc(tipAmount);
     if (tip < 0 || tip > base) return { ok: false, reason: "propina-invalida" };
   }
 

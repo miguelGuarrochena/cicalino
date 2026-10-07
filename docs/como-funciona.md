@@ -42,7 +42,7 @@ listo, hay mesa o pide la cuenta"*. Esos son los tres momentos.
 - Recepción: queda en la lista y le llega "García, ¡tu mesa está lista!".
 - Pagos divididos: pone su nombre, ve la carta, pide, **llama al mozo**, ve la
   cuenta y paga lo suyo, partes iguales, un monto o un porcentaje, con propina
-  propia. Mercado Pago, transferencia, efectivo, débito o crédito, según lo
+  propia si el local la habilita. Mercado Pago, transferencia, efectivo, débito o crédito, según lo
   que el local active.
 
 **Local (panel)**

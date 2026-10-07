@@ -601,6 +601,7 @@ export const paymentSettingsSchema = z
     debitSurchargePct: pct,
     creditSurchargePct: pct,
     surchargeDeclared: z.boolean(),
+    tipsEnabled: z.boolean().default(true),
   })
   .superRefine((v, ctx) => {
     if (v.transfer && (!v.transferAlias || !v.transferHolder)) {

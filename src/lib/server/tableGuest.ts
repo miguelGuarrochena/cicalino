@@ -206,7 +206,7 @@ export const fetchGuestPaymentOptions = async (
     admin
       .from("local_cobros")
       .select(
-        "acepta_mercado_pago, acepta_transferencia, acepta_efectivo, acepta_qr_mercado_pago, acepta_debito, acepta_credito, transferencia_alias, transferencia_titular, transferencia_cbu, recargo_debito_pct, recargo_credito_pct, recargo_declarado",
+        "acepta_mercado_pago, acepta_transferencia, acepta_efectivo, acepta_qr_mercado_pago, acepta_debito, acepta_credito, transferencia_alias, transferencia_titular, transferencia_cbu, recargo_debito_pct, recargo_credito_pct, recargo_declarado, propina_habilitada",
       )
       .eq("local_id", branchId)
       .maybeSingle(),

@@ -318,7 +318,7 @@ export const fetchPaymentSettings = async (
     supabase
       .from("local_cobros")
       .select(
-        "acepta_mercado_pago, acepta_transferencia, acepta_efectivo, acepta_qr_mercado_pago, acepta_debito, acepta_credito, transferencia_alias, transferencia_titular, transferencia_cbu, recargo_debito_pct, recargo_credito_pct, recargo_declarado, recargo_declarado_en",
+        "acepta_mercado_pago, acepta_transferencia, acepta_efectivo, acepta_qr_mercado_pago, acepta_debito, acepta_credito, transferencia_alias, transferencia_titular, transferencia_cbu, recargo_debito_pct, recargo_credito_pct, recargo_declarado, recargo_declarado_en, propina_habilitada",
       )
       .eq("local_id", branchId)
       .maybeSingle(),
@@ -366,6 +366,7 @@ export const savePaymentSettings = async (
       recargo_debito_pct: v.data.debitSurchargePct,
       recargo_credito_pct: v.data.creditSurchargePct,
       recargo_declarado: v.data.surchargeDeclared,
+      propina_habilitada: v.data.tipsEnabled,
     },
     { onConflict: "local_id" },
   );
