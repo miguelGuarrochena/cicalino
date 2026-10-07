@@ -11,6 +11,7 @@
  * docs/como-funciona.md, "offline"). */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import "./showroom.css";
 import { ALL_IMAGES, LogoImg } from "./art";
 import { ShowNavContext, type ShowNav } from "./scenes";
@@ -185,15 +186,23 @@ export const Showroom = () => {
       >
         {/* Arriba: la marca y, dentro de un recorrido, dónde estamos. */}
         <header className="flex h-[clamp(3.25rem,8vh,4.5rem)] shrink-0 items-center justify-between px-5 sm:px-8">
-          <button
-            type="button"
-            onClick={nav.toSelector}
-            className="flex items-center gap-3 rounded-full"
-            aria-label="Volver al inicio"
-          >
+          {/* El logo y "Volver" salen de la presentación al sitio. Dentro de
+           * un recorrido, "Temas" (abajo) vuelve a la portada. Sin prefetch:
+           * la presentación no hace llamadas de red mientras se muestra. */}
+          <Link href="/" prefetch={false} className="flex items-center gap-3 rounded-full" aria-label="Volver a la web">
             <LogoImg className="h-[clamp(1.75rem,4.5vh,2.5rem)]" />
-          </button>
+          </Link>
           <div className="flex items-center gap-1">
+            <Link
+              href="/"
+              prefetch={false}
+              className="mr-1 flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-marca/75 transition hover:bg-marca/8 hover:text-marca"
+            >
+              <svg viewBox="0 0 20 20" className="size-4" aria-hidden>
+                <path d="M12 4 L6 10 L12 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Volver
+            </Link>
             {tour && (
               <span className="mr-2 hidden text-sm font-semibold text-suave sm:inline">{tour.label}</span>
             )}
