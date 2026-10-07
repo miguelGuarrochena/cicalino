@@ -34,9 +34,11 @@ describe("mostrador-qr-pago-previo.sql", () => {
     );
   });
 
-  it("va al final de orden.json y está en el chequeo de migraciones", () => {
+  it("va después de pedidos-modalidades-combinables y está en el chequeo de migraciones", () => {
     const orden = JSON.parse(read("supabase/orden.json")) as string[];
-    expect(orden.at(-1)).toBe("mostrador-qr-pago-previo.sql");
+    expect(orden.indexOf("mostrador-qr-pago-previo.sql")).toBe(
+      orden.indexOf("pedidos-modalidades-combinables.sql") + 1,
+    );
     const chequeo = read("supabase/chequeo-migraciones.sql");
     expect(chequeo).toContain("'locales.mostrador_qr_pago_previo'");
     expect(chequeo).toContain("('mostrador-qr-pago-previo.sql', 'pedidos-modalidades-combinables.sql')");

@@ -81,10 +81,13 @@ export const PayScreen = ({
   const missing = bill.totals.available;
   const ready = bill.session.billState === "lista" || (bill.totals.consumption > 0 && missing <= 0);
 
-  const tipFields = {
-    tipPercent: (tip === "otro" ? null : tip) as 0 | 5 | 10 | 15 | null,
-    tipAmount: tip === "otro" ? Math.max(0, Math.trunc(Number(tipOther) || 0)) : null,
-  };
+  const tipsEnabled = settings.tipsEnabled !== false;
+  const tipFields = tipsEnabled
+    ? {
+        tipPercent: (tip === "otro" ? null : tip) as 0 | 5 | 10 | 15 | null,
+        tipAmount: tip === "otro" ? Math.max(0, Math.trunc(Number(tipOther) || 0)) : null,
+      }
+    : {};
 
   const shareDraft: PaymentDraft | null = useMemo(() => {
     if (!method || mode === "uno") return null;
@@ -101,7 +104,7 @@ export const PayScreen = ({
       percent: mode === "porcentaje" && amount > 0 ? amount : null,
       ...tipFields,
     };
-  }, [method, mode, amountInput, totalPartsInput, tip, tipOther]);
+  }, [method, mode, amountInput, totalPartsInput, tip, tipOther, tipsEnabled]);
 
   const sharePreview = shareDraft ? previewGuestShare(bill, guestId, shareDraft, settings) : null;
   const payAllPreview = method
@@ -290,34 +293,36 @@ export const PayScreen = ({
 
   const methodAndTip = (
     <>
-      <fieldset>
-        <legend className="mb-2.5 text-base font-bold uppercase tracking-wide text-carbon">
-          {t("mesa.propinaTitulo")}
-        </legend>
-        <div className="flex flex-wrap gap-2">
-          {([0, 5, 10, 15, "otro"] as const).map((p) => (
-            <button
-              key={String(p)}
-              type="button"
-              aria-pressed={tip === p}
-              onClick={() => touch(setTip)(p)}
-              className={chip(tip === p)}
-            >
-              {p === 0 ? t("mesa.sinPropina") : p === "otro" ? t("mesa.otroMonto") : `${p}%`}
-            </button>
-          ))}
-        </div>
-        {tip === "otro" && (
-          <input
-            inputMode="numeric"
-            value={tipOther}
-            onChange={(e) => touch(setTipOther)(e.target.value.replace(/\D/g, ""))}
-            placeholder="$"
-            aria-label={t("mesa.otroMonto")}
-            className="mt-2.5 min-h-12 w-full rounded-xl border-2 border-linea bg-surface px-3 text-base"
-          />
-        )}
-      </fieldset>
+      {tipsEnabled && (
+        <fieldset>
+          <legend className="mb-2.5 text-base font-bold uppercase tracking-wide text-carbon">
+            {t("mesa.propinaTitulo")}
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {([0, 5, 10, 15, "otro"] as const).map((p) => (
+              <button
+                key={String(p)}
+                type="button"
+                aria-pressed={tip === p}
+                onClick={() => touch(setTip)(p)}
+                className={chip(tip === p)}
+              >
+                {p === 0 ? t("mesa.sinPropina") : p === "otro" ? t("mesa.otroMonto") : `${p}%`}
+              </button>
+            ))}
+          </div>
+          {tip === "otro" && (
+            <input
+              inputMode="numeric"
+              value={tipOther}
+              onChange={(e) => touch(setTipOther)(e.target.value.replace(/\D/g, ""))}
+              placeholder="$"
+              aria-label={t("mesa.otroMonto")}
+              className="mt-2.5 min-h-12 w-full rounded-xl border-2 border-linea bg-surface px-3 text-base"
+            />
+          )}
+        </fieldset>
+      )}
 
       <fieldset>
         <legend className="mb-2.5 text-base font-bold uppercase tracking-wide text-carbon">

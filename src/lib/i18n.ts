@@ -135,7 +135,7 @@ const dict = {
         q3: "¿Cicalino imprime los QR de las mesas?",
         a3: "No. Los descargás e imprimís vos desde Pagos → Imprimir QR. Cicalino no imprime ni envía stickers.",
         q4: "¿Cómo se divide la cuenta?",
-        a4: "Cada uno puede pagar lo suyo, a partes iguales, un monto, un porcentaje, o que uno pague todo. Cada comensal pone su propina. El local activa los medios: Mercado Pago, transferencia, efectivo o tarjeta.",
+        a4: "Cada uno puede pagar lo suyo, a partes iguales, un monto, un porcentaje, o que uno pague todo. Cada comensal puede elegir su propina si el local tiene habilitada esta opción. El local activa los medios: Mercado Pago, transferencia, efectivo o tarjeta.",
         q5: "¿Dónde veo las mesas que ya cerré?",
         a5: "En Pagos → Historial. Es solo de mesas cerradas: quién pagó, cuánto y con qué. No es el historial de Pedidos ni el de Recepción.",
         q6: "¿Las comandas de mesa cuentan en métricas?",
@@ -249,7 +249,7 @@ const dict = {
           uno: "Uno paga toda la cuenta",
           monto: "Paga un monto",
           porcentaje: "Paga un porcentaje de la cuenta",
-          propina: "Pone su propina",
+          propina: "Pone su propina, si el local la habilita",
           metodo: "Elige cómo pagar, con lo que el local tenga activo",
         },
         ladoLocal: "El local, en el panel",
@@ -274,7 +274,7 @@ const dict = {
           },
           dividi: {
             titulo: "Eligen cómo",
-            sub: "Su consumo, partes iguales, un monto o un porcentaje. Cada uno su propina.",
+            sub: "Su consumo, partes iguales, un monto o un porcentaje. Cada uno su propina, si el local la habilita.",
           },
           paga: {
             titulo: "Pagan",
@@ -292,7 +292,7 @@ const dict = {
           },
           propina: {
             titulo: "Propina de cada uno",
-            sub: "Sin propina, 5%, 10%, 15% u otro monto. No se mezcla con la de al lado.",
+            sub: "Sin propina, 5%, 10%, 15% u otro monto. No se mezcla con la de al lado. El local decide si la muestra.",
           },
           local: {
             titulo: "Sabés si la mesa está cubierta",
@@ -2239,6 +2239,8 @@ const dict = {
       recargo: "Recargo",
       recargoLegal: "Antes de cobrar recargo, verificá que la normativa aplicable a tu comercio y al medio de pago lo permita. En Argentina hay reglas que limitan cobrar distinto por pagar con tarjeta. Cicalino no puede verificarlo por vos.",
       recargoDeclaro: "Confirmo que el recargo está permitido para mi comercio y medio de pago. Queda registrado quién lo confirmó y cuándo.",
+      propina: "Mostrar propina al cliente",
+      propinaAyuda: "El comensal puede sumar propina al pagar desde el celular: sin propina, 5%, 10%, 15% u otro monto. Apagado, no la ve. Desde el panel podés seguir registrando una propina al cobrar.",
       mp: {
         conectar: "Conectar cuenta de Mercado Pago",
         desconectar: "Desconectar",
@@ -2384,7 +2386,7 @@ const dict = {
         q3: "Does Cicalino print the table QRs?",
         a3: "No. You download and print them from Payments → Print QR. Cicalino does not print or ship stickers.",
         q4: "How is the bill split?",
-        a4: "Each guest can pay their items, equal parts, an amount, a percentage, or one person pays all. Each adds their own tip. The venue enables Mercado Pago, transfer, cash or card.",
+        a4: "Each guest can pay their items, equal parts, an amount, a percentage, or one person pays all. Each guest can choose their own tip if the venue has this option enabled. The venue enables Mercado Pago, transfer, cash or card.",
         q5: "Where do I see tables I already closed?",
         a5: "In Payments → History. It’s only closed tables: who paid, how much and with what. Not Orders or Reception history.",
         q6: "Do table tickets count in metrics?",
@@ -2493,7 +2495,7 @@ const dict = {
           uno: "One person pays the whole bill",
           monto: "Pay a set amount",
           porcentaje: "Pay a percentage of the bill",
-          propina: "Add their own tip",
+          propina: "Add their own tip, if the venue enables it",
           metodo: "Choose a method the restaurant enabled",
         },
         ladoLocal: "The restaurant, in the panel",
@@ -2518,7 +2520,7 @@ const dict = {
           },
           dividi: {
             titulo: "Pick how",
-            sub: "Their items, equal parts, an amount or a percentage. Each their own tip.",
+            sub: "Their items, equal parts, an amount or a percentage. Each their own tip, if the venue enables it.",
           },
           paga: {
             titulo: "Pay",
@@ -2536,7 +2538,7 @@ const dict = {
           },
           propina: {
             titulo: "Each person's tip",
-            sub: "No tip, 5%, 10%, 15% or another amount. It doesn't mix with the next guest's.",
+            sub: "No tip, 5%, 10%, 15% or another amount. It doesn't mix with the next guest's. The venue decides whether to show it.",
           },
           local: {
             titulo: "Know if the table is covered",
@@ -4443,6 +4445,8 @@ const dict = {
       recargo: "Surcharge",
       recargoLegal: "Before charging a surcharge, check that the rules for your business and payment method allow it. In Argentina there are rules limiting different prices for card payments. Cicalino can't check this for you.",
       recargoDeclaro: "I confirm the surcharge is allowed for my business and payment method. Who confirmed it and when is logged.",
+      propina: "Show tip to guests",
+      propinaAyuda: "Guests can add a tip when paying from their phone: no tip, 5%, 10%, 15% or another amount. When off, they don't see it. You can still record a tip from the panel when collecting.",
       mp: {
         conectar: "Connect Mercado Pago account",
         desconectar: "Disconnect",

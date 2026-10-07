@@ -454,6 +454,135 @@ describe.skipIf(!enabled)("Integration — pagos divididos", () => {
     expect(g.estado).toBe("cancelado");
   });
 
+  describe("propina apagada (local_cobros.propina_habilitada = false)", () => {
+    const apagarPropina = async () => {
+      await comoBase();
+      await sql(`update public.local_cobros set propina_habilitada = false where local_id = $1`, [local]);
+      await como("service_role", null);
+    };
+    const pagarTodo = (g: { id: string; hash: string }, datos: Record<string, unknown>) =>
+      rpc(`select public.pagar_todo_comensal($1, $2, $3) r`, [
+        g.id,
+        g.hash,
+        JSON.stringify({ clave: crypto.randomUUID(), ...datos }),
+      ]);
+
+    it("definir_parte_comensal guarda propina 0 con porcentaje o con monto", async () => {
+      await como("service_role", null);
+      const juan = await unirse("Juan");
+      const maria = await unirse("María");
+      await pedir(juan, [["Hamburguesa", 1], ["Coca-Cola", 1]]);
+      await pedir(maria, [["Pizza", 1], ["Agua", 1]]);
+      await apagarPropina();
+
+      const pj = await definir(juan, { modo: "consumo", metodo: "efectivo", propina_porcentaje: 10 });
+      expect(pj).toMatchObject({ ok: true, monto_base: 12000, propina: 0, monto_total: 12000 });
+      const pm = await definir(maria, { modo: "consumo", metodo: "efectivo", propina_monto: 3000 });
+      expect(pm).toMatchObject({ ok: true, monto_base: 17000, propina: 0, monto_total: 17000 });
+
+      await comoBase();
+      const filas = await sql(
+        `select propina, propina_porcentaje from public.pagos_mesa where sesion_id = $1`,
+        [juan.sesion],
+      );
+      expect(filas).toEqual([
+        { propina: 0, propina_porcentaje: null },
+        { propina: 0, propina_porcentaje: null },
+      ]);
+    });
+
+    it("pagar_todo_comensal guarda propina 0", async () => {
+      await como("service_role", null);
+      const juan = await unirse("Juan");
+      await pedir(juan, [["Hamburguesa", 1], ["Coca-Cola", 1]]);
+      await apagarPropina();
+
+      const p = await pagarTodo(juan, { metodo: "efectivo", propina_porcentaje: 15 });
+      expect(p).toMatchObject({ ok: true, monto_base: 12000, propina: 0, monto_total: 12000 });
+    });
+
+    it("pagar_como_comensal (camino viejo) tampoco la guarda", async () => {
+      await como("service_role", null);
+      const juan = await unirse("Juan");
+      await pedir(juan, [["Hamburguesa", 1]]);
+      await apagarPropina();
+
+      const p = await pagar(juan, { modo: "uno", metodo: "efectivo", propina_monto: 1000 });
+      expect(p).toMatchObject({ ok: true, propina: 0, monto_total: 10000 });
+    });
+
+    it("cliente viejo con la propina en monto_esperado: monto-cambio, sin cobrar nada", async () => {
+      await como("service_role", null);
+      const juan = await unirse("Juan");
+      const maria = await unirse("María");
+      await pedir(juan, [["Hamburguesa", 1], ["Coca-Cola", 1]]);
+      await pedir(maria, [["Pizza", 1]]);
+      await apagarPropina();
+
+      const parte = await definir(juan, {
+        modo: "consumo",
+        metodo: "efectivo",
+        propina_porcentaje: 10,
+        monto_esperado: 13200,
+      });
+      expect(parte).toMatchObject({ ok: false, reason: "monto-cambio", propina: 0, monto_total: 12000 });
+
+      const todo = await pagarTodo(maria, { metodo: "efectivo", propina_porcentaje: 10, monto_esperado: 29700 });
+      expect(todo).toMatchObject({ ok: false, reason: "monto-cambio", propina: 0, monto_total: 27000 });
+
+      await comoBase();
+      const activos = await sql(
+        `select id from public.pagos_mesa where sesion_id = $1 and estado <> 'cancelado'`,
+        [juan.sesion],
+      );
+      expect(activos).toHaveLength(0);
+
+      /* Con el total nuevo pasa. */
+      await como("service_role", null);
+      expect(
+        await definir(juan, { modo: "consumo", metodo: "efectivo", propina_porcentaje: 10, monto_esperado: 12000 }),
+      ).toMatchObject({ ok: true, propina: 0, monto_total: 12000 });
+    });
+
+    it("registrar_pago_personal: el personal sigue pudiendo cargar propina", async () => {
+      await como("service_role", null);
+      const juan = await unirse("Juan");
+      await pedir(juan, [["Hamburguesa", 1]]);
+      await apagarPropina();
+
+      await como("authenticated", admin);
+      const cobro = await rpc(`select public.registrar_pago_personal($1, $2) r`, [
+        juan.sesion,
+        JSON.stringify({
+          clave: crypto.randomUUID(),
+          modo: "monto",
+          monto: 10000,
+          metodo: "efectivo",
+          propina_monto: 800,
+          pagador_nombre: "Mesa 1",
+          confirmado: true,
+        }),
+      ]);
+      expect(cobro).toMatchObject({ ok: true, monto_base: 10000, propina: 800, monto_total: 10800 });
+    });
+
+    it("lo ya definido con propina no se toca al apagarla", async () => {
+      await como("service_role", null);
+      const juan = await unirse("Juan");
+      await pedir(juan, [["Hamburguesa", 1], ["Coca-Cola", 1]]);
+      const antes = await definir(juan, { modo: "consumo", metodo: "efectivo", propina_porcentaje: 10 });
+      expect(antes).toMatchObject({ ok: true, propina: 1200, monto_total: 13200 });
+      await apagarPropina();
+
+      await comoBase();
+      const fila = await uno<{ propina: number; monto_total: number }>(
+        `select propina, monto_total from public.pagos_mesa where id = $1`,
+        [antes.pago_id],
+      );
+      expect(fila).toEqual({ propina: 1200, monto_total: 13200 });
+    });
+  });
+
   it("mesa pagada sigue ocupada y anular el cobro manual la reabre", async () => {
     await como("service_role", null);
     const j = await unirse("Juan");

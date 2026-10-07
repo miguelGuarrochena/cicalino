@@ -309,6 +309,15 @@ export const PaymentMethodsCard = ({
             </label>
           </div>
         )}
+
+        <MethodBox
+          checked={s.tipsEnabled}
+          disabled={!canEdit}
+          onChange={(v) => set("tipsEnabled", v)}
+          label={t("cobros.propina")}
+        >
+          <p className="text-xs text-carbon/55">{t("cobros.propinaAyuda")}</p>
+        </MethodBox>
       </div>
 
       {error && (
