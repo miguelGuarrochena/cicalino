@@ -496,7 +496,7 @@ describe("Cobros de una mesa: sin acciones repetidas", () => {
       detalle.indexOf("const moveOrder"),
     );
     expect(fn).toContain("for (const p of waitingPayments)");
-    expect(fn).toContain("confirmTablePayment(p.id, employeeId)");
+    expect(fn).toContain("confirmTablePayment(p.id, employeeId, p.total)");
     /* Nada de registrar cobros nuevos por su cuenta: eso es "Cobrar". */
     expect(fn).not.toContain("registerStaffPayment");
     /* Si uno falla, corta y lo dice; los anteriores quedaron confirmados. */

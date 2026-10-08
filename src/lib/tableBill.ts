@@ -235,6 +235,33 @@ export const mapBill = (raw: unknown): TableBill | null => {
   };
 };
 
+/* ---- Which snapshot the screen keeps ----------------------------------- */
+
+/* The guest screen gets the bill from three places that don't wait for each
+ * other: the fallback poll, the Realtime "cambio" reload and the response of
+ * its own action. A request that left before a change can land after the
+ * one that already shows it. Every write to a bill bumps
+ * mesa_sesiones.version, so the version orders them:
+ *
+ *  · another session (a new visit): always the new one;
+ *  · lower version: an old snapshot, keep what's on screen;
+ *  · same version and same content: keep the current object, so React
+ *    doesn't re-render for a duplicate event;
+ *  · otherwise: the new one.
+ *
+ * Returning `current` itself (not a copy) is what makes setState a no-op. */
+export const nextBill = (current: TableBill | null, next: TableBill): TableBill => {
+  if (!current || current.session.id !== next.session.id) return next;
+  if (next.session.version < current.session.version) return current;
+  if (
+    next.session.version === current.session.version &&
+    JSON.stringify(next) === JSON.stringify(current)
+  ) {
+    return current;
+  }
+  return next;
+};
+
 /* ---- Payment settings ------------------------------------------------- */
 
 export interface PaymentSettings {
@@ -366,9 +393,25 @@ export const parsePartCount = (raw: string): number | null => {
   return n;
 };
 
-/* Postgres round() on numeric rounds half away from zero; every amount here
- * is positive, where Math.round does the same. */
-const pgRound = (n: number): number => Math.round(n);
+/* `round(amount * pct / 100)` exactly as Postgres does it on numeric: the
+ * product is exact and .5 rounds up (every amount here is positive).
+ *
+ * Math.round(amount * pct / 100) is not the same thing once pct has decimals
+ * (local_cobros.recargo_*_pct is numeric(4,2), "pagar por porcentaje" takes
+ * any decimal): 25000 * 0.29 is 7249.999… in floating point, so the screen
+ * showed $72 and the database charged $73. Since the database checks
+ * monto_esperado, that guest got "monto-cambio" on every retry. */
+export const percentOf = (amount: number, pct: number): number => {
+  const a = Math.trunc(amount);
+  const text = String(pct);
+  if (!Number.isFinite(pct) || pct <= 0 || a <= 0) return 0;
+  if (!/^\d+(\.\d+)?$/.test(text)) return Math.round((a * pct) / 100);
+  const [whole, frac = ""] = text.split(".");
+  const scaled = BigInt(whole + frac);
+  const den = BigInt(100) * BigInt(10) ** BigInt(frac.length);
+  const two = BigInt(2);
+  return Number((two * BigInt(a) * scaled + den) / (two * den));
+};
 
 export const activePayments = (bill: TableBill): BillPayment[] =>
   bill.payments.filter((p) => p.status !== "cancelado");
@@ -492,7 +535,7 @@ export const previewPayment = (
     if (draft.percent == null || !(draft.percent > 0 && draft.percent <= 100)) {
       return { ok: false, reason: "porcentaje-invalido" };
     }
-    base = pgRound((consumption * draft.percent) / 100);
+    base = percentOf(consumption, draft.percent);
     if (base > available) return { ok: false, reason: "excede", available };
   } else {
     if (draft.amount != null) {
@@ -501,7 +544,7 @@ export const previewPayment = (
       if (!(draft.percent > 0 && draft.percent <= 100)) {
         return { ok: false, reason: "porcentaje-invalido" };
       }
-      base = pgRound((consumption * draft.percent) / 100);
+      base = percentOf(consumption, draft.percent);
     } else {
       return { ok: false, reason: "monto-invalido" };
     }
@@ -520,14 +563,14 @@ export const previewPayment = (
     if (![5, 10, 15].includes(tipPercent)) {
       return { ok: false, reason: "propina-invalida" };
     }
-    tip = pgRound((base * tipPercent) / 100);
+    tip = percentOf(base, tipPercent);
   } else if (tipPercent == null && tipAmount != null) {
     tip = Math.trunc(tipAmount);
     if (tip < 0 || tip > base) return { ok: false, reason: "propina-invalida" };
   }
 
   const surchargePercent = surchargePercentFor(settings, draft.method);
-  const surcharge = surchargePercent > 0 ? pgRound((base * surchargePercent) / 100) : 0;
+  const surcharge = surchargePercent > 0 ? percentOf(base, surchargePercent) : 0;
 
   return {
     ok: true,

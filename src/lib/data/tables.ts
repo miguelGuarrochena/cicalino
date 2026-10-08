@@ -183,8 +183,18 @@ export const subscribeTableBills = (
   };
 };
 
-export const confirmTablePayment = (paymentId: string, employeeId: string | null) =>
-  rpc("confirmar_pago_mesa", { p_pago: paymentId, p_empleado: employeeId }, "panel.mesas.confirmar");
+/* expectedTotal: el importe que muestra el botón. Si el pago no es ese, la
+ * base contesta monto-cambio y no confirma nada (mesa-consistencia-cobros.sql). */
+export const confirmTablePayment = (
+  paymentId: string,
+  employeeId: string | null,
+  expectedTotal: number,
+) =>
+  rpc(
+    "confirmar_pago_mesa",
+    { p_pago: paymentId, p_empleado: employeeId, p_monto_esperado: expectedTotal },
+    "panel.mesas.confirmar",
+  );
 
 export const cancelTablePayment = (
   paymentId: string,

@@ -233,8 +233,9 @@ describe.skipIf(!enabled)("Integration — roles del personal", () => {
     ]);
     expect(cobro).toMatchObject({ ok: true, estado: "pagado" });
 
+    /* Cubierta y sin pendientes: se cierra sola (mesa-cierre-al-pagar.sql). */
     const lista = (await rpc(`select public.mesas_cuentas($1) r`, [local])) as unknown as { sesion: { estado: string } }[];
-    expect(lista[0]?.sesion.estado).toBe("pagada");
+    expect(lista[0]?.sesion.estado).toBe("cerrada");
 
     await comoBase();
     const g = await uno<{ confirmado_por: string; confirmado_empleado: string }>(

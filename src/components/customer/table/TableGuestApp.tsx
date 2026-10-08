@@ -25,6 +25,7 @@ import { clearGuestCred, loadGuestCred, saveGuestCred } from "@/lib/guestSession
 import {
   billRequested,
   formatMoney,
+  nextBill,
   type PaymentSettings,
   type TableBill,
 } from "@/lib/tableBill";
@@ -65,8 +66,6 @@ export interface TableGuestInitial {
 
 type Tab = "carta" | "pedidos" | "cuenta";
 
-const POLL_VISIBLE_MS = 5_000;
-
 const newKey = () => crypto.randomUUID();
 
 export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
@@ -77,6 +76,10 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
 
   const [guest, setGuest] = useState(initial.guest);
   const [bill, setBill] = useState<TableBill | null>(initial.bill);
+  const [payment, setPayment] = useState({
+    settings: initial.settings,
+    mercadoPagoReady: initial.mercadoPagoReady,
+  });
       const [tab, setTab] = useState<Tab>(
         initial.returningPaymentId || (initial.bill && initial.bill.totals.consumption > 0)
           ? "cuenta"
@@ -101,29 +104,52 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   const [enviado, setEnviado] = useState<CartLine[] | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(initial.returningPaymentId);
   const [pagoTotalAviso, setPagoTotalAviso] = useState<string | null>(null);
+  /* Poll, Realtime y la respuesta de cada acción llegan en cualquier orden:
+   * nextBill se queda con la versión más nueva (ver tableBill.ts). */
   const applyBill = useCallback((next: TableBill | null) => {
-    if (next) setBill(next);
+    if (next) setBill((cur) => nextBill(cur, next));
   }, []);
+  /* Cada visita a la mesa (entrar, "Pedir algo más") es otra. Una consulta
+   * que salió durante la visita anterior trae la sesión vieja y ya cerrada:
+   * se descarta en vez de volver a ponerla en pantalla. */
+  const visita = useRef(0);
   const handleJoined = useCallback(
     (g: { id: string; name: string }, b: TableBill) => {
+      visita.current += 1;
       setGuest(g);
       applyBill(b);
     },
     [applyBill],
   );
 
-  /* Polling with the tab visible; one refresh when it comes back. Nothing is
-   * kept only in memory, so a reload or a dropped connection resumes from the
-   * server state. */
-  const refresh = useCallback(async () => {
+  /* Nothing is kept only in memory, so a reload or a dropped connection
+   * resumes from the server state. */
+  const refresh = useCallback(async (opts?: { config?: boolean }) => {
+    const mia = visita.current;
     try {
-      const res = await fetch(`/api/m/${token}/cuenta`, { cache: "no-store" });
+      const res = await fetch(`/api/m/${token}/cuenta${opts?.config ? "?config=1" : ""}`, {
+        cache: "no-store",
+      });
       const data = (await res.json().catch(() => null)) as
-        | { ok: boolean; reason?: string; tableToken?: string; bill?: TableBill; guest?: { id: string; name: string } }
+        | {
+            ok: boolean;
+            reason?: string;
+            tableToken?: string;
+            bill?: TableBill;
+            guest?: { id: string; name: string };
+            settings?: PaymentSettings;
+            mercadoPagoReady?: boolean;
+          }
         | null;
-      if (!data) return;
+      if (!data || mia !== visita.current) return;
       if (data.ok && data.bill) {
         applyBill(data.bill);
+        if (data.settings) {
+          setPayment({
+            settings: data.settings,
+            mercadoPagoReady: Boolean(data.mercadoPagoReady),
+          });
+        }
         if (data.guest) {
           const next = data.guest;
           setGuest((cur) =>
@@ -141,27 +167,9 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
     }
   }, [token, router, applyBill]);
 
-  useEffect(() => {
-    if (!guest) return;
-    let id: number | undefined;
-    const tick = () => {
-      window.clearInterval(id);
-      if (document.visibilityState === "visible") {
-        void refresh();
-        id = window.setInterval(() => void refresh(), POLL_VISIBLE_MS);
-      }
-    };
-    tick();
-    document.addEventListener("visibilitychange", tick);
-    window.addEventListener("online", tick);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", tick);
-      window.removeEventListener("online", tick);
-    };
-  }, [guest?.id, refresh]);
-
-  useTableBillLive(bill?.session.id ?? null, refresh);
+  /* Realtime + respaldo (ver useTableBillLive). Sin comensal no hay cuenta
+   * que mirar: la pantalla de entrar no consulta nada. */
+  useTableBillLive(guest ? (bill?.session.id ?? null) : null, refresh);
 
   useEffect(() => {
     if (!guest || !bill?.session.requestedAt || !bill.session.fullPayerId) return;
@@ -371,11 +379,16 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
         {!open && (
           <CustomerNotice tone="ok" className="mt-4">
             <p className="font-semibold">
-              {bill.session.status === "pagada" ? t("mesa.mesaPagada") : t("mesa.mesaCerrada")}
+              {/* Cubrir la cuenta la cierra sola (mesa-cierre-al-pagar.sql): pagada_en
+                queda puesto y el cartel es el de "pagada", no "el local cerró". */}
+              {bill.session.status === "pagada" || bill.session.paidAt
+                ? t("mesa.mesaPagada")
+                : t("mesa.mesaCerrada")}
             </p>
             <button
               type="button"
               onClick={() => {
+                visita.current += 1;
                 setGuest(null);
                 setBill(null);
               }}
@@ -474,10 +487,10 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
             token={token}
             bill={bill}
             guestId={guest.id}
-            settings={initial.settings}
-            mercadoPagoReady={initial.mercadoPagoReady}
+            settings={payment.settings}
+            mercadoPagoReady={payment.mercadoPagoReady}
             onBill={applyBill}
-            onStale={() => void refresh()}
+            onStale={() => void refresh({ config: true })}
           />
         ) : tab === "cuenta" ? (
           <section className="mt-4 flex flex-col gap-5">
@@ -495,7 +508,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
                       paymentId={p.id}
                       method={p.method}
                       total={p.total}
-                      settings={initial.settings}
+                      settings={payment.settings}
                       requested={billRequested(bill)}
                       onChanged={applyBill}
                     />

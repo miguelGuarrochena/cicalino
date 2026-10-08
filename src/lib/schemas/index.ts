@@ -510,6 +510,9 @@ export const staffPaymentSchema = z
     guestId: uuid.optional().nullable(),
     payerName: z.string().trim().min(1).max(40).optional().nullable(),
     confirmed: z.boolean().default(true),
+    /* Lo que el panel muestra en el botón. Viaja como monto_esperado y
+     * _crear_pago_mesa lo valida igual que en los pagos del comensal. */
+    expectedTotal: z.coerce.number().int().min(1).max(30_000_000),
   })
   .refine((v) => v.guestId || v.payerName, {
     message: "Indicá quién paga.",

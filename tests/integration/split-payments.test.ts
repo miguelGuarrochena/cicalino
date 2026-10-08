@@ -17,6 +17,12 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import pg from "pg";
+import {
+  mapBill,
+  mapPaymentSettings,
+  previewGuestShare,
+  previewPayment,
+} from "@/lib/tableBill";
 
 const enabled = process.env.RUN_DB_CHECKS === "1";
 
@@ -225,8 +231,9 @@ describe.skipIf(!enabled)("Integration — pagos divididos", () => {
     let lista = (await rpc(`select public.mesas_cuentas($1) r`, [local])) as unknown as { sesion: { estado: string } }[];
     expect(lista[0]?.sesion.estado).toBe("abierta");
     expect((await rpc(`select public.confirmar_pago_mesa($1) r`, [pm.pago_id])).ok).toBe(true);
+    /* Cubierta y sin pagos pendientes: se cierra sola (mesa-cierre-al-pagar.sql). */
     lista = (await rpc(`select public.mesas_cuentas($1) r`, [local])) as unknown as { sesion: { estado: string } }[];
-    expect(lista[0]?.sesion.estado).toBe("pagada");
+    expect(lista[0]?.sesion.estado).toBe("cerrada");
   });
 
   it("partes iguales cierra exacto y monto/porcentaje no deja pasar de lo que falta", async () => {
@@ -583,29 +590,451 @@ describe.skipIf(!enabled)("Integration — pagos divididos", () => {
     });
   });
 
-  it("mesa pagada sigue ocupada y anular el cobro manual la reabre", async () => {
-    await como("service_role", null);
-    const j = await unirse("Juan");
-    await pedir(j, [["Hamburguesa", 1]]);
-    const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
-    await como("authenticated", admin);
-    expect((await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id])).ok).toBe(true);
-    let sesion = await uno<{ estado: string }>(
-      `select estado from public.mesa_sesiones where id = $1`,
-      [j.sesion],
-    );
-    expect(sesion.estado).toBe("pagada");
-    await como("service_role", null);
-    expect((await unirse("María")).r.reason).toBe("mesa-ocupada");
-    await como("authenticated", admin);
-    expect(
-      (await rpc(`select public.cancelar_pago_mesa($1, $2) r`, [p.pago_id, "cobro mal anotado"])).ok,
-    ).toBe(true);
-    sesion = await uno<{ estado: string }>(
-      `select estado from public.mesa_sesiones where id = $1`,
-      [j.sesion],
-    );
-    expect(sesion.estado).toBe("abierta");
+  describe("cierre automático al quedar pagada (mesa-cierre-al-pagar.sql)", () => {
+    const sesion = (id: string) =>
+      uno<{ estado: string; cerrada_motivo: string | null; pagada_en: Date | null; version: number }>(
+        `select estado, cerrada_motivo, pagada_en, version from public.mesa_sesiones where id = $1`,
+        [id],
+      );
+
+    it("el último cobro cierra la mesa, la libera y no deja pedir más en esa cuenta", async () => {
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await como("authenticated", admin);
+      expect((await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id])).ok).toBe(true);
+
+      await comoBase();
+      const s = await sesion(j.sesion);
+      expect(s).toMatchObject({ estado: "cerrada", cerrada_motivo: "pagada" });
+      expect(s.pagada_en).not.toBeNull();
+
+      await como("service_role", null);
+      expect((await pedir(j, [["Agua", 1]])).reason).toBe("mesa-cerrada");
+      const cuenta = await rpc(`select public.cuenta_comensal($1, $2) r`, [j.id, j.hash]);
+      expect(cuenta.ok).toBe(true);
+      expect((cuenta.cuenta as { sesion: { estado: string } }).sesion.estado).toBe("cerrada");
+    });
+
+    it("después del cierre, escanear el QR abre una sesión nueva en la misma mesa", async () => {
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id]);
+
+      await como("service_role", null);
+      const m = await unirse("María");
+      expect(m.r).toMatchObject({ ok: true, sesion_nueva: true });
+      expect(m.sesion).not.toBe(j.sesion);
+      expect((await pedir(m, [["Agua", 1]])).ok).toBe(true);
+      await comoBase();
+      expect((await sesion(m.sesion)).estado).toBe("abierta");
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+    });
+
+    it("pago parcial deja la mesa abierta; el saldo con tarjeta y recargo la cierra", async () => {
+      await como("authenticated", admin);
+      await sql(
+        `update public.local_cobros set recargo_credito_pct = 10, recargo_declarado = true where local_id = $1`,
+        [local],
+      );
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      const m = await unirse("María");
+      await pedir(j, [["Hamburguesa", 1]]);
+      await pedir(m, [["Pizza", 1]]);
+
+      const parcial = await pagar(j, { modo: "consumo", metodo: "efectivo" });
+      await como("authenticated", admin);
+      expect((await rpc(`select public.confirmar_pago_mesa($1) r`, [parcial.pago_id])).ok).toBe(true);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("abierta");
+
+      await como("service_role", null);
+      const saldo = await pagar(m, { modo: "consumo", metodo: "tarjeta_credito" });
+      expect(saldo).toMatchObject({ ok: true, monto_base: 15000, recargo: 1500, monto_total: 16500 });
+      await como("authenticated", admin);
+      expect((await rpc(`select public.confirmar_pago_mesa($1) r`, [saldo.pago_id])).ok).toBe(true);
+
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+      await como("service_role", null);
+      const c = await rpc(`select public.cuenta_comensal($1, $2) r`, [m.id, m.hash]);
+      const tot = (c.cuenta as { totales: Record<string, number> }).totales;
+      expect(tot).toMatchObject({ consumo: 25000, recargos: 1500, total: 26500, pagado: 26500 });
+    });
+
+    it("Mercado Pago aprobado tarde sobre una mesa ya cerrada queda excedente y no la reabre", async () => {
+      await comoBase();
+      await sql(
+        `insert into public.mp_cuentas (local_id, mp_user_id, access_token_cifrado, refresh_token_cifrado, expira_en)
+         values ($1, '1', 'x', 'y', now() + interval '90 days')`,
+        [local],
+      );
+      await sql(`update public.local_cobros set acepta_mercado_pago = true where local_id = $1`, [local]);
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const mp = await pagar(j, { modo: "uno", metodo: "mercado_pago" });
+      await sql(`select public.mp_cancelar_pago($1, 'test')`, [mp.pago_id]);
+      const efectivo = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [efectivo.pago_id]);
+
+      await como("service_role", null);
+      const tarde = await rpc(
+        `select public.mp_confirmar_pago($1, $2, '77', 'approved', 10000, 'ARS') r`,
+        [local, mp.pago_id],
+      );
+      expect(tarde).toMatchObject({ ok: true, excedente: true });
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+    });
+
+    /* Comportamiento actual, a propósito explícito: antes la mesa quedaba
+     * `pagada` y el encargado podía anular un cobro confirmado por error.
+     * Cerrada, cancelar_pago_mesa lo rechaza. */
+    it("con la mesa ya cerrada, anular el cobro confirmado se rechaza", async () => {
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id]);
+      expect(
+        await rpc(`select public.cancelar_pago_mesa($1, $2) r`, [p.pago_id, "cobro mal anotado"]),
+      ).toMatchObject({ ok: false, reason: "mesa-cerrada" });
+    });
+
+    it("lo que muestra la pantalla es lo que registra la base, con recargo con decimales", async () => {
+      /* 25000 al 0,29%: Math.round daba 72 y Postgres 73. */
+      await como("authenticated", admin);
+      await sql(
+        `update public.local_cobros set recargo_credito_pct = 0.29, recargo_debito_pct = 1.15,
+                recargo_declarado = true where local_id = $1`,
+        [local],
+      );
+      await comoBase();
+      const ajustes = mapPaymentSettings(
+        await uno<Record<string, unknown>>(`select * from public.local_cobros where local_id = $1`, [local]),
+      );
+
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1], ["Pizza", 1]]);
+      const cuenta = async () =>
+        mapBill((await rpc(`select public.cuenta_comensal($1, $2) r`, [j.id, j.hash])).cuenta)!;
+
+      const vista = previewPayment(
+        await cuenta(),
+        j.id,
+        { mode: "uno", method: "tarjeta_credito", tipPercent: 10 },
+        ajustes,
+      );
+      expect(vista).toMatchObject({ ok: true, base: 25000, tip: 2500, surcharge: 73, total: 27573 });
+      if (!vista.ok) return;
+      const pago = await pagar(j, {
+        modo: "uno",
+        metodo: "tarjeta_credito",
+        propina_porcentaje: 10,
+        monto_esperado: vista.total,
+      });
+      expect(pago).toMatchObject({
+        ok: true,
+        monto_base: vista.base,
+        propina: vista.tip,
+        recargo: vista.surcharge,
+        monto_total: vista.total,
+      });
+      const despues = await cuenta();
+      expect(despues.totals.total).toBe(vista.total);
+    });
+
+    it("definir mi parte con débito: la base guarda el mismo total que mostró la pantalla", async () => {
+      await como("authenticated", admin);
+      await sql(
+        `update public.local_cobros set recargo_debito_pct = 1.15, recargo_declarado = true where local_id = $1`,
+        [local],
+      );
+      await comoBase();
+      const ajustes = mapPaymentSettings(
+        await uno<Record<string, unknown>>(`select * from public.local_cobros where local_id = $1`, [local]),
+      );
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Pizza", 1], ["Agua", 1]]);
+      await rpc(`select public.iniciar_division_comensal($1, $2) r`, [j.id, j.hash]);
+      const bill = mapBill((await rpc(`select public.cuenta_comensal($1, $2) r`, [j.id, j.hash])).cuenta)!;
+      const vista = previewGuestShare(
+        bill,
+        j.id,
+        { mode: "consumo", method: "tarjeta_debito", tipPercent: 5 },
+        ajustes,
+      );
+      expect(vista).toMatchObject({ ok: true, base: 17000, tip: 850, surcharge: 196 });
+      if (!vista.ok) return;
+      const parte = await definir(j, {
+        modo: "consumo",
+        metodo: "tarjeta_debito",
+        propina_porcentaje: 5,
+        monto_esperado: vista.total,
+      });
+      expect(parte).toMatchObject({ ok: true, monto_total: vista.total, recargo: vista.surcharge });
+    });
+
+    /* mesa-consistencia-cobros.sql. Hasta aplicarla, estos casos se saltean
+     * y lo dicen: la base todavía tiene la versión anterior. */
+    const conMigracionNueva = async (ctx: { skip: (nota?: string) => void }) => {
+      await comoBase();
+      const r = await uno<{ ok: boolean }>(
+        `select to_regprocedure('public.confirmar_pago_mesa(uuid, uuid, integer)') is not null ok`,
+      );
+      if (!r.ok) ctx.skip("falta aplicar mesa-consistencia-cobros.sql (pnpm db:sql)");
+    };
+
+    const conMercadoPago = async () => {
+      await comoBase();
+      await sql(
+        `insert into public.mp_cuentas (local_id, mp_user_id, access_token_cifrado, refresh_token_cifrado, expira_en)
+         values ($1, '1', 'x', 'y', now() + interval '90 days')`,
+        [local],
+      );
+      await sql(`update public.local_cobros set acepta_mercado_pago = true where local_id = $1`, [local]);
+    };
+
+    const estadoPago = async (id: unknown) =>
+      (await uno<{ estado: string }>(`select estado from public.pagos_mesa where id = $1`, [id])).estado;
+
+    it("panel: registrar un cobro con otro monto esperado se rechaza y no registra nada", async () => {
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      await como("authenticated", admin);
+      const datos = {
+        clave: crypto.randomUUID(),
+        modo: "monto",
+        monto: 10000,
+        metodo: "efectivo",
+        pagador_nombre: "Mesa 1",
+        confirmado: true,
+      };
+      const mal = await rpc(`select public.registrar_pago_personal($1, $2) r`, [
+        j.sesion,
+        JSON.stringify({ ...datos, monto_esperado: 9000 }),
+      ]);
+      expect(mal).toMatchObject({ ok: false, reason: "monto-cambio", monto_total: 10000 });
+      await comoBase();
+      expect(
+        (await uno<{ n: number }>(`select count(*)::int n from public.pagos_mesa where sesion_id = $1`, [j.sesion])).n,
+      ).toBe(0);
+
+      await como("authenticated", admin);
+      const bien = await rpc(`select public.registrar_pago_personal($1, $2) r`, [
+        j.sesion,
+        JSON.stringify({ ...datos, clave: crypto.randomUUID(), monto_esperado: 10000 }),
+      ]);
+      expect(bien).toMatchObject({ ok: true, monto_total: 10000, estado: "pagado" });
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+    });
+
+    it("panel: confirmar un pago pendiente exige el importe que muestra el botón", async (ctx) => {
+      await conMigracionNueva(ctx);
+      await como("authenticated", admin);
+      await sql(
+        `update public.local_cobros set recargo_credito_pct = 10, recargo_declarado = true where local_id = $1`,
+        [local],
+      );
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const p = await pagar(j, { modo: "uno", metodo: "tarjeta_credito", propina_porcentaje: 10 });
+      expect(p).toMatchObject({ ok: true, monto_total: 12000 });
+
+      await como("authenticated", admin);
+      const mal = await rpc(`select public.confirmar_pago_mesa($1, null, $2) r`, [p.pago_id, 11000]);
+      expect(mal).toMatchObject({ ok: false, reason: "monto-cambio", monto_total: 12000 });
+      await comoBase();
+      expect(await estadoPago(p.pago_id)).toBe("pendiente");
+      expect((await sesion(j.sesion)).estado).toBe("abierta");
+
+      await como("authenticated", admin);
+      expect(await rpc(`select public.confirmar_pago_mesa($1, null, $2) r`, [p.pago_id, 12000])).toMatchObject({ ok: true });
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+    });
+
+    it("cancelar un pedido que deja la cuenta justo cubierta cierra la mesa", async (ctx) => {
+      await conMigracionNueva(ctx);
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const agua = await pedir(j, [["Agua", 1]]);
+      await como("authenticated", admin);
+      const cobro = await rpc(`select public.registrar_pago_personal($1, $2) r`, [
+        j.sesion,
+        JSON.stringify({ clave: crypto.randomUUID(), modo: "monto", monto: 10000, metodo: "efectivo",
+          pagador_nombre: "Mesa 1", confirmado: true, monto_esperado: 10000 }),
+      ]);
+      expect(cobro.ok).toBe(true);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("abierta");
+
+      await como("authenticated", admin);
+      await sql(`update public.pedidos set estado = 'cancelado', cancelado_en = now() where id = $1`, [agua.pedido_id]);
+      await comoBase();
+      expect((await sesion(j.sesion))).toMatchObject({ estado: "cerrada", cerrada_motivo: "pagada" });
+    });
+
+    it("cancelar un pedido que no llega a cubrir deja la mesa abierta", async () => {
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const pizza = await pedir(j, [["Pizza", 1]]);
+      await pedir(j, [["Agua", 1]]);
+      await como("authenticated", admin);
+      await rpc(`select public.registrar_pago_personal($1, $2) r`, [
+        j.sesion,
+        JSON.stringify({ clave: crypto.randomUUID(), modo: "monto", monto: 10000, metodo: "efectivo",
+          pagador_nombre: "Mesa 1", confirmado: true, monto_esperado: 10000 }),
+      ]);
+      await sql(`update public.pedidos set estado = 'cancelado', cancelado_en = now() where id = $1`, [pizza.pedido_id]);
+      await comoBase();
+      /* Quedan 12000 de consumo y 10000 pagados: falta pagar, sigue abierta. */
+      expect((await sesion(j.sesion)).estado).toBe("abierta");
+    });
+
+    it("Mercado Pago pendiente reserva su parte: la mesa sigue abierta y al aprobarse se cierra", async () => {
+      await conMercadoPago();
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      const m = await unirse("María");
+      await pedir(j, [["Hamburguesa", 1]]);
+      await pedir(m, [["Pizza", 1]]);
+      const mp = await pagar(j, { modo: "consumo", metodo: "mercado_pago" });
+      const ef = await pagar(m, { modo: "consumo", metodo: "efectivo" });
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [ef.pago_id]);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("abierta");
+
+      await como("service_role", null);
+      await rpc(`select public.mp_confirmar_pago($1, $2, '11', 'approved', 10000, 'ARS') r`, [local, mp.pago_id]);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+    });
+
+    it("Mercado Pago rechazado libera su parte; pagarla de otra forma cierra la mesa", async () => {
+      await conMercadoPago();
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const mp = await pagar(j, { modo: "uno", metodo: "mercado_pago" });
+      await rpc(`select public.mp_confirmar_pago($1, $2, '12', 'rejected', 10000, 'ARS') r`, [local, mp.pago_id]);
+      await comoBase();
+      expect(await estadoPago(mp.pago_id)).toBe("cancelado");
+      expect((await sesion(j.sesion)).estado).toBe("abierta");
+
+      await como("service_role", null);
+      const ef = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      expect(ef).toMatchObject({ ok: true, monto_base: 10000 });
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [ef.pago_id]);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+    });
+
+    it("Mercado Pago vencido (sin cuenta pedida) se libera en la próxima lectura y no bloquea", async () => {
+      await conMercadoPago();
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const mp = await pagar(j, { modo: "uno", metodo: "mercado_pago" });
+      await comoBase();
+      await sql(`update public.pagos_mesa set expira_en = now() - interval '1 minute' where id = $1`, [mp.pago_id]);
+      await como("service_role", null);
+      await rpc(`select public.cuenta_comensal($1, $2) r`, [j.id, j.hash]);
+      await comoBase();
+      expect(await estadoPago(mp.pago_id)).toBe("cancelado");
+
+      await como("service_role", null);
+      const ef = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [ef.pago_id]);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+    });
+
+    it("cuenta pedida con Mercado Pago pendiente: no vence solo; el encargado lo cancela y cobra", async () => {
+      await conMercadoPago();
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const mp = await rpc(`select public.pagar_todo_comensal($1, $2, $3) r`, [
+        j.id,
+        j.hash,
+        JSON.stringify({ clave: crypto.randomUUID(), metodo: "mercado_pago" }),
+      ]);
+      expect(mp).toMatchObject({ ok: true, estado: "pendiente" });
+      await comoBase();
+      await sql(`update public.pagos_mesa set expira_en = now() - interval '1 minute' where id = $1`, [mp.pago_id]);
+      await como("service_role", null);
+      await rpc(`select public.cuenta_comensal($1, $2) r`, [j.id, j.hash]);
+      await comoBase();
+      /* Regla existente: con la cuenta pedida la reserva es el plan de cobro. */
+      expect(await estadoPago(mp.pago_id)).toBe("pendiente");
+      expect((await sesion(j.sesion)).estado).toBe("abierta");
+
+      await como("authenticated", admin);
+      expect((await rpc(`select public.cancelar_pago_mesa($1, $2) r`, [mp.pago_id, "no pagó"])).ok).toBe(true);
+      const cobro = await rpc(`select public.registrar_pago_personal($1, $2) r`, [
+        j.sesion,
+        JSON.stringify({ clave: crypto.randomUUID(), modo: "monto", monto: 10000, metodo: "efectivo",
+          pagador_nombre: "Mesa 1", confirmado: true, monto_esperado: 10000 }),
+      ]);
+      expect(cobro.ok).toBe(true);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+    });
+
+    it("el trigger avisa por Realtime al canal de la mesa, sin datos de la cuenta", async () => {
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await comoBase();
+      const contar = async () =>
+        (
+          await uno<{ n: number }>(
+            `select count(*)::int n from realtime.messages where topic = $1`,
+            [`mesa-cuenta:${j.sesion}`],
+          )
+        ).n;
+      const antes = await contar();
+      expect(antes).toBeGreaterThan(0);
+
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id]);
+      await comoBase();
+      const msgs = await sql(
+        `select event, private, payload from realtime.messages where topic = $1 order by inserted_at`,
+        [`mesa-cuenta:${j.sesion}`],
+      );
+      /* Confirmar y cerrar toca la sesión tres veces (pagada, cerrada, versión):
+       * el teléfono las junta con el debounce. Más de eso sería un loop. */
+      const nuevos = msgs.length - antes;
+      expect(nuevos).toBeGreaterThanOrEqual(1);
+      expect(nuevos).toBeLessThanOrEqual(3);
+      for (const m of msgs) {
+        expect(m).toMatchObject({ event: "cambio", private: false });
+        /* realtime.send le agrega el id del mensaje; de la cuenta, nada. */
+        expect(Object.keys(m.payload as object).sort()).toEqual(["id", "sessionId"]);
+        expect((m.payload as { sessionId: string }).sessionId).toBe(j.sesion);
+      }
+    });
   });
 
   it("cerrar la jornada cancela definido y cierra la sesión", async () => {
