@@ -96,5 +96,8 @@
   "qr-regenerar-mesas.sql",
   "pedidos-modalidades-combinables.sql",
   "mostrador-qr-pago-previo.sql",
-  "propina-habilitada.sql"
+  "propina-habilitada.sql",
+  "mesa-cierre-al-pagar.sql",
+  "mesa-cuenta-broadcast.sql",
+  "mesa-consistencia-cobros.sql"
 ]

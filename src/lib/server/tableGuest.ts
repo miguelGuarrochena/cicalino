@@ -440,7 +440,11 @@ export const broadcastTableBill = async (sessionId: string) => {
     body: JSON.stringify({
       messages: [
         {
-          topic: `realtime:mesa-cuenta:${sessionId}`,
+          /* Sin el prefijo `realtime:`: ese lo agrega el cliente al unirse
+           * por websocket, y la API REST espera el topic pelado (igual que
+           * RealtimeChannel.subTopic). Con el prefijo, el mensaje iba a un
+           * canal donde no escuchaba nadie. */
+          topic: `mesa-cuenta:${sessionId}`,
           event: "cambio",
           payload: { sessionId },
         },

@@ -130,6 +130,7 @@ export const CobrarModal = ({
         guestId,
         payerName: guestId ? null : mesa,
         confirmed,
+        expectedTotal: preview.total,
       },
       employeeId,
     );
@@ -137,6 +138,8 @@ export const CobrarModal = ({
     if (!res.ok) {
       setError(errorText(res.reason));
       setKey(crypto.randomUUID());
+      /* La cuenta cambió: se recarga para que el monto del botón sea el nuevo. */
+      if (res.reason === "monto-cambio") onDone();
       return;
     }
     toast(

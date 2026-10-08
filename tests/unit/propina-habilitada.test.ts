@@ -218,4 +218,9 @@ describe("PayScreen", () => {
     expect(html).not.toContain("15%");
     expect(html).toContain(translate("es", "mesa.metodoTitulo"));
   });
+
+  it("el método con recargo lo dice antes de elegirlo", () => {
+    expect(render(on)).toContain("+3%");
+    expect(render(DEFAULT_PAYMENT_SETTINGS)).not.toContain("+3%");
+  });
 });

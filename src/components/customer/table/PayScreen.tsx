@@ -15,6 +15,7 @@ import {
   payAllBase,
   previewGuestShare,
   previewPayAll,
+  surchargePercentFor,
   type PaymentDraft,
   type PaymentMethod,
   type PaymentSettings,
@@ -31,6 +32,42 @@ const chip = (active: boolean) =>
       ? "border-marca bg-marca text-crema"
       : "border-linea bg-surface text-carbon hover:border-marca/40"
   }`;
+
+/* Lo que se suma al consumo, a la vista antes de confirmar. El recargo de
+ * tarjeta lo pone el local y el cliente tiene que verlo antes de elegir, no
+ * descubrirlo en el total. */
+const Breakdown = ({
+  base,
+  tip,
+  surcharge,
+  surchargePercent,
+}: {
+  base: number;
+  tip: number;
+  surcharge: number;
+  surchargePercent: number | null;
+}) => {
+  const { t } = useApp();
+  if (tip <= 0 && surcharge <= 0) return null;
+  const rows: [string, number][] = [[t("mesa.lineaConsumo"), base]];
+  if (tip > 0) rows.push([t("mesa.lineaPropina"), tip]);
+  if (surcharge > 0) {
+    rows.push([
+      surchargePercent ? t("mesa.lineaRecargo", { n: surchargePercent }) : t("mesa.lineaRecargos"),
+      surcharge,
+    ]);
+  }
+  return (
+    <dl className="flex flex-col gap-0.5 text-sm text-suave">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex items-baseline justify-between gap-3">
+          <dt>{k}</dt>
+          <dd className="tabular-nums">{formatMoney(v)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+};
 
 export const PayScreen = ({
   token,
@@ -262,12 +299,22 @@ export const PayScreen = ({
           </p>
         </div>
         <CustomerNotice tone="ok">{t("mesa.cuentaPedidaLocal")}</CustomerNotice>
-        <p className="flex items-baseline justify-between gap-3 text-lg font-semibold text-carbon">
-          {t("mesa.totalMesa")}
-          <span className="font-display text-2xl tabular-nums text-marca">
-            {formatMoney(bill.totals.consumption)}
-          </span>
-        </p>
+        <div className="flex flex-col gap-2">
+          <Breakdown
+            base={bill.totals.consumption}
+            tip={bill.totals.tips}
+            surcharge={bill.totals.surcharges}
+            surchargePercent={null}
+          />
+          <p className="flex items-baseline justify-between gap-3 text-lg font-semibold text-carbon">
+            {bill.totals.tips > 0 || bill.totals.surcharges > 0
+              ? t("mesa.totalAPagar")
+              : t("mesa.totalMesa")}
+            <span className="font-display text-2xl tabular-nums text-marca">
+              {formatMoney(Math.max(bill.totals.total, bill.totals.consumption))}
+            </span>
+          </p>
+        </div>
       </section>
     );
   }
@@ -339,9 +386,22 @@ export const PayScreen = ({
               className={chip(method === m)}
             >
               {t(`mesa.metodo.${m}`)}
+              {surchargePercentFor(settings, m) > 0 && (
+                <span className="ml-1.5 text-sm font-bold opacity-90">
+                  +{surchargePercentFor(settings, m)}%
+                </span>
+              )}
             </button>
           ))}
         </div>
+        {method && surchargePercentFor(settings, method) > 0 && (
+          <p className="mt-2.5 text-base leading-relaxed text-carbon">
+            {t("mesa.avisoRecargo", {
+              m: t(`mesa.metodo.${method}`),
+              n: surchargePercentFor(settings, method),
+            })}
+          </p>
+        )}
       </fieldset>
     </>
   );
@@ -399,7 +459,7 @@ export const PayScreen = ({
         <div>
           <h1 className="font-display text-3xl uppercase text-marca">{t("mesa.pagarTodo")}</h1>
           <p className="mt-1 text-lg font-bold text-carbon">
-            {t("mesa.totalMesa")}: {formatMoney(bill.totals.consumption)}
+            {t("mesa.totalConsumo")}: {formatMoney(bill.totals.consumption)}
           </p>
           {payAllBase(bill) !== bill.totals.consumption && (
             <p className="mt-1 text-base text-suave">
@@ -421,6 +481,14 @@ export const PayScreen = ({
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-linea bg-surface/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur">
           <div className="mx-auto flex max-w-lg flex-col gap-2.5">
             {preview?.ok && (
+              <Breakdown
+                base={preview.base}
+                tip={preview.tip}
+                surcharge={preview.surcharge}
+                surchargePercent={preview.surchargePercent}
+              />
+            )}
+            {preview?.ok && (
               <p className="flex flex-wrap items-baseline justify-between gap-2 text-base font-semibold text-carbon">
                 {t("mesa.total")}
                 <span className="font-display text-2xl tabular-nums text-marca">
@@ -435,7 +503,13 @@ export const PayScreen = ({
               className="flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-marca px-6 text-base font-semibold text-crema disabled:opacity-50"
             >
               {busy && <Spinner inline className="size-4" />}
-              {t("mesa.confirmarYPedir")}
+              {/* El importe del botón es el mismo que viaja como monto_esperado:
+                  si la base calcula otro, contesta monto-cambio y no cobra. */}
+              {!preview?.ok
+                ? t("mesa.confirmarYPedir")
+                : method === "mercado_pago"
+                  ? t("mesa.pagarConMp", { n: formatMoney(preview.total) })
+                  : t("mesa.pedirCuentaN", { n: formatMoney(preview.total) })}
             </button>
           </div>
         </div>
@@ -466,12 +540,22 @@ export const PayScreen = ({
             {formatMoney(mine?.consumption ?? 0)}
           </p>
           {myDraft && !changing && (
-            <p className="mt-2 text-base text-carbon">
-              {t("mesa.parteDefinidaAyuda", {
-                n: formatMoney(myDraft.total),
-                m: t(`mesa.metodo.${myDraft.method}`),
-              })}
-            </p>
+            <>
+              <p className="mt-2 text-base text-carbon">
+                {t("mesa.parteDefinidaAyuda", {
+                  n: formatMoney(myDraft.total),
+                  m: t(`mesa.metodo.${myDraft.method}`),
+                })}
+              </p>
+              <div className="mt-2">
+                <Breakdown
+                  base={myDraft.base}
+                  tip={myDraft.tip}
+                  surcharge={myDraft.surcharge}
+                  surchargePercent={myDraft.surchargePercent}
+                />
+              </div>
+            </>
           )}
         </div>
 
@@ -543,12 +627,20 @@ export const PayScreen = ({
         {sharePreview && (changing || !myDraft) && (
           <div className="rounded-2xl border border-linea bg-crema/50 p-4">
             {sharePreview.ok ? (
-              <p className="flex items-baseline justify-between text-base font-semibold">
-                {t("mesa.total")}
-                <span className="font-display text-xl tabular-nums text-marca">
-                  {formatMoney(sharePreview.total)}
-                </span>
-              </p>
+              <div className="flex flex-col gap-2">
+                <Breakdown
+                  base={sharePreview.base}
+                  tip={sharePreview.tip}
+                  surcharge={sharePreview.surcharge}
+                  surchargePercent={sharePreview.surchargePercent}
+                />
+                <p className="flex items-baseline justify-between text-base font-semibold">
+                  {t("mesa.total")}
+                  <span className="font-display text-xl tabular-nums text-marca">
+                    {formatMoney(sharePreview.total)}
+                  </span>
+                </p>
+              </div>
             ) : (
               <p className="text-base text-carbon">
                 {sharePreview.reason === "excede" && sharePreview.available != null
@@ -576,7 +668,9 @@ export const PayScreen = ({
               className="flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-marca px-6 text-base font-semibold text-crema disabled:opacity-50"
             >
               {busy && <Spinner inline className="size-4" />}
-              {t("mesa.definirParte")}
+              {sharePreview?.ok
+                ? t("mesa.definirParteN", { n: formatMoney(sharePreview.total) })
+                : t("mesa.definirParte")}
             </button>
           )}
           {ready && (

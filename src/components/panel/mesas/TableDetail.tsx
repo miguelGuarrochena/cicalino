@@ -118,6 +118,7 @@ export const TableDetail = ({
       onChanged();
     } else {
       toast(errorText(res.reason), "error");
+      if (res.reason === "monto-cambio") onChanged();
     }
   };
 
@@ -134,7 +135,7 @@ export const TableDetail = ({
     setBusy("todos");
     let fallo: string | undefined;
     for (const p of waitingPayments) {
-      const res = await confirmTablePayment(p.id, employeeId);
+      const res = await confirmTablePayment(p.id, employeeId, p.total);
       if (!res.ok) {
         fallo = res.reason;
         break;
@@ -143,6 +144,7 @@ export const TableDetail = ({
     setBusy(null);
     if (fallo) toast(errorText(fallo), "error");
     else toast(t("mesas.todosConfirmados"), "success");
+    /* Siempre recarga: también tras un monto-cambio, para mostrar el nuevo. */
     onChanged();
   };
 
@@ -204,7 +206,7 @@ export const TableDetail = ({
             onClick={() =>
               void run(
                 p.id,
-                () => confirmTablePayment(p.id, employeeId),
+                () => confirmTablePayment(p.id, employeeId, p.total),
                 t("mesas.pagoConfirmadoMesa", { n: t("mesa.mesaN", { n: bill.session.tableNumber }) }),
               )
             }

@@ -190,11 +190,14 @@ export const PaymentRows = ({
                   </div>
                   {(p.tip > 0 || p.surcharge > 0) && p.status !== "cancelado" && (
                     <p className="text-sm text-suave">
-                      {t("mesa.desglose", {
-                        base: formatMoney(p.base),
-                        propina: formatMoney(p.tip),
-                        recargo: formatMoney(p.surcharge),
-                      })}
+                      {[
+                        `${t("mesa.lineaConsumo")} ${formatMoney(p.base)}`,
+                        p.tip > 0 && `${t("mesa.lineaPropina")} ${formatMoney(p.tip)}`,
+                        p.surcharge > 0 &&
+                          `${t("mesa.lineaRecargo", { n: p.surchargePercent })} ${formatMoney(p.surcharge)}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   )}
                   {actions?.(p)}

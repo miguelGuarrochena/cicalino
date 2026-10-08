@@ -11,12 +11,19 @@ describe("FASE 3 — poll del comensal no se reinicia solo", () => {
     expect(src).toContain("cur && cur.id === next.id && cur.name === next.name ? cur : next");
   });
 
-  it("el intervalo de poll depende del id, no del objeto guest", () => {
-    expect(src).toContain("[guest?.id, refresh]");
-    expect(src).not.toMatch(/\}, \[guest, refresh\]\);/);
+  /* El respaldo vive ahora en useTableBillLive (attachLiveRefresh): 30 s con
+   * Realtime sano y 5 s caído. Sigue sin reiniciarse por render: el efecto
+   * depende del id de la sesión (un string), no de objetos. */
+  it("el respaldo depende del id de la sesión, no del objeto guest ni de la cuenta", () => {
+    expect(src).toContain("useTableBillLive(guest ? (bill?.session.id ?? null) : null, refresh)");
+    const hook = read("src/lib/hooks/useTableBillLive.ts");
+    expect(hook).toContain("}, [sessionId]);");
   });
 
-  it("el poll visible sigue siendo 5 s, no un tick por render", () => {
-    expect(src).toContain("const POLL_VISIBLE_MS = 5_000");
+  it("el respaldo es 5 s con Realtime caído y 30 s sano, no un tick por render", () => {
+    const hook = read("src/lib/hooks/useTableBillLive.ts");
+    expect(hook).toContain("attachLiveRefresh(");
+    expect(hook).toContain("export const GUEST_TICKS_SANO = 6;");
+    expect(read("src/lib/realtime.ts")).toContain("cadaMs = 5_000");
   });
 });

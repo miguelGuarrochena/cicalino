@@ -1,5 +1,9 @@
 import { failure, guardGuestRequest, json } from "@/lib/server/guestApi";
-import { fetchGuestState, readGuestCookie } from "@/lib/server/tableGuest";
+import {
+  fetchGuestPaymentOptions,
+  fetchGuestState,
+  readGuestCookie,
+} from "@/lib/server/tableGuest";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +31,14 @@ export const GET = async (
   if (state.tableToken && state.tableToken !== token) {
     const sesionAbierta = state.bill.session.status === "abierta";
     return failure("otra-mesa", sesionAbierta ? { tableToken: state.tableToken } : {});
+  }
+
+  /* `?config=1`: also the branch payment options. The screen asks for them
+   * after a "monto-cambio": if the branch changed a surcharge while the table
+   * was paying, the preview has to use the new one or it never matches. */
+  if (new URL(req.url).searchParams.get("config") === "1") {
+    const payment = await fetchGuestPaymentOptions(state.bill.session.branchId);
+    return json({ ok: true, guest: state.guest, bill: state.bill, ...payment });
   }
 
   return json({ ok: true, guest: state.guest, bill: state.bill });
