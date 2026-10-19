@@ -197,7 +197,7 @@ export const OrderReview = ({
                   <p className="min-w-0 text-lg font-semibold leading-snug text-carbon">
                     {l.producto.name}
                     {l.opcion ? (
-                      <span className="mt-0.5 block text-base font-semibold text-carbon/80">{l.opcion}</span>
+                      <span className="mt-0.5 block text-base font-semibold text-suave">{l.opcion}</span>
                     ) : null}
                   </p>
                   <p className="shrink-0 text-lg font-bold tabular-nums text-carbon">

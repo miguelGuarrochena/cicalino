@@ -71,8 +71,8 @@ describe("el envío vive en la revisión", () => {
   });
 
   it("se puede corregir sin salir: sumar, restar y sacar", () => {
-    expect(revision).toContain("onCantidad(l.producto.id, l.cantidad + 1)");
-    expect(revision).toContain("onCantidad(l.producto.id, l.cantidad - 1)");
+    expect(revision).toContain("onCantidad(l.clave, l.cantidad + 1)");
+    expect(revision).toContain("onCantidad(l.clave, l.cantidad - 1)");
     /* En uno, el `−` borra el renglón: conviene que se vea como tal antes de
        tocarlo, no después. */
     expect(revision).toContain("mesa.quitarDelPedido");
@@ -86,11 +86,15 @@ describe("el envío vive en la revisión", () => {
 
 describe("la clave de idempotencia se comporta igual que antes", () => {
   it("cambiar el pedido es un pedido distinto", () => {
-    const setQty = pantalla.slice(
-      pantalla.indexOf("const setQty ="),
+    /* Sumar, restar, cambiar cantidad o aclaración pasan por el mismo
+     * lugar: una clave nueva. Si alguno se olvida, un reintento puede
+     * mandar el pedido viejo. */
+    const cambios = pantalla.slice(
+      pantalla.indexOf("const marcarPedido ="),
       pantalla.indexOf("const sendOrder ="),
     );
-    expect(setQty).toContain("setOrderKey(newKey())");
+    expect(cambios).toContain("setOrderKey(newKey())");
+    expect(cambios.match(/marcarPedido\(\)/g)?.length).toBe(4);
   });
 
   it("un error NO renueva la clave", () => {
