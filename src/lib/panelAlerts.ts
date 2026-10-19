@@ -265,10 +265,10 @@ export const topAlert = (alerts: PanelAlert[]): PanelAlert | null =>
  * está "dentro de Mesas" pero es la pantalla de imprimir códigos, y ahí el
  * llamado de la mesa 4 no se ve por ningún lado. */
 export const alertIsElsewhere = (a: PanelAlert, path: string): boolean => {
-  /* Lista ya está en la tarjeta de Pedidos y en la de Cocina. El cartel es
-   * para el que está en otra pantalla. */
+  /* Hecha ya se ve donde se marca listo (Pedidos o la mesa) y en Cocina.
+   * El cartel es para el que está en otra pantalla. */
   if (a.kind === "cocina-lista") {
-    return path !== "/panel/pedidos" && path !== "/panel/cocina";
+    return path !== a.href && path !== "/panel/cocina";
   }
   return path !== a.href;
 };
@@ -279,14 +279,17 @@ export const cocinaListaAlerts = (
     reference: string;
     readyAt: string | null;
     tableNumber: number | null;
+    where?: "pedidos" | "pagos";
   }[],
 ): PanelAlert[] =>
-  orders.map((o) =>
-    build(
+  orders.map((o) => {
+    const alerta = build(
       "cocina-lista",
       o.id,
       o.readyAt,
       null,
       o.tableNumber != null ? `Mesa ${o.tableNumber}` : `Pedido ${o.reference}`,
-    ),
-  );
+    );
+    if (o.where === "pagos") alerta.href = "/panel/pagos";
+    return alerta;
+  });

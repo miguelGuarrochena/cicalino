@@ -55,6 +55,8 @@ export interface BillOrder {
   status: OrderStatus;
   createdAt: string;
   readyAt: string | null;
+  /* Pantalla: cocina terminó y el mostrador todavía no marcó listo. */
+  kitchenDoneAt?: string | null;
   deliveredAt: string | null;
   cancelledAt: string | null;
   items: BillItem[];
@@ -187,6 +189,7 @@ export const mapBill = (raw: unknown): TableBill | null => {
       status: str(p.estado) as OrderStatus,
       createdAt: str(p.creado_en),
       readyAt: strOrNull(p.listo_en),
+      kitchenDoneAt: strOrNull(p.cocina_hecha_en),
       deliveredAt: strOrNull(p.retirado_en),
       cancelledAt: strOrNull(p.cancelado_en),
       items: ((p.items as Json[] | null) ?? []).map((i) => ({

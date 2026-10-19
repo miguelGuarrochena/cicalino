@@ -101,5 +101,6 @@
   "mesa-cuenta-broadcast.sql",
   "mesa-consistencia-cobros.sql",
   "cocina-modo.sql",
-  "plato-aclaracion.sql"
+  "plato-aclaracion.sql",
+  "cocina-pase.sql"
 ]

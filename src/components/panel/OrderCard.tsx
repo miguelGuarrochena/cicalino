@@ -287,7 +287,20 @@ export const OrderCard = ({
         </div>
       </dl>
 
-      {enCurso && !cocinaPantalla && (
+      {cocinaPantalla && order.status === "creado" && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void cambiar("en_preparacion")}
+          className="w-full rounded-full bg-marca px-4 py-3.5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.97] disabled:opacity-50 sm:py-3"
+        >
+          {busy ? "…" : t("cocina.mandar")}
+        </button>
+      )}
+      {cocinaPantalla && order.status === "en_preparacion" && !order.kitchenDoneAt && (
+        <p className="text-sm text-carbon/55">{t("cocina.enCocina")}</p>
+      )}
+      {cocinaPantalla && order.status === "en_preparacion" && order.kitchenDoneAt && (
         <button
           type="button"
           disabled={busy}
@@ -297,8 +310,15 @@ export const OrderCard = ({
           {busy ? "…" : t("card.marcarListo")}
         </button>
       )}
-      {enCurso && cocinaPantalla && (
-        <p className="text-sm text-carbon/55">{t("cocina.loMarcaCocina")}</p>
+      {enCurso && !cocinaPantalla && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void cambiar("listo")}
+          className="w-full rounded-full bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.97] disabled:opacity-50 sm:py-3"
+        >
+          {busy ? "…" : t("card.marcarListo")}
+        </button>
       )}
       {porCobrar && onCobrar && (
         <button

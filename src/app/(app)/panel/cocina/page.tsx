@@ -13,23 +13,21 @@ import { SyncErrorBanner } from "@/components/panel/SyncErrorBanner";
 import {
   fetchKitchenBoard,
   isRealBranchId,
+  markKitchenDone,
   subscribeOrders,
-  updateOrderStatus,
 } from "@/lib/data/orders";
 import type { DataError } from "@/lib/data/result";
-import { notifyCustomer } from "@/lib/notify";
 import { OrderItemBits } from "@/components/OrderItemBits";
 import { dingNew } from "@/lib/sound";
 import { attachLiveRefresh, coalesced } from "@/lib/realtime";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   kitchenLanes,
-  nextKitchenStatus,
   type KitchenLane,
   type KitchenTicket,
 } from "@/lib/kitchen";
 
-const LANES: KitchenLane[] = ["nueva", "preparando", "lista"];
+const LANES: KitchenLane[] = ["preparando", "hecha"];
 
 const minutesSince = (iso: string, now: number): number =>
   Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60_000));
@@ -47,7 +45,7 @@ export default function CocinaPage() {
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [syncError, setSyncError] = useState<DataError | null>(null);
-  const [lane, setLane] = useState<KitchenLane>("nueva");
+  const [lane, setLane] = useState<KitchenLane>("preparando");
   const [busy, setBusy] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const knownNew = useRef<Set<string> | null>(null);
@@ -103,7 +101,7 @@ export default function CocinaPage() {
       knownBranch.current = branchId;
       knownNew.current = null;
     }
-    const ids = new Set(lanes.nueva.map((ticket) => ticket.id));
+    const ids = new Set(lanes.preparando.map((ticket) => ticket.id));
     if (knownNew.current === null) {
       knownNew.current = ids;
       return;
@@ -111,16 +109,16 @@ export default function CocinaPage() {
     const arrived = [...ids].some((id) => !knownNew.current?.has(id));
     knownNew.current = ids;
     if (arrived) dingNew();
-  }, [lanes.nueva, branchId]);
+  }, [lanes.preparando, branchId]);
 
-  const mover = async (ticket: KitchenTicket, from: KitchenLane) => {
-    if (busy || from === "lista") return;
-    const status = nextKitchenStatus(from);
+  const mover = async (ticket: KitchenTicket) => {
+    if (busy || ticket.doneAt) return;
+    const doneAt = new Date().toISOString();
     setBusy(ticket.id);
     setTickets((prev) =>
-      prev.map((row) => (row.id === ticket.id ? { ...row, status } : row)),
+      prev.map((row) => (row.id === ticket.id ? { ...row, doneAt } : row)),
     );
-    const res = await updateOrderStatus(ticket.id, status);
+    const res = await markKitchenDone(ticket.id);
     if (!res.ok) {
       toast(t("cocina.error"), "error");
       if (branchId && isRealBranchId(branchId)) {
@@ -130,10 +128,7 @@ export default function CocinaPage() {
       setBusy(null);
       return;
     }
-    if (status === "listo") {
-      void notifyCustomer({ orderId: ticket.id });
-      toast(t("cocina.listaAvisada"), "success");
-    }
+    toast(t("cocina.hechaAvisada"), "success");
     setBusy(null);
   };
 
@@ -162,7 +157,7 @@ export default function CocinaPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-2 lg:hidden" role="tablist" aria-label={t("cocina.titulo")}>
+          <div className="grid grid-cols-2 gap-2 lg:hidden" role="tablist" aria-label={t("cocina.titulo")}>
             {LANES.map((id) => (
               <button
                 key={id}
@@ -181,7 +176,7 @@ export default function CocinaPage() {
               </button>
             ))}
           </div>
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-2">
             {LANES.map((id) => (
               <section
                 key={id}
@@ -197,7 +192,7 @@ export default function CocinaPage() {
                   lane={id}
                   now={now}
                   busy={busy}
-                  onMove={(ticket) => void mover(ticket, id)}
+                  onMove={(ticket) => void mover(ticket)}
                 />
               </section>
             ))}
@@ -267,12 +262,12 @@ const TicketCard = ({
   return (
     <li
       className={`rounded-2xl border bg-surface p-4 ${
-        lane === "nueva" && mins >= 10 ? "border-curso-borde" : "border-linea"
+        mins >= 10 ? "border-curso-borde" : "border-linea"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="font-display text-3xl uppercase leading-none text-carbon">{title}</p>
-        <p className={`text-sm font-semibold tabular-nums ${mins >= 10 && lane !== "lista" ? "text-curso" : "text-carbon/45"}`}>
+        <p className={`text-sm font-semibold tabular-nums ${mins >= 10 ? "text-curso" : "text-carbon/45"}`}>
           {mins} min
         </p>
       </div>
@@ -293,8 +288,8 @@ const TicketCard = ({
       ) : (
         <p className="mt-3 text-sm text-carbon/50">{t("cocina.sinDetalle")}</p>
       )}
-      {lane === "lista" ? (
-        <p className="mt-4 text-sm font-semibold text-ok">{t("cocina.enMostrador")}</p>
+      {lane === "hecha" ? (
+        <p className="mt-4 text-sm font-semibold text-ok">{t("cocina.esperandoMostrador")}</p>
       ) : (
         <button
           type="button"
@@ -302,7 +297,7 @@ const TicketCard = ({
           onClick={onMove}
           className="mt-4 flex min-h-14 w-full items-center justify-center rounded-full bg-marca text-base font-semibold text-crema disabled:opacity-50"
         >
-          {busy ? "…" : lane === "nueva" ? t("cocina.preparar") : t("cocina.marcarLista")}
+          {busy ? "…" : t("cocina.marcarHecha")}
         </button>
       )}
     </li>

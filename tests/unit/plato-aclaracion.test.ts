@@ -55,6 +55,7 @@ describe("aclaración del plato", () => {
     const orden = JSON.parse(
       readFileSync(join(process.cwd(), "supabase/orden.json"), "utf8"),
     ) as string[];
-    expect(orden.at(-1)).toBe("plato-aclaracion.sql");
+    expect(orden.indexOf("plato-aclaracion.sql")).toBeGreaterThan(-1);
+    expect(orden.indexOf("plato-aclaracion.sql")).toBeLessThan(orden.indexOf("cocina-pase.sql"));
   });
 });

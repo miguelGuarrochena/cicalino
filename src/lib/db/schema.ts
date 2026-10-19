@@ -246,6 +246,9 @@ export const orders = pgTable(
       .notNull()
       .defaultNow(),
     preparingAt: timestamp("en_preparacion_en", { withTimezone: true }),
+    /* supabase/cocina-pase.sql — kitchen finished. Status stays
+     * en_preparacion until the counter marks listo. */
+    kitchenDoneAt: timestamp("cocina_hecha_en", { withTimezone: true }),
     readyAt: timestamp("listo_en", { withTimezone: true }),
     pickedUpAt: timestamp("retirado_en", { withTimezone: true }),
     cancelledAt: timestamp("cancelado_en", { withTimezone: true }),

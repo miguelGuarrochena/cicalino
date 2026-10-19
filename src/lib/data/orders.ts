@@ -23,6 +23,7 @@ type Row = {
   estado: OrderStatus;
   creado_en: string;
   en_preparacion_en: string | null;
+  cocina_hecha_en?: string | null;
   listo_en: string | null;
   retirado_en: string | null;
   cancelado_en: string | null;
@@ -49,6 +50,7 @@ const mapRow = (r: Row): OrderView => ({
   createdAt: r.creado_en,
   preparingAt: r.en_preparacion_en,
   readyAt: r.listo_en,
+  kitchenDoneAt: r.cocina_hecha_en ?? null,
   pickedUpAt: r.retirado_en,
   cancelledAt: r.cancelado_en,
   /* El pedido de la mesa no pasa por /p: el cliente lo sigue desde el QR de
@@ -203,8 +205,9 @@ const isKitchenStatus = (
 ): v is KitchenTicket["status"] =>
   v === "creado" || v === "en_preparacion" || v === "listo";
 
-/* Lo que cocina tiene en juego hoy: nuevas, en preparación y listas.
- * pendiente_pago no entra: todavía no se cocina. */
+/* Lo que el mostrador ya mandó y cocina todavía no entregó al pase.
+ * creado no entra: sigue en el mostrador. listo tampoco: el cliente ya
+ * fue avisado. pendiente_pago no se cocina. */
 export const fetchKitchenBoard = async (
   branchId: string,
 ): Promise<DataResult<KitchenTicket[]>> => {
@@ -213,10 +216,10 @@ export const fetchKitchenBoard = async (
   const { data, error } = await supabase
     .from("pedidos")
     .select(
-      "id, referencia, alias_cliente, estado, creado_en, listo_en, pedido_items(nombre, cantidad, opcion, nota), mesa_sesiones(mesa_numero)",
+      "id, referencia, alias_cliente, estado, creado_en, listo_en, cocina_hecha_en, pedido_items(nombre, cantidad, opcion, nota), mesa_sesiones(mesa_numero)",
     )
     .eq("local_id", branchId)
-    .in("estado", ["creado", "en_preparacion", "listo"])
+    .eq("estado", "en_preparacion")
     .gte("creado_en", startOfBusinessDay())
     .order("creado_en", { ascending: true })
     .limit(80);
@@ -231,6 +234,7 @@ export const fetchKitchenBoard = async (
     estado: string;
     creado_en: string;
     listo_en: string | null;
+    cocina_hecha_en: string | null;
     pedido_items: unknown;
     mesa_sesiones: unknown;
   }[];
@@ -245,6 +249,7 @@ export const fetchKitchenBoard = async (
               status: r.estado,
               createdAt: r.creado_en,
               readyAt: r.listo_en,
+              doneAt: r.cocina_hecha_en,
               tableNumber: asTableNumber(r.mesa_sesiones),
               items: asItems(r.pedido_items),
             },
@@ -254,23 +259,54 @@ export const fetchKitchenBoard = async (
   );
 };
 
-/* Las que cocina ya marcó listas, para avisarle al mostrador. */
+/* Cocina terminó. El estado no cambia: el cliente sigue en preparación
+ * hasta que el mostrador marca listo. */
+export const markKitchenDone = async (id: string): Promise<OrderStatusResult> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return { ok: false, reason: "error" };
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("pedidos")
+    .update({ cocina_hecha_en: now })
+    .eq("id", id)
+    .eq("estado", "en_preparacion")
+    .is("cocina_hecha_en", null)
+    .select("id");
+  if (error) {
+    reportError("panel.cocina.hecha", error, { orderId: id });
+    return orderStatusFail(error);
+  }
+  if (!data?.length) return { ok: false, reason: "ya-anotado" };
+  return { ok: true };
+};
+
+/* Las que cocina ya marcó hechas, para que el mostrador las lleve.
+ * where: la mesa se marca en Pagos; el mostrador y el QR, en Pedidos. */
 export const fetchReadyForCounter = async (
   branchId: string,
 ): Promise<
   DataResult<
-    { id: string; reference: string; readyAt: string | null; tableNumber: number | null }[]
+    {
+      id: string;
+      reference: string;
+      readyAt: string | null;
+      tableNumber: number | null;
+      where: "pedidos" | "pagos";
+    }[]
   >
 > => {
   const supabase = createBrowserSupabase();
   if (!supabase) return ok([]);
   const { data, error } = await supabase
     .from("pedidos")
-    .select("id, referencia, listo_en, mesa_sesiones(mesa_numero)")
+    .select(
+      "id, referencia, cocina_hecha_en, autoservicio, sesion_id, mesa_sesiones(mesa_numero)",
+    )
     .eq("local_id", branchId)
-    .eq("estado", "listo")
+    .eq("estado", "en_preparacion")
+    .not("cocina_hecha_en", "is", null)
     .gte("creado_en", startOfBusinessDay())
-    .order("listo_en", { ascending: false })
+    .order("cocina_hecha_en", { ascending: false })
     .limit(30);
   if (error) {
     reportError("panel.cocina.listas", error, { branchId });
@@ -279,15 +315,18 @@ export const fetchReadyForCounter = async (
   const rows = (data ?? []) as {
     id: string;
     referencia: string;
-    listo_en: string | null;
+    cocina_hecha_en: string | null;
+    autoservicio: boolean | null;
+    sesion_id: string | null;
     mesa_sesiones: unknown;
   }[];
   return ok(
     rows.map((r) => ({
       id: r.id,
       reference: r.referencia,
-      readyAt: r.listo_en,
+      readyAt: r.cocina_hecha_en,
       tableNumber: asTableNumber(r.mesa_sesiones),
+      where: r.sesion_id && !r.autoservicio ? "pagos" : "pedidos",
     })),
   );
 };
