@@ -18,6 +18,25 @@ import {
   operationalNavLinks,
   type OperationalNavLink,
 } from "@/lib/operation";
+import type { CocinaModo } from "@/lib/kitchen";
+
+const withKitchenLink = (
+  links: OperationalNavLink[],
+  modo: CocinaModo,
+  activos: ModuleFlags,
+): OperationalNavLink[] => {
+  if (modo !== "pantalla" || (!activos.pedidos && !activos.pagos)) return links;
+  const cocina: OperationalNavLink = {
+    href: "/panel/cocina",
+    key: "nav.cocina",
+    roles: ["admin", "supervisor", "empleado"],
+    icon: "cocina",
+  };
+  const at = links.findIndex((l) => l.href === "/panel/pedidos");
+  const next = [...links];
+  next.splice(at >= 0 ? at + 1 : 0, 0, cocina);
+  return next;
+};
 
 export interface OperationalAccess {
   role: CurrentRole;
@@ -50,6 +69,7 @@ export const useOperationalAccess = (): OperationalAccess => {
   const ready = useConfigStore((s) => s.branchConfigReady);
   const modalidad = useConfigStore((s) => s.pedidosModalidad);
   const mesa = useConfigStore((s) => s.pedidosMesa);
+  const cocinaModo = useConfigStore((s) => s.cocinaModo);
   const dispositivo = useDeviceMode();
   const activos: ModuleFlags = {
     pedidos: moduloPedidos,
@@ -65,7 +85,7 @@ export const useOperationalAccess = (): OperationalAccess => {
     activos,
     visibles: activos,
     homePath: panelHomePath(activos, dispositivo),
-    links: operationalNavLinks(role, activos),
+    links: withKitchenLink(operationalNavLinks(role, activos), cocinaModo, activos),
     canManage: role === "admin" || role === "supervisor" || role === "superadmin",
     isOwner: role === "admin",
     pedidosTradicional: pedidosTradicional(activos, modalidad),

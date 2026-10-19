@@ -14,6 +14,7 @@ import {
   type BrandColorId,
 } from "@/lib/customerBrand";
 import { parsePedidosModalidad, type PedidosModalidad } from "@/lib/modules";
+import { parseCocinaModo, type CocinaModo } from "@/lib/kitchen";
 
 /* Los nombres son los del store, no los de la tabla: esto es lo que
  * useBranchConfigSync le pasa tal cual a hydrate(). El campo del nombre venía
@@ -31,6 +32,7 @@ export interface BranchConfig {
   pedidosMesa: boolean;
   /* Mostrador QR: el pedido se paga antes de entrar al local. */
   mostradorQrPagoPrevio: boolean;
+  cocinaModo: CocinaModo;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -63,7 +65,7 @@ export const fetchBranchConfig = async (
   const { data, error } = await supabase
     .from("locales")
     .select(
-      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, pedidos_modalidad, pedidos_mesa, mostrador_qr_pago_previo, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera, modulo_pagos, logo_url, color_marca",
+      "nombre, tipo_negocio, whatsapp, direccion, modo_identificacion, pedidos_modalidad, pedidos_mesa, mostrador_qr_pago_previo, cocina_modo, cantidad_mesas, hora_corte, reserva_abre_min, reserva_cierra_min, dias_cerrados, modulo_pedidos, modulo_espera, modulo_pagos, logo_url, color_marca",
     )
     .eq("id", branchId)
     .single();
@@ -79,6 +81,7 @@ export const fetchBranchConfig = async (
      * pedidos_modalidad. */
     pedidosMesa: data.pedidos_mesa === true || data.pedidos_modalidad === "mesa",
     mostradorQrPagoPrevio: data.mostrador_qr_pago_previo === true,
+    cocinaModo: parseCocinaModo(data.cocina_modo),
     tableCount: data.cantidad_mesas ?? 10,
     cutoffHour: data.hora_corte ?? 6,
     reservaAbreMin: data.reserva_abre_min ?? 660,
@@ -100,6 +103,7 @@ export const saveBranchConfig = async (
     | "pedidosModalidad"
     | "pedidosMesa"
     | "mostradorQrPagoPrevio"
+    | "cocinaModo"
     | "tableCount"
     | "cutoffHour"
     | "reservaAbreMin"
@@ -114,6 +118,7 @@ export const saveBranchConfig = async (
     pedidosModalidad: cfg.pedidosModalidad,
     pedidosMesa: cfg.pedidosMesa,
     mostradorQrPagoPrevio: cfg.mostradorQrPagoPrevio,
+    cocinaModo: cfg.cocinaModo,
     tableCount: cfg.tableCount,
     cutoffHour: cfg.cutoffHour,
     reservaAbreMin: cfg.reservaAbreMin,
@@ -131,6 +136,7 @@ export const saveBranchConfig = async (
       pedidos_modalidad: v.data.pedidosModalidad,
       pedidos_mesa: v.data.pedidosMesa,
       mostrador_qr_pago_previo: v.data.mostradorQrPagoPrevio,
+      cocina_modo: v.data.cocinaModo,
       cantidad_mesas: v.data.tableCount,
       hora_corte: v.data.cutoffHour,
       reserva_abre_min: v.data.reservaAbreMin,

@@ -40,6 +40,7 @@ export const TableDetail = ({
   employeeName,
   canManage,
   soloLectura = false,
+  cocinaPantalla = false,
   onCloseTable,
   onChanged,
   onBack,
@@ -60,6 +61,8 @@ export const TableDetail = ({
    * anular un pago de agosto descuadra un cierre de caja que ya pasó. Con
    * esto el detalle muestra lo mismo pero no ofrece nada que escriba. */
   soloLectura?: boolean;
+  /* Pantalla de cocina: el mozo no copia la comanda. Cocina la toma allá. */
+  cocinaPantalla?: boolean;
   /* Lo abre la página: el modal de cerrar vive una sola vez, así la baldosa y
    * el detalle no tienen cada uno su copia. */
   onCloseTable?: () => void;
@@ -535,7 +538,9 @@ export const TableDetail = ({
           <section className="mt-6 border-t border-linea pt-5">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-marca">{t("mesas.comanda")}</h3>
             {created.length > 0 && (
-              <p className="mt-1 text-xs text-carbon/55">{t("mesas.pedidoMesaAyuda")}</p>
+              <p className="mt-1 text-xs text-carbon/55">
+                {cocinaPantalla ? t("cocina.enPantalla") : t("mesas.pedidoMesaAyuda")}
+              </p>
             )}
             <p className="mt-1 text-sm text-carbon/70">
               {summarizeKitchen(comanda)
@@ -569,7 +574,7 @@ export const TableDetail = ({
                         </li>
                       ))}
                     </ul>
-                    {open && porAnotar && (
+                    {open && porAnotar && !cocinaPantalla && (
                       <button
                         type="button"
                         disabled={busy === o.id}

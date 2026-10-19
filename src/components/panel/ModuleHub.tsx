@@ -16,6 +16,7 @@ const TONE: Record<string, string> = {
   orders: "border-marca/30 bg-marca/10 text-marca",
   espera: "border-espera/30 bg-espera/10 text-espera",
   mesas: "border-pagos/30 bg-pagos/10 text-pagos",
+  cocina: "border-ok-borde bg-ok-fondo text-ok",
 };
 
 export const ModuleHub = () => {

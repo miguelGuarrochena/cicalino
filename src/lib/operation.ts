@@ -5,7 +5,7 @@ import {
   type ModuleId,
 } from "@/lib/modules";
 
-export type NavIcon = "orders" | "espera" | "mesas";
+export type NavIcon = "orders" | "espera" | "mesas" | "cocina";
 
 export type OperationalNavLink = {
   href: string;

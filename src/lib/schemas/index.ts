@@ -180,6 +180,7 @@ export const branchOperacionSchema = z
     pedidosMesa: z.boolean().default(false),
     /* Mostrador QR: el pedido se paga antes de entrar al local. */
     mostradorQrPagoPrevio: z.boolean().default(false),
+    cocinaModo: z.enum(["imprimir", "pantalla"]).default("imprimir"),
     tableCount: z.coerce
       .number()
       .int()

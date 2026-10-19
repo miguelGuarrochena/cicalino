@@ -94,6 +94,7 @@ export const OrderCard = ({
   const { t, locale } = useApp();
   const confirmar = useConfirm();
   const mode = useConfigStore((s) => s.modo);
+  const cocinaPantalla = useConfigStore((s) => s.cocinaModo) === "pantalla";
   const [now, setNow] = useState(() => Date.now());
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -285,7 +286,7 @@ export const OrderCard = ({
         </div>
       </dl>
 
-      {enCurso && (
+      {enCurso && !cocinaPantalla && (
         <button
           type="button"
           disabled={busy}
@@ -294,6 +295,9 @@ export const OrderCard = ({
         >
           {busy ? "…" : t("card.marcarListo")}
         </button>
+      )}
+      {enCurso && cocinaPantalla && (
+        <p className="text-sm text-carbon/55">{t("cocina.loMarcaCocina")}</p>
       )}
       {porCobrar && onCobrar && (
         <button

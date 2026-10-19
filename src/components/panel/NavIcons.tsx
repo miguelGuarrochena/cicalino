@@ -23,6 +23,14 @@ export const NavIconSvg = ({
         <path d="M4 6h16M4 12h16M4 18h10" />
       </svg>
     );
+  if (k === "cocina")
+    return (
+      <svg {...common}>
+        <path d="M4 10h16" />
+        <path d="M6 10a6 6 0 0 0 12 0" />
+        <path d="M12 4v2" />
+      </svg>
+    );
   if (k === "espera")
     return (
       <svg {...common}>

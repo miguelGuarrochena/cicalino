@@ -257,6 +257,7 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('mesa-cuenta-broadcast.sql', 'trigger', 'mesa_sesiones_avisar_cuenta', 99),
     ('mesa-consistencia-cobros.sql', 'function', 'pedidos_revisar_cobertura', 100),
     ('mesa-consistencia-cobros.sql', 'trigger', 'pedidos_revisar_cobertura', 100),
+    ('cocina-modo.sql', 'column', 'locales.cocina_modo', 101),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -435,7 +436,8 @@ requisitos (archivo, necesita) as (
     ('propina-habilitada.sql', 'mesa-pago-qr-mp.sql, mesa-cuenta-compartida.sql'),
     ('mesa-cierre-al-pagar.sql', 'pedidos-mostrador-qr.sql, mostrador-qr-pago-previo.sql'),
     ('mesa-cuenta-broadcast.sql', 'split-payments.sql'),
-    ('mesa-consistencia-cobros.sql', 'staff-empleado-cobro.sql, mesa-cierre-al-pagar.sql')
+    ('mesa-consistencia-cobros.sql', 'staff-empleado-cobro.sql, mesa-cierre-al-pagar.sql'),
+    ('cocina-modo.sql', 'mesa-pedido-comensal.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

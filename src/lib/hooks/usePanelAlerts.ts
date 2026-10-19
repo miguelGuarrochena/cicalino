@@ -10,12 +10,14 @@ import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   isRealBranchId,
   fetchPendingCounterOrders,
+  fetchReadyForCounter,
   subscribeOrders,
 } from "@/lib/data/orders";
 import { attachLiveRefresh, coalesced } from "@/lib/realtime";
 import {
   arrivedIds,
   cajaAlerts,
+  cocinaListaAlerts,
   counterAlerts,
   type PanelAlert,
 } from "@/lib/panelAlerts";
@@ -30,7 +32,7 @@ import {
   publishPanelAlerts,
   subscribePanelAlerts,
 } from "@/lib/store/panel-alert-store";
-import { dingNew, vibrate } from "@/lib/sound";
+import { dingNew, notifyReady, vibrate } from "@/lib/sound";
 import type { PanelAlertSource } from "@/lib/panelAlerts";
 
 const useAlertVersion = (): number =>
@@ -59,6 +61,7 @@ const useCounterAlertsFeed = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const { visibles, pedidosEnMesa, pedidosMostradorQr } = useOperationalAccess();
   const pagoPrevio = useConfigStore((s) => s.mostradorQrPagoPrevio);
+  const cocinaPantalla = useConfigStore((s) => s.cocinaModo) === "pantalla";
   const jornadaActiva = useJornadaActiva();
   /* El aviso de "viene a pagar a la caja": Mesa, y el Mostrador QR solo con
    * pago previo prendido. Esto corre en todo el panel, así que con la opción
@@ -75,16 +78,18 @@ const useCounterAlertsFeed = () => {
     }
     let alive = true;
     const reload = coalesced(async () => {
-      const [res, caja] = await Promise.all([
+      const [res, caja, listas] = await Promise.all([
         fetchPendingCounterOrders(branchId),
         conCobros ? fetchOrdersToCharge(branchId) : Promise.resolve(null),
+        cocinaPantalla ? fetchReadyForCounter(branchId) : Promise.resolve(null),
       ]);
       /* Un refresco que falló no apaga los avisos: se queda con los últimos
        * buenos, como hacen las listas de Pedidos y Recepción. */
-      if (!alive || !res.ok || (caja && !caja.ok)) return;
+      if (!alive || !res.ok || (caja && !caja.ok) || (listas && !listas.ok)) return;
       publishPanelAlerts("pedidos", [
         ...(caja?.ok ? cajaAlerts(caja.data) : []),
         ...counterAlerts(res.data),
+        ...(listas?.ok ? cocinaListaAlerts(listas.data) : []),
       ]);
     });
     const stop = attachLiveRefresh({
@@ -98,7 +103,7 @@ const useCounterAlertsFeed = () => {
       stop();
       publishPanelAlerts("pedidos", []);
     };
-  }, [live, branchId, conCobros]);
+  }, [live, branchId, conCobros, cocinaPantalla]);
 };
 
 /* El sonido de todo el panel, en un solo lugar.
@@ -134,7 +139,14 @@ const useAlertSound = () => {
     const arrived = arrivedIds(known.current, alerts);
     known.current = ids;
     if (!arrived.length) return;
-    dingNew();
+    const lista = alerts.some(
+      (a) => arrived.includes(a.id) && a.kind === "cocina-lista",
+    );
+    const otros = alerts.some(
+      (a) => arrived.includes(a.id) && a.kind !== "cocina-lista",
+    );
+    if (otros) dingNew();
+    if (lista) notifyReady();
     const llamado = alerts.some(
       (a) => arrived.includes(a.id) && a.kind === "llamado",
     );

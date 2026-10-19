@@ -9,6 +9,7 @@ import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
 import { reportError, reportWarning } from "@/lib/observability";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { OrderStatus, OrderView } from "@/lib/types";
+import type { KitchenTicket } from "@/lib/kitchen";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -168,6 +169,118 @@ export const fetchOrdersPage = async (
  * realtime de `pedidos` y por el propio refresco. Si falla, se ignora — es
  * mantenimiento, no una acción del usuario, y el barrido del cron lo alcanza
  * igual más tarde. */
+const asItems = (raw: unknown): KitchenTicket["items"] => {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((i) => {
+    if (!i || typeof i !== "object") return [];
+    const row = i as { nombre?: unknown; cantidad?: unknown };
+    if (typeof row.nombre !== "string") return [];
+    const quantity = Number(row.cantidad);
+    return Number.isFinite(quantity) ? [{ name: row.nombre, quantity }] : [];
+  });
+};
+
+const asTableNumber = (raw: unknown): number | null => {
+  const row = Array.isArray(raw) ? raw[0] : raw;
+  if (!row || typeof row !== "object") return null;
+  const n = Number((row as { mesa_numero?: unknown }).mesa_numero);
+  return Number.isInteger(n) ? n : null;
+};
+
+const isKitchenStatus = (
+  v: string,
+): v is KitchenTicket["status"] =>
+  v === "creado" || v === "en_preparacion" || v === "listo";
+
+/* Lo que cocina tiene en juego hoy: nuevas, en preparación y listas.
+ * pendiente_pago no entra: todavía no se cocina. */
+export const fetchKitchenBoard = async (
+  branchId: string,
+): Promise<DataResult<KitchenTicket[]>> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok([]);
+  const { data, error } = await supabase
+    .from("pedidos")
+    .select(
+      "id, referencia, alias_cliente, estado, creado_en, listo_en, pedido_items(nombre, cantidad), mesa_sesiones(mesa_numero)",
+    )
+    .eq("local_id", branchId)
+    .in("estado", ["creado", "en_preparacion", "listo"])
+    .gte("creado_en", startOfBusinessDay())
+    .order("creado_en", { ascending: true })
+    .limit(80);
+  if (error) {
+    reportError("panel.cocina.tablero", error, { branchId });
+    return fail(desdeSupabase(error));
+  }
+  const rows = (data ?? []) as {
+    id: string;
+    referencia: string;
+    alias_cliente: string | null;
+    estado: string;
+    creado_en: string;
+    listo_en: string | null;
+    pedido_items: unknown;
+    mesa_sesiones: unknown;
+  }[];
+  return ok(
+    rows.flatMap((r) =>
+      isKitchenStatus(r.estado)
+        ? [
+            {
+              id: r.id,
+              reference: r.referencia,
+              alias: r.alias_cliente,
+              status: r.estado,
+              createdAt: r.creado_en,
+              readyAt: r.listo_en,
+              tableNumber: asTableNumber(r.mesa_sesiones),
+              items: asItems(r.pedido_items),
+            },
+          ]
+        : [],
+    ),
+  );
+};
+
+/* Las que cocina ya marcó listas, para avisarle al mostrador. */
+export const fetchReadyForCounter = async (
+  branchId: string,
+): Promise<
+  DataResult<
+    { id: string; reference: string; readyAt: string | null; tableNumber: number | null }[]
+  >
+> => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) return ok([]);
+  const { data, error } = await supabase
+    .from("pedidos")
+    .select("id, referencia, listo_en, mesa_sesiones(mesa_numero)")
+    .eq("local_id", branchId)
+    .eq("estado", "listo")
+    .gte("creado_en", startOfBusinessDay())
+    .order("listo_en", { ascending: false })
+    .limit(30);
+  if (error) {
+    reportError("panel.cocina.listas", error, { branchId });
+    return fail(desdeSupabase(error));
+  }
+  const rows = (data ?? []) as {
+    id: string;
+    referencia: string;
+    listo_en: string | null;
+    mesa_sesiones: unknown;
+  }[];
+  return ok(
+    rows.map((r) => ({
+      id: r.id,
+      reference: r.referencia,
+      readyAt: r.listo_en,
+      tableNumber: asTableNumber(r.mesa_sesiones),
+    })),
+  );
+};
+
 export const markInPreparation = async (branchId: string): Promise<void> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return;

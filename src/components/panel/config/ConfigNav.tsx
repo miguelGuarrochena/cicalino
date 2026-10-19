@@ -53,6 +53,13 @@ export const ConfigNav = () => {
     { id: "identidad", href: "/panel/config#identidad", key: "config.tab.identidad", show: true, inPage: true },
     /* Cómo se identifica un pedido: solo para quien tiene Pedidos. */
     { id: "pedidos", href: "/panel/config#pedidos", key: "config.tab.pedidos", show: moduloPedidos, inPage: true },
+    {
+      id: "cocina",
+      href: "/panel/config#cocina",
+      key: "config.tab.cocina",
+      show: moduloPedidos || visibles.pagos,
+      inPage: true,
+    },
     /* Cobros: Pagos, o Pedidos cuando el cliente paga desde la mesa. */
     { id: "pagos", href: "/panel/config#pagos", key: visibles.pagos ? "config.tab.pagos" : "retiroConfig.cobrosTab", show: usesMenu, inPage: true },
     { id: "mesas", href: "/panel/config#mesas", key: "config.tab.mesas", show: showMesas, inPage: true },
