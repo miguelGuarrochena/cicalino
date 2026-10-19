@@ -132,7 +132,7 @@ describe("la opción en la configuración", () => {
 
   it("se lee y se escribe con el resto de la operación del local", () => {
     const branch = read("src/lib/data/branch.ts");
-    expect(branch).toContain("pedidos_mesa, mostrador_qr_pago_previo, cantidad_mesas");
+    expect(branch).toContain("pedidos_mesa, mostrador_qr_pago_previo, cocina_modo, cantidad_mesas");
     expect(branch).toContain("mostrador_qr_pago_previo: v.data.mostradorQrPagoPrevio,");
     expect(read("src/lib/db/schema.ts")).toContain('boolean("mostrador_qr_pago_previo").notNull().default(false)');
     const page = read("src/app/(app)/panel/config/page.tsx");

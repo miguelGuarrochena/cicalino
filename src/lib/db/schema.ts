@@ -155,6 +155,8 @@ export const branches = pgTable("locales", {
   /* supabase/mostrador-qr-pago-previo.sql — counter QR orders wait in
    * pendiente_pago until paid (Mercado Pago or till), like Mesa. */
   mostradorQrPagoPrevio: boolean("mostrador_qr_pago_previo").notNull().default(false),
+  /* supabase/cocina-modo.sql. imprimir = copiar la comanda. pantalla = KDS. */
+  cocinaModo: text("cocina_modo").notNull().default("imprimir"),
   /* Guest identity only. null = Cicalino cobalt, no logo. */
   logoUrl: text("logo_url"),
   colorMarca: text("color_marca"),

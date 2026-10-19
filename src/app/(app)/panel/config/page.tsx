@@ -18,6 +18,7 @@ import {
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { saveBranchConfig } from "@/lib/data/branch";
+import type { CocinaModo } from "@/lib/kitchen";
 import {
   validPedidosConfig,
   needsTableCount,
@@ -148,6 +149,7 @@ interface Operacion {
   pedidosModalidad: PedidosModalidad;
   pedidosMesa: boolean;
   mostradorQrPagoPrevio: boolean;
+  cocinaModo: CocinaModo;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -245,6 +247,7 @@ const ConfigPage = () => {
   const pedidosModalidad = draft.pedidosModalidad ?? c.pedidosModalidad;
   const pedidosMesa = draft.pedidosMesa ?? c.pedidosMesa;
   const mostradorQrPagoPrevio = draft.mostradorQrPagoPrevio ?? c.mostradorQrPagoPrevio;
+  const cocinaModo = draft.cocinaModo ?? c.cocinaModo;
   const cutoffHour = draft.cutoffHour ?? c.cutoffHour;
   const reservaAbreMin = draft.reservaAbreMin ?? c.reservaAbreMin;
   const reservaCierraMin = draft.reservaCierraMin ?? c.reservaCierraMin;
@@ -259,6 +262,7 @@ const ConfigPage = () => {
     pedidosModalidad !== c.pedidosModalidad ||
     pedidosMesa !== c.pedidosMesa ||
     mostradorQrPagoPrevio !== c.mostradorQrPagoPrevio ||
+    cocinaModo !== c.cocinaModo ||
     tableCount !== c.tableCount ||
     cutoffHour !== c.cutoffHour ||
     reservaAbreMin !== c.reservaAbreMin ||
@@ -358,6 +362,7 @@ const ConfigPage = () => {
       pedidosModalidad,
       pedidosMesa,
       mostradorQrPagoPrevio,
+      cocinaModo,
       tableCount: tableCount ?? c.tableCount,
       cutoffHour,
       reservaAbreMin,
@@ -741,6 +746,43 @@ const ConfigPage = () => {
             hideHeading
             onMethodsChange={setMetodos}
           />
+        </Accordion>
+      )}
+
+      {(c.moduloPedidos || c.moduloPagos) && (
+        <Accordion {...acc("cocina")} title={t("config.tab.cocina")}>
+          <p className="text-sm text-carbon/60">{t("cocina.configSub")}</p>
+          <div
+            role="radiogroup"
+            aria-label={t("config.tab.cocina")}
+            className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"
+          >
+            {(
+              [
+                ["pantalla", "cocina.optPantalla", "cocina.optPantallaDet"],
+                ["imprimir", "cocina.optImprimir", "cocina.optImprimirDet"],
+              ] as const
+            ).map(([id, titulo, det]) => {
+              const active = cocinaModo === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => editar("cocinaModo", id)}
+                  className={`rounded-2xl border px-4 py-4 text-left transition ${
+                    active
+                      ? "border-marca bg-marca/10"
+                      : "border-linea bg-surface hover:border-carbon/20"
+                  }`}
+                >
+                  <span className="block text-sm font-semibold text-carbon">{t(titulo)}</span>
+                  <span className="mt-1 block text-sm text-carbon/60">{t(det)}</span>
+                </button>
+              );
+            })}
+          </div>
         </Accordion>
       )}
 

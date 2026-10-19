@@ -17,6 +17,7 @@ import type { DataError } from "@/lib/data/result";
 import type { OrdersFiltro, OrdersPage } from "@/lib/data/orders";
 import type { OrderStatus, OrderView } from "@/lib/types";
 import { notifyCustomer, type NotifyResult } from "@/lib/notify";
+import { useConfigStore } from "@/lib/store/config-store";
 
 type EmployeeRef = { id: string; name: string } | null;
 
@@ -110,7 +111,9 @@ export const useOrders = (
 
   const recargar = useCallback(async () => {
     if (!live || !branchId) return;
-    sweepInPreparation();
+    /* En pantalla de cocina, "preparando" lo marca cocina. El barrido del
+     * minuto la sacaría de Nueva sola. */
+    if (useConfigStore.getState().cocinaModo !== "pantalla") sweepInPreparation();
     const miConsulta = ++consulta.current;
     const res = await fetchOrdersPage(branchId, {
       filtro,

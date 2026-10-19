@@ -28,7 +28,8 @@ export type PanelAlertKind =
   | "pedido-mostrador"
   | "cobro-caja"
   | "cobro-caja-mostrador"
-  | "espera-nueva";
+  | "espera-nueva"
+  | "cocina-lista";
 
 export interface PanelAlert {
   /* Estable entre refrescos: es lo que decide si algo ya se vio y si hay que
@@ -117,6 +118,15 @@ export const ALERT_META: Record<PanelAlertKind, KindMeta> = {
     priority: 1,
     titleKey: "alertas.esperaNueva",
     icon: "👋",
+  },
+  /* Cocina marcó lista. El mostrador lo escucha aunque esté en otra sección.
+   * En Pedidos y en Cocina no se duplica el cartel: ahí el estado ya se ve. */
+  "cocina-lista": {
+    source: "pedidos",
+    href: "/panel/pedidos",
+    priority: 3,
+    titleKey: "alertas.cocinaLista",
+    icon: "✅",
   },
 };
 
@@ -254,5 +264,29 @@ export const topAlert = (alerts: PanelAlert[]): PanelAlert | null =>
  * detalle. Se compara exacto y no por prefijo a propósito — /panel/pagos/qr
  * está "dentro de Mesas" pero es la pantalla de imprimir códigos, y ahí el
  * llamado de la mesa 4 no se ve por ningún lado. */
-export const alertIsElsewhere = (a: PanelAlert, path: string): boolean =>
-  path !== a.href;
+export const alertIsElsewhere = (a: PanelAlert, path: string): boolean => {
+  /* Lista ya está en la tarjeta de Pedidos y en la de Cocina. El cartel es
+   * para el que está en otra pantalla. */
+  if (a.kind === "cocina-lista") {
+    return path !== "/panel/pedidos" && path !== "/panel/cocina";
+  }
+  return path !== a.href;
+};
+
+export const cocinaListaAlerts = (
+  orders: {
+    id: string;
+    reference: string;
+    readyAt: string | null;
+    tableNumber: number | null;
+  }[],
+): PanelAlert[] =>
+  orders.map((o) =>
+    build(
+      "cocina-lista",
+      o.id,
+      o.readyAt,
+      null,
+      o.tableNumber != null ? `Mesa ${o.tableNumber}` : `Pedido ${o.reference}`,
+    ),
+  );

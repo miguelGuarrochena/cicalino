@@ -5,6 +5,7 @@ import { supabaseConfigured } from "@/lib/supabase/config";
 import type { BusinessType } from "@/lib/types";
 import type { BrandColorId } from "@/lib/customerBrand";
 import type { PedidosModalidad } from "@/lib/modules";
+import type { CocinaModo } from "@/lib/kitchen";
 export type { BusinessType };
 export type { PedidosModalidad };
 export { BUSINESS_TYPE_LABEL, BUSINESS_TYPES } from "@/lib/types";
@@ -40,6 +41,7 @@ interface ConfigState {
   pedidosMesa: boolean;
   /* Mostrador QR: el pedido se paga antes de entrar al local. */
   mostradorQrPagoPrevio: boolean;
+  cocinaModo: CocinaModo;
   tableCount: number;
   cutoffHour: number;
   reservaAbreMin: number;
@@ -75,6 +77,7 @@ interface ConfigState {
         | "pedidosModalidad"
         | "pedidosMesa"
         | "mostradorQrPagoPrevio"
+        | "cocinaModo"
         | "tableCount"
         | "cutoffHour"
         | "reservaAbreMin"
@@ -135,6 +138,7 @@ const INICIAL = supabaseConfigured
       pedidosModalidad: "mostrador" as PedidosModalidad,
       pedidosMesa: false,
       mostradorQrPagoPrevio: false,
+      cocinaModo: "imprimir" as CocinaModo,
       tableCount: 10,
       cutoffHour: 6,
       reservaAbreMin: 660,
@@ -157,6 +161,7 @@ const INICIAL = supabaseConfigured
       pedidosModalidad: "mostrador" as PedidosModalidad,
       pedidosMesa: false,
       mostradorQrPagoPrevio: false,
+      cocinaModo: "imprimir" as CocinaModo,
       tableCount: 10,
       cutoffHour: 6,
       reservaAbreMin: 660,
@@ -247,6 +252,7 @@ export const useConfigStore = create<ConfigState>()(
           pedidosModalidad: s.pedidosModalidad,
           pedidosMesa: s.pedidosMesa,
           mostradorQrPagoPrevio: s.mostradorQrPagoPrevio,
+          cocinaModo: s.cocinaModo,
           tableCount: s.tableCount,
           cutoffHour: s.cutoffHour,
           reservaAbreMin: s.reservaAbreMin,

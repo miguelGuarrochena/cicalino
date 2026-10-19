@@ -59,6 +59,7 @@ const MesasPage = () => {
   const { visibles, canManage, ready: branchReady } = useOperationalAccess();
   const jornadaActiva = useJornadaActiva();
   const branchName = useConfigStore((s) => s.name);
+  const cocinaPantalla = useConfigStore((s) => s.cocinaModo) === "pantalla";
   const employee = useActiveEmployee();
   const employees = useConfigStore((s) => s.employees);
   const { bills, ready, live, syncError, refresh } = useTableBills(
@@ -389,7 +390,7 @@ const MesasPage = () => {
 
             {showInbox && (
               <KitchenInbox
-                created={inboxCreated}
+                created={cocinaPantalla ? [] : inboxCreated}
                 called={inboxCalled}
                 busy={kitchenBusy}
                 newOrderIds={newOrderIds}
@@ -507,6 +508,7 @@ const MesasPage = () => {
                 employeeId={employee?.id ?? null}
                 employeeName={employee?.name ?? null}
                 canManage={canManage}
+                cocinaPantalla={cocinaPantalla}
                 onCloseTable={() => setCloseBill(currentBill)}
                 onChanged={reload}
                 onBack={() => setSelected(null)}
