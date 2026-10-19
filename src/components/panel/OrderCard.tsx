@@ -7,6 +7,7 @@ import { useApp } from "@/components/providers/Providers";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useConfigStore } from "@/lib/store/config-store";
 import { formatMoney } from "@/lib/tableBill";
+import { OrderItemBits } from "@/components/OrderItemBits";
 
 const PILL: Record<OrderStatus, string> = {
   pendiente_pago: "bg-curso-fondo text-curso",
@@ -217,8 +218,8 @@ export const OrderCard = ({
         <div className="flex flex-col gap-2 rounded-2xl border border-linea bg-crema/40 p-3">
           <ul className="flex flex-col gap-0.5 text-sm text-carbon">
             {(order.items ?? []).map((i, n) => (
-              <li key={`${i.name}-${n}`}>
-                <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
+              <li key={`${i.name}-${i.option ?? ""}-${n}`}>
+                <OrderItemBits quantity={i.quantity} name={i.name} option={i.option} note={i.note} />
               </li>
             ))}
           </ul>

@@ -19,7 +19,7 @@ export interface KitchenTicket {
   createdAt: string;
   readyAt: string | null;
   tableNumber: number | null;
-  items: { name: string; quantity: number }[];
+  items: { name: string; quantity: number; option?: string | null; note?: string | null }[];
 }
 
 export const laneOf = (status: KitchenStatus): KitchenLane =>

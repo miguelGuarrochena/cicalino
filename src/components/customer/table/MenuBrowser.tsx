@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { MenuItemCard } from "@/components/customer/table/MenuItemCard";
+import { DishChoiceSheet } from "@/components/customer/table/DishChoiceSheet";
 import { CategorySheet } from "@/components/customer/table/CategorySheet";
 import { CustomerEmpty } from "@/components/customer/CustomerEmpty";
 import {
@@ -28,21 +29,31 @@ import type { GuestMenuProduct } from "@/components/customer/table/TableGuestApp
  * la carta es grande, al lado aparece el buscador. */
 export const MenuBrowser = ({
   menu,
-  cart,
+  cantidades,
   puedePedir,
-  onCantidad,
+  onAgregar,
+  onRestar,
   /* Alto de lo que ya está pegado arriba (las pestañas). Lo mide la pantalla,
    * que es la dueña de esa barra, y sirve para dos cosas: dónde se pega esta
    * barra y a qué altura tiene que frenar el salto. */
   stickyTop,
 }: {
   menu: GuestMenuProduct[];
-  cart: Record<string, number>;
+  cantidades: Record<string, number>;
   puedePedir: boolean;
-  onCantidad: (id: string, q: number) => void;
+  onAgregar: (
+    producto: GuestMenuProduct,
+    extra: { opcion: string | null; nota: string; cantidad: number },
+  ) => void;
+  onRestar: (producto: GuestMenuProduct) => void;
   stickyTop: number;
 }) => {
   const { t } = useApp();
+  const [eligiendo, setEligiendo] = useState<GuestMenuProduct | null>(null);
+  const sumar = (producto: GuestMenuProduct) => {
+    if (producto.choice) setEligiendo(producto);
+    else onAgregar(producto, { opcion: null, nota: "", cantidad: 1 });
+  };
 
   const categorias = useMemo(
     () => agruparPorCategoria(menu, t("mesa.sinCategoria")),
@@ -272,9 +283,10 @@ export const MenuBrowser = ({
                     key={h.producto.id}
                     producto={h.producto}
                     categoria={h.categoria}
-                    cantidad={cart[h.producto.id] ?? 0}
+                    cantidad={cantidades[h.producto.id] ?? 0}
                     puedePedir={puedePedir}
-                    onCantidad={(n) => onCantidad(h.producto.id, n)}
+                    onSumar={() => sumar(h.producto)}
+                    onRestar={() => onRestar(h.producto)}
                   />
                 ))}
               </ul>
@@ -314,9 +326,10 @@ export const MenuBrowser = ({
                   <MenuItemCard
                     key={p.id}
                     producto={p}
-                    cantidad={cart[p.id] ?? 0}
+                    cantidad={cantidades[p.id] ?? 0}
                     puedePedir={puedePedir}
-                    onCantidad={(n) => onCantidad(p.id, n)}
+                    onSumar={() => sumar(p)}
+                    onRestar={() => onRestar(p)}
                   />
                 ))}
               </ul>
@@ -331,6 +344,13 @@ export const MenuBrowser = ({
           activa={activa}
           onElegir={saltar}
           onClose={() => setIndiceAbierto(false)}
+        />
+      )}
+      {eligiendo?.choice && (
+        <DishChoiceSheet
+          producto={eligiendo}
+          onClose={() => setEligiendo(null)}
+          onAgregar={(extra) => onAgregar(eligiendo, extra)}
         />
       )}
     </section>

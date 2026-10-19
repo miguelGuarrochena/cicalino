@@ -421,14 +421,42 @@ export const guestRestoreSchema = z.object({
 const cantidad = z.coerce.number().int().min(1).max(50);
 const pesos = z.coerce.number().int().min(1).max(10_000_000);
 
+const notaPedido = z
+  .string()
+  .trim()
+  .max(80, "La aclaración es demasiado larga.")
+  .optional()
+  .nullable()
+  .transform((v) => {
+    if (!v) return null;
+    const limpia = v.replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim();
+    return limpia ? limpia.slice(0, 80) : null;
+  });
+
+const opcionPedido = z
+  .string()
+  .trim()
+  .max(24, "La opción es demasiado larga.")
+  .optional()
+  .nullable()
+  .transform((v) => (v ? v.replace(/\s+/g, " ") : null));
+
 export const guestOrderSchema = z.object({
   key: uuid,
   items: z
-    .array(z.object({ productId: uuid, quantity: cantidad }))
+    .array(
+      z.object({
+        productId: uuid,
+        quantity: cantidad,
+        option: opcionPedido,
+        note: notaPedido,
+      }),
+    )
     .min(1, "El pedido está vacío.")
     .max(30, "Demasiados productos en un pedido.")
     .refine(
-      (items) => new Set(items.map((i) => i.productId)).size === items.length,
+      (items) =>
+        new Set(items.map((i) => `${i.productId}\u001f${i.option ?? ""}`)).size === items.length,
       "Producto repetido.",
     ),
 });
@@ -575,6 +603,31 @@ export const menuProductSchema = z.object({
     ),
   active: z.boolean().default(true),
   order: z.coerce.number().int().min(0).max(10_000).default(0),
+  choice: z
+    .object({
+      question: textField(1, 24, "la pregunta").transform((s) => s.replace(/\s+/g, " ")),
+      options: z
+        .array(
+          z.object({
+            name: textField(1, 24, "la opción").transform((s) => s.replace(/\s+/g, " ")),
+            price: pesos,
+          }),
+        )
+        .min(2, "Hacen falta dos opciones.")
+        .max(3, "Alcanza con tres opciones."),
+    })
+    .superRefine((choice, ctx) => {
+      const names = choice.options.map((o) => o.name.toLowerCase());
+      if (new Set(names).size !== names.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Las opciones no pueden repetirse.",
+          path: ["options"],
+        });
+      }
+    })
+    .nullable()
+    .optional(),
 });
 
 export const menuCategorySchema = z.object({

@@ -30,6 +30,8 @@ export type PickupStage =
 export interface PickupItem {
   id: string;
   name: string;
+  option: string | null;
+  note: string | null;
   unitPrice: number;
   quantity: number;
   subtotal: number;
@@ -155,6 +157,8 @@ export const mapPickupOrder = (raw: unknown): PickupOrder | null => {
     items: items.map((i) => ({
       id: String(i.id ?? `${i.nombre}`),
       name: String(i.nombre ?? ""),
+      option: str(i.opcion),
+      note: str(i.nota),
       unitPrice: num(i.precio_unitario),
       quantity: num(i.cantidad),
       subtotal: num(i.subtotal),

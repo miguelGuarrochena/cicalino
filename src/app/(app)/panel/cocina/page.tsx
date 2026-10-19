@@ -18,6 +18,7 @@ import {
 } from "@/lib/data/orders";
 import type { DataError } from "@/lib/data/result";
 import { notifyCustomer } from "@/lib/notify";
+import { OrderItemBits } from "@/components/OrderItemBits";
 import { dingNew } from "@/lib/sound";
 import { attachLiveRefresh, coalesced } from "@/lib/realtime";
 import { supabaseConfigured } from "@/lib/supabase/config";
@@ -285,7 +286,7 @@ const TicketCard = ({
         <ul className="mt-3 flex flex-col gap-1 text-lg text-carbon">
           {ticket.items.map((item, index) => (
             <li key={`${ticket.id}-${index}`}>
-              <span className="font-semibold tabular-nums">{item.quantity}×</span> {item.name}
+              <OrderItemBits quantity={item.quantity} name={item.name} option={item.option} note={item.note} />
             </li>
           ))}
         </ul>

@@ -1,4 +1,5 @@
 import type { OrderStatus } from "@/lib/types";
+import { lineLabel } from "@/lib/dishChoice";
 
 /* Table bill domain, shared by the guest screen, the panel and the API.
  *
@@ -41,6 +42,8 @@ export interface BillItem {
   guestId: string;
   productId: string | null;
   name: string;
+  option?: string | null;
+  note?: string | null;
   unitPrice: number;
   quantity: number;
   subtotal: number;
@@ -191,6 +194,8 @@ export const mapBill = (raw: unknown): TableBill | null => {
         guestId: str(i.comensal_id),
         productId: strOrNull(i.producto_id),
         name: str(i.nombre),
+        option: strOrNull(i.opcion),
+        note: strOrNull(i.nota),
         unitPrice: num(i.precio_unitario),
         quantity: num(i.cantidad),
         subtotal: num(i.subtotal),
@@ -671,14 +676,14 @@ export const consumptionByGuest = (bill: TableBill): GuestConsumption[] =>
       if (order.status === "cancelado") continue;
       for (const item of order.items) {
         if (item.guestId !== guest.id) continue;
-        const key = `${item.productId ?? item.name}:${item.unitPrice}`;
+        const key = `${item.productId ?? item.name}:${item.unitPrice}:${item.option ?? ""}:${item.note ?? ""}`;
         const prev = merged.get(key);
         if (prev) {
           prev.quantity += item.quantity;
           prev.subtotal += item.subtotal;
         } else {
           merged.set(key, {
-            name: item.name,
+            name: lineLabel(item.name, item.option, item.note),
             unitPrice: item.unitPrice,
             quantity: item.quantity,
             subtotal: item.subtotal,

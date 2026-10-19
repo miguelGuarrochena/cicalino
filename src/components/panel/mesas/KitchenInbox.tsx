@@ -5,6 +5,7 @@ import { Fragment, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
 import { useToast } from "@/components/ui/Toast";
 import { summarizeKitchen, type FloorTable } from "@/lib/tableOps";
+import { OrderItemBits } from "@/components/OrderItemBits";
 import type { BillOrder } from "@/lib/tableBill";
 
 export const KitchenInbox = ({
@@ -227,7 +228,7 @@ const InboxRow = ({
                 <ul className="mt-1 flex flex-col gap-0.5 text-base text-carbon/80">
                   {o.items.map((item) => (
                     <li key={item.id}>
-                      {item.quantity} × {item.name}
+                      <OrderItemBits quantity={item.quantity} name={item.name} option={item.option} note={item.note} />
                     </li>
                   ))}
                 </ul>

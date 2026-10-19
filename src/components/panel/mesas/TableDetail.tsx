@@ -10,6 +10,7 @@ import {
 } from "@/components/tables/BillParts";
 import { CobrarModal } from "@/components/panel/mesas/CobrarModal";
 import { PrintableBill } from "@/components/panel/mesas/PrintableBill";
+import { OrderItemBits } from "@/components/OrderItemBits";
 import { TableHistory } from "@/components/panel/mesas/TableHistory";
 import { FloorStatusBadge } from "@/components/panel/mesas/FloorStatusBadge";
 import { Select } from "@/components/ui/Select";
@@ -570,7 +571,7 @@ export const TableDetail = ({
                     <ul className="mt-1.5 text-sm text-carbon/75">
                       {o.items.map((i) => (
                         <li key={i.id}>
-                          {i.quantity} × {i.name}
+                          <OrderItemBits quantity={i.quantity} name={i.name} option={i.option} note={i.note} />
                         </li>
                       ))}
                     </ul>

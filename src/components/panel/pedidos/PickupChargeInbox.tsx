@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/ui/Confirm";
 import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { fetchPaymentSettings } from "@/lib/data/tables";
+import { OrderItemBits } from "@/components/OrderItemBits";
 import {
   cancelUnpaidOrder,
   chargePickupOrder,
@@ -129,7 +130,7 @@ export const PickupChargeInbox = ({
               <ul className="flex flex-col gap-0.5 text-sm text-carbon/75">
                 {o.items.map((i) => (
                   <li key={i.id}>
-                    <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
+                    <OrderItemBits quantity={i.quantity} name={i.name} option={i.option} note={i.note} />
                   </li>
                 ))}
               </ul>

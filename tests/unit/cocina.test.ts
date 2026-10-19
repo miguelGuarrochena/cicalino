@@ -55,6 +55,7 @@ describe("cocina", () => {
     const orden = JSON.parse(
       readFileSync(join(process.cwd(), "supabase/orden.json"), "utf8"),
     ) as string[];
-    expect(orden.at(-1)).toBe("cocina-modo.sql");
+    expect(orden.indexOf("cocina-modo.sql")).toBeGreaterThan(-1);
+    expect(orden.indexOf("cocina-modo.sql")).toBeLessThan(orden.indexOf("plato-aclaracion.sql"));
   });
 });

@@ -78,7 +78,7 @@ export interface OrderView {
    * la caja. */
   selfService?: boolean;
   tableNumber?: number | null;
-  items?: { name: string; quantity: number }[];
+  items?: { name: string; quantity: number; option?: string | null; note?: string | null }[];
   total?: number | null;
   paidMethod?: string | null;
   confirmedAt?: string | null;

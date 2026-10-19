@@ -6,6 +6,7 @@ import { ModalShell } from "@/components/ui/ModalShell";
 import { ModalCloseBtn } from "@/components/ui/ModalCloseBtn";
 import { formatMoney } from "@/lib/tableBill";
 import { guestMenuGroups } from "@/lib/menuView";
+import { precioDesde } from "@/lib/dishChoice";
 import type { MenuCategoryView, MenuProductView } from "@/lib/data/menu";
 
 /* "Ver menú": the menu the way a guest sees it after scanning a table QR.
@@ -78,7 +79,16 @@ export const MenuPreviewDialog = ({
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-carbon">{p.name}</p>
                       {p.description && <p className="mt-0.5 text-xs text-carbon/55">{p.description}</p>}
-                      <p className="mt-1 text-sm font-semibold tabular-nums text-marca">{formatMoney(p.price)}</p>
+                      {p.choice && (
+                        <p className="mt-0.5 text-xs text-carbon/55">
+                          {p.choice.question}: {p.choice.options.map((o) => o.name).join(" · ")}
+                        </p>
+                      )}
+                      <p className="mt-1 text-sm font-semibold tabular-nums text-marca">
+                        {precioDesde(p.price, p.choice).desde
+                          ? t("carta.desde", { n: formatMoney(precioDesde(p.price, p.choice).amount) })
+                          : formatMoney(precioDesde(p.price, p.choice).amount)}
+                      </p>
                     </div>
                   </li>
                 ))}

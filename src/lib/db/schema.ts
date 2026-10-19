@@ -606,6 +606,7 @@ export const menuItems = pgTable("productos", {
   precio: integer("precio").notNull(),
   costo: integer("costo"),
   imagenUrl: text("imagen_url"),
+  opciones: jsonb("opciones"),
   activo: boolean("activo").notNull().default(true),
   orden: integer("orden").notNull().default(0),
   createdAt: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
@@ -717,6 +718,8 @@ export const orderItems = pgTable(
     productoId: uuid("producto_id").references(() => menuItems.id, { onDelete: "set null" }),
     /* Name and price copied when ordering. */
     nombre: text("nombre").notNull(),
+    opcion: text("opcion"),
+    nota: text("nota"),
     precioUnitario: integer("precio_unitario").notNull(),
     cantidad: integer("cantidad").notNull(),
     subtotal: integer("subtotal").generatedAlwaysAs(sql`precio_unitario * cantidad`),

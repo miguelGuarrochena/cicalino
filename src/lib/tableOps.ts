@@ -1,4 +1,5 @@
 import type { OrderStatus } from "@/lib/types";
+import { lineLabel } from "@/lib/dishChoice";
 import {
   billPending,
   excessPayments,
@@ -84,10 +85,11 @@ export const summarizeKitchen = (orders: BillOrder[]): KitchenLine[] => {
   const merged = new Map<string, KitchenLine>();
   for (const o of orders) {
     for (const item of o.items) {
-      const key = item.name.trim().toLowerCase();
+      const name = lineLabel(item.name, item.option, item.note);
+      const key = name.trim().toLowerCase();
       const prev = merged.get(key);
       if (prev) prev.quantity += item.quantity;
-      else merged.set(key, { name: item.name, quantity: item.quantity });
+      else merged.set(key, { name, quantity: item.quantity });
     }
   }
   return [...merged.values()].sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name));

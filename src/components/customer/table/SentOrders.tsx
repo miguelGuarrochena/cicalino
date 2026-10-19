@@ -4,6 +4,7 @@ import { useApp } from "@/components/providers/Providers";
 import { CustomerEmpty } from "@/components/customer/CustomerEmpty";
 import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import type { BillOrder } from "@/lib/tableBill";
+import { OrderItemBits } from "@/components/OrderItemBits";
 import type { OrderStatus } from "@/lib/types";
 
 /* Los pedidos que ya salieron de la mesa.
@@ -137,7 +138,7 @@ export const SentOrders = ({
                   <ul className="mt-2.5 flex flex-col gap-1.5 text-base text-carbon">
                     {o.items.map((i) => (
                       <li key={i.id}>
-                        <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
+                        <OrderItemBits quantity={i.quantity} name={i.name} option={i.option} note={i.note} />
                       </li>
                     ))}
                   </ul>

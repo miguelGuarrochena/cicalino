@@ -100,5 +100,6 @@
   "mesa-cierre-al-pagar.sql",
   "mesa-cuenta-broadcast.sql",
   "mesa-consistencia-cobros.sql",
-  "cocina-modo.sql"
+  "cocina-modo.sql",
+  "plato-aclaracion.sql"
 ]

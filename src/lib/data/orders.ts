@@ -35,7 +35,7 @@ type Row = {
   confirmado_en?: string | null;
   total?: number | null;
   pago_metodo?: string | null;
-  items?: { nombre: string; cantidad: number }[] | null;
+  items?: { nombre: string; cantidad: number; opcion?: string | null; nota?: string | null }[] | null;
   flujo?: string | null;
   pago_caja_en?: string | null;
   pago_mp_pendiente?: boolean | null;
@@ -63,7 +63,12 @@ const mapRow = (r: Row): OrderView => ({
   confirmedAt: r.confirmado_en ?? null,
   total: r.total ?? null,
   paidMethod: r.pago_metodo ?? null,
-  items: (r.items ?? []).map((i) => ({ name: i.nombre, quantity: i.cantidad })),
+  items: (r.items ?? []).map((i) => ({
+    name: i.nombre,
+    quantity: i.cantidad,
+    option: i.opcion ?? null,
+    note: i.nota ?? null,
+  })),
   counterQr: r.flujo === "mostrador_qr",
   payAtCounterAt: r.pago_caja_en ?? null,
   mpPending: Boolean(r.pago_mp_pendiente),
@@ -173,10 +178,16 @@ const asItems = (raw: unknown): KitchenTicket["items"] => {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((i) => {
     if (!i || typeof i !== "object") return [];
-    const row = i as { nombre?: unknown; cantidad?: unknown };
+    const row = i as { nombre?: unknown; cantidad?: unknown; opcion?: unknown; nota?: unknown };
     if (typeof row.nombre !== "string") return [];
     const quantity = Number(row.cantidad);
-    return Number.isFinite(quantity) ? [{ name: row.nombre, quantity }] : [];
+    if (!Number.isFinite(quantity)) return [];
+    return [{
+      name: row.nombre,
+      quantity,
+      option: typeof row.opcion === "string" && row.opcion ? row.opcion : null,
+      note: typeof row.nota === "string" && row.nota ? row.nota : null,
+    }];
   });
 };
 
@@ -202,7 +213,7 @@ export const fetchKitchenBoard = async (
   const { data, error } = await supabase
     .from("pedidos")
     .select(
-      "id, referencia, alias_cliente, estado, creado_en, listo_en, pedido_items(nombre, cantidad), mesa_sesiones(mesa_numero)",
+      "id, referencia, alias_cliente, estado, creado_en, listo_en, pedido_items(nombre, cantidad, opcion, nota), mesa_sesiones(mesa_numero)",
     )
     .eq("local_id", branchId)
     .in("estado", ["creado", "en_preparacion", "listo"])

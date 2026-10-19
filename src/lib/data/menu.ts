@@ -9,6 +9,7 @@ import {
   parseInput,
 } from "@/lib/schemas";
 import type { MenuImportRow } from "@/lib/menuImport";
+import { choiceJson, parseDishChoice, type DishChoice } from "@/lib/dishChoice";
 import type { z } from "zod";
 
 export interface MenuProductView {
@@ -21,6 +22,7 @@ export interface MenuProductView {
   imageUrl: string | null;
   active: boolean;
   order: number;
+  choice: DishChoice | null;
 }
 
 export interface MenuCategoryView {
@@ -31,7 +33,7 @@ export interface MenuCategoryView {
 }
 
 const PRODUCT_COLUMNS =
-  "id, nombre, descripcion, categoria, precio, costo, imagen_url, activo, orden";
+  "id, nombre, descripcion, categoria, precio, costo, imagen_url, activo, orden, opciones";
 const CATEGORY_COLUMNS = "id, nombre, activa, orden";
 
 const mapProduct = (p: Record<string, unknown>): MenuProductView => ({
@@ -44,6 +46,7 @@ const mapProduct = (p: Record<string, unknown>): MenuProductView => ({
   imageUrl: (p.imagen_url as string | null) ?? null,
   active: Boolean(p.activo),
   order: (p.orden as number) ?? 0,
+  choice: parseDishChoice(p.opciones),
 });
 
 const mapCategory = (c: Record<string, unknown>): MenuCategoryView => ({
@@ -143,6 +146,7 @@ export const saveMenuProduct = async (
     imagen_url: v.data.imageUrl ?? null,
     activo: v.data.active,
     orden: v.data.order,
+    ...(v.data.choice !== undefined ? { opciones: choiceJson(v.data.choice) } : {}),
   };
   const q = id
     ? supabase.from("productos").update(row).eq("id", id).eq("local_id", branchId)

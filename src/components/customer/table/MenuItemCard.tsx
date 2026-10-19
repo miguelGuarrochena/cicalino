@@ -2,6 +2,7 @@
 
 import { useApp } from "@/components/providers/Providers";
 import { formatMoney } from "@/lib/tableBill";
+import { precioDesde } from "@/lib/dishChoice";
 import type { GuestMenuProduct } from "@/components/customer/table/TableGuestApp";
 
 /* Un plato de la carta.
@@ -18,7 +19,8 @@ export const MenuItemCard = ({
   cantidad,
   categoria,
   puedePedir,
-  onCantidad,
+  onSumar,
+  onRestar,
 }: {
   producto: GuestMenuProduct;
   cantidad: number;
@@ -26,9 +28,11 @@ export const MenuItemCard = ({
    * sobra, porque el título de la sección ya está a la vista. */
   categoria?: string;
   puedePedir: boolean;
-  onCantidad: (q: number) => void;
+  onSumar: () => void;
+  onRestar: () => void;
 }) => {
   const { t } = useApp();
+  const lista = precioDesde(producto.price, producto.choice);
   return (
     <li className="flex gap-3 rounded-2xl border border-linea bg-surface p-3.5">
       {producto.imageUrl ? (
@@ -54,9 +58,14 @@ export const MenuItemCard = ({
           </p>
         )}
         <div className="mt-2 flex items-center justify-between gap-3">
-          <p className="text-lg font-bold tabular-nums text-marca">
-            {formatMoney(producto.price)}
-          </p>
+          <div className="min-w-0">
+            <p className="text-lg font-bold tabular-nums text-marca">
+              {lista.desde ? t("mesa.desde", { n: formatMoney(lista.amount) }) : formatMoney(lista.amount)}
+            </p>
+            {producto.choice ? (
+              <p className="text-sm text-suave">{producto.choice.question}</p>
+            ) : null}
+          </div>
           {puedePedir && (
             <div className="flex shrink-0 items-center gap-1">
               {cantidad > 0 && (
@@ -64,7 +73,7 @@ export const MenuItemCard = ({
                   <button
                     type="button"
                     aria-label={t("mesa.quitarUno", { n: producto.name })}
-                    onClick={() => onCantidad(cantidad - 1)}
+                    onClick={onRestar}
                     className="grid size-11 place-items-center rounded-full border-2 border-linea text-2xl leading-none text-carbon"
                   >
                     −
@@ -80,7 +89,7 @@ export const MenuItemCard = ({
               <button
                 type="button"
                 aria-label={t("mesa.agregarUno", { n: producto.name })}
-                onClick={() => onCantidad(cantidad + 1)}
+                onClick={onSumar}
                 className="grid size-11 place-items-center rounded-full bg-marca text-2xl leading-none text-crema"
               >
                 +
