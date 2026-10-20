@@ -24,7 +24,7 @@
  * tener que buscar de qué botón salió. `text-crema` es el fondo de la página,
  * que es claro en tema claro y oscuro en tema oscuro: por eso contrasta contra
  * el relleno lleno en los dos, sin una regla por tema. */
-type Tone = "marca" | "espera" | "pagos" | "curso" | "alerta";
+type Tone = "marca" | "espera" | "pagos" | "curso" | "alerta" | "ok";
 
 const FONDO: Record<Tone, string> = {
   marca: "bg-marca text-crema",
@@ -32,6 +32,7 @@ const FONDO: Record<Tone, string> = {
   pagos: "bg-pagos text-crema",
   curso: "bg-curso text-crema",
   alerta: "bg-alerta text-crema",
+  ok: "bg-ok text-crema",
 };
 
 const HALO: Record<Tone, string> = {
@@ -40,6 +41,7 @@ const HALO: Record<Tone, string> = {
   pagos: "u-alert-halo u-alert-halo-pagos",
   curso: "u-alert-halo u-alert-halo-curso",
   alerta: "u-alert-halo",
+  ok: "u-alert-halo u-alert-halo-ok",
 };
 
 export const CountBadge = ({

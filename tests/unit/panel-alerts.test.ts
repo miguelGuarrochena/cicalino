@@ -165,6 +165,7 @@ describe("Capa global de avisos del panel", () => {
       mesas: 3,
       pedidos: 1,
       recepcion: 1,
+      cocina: 0,
     });
   });
 
@@ -212,7 +213,7 @@ describe("Tablero global — publicar, ver y dar por visto", () => {
     ]));
     expect(getLiveAlerts()).toHaveLength(5);
     expect(getLiveAlerts()[0].kind).toBe("llamado");
-    expect(getLiveAlertCounts()).toEqual({ mesas: 3, pedidos: 1, recepcion: 1 });
+    expect(getLiveAlertCounts()).toEqual({ mesas: 3, pedidos: 1, recepcion: 1, cocina: 0 });
   });
 
   it("dar por visto lo saca del aviso sin resolver el trabajo", () => {
@@ -246,7 +247,7 @@ describe("Tablero global — publicar, ver y dar por visto", () => {
       { id: "p1", reference: "14", createdAt: "2026-09-16T20:01:00Z" },
     ]));
     ackPanelSource("recepcion");
-    expect(getLiveAlertCounts()).toEqual({ mesas: 0, pedidos: 1, recepcion: 0 });
+    expect(getLiveAlertCounts()).toEqual({ mesas: 0, pedidos: 1, recepcion: 0, cocina: 0 });
   });
 
   it("el mozo está en Configuración y la mesa 8 llama: se entera igual", () => {

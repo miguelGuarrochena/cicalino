@@ -74,12 +74,18 @@ const TONE: Record<PanelAlertKind, { card: string; halo: string; chip: string }>
     halo: "u-alert-halo u-alert-halo-ok",
     chip: "bg-ok text-crema",
   },
+  "cocina-nueva": {
+    card: "border-ok-borde bg-ok-fondo text-ok",
+    halo: "u-alert-halo u-alert-halo-ok",
+    chip: "bg-ok text-crema",
+  },
 };
 
 const SOURCE_KEY = {
   mesas: "nav.pagos",
   pedidos: "nav.pedidos",
   recepcion: "nav.espera",
+  cocina: "nav.cocina",
 } as const;
 
 export const PanelAlertDock = () => {

@@ -47,6 +47,7 @@ const dict = {
       verLasN: "Ver las {n} que faltan",
       verMenos: "Ver menos",
       cocinaLista: "{n} listo para entregar",
+      cocinaNueva: "{n} entró a cocina",
     },
     cocina: {
       configSub: "Elegí cómo llega la comanda a la cocina. Se guarda con el resto de Configuración.",
@@ -72,7 +73,7 @@ const dict = {
       mandar: "Mandar a cocina",
       mandada: "Mandada a cocina.",
       porLlevar: "Hecha · por llevar",
-      porLlevarTitulo: "Para llevar",
+      porLlevarTitulo: "Terminado en cocina",
       porLlevarAyuda: "Cocina terminó. Marcá listo al llevarlo: ahí se avisa al cliente.",
       listoCliente: "Listo. Avisamos al cliente.",
       hechaAvisada: "Avisamos al mostrador.",
@@ -2354,6 +2355,7 @@ const dict = {
       verLasN: "See the other {n}",
       verMenos: "See less",
       cocinaLista: "{n} is ready to hand over",
+      cocinaNueva: "{n} came into the kitchen",
     },
     cocina: {
       configSub: "Choose how tickets reach the kitchen. It saves with the rest of Settings.",
@@ -2379,7 +2381,7 @@ const dict = {
       mandar: "Send to kitchen",
       mandada: "Sent to the kitchen.",
       porLlevar: "Done · ready to take",
-      porLlevarTitulo: "Ready to take",
+      porLlevarTitulo: "Done in the kitchen",
       porLlevarAyuda: "Kitchen is done. Mark ready when you take it: that's when the guest is told.",
       listoCliente: "Ready. The guest has been told.",
       hechaAvisada: "The counter has been told.",
