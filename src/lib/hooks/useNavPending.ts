@@ -11,8 +11,9 @@ import type { PanelAlertSource } from "@/lib/panelAlerts";
  * hacer?"— tuvo que mostrar lo mismo, copiarlo habría dejado dos lugares
  * donde arreglar el día que cambie de dónde sale un número.
  *
- * Mesas sigue leyendo su propio detalle (pedido vs cuenta) porque muestra las
- * dos cosas por separado; las otras alcanzan con el número. */
+ * Pagos suma las dos colas que se resuelven adentro: comandas sin enviar y
+ * cobros pendientes. El resto de los módulos alcanza con los avisos que
+ * todavía nadie miró. */
 const SOURCE_BY_HREF: Record<string, PanelAlertSource> = {
   "/panel/pedidos": "pedidos",
   "/panel/espera": "recepcion",
@@ -43,6 +44,13 @@ export interface NavPending {
   n: number;
   /** El color del módulo del que salió el número. */
   tone: NavTone;
+  /** Late solo cuando llegó algo que nadie miró. El número de Pagos queda
+   *  quieto mientras el trabajo sigue pendiente: si latiera por el saldo, el
+   *  salón lo vería moverse toda la noche. */
+  pulse: boolean;
+  /** Se sigue viendo con la sección abierta. Pagos lo necesita: el número de
+   *  la barra es la suma, y adentro cada pestaña muestra la suya. */
+  sticky: boolean;
   /** El nombre de la sección con el pendiente adentro, para quien no ve el
    *  globo: el número es `aria-hidden` y solo. */
   label: (base: string) => string;
@@ -52,8 +60,8 @@ export const useNavPending = (): ((href: string) => NavPending) => {
   const { t } = useApp();
   const attention = useFloorAttention();
   const counts = usePanelAlertCounts();
-  /* Mesas cuenta lo suyo con attention-store; lo único que le llega de la
-   * capa global es el plato de una mesa de Pagos que cocina ya terminó. */
+  /* El latido de Pagos sigue siendo "llegó algo": comandas, cuentas, llamados
+   * y el plato que cocina ya terminó. El número es otra cosa, y no los suma. */
   const hechasMesa = usePanelAlerts().filter(
     (a) => a.kind === "cocina-lista" && a.source === "mesas",
   ).length;
@@ -61,24 +69,19 @@ export const useNavPending = (): ((href: string) => NavPending) => {
   return (href: string): NavPending => {
     const esMesas = href === "/panel/pagos";
     const source = SOURCE_BY_HREF[href];
-    const n = esMesas
-      ? attention.headerUnseen + hechasMesa
-      : source
-        ? counts[source]
-        : 0;
-    const split =
-      esMesas && attention.headerPedido > 0 && attention.headerCuenta > 0;
+    const comandas = attention.pendingComandas;
+    const cobrar = attention.pendingCharges;
+    const n = esMesas ? comandas + cobrar : source ? counts[source] : 0;
 
     return {
       n,
       tone: TONE_BY_HREF[href] ?? "marca",
+      pulse: esMesas ? attention.headerUnseen > 0 || hechasMesa > 0 : n > 0,
+      sticky: esMesas,
       label: (base: string) => {
         if (n <= 0) return base;
-        if (split) {
-          return `${base}, ${t("nav.pedidoYCuenta", {
-            p: attention.headerPedido,
-            c: attention.headerCuenta,
-          })}`;
+        if (esMesas && comandas > 0 && cobrar > 0) {
+          return `${base}, ${t("nav.pedidoYCuenta", { p: comandas, c: cobrar })}`;
         }
         return `${base}, ${t("nav.pendientes", { n })}`;
       },

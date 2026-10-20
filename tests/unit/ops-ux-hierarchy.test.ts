@@ -180,8 +180,9 @@ describe("Operación — jerarquía y layout", () => {
     const pendientes = read("src/lib/hooks/useNavPending.ts");
     expect(layout).toContain("FloorAttentionWatch");
     expect(pendientes).toContain("headerUnseen");
-    expect(pendientes).toContain("headerPedido");
-    expect(pendientes).toContain("headerCuenta");
+    expect(pendientes).toContain("pendingComandas");
+    expect(pendientes).toContain("pendingCharges");
+    expect(pendientes).toContain("comandas + cobrar");
     expect(pendientes).toContain("nav.pedidoYCuenta");
     expect(nav).toContain("useNavPending");
     /* El contador vive en un solo componente —lo dibujaban tres— y es un globo

@@ -37,7 +37,6 @@ import {
   buildFloor,
   filterFloor,
   kitchenInbox,
-  needsPedido,
   nextChargeAfter,
   tableAlert,
   type FloorFilter,
@@ -141,8 +140,12 @@ const MesasPage = () => {
         : [],
     [cocinaPantalla, floor],
   );
-  const pedidoN = floor.filter(needsPedido).length;
-  const chargeN = inbox.bills.length;
+  /* Los mismos números que el globo de Pagos en la barra: comandas son
+   * pedidos sin enviar, cobros son mesas con algo por cobrar, y la barra
+   * muestra la suma. Salen de las cuentas, no del filtro de la pestaña, así
+   * buscar una mesa no los achica. */
+  const pedidoN = attention.pendingComandas;
+  const chargeN = attention.pendingCharges;
   const currentBill = bills.find((b) => b.session.id === selected) ?? null;
   const showDetail = Boolean(currentBill);
   const openPending = floor.reduce((s, r) => s + (r.bill ? r.pending : 0), 0);
@@ -396,6 +399,7 @@ const MesasPage = () => {
                   badge: pedidoN,
                   pulse: attention.tabPedidoPulse,
                   tone: "marca",
+                  prominent: true,
                 },
                 {
                   id: "cobrar",
@@ -405,6 +409,7 @@ const MesasPage = () => {
                   pulse: attention.tabCobrarPulse,
                   priority: attention.tabCobrarPulse,
                   tone: "curso",
+                  prominent: true,
                 },
                 {
                   id: "todas",

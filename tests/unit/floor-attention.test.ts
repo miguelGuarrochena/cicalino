@@ -303,6 +303,79 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
     ).toBeNull();
   });
 
+  it("Pagos es la suma de comandas sin enviar y cobros pendientes", () => {
+    const conLasDos = bill({
+      orders: [order(), order({ id: "o2" })],
+      payments: [pay()],
+    });
+    const una = floorAttention([conLasDos], emptyAttentionSeen(), null);
+    expect(una.pendingComandas).toBe(2);
+    expect(una.pendingCharges).toBe(1);
+    expect(una.pendingComandas + una.pendingCharges).toBe(3);
+
+    const soloCobro = bill({
+      session: { ...bill().session, id: "s2", tableNumber: 4 },
+      orders: [order({ id: "o3", status: "en_preparacion" })],
+      payments: [],
+    });
+    const llamado = bill({
+      session: {
+        ...bill().session,
+        id: "s3",
+        tableNumber: 5,
+        calledAt: "2026-09-16T20:30:00Z",
+      },
+      orders: [order({ id: "o4", status: "listo" })],
+      payments: [],
+      totals: {
+        ...bill().totals,
+        consumption: 0,
+        total: 0,
+        paid: 0,
+        uncovered: 0,
+        paidBase: 0,
+      },
+    });
+    const piso = floorAttention(
+      [conLasDos, soloCobro, llamado],
+      emptyAttentionSeen(),
+      null,
+    );
+    expect(piso.pendingComandas).toBe(2);
+    expect(piso.pendingCharges).toBe(2);
+    expect(piso.pendingComandas + piso.pendingCharges).toBe(4);
+
+    const mandada = floorAttention(
+      [
+        {
+          ...conLasDos,
+          orders: conLasDos.orders.map((o) => ({ ...o, status: "en_preparacion" as const })),
+        },
+        soloCobro,
+        llamado,
+      ],
+      emptyAttentionSeen(),
+      null,
+    );
+    expect(mandada.pendingComandas).toBe(0);
+    expect(mandada.pendingCharges).toBe(2);
+
+    const cobrada = floorAttention(
+      [
+        conLasDos,
+        {
+          ...soloCobro,
+          totals: { ...soloCobro.totals, paid: 10000, total: 10000, uncovered: 0 },
+        },
+        llamado,
+      ],
+      emptyAttentionSeen(),
+      null,
+    );
+    expect(cobrada.pendingComandas).toBe(2);
+    expect(cobrada.pendingCharges).toBe(1);
+  });
+
   it("la cola de Cobrar lista la mesa que pidió la cuenta", () => {
     const floor = buildFloor(
       [{ id: "m8", number: 8, qrToken: "t", qrActive: true }],

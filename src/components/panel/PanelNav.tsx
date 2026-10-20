@@ -20,7 +20,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t border-linea bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden print:hidden">
         {links.map((l) => {
           const active = navLinkActive(l.href, path);
-          const { n, tone, label } = pendingFor(l.href);
+          const { n, tone, label, pulse, sticky } = pendingFor(l.href);
           return (
             <Link
               key={l.href}
@@ -36,9 +36,9 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
                     que eso no se lee como globo, más que eso tapa el ícono y
                     el mozo pierde de qué sección es. */}
                 <CountBadge
-                  n={active ? 0 : n}
+                  n={active && !sticky ? 0 : n}
                   tone={tone}
-                  pulse
+                  pulse={pulse && !active}
                   className="absolute -right-5 -top-4"
                 />
               </span>
@@ -56,7 +56,7 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
     <nav className="hidden items-center gap-2 rounded-full bg-crema/60 p-1 sm:flex">
       {links.map((l) => {
         const active = navLinkActive(l.href, path);
-        const { n, tone, label } = pendingFor(l.href);
+        const { n, tone, label, pulse, sticky } = pendingFor(l.href);
         return (
           <Link
             key={l.href}
@@ -72,11 +72,12 @@ export const PanelNav = ({ variant = "top" }: { variant?: "top" | "bottom" }) =>
             <span className="truncate">{t(l.key)}</span>
             {/* Asomado por el borde, como el globito de mensajes sin leer:
                 adentro del botón se lee como un detalle del botón, y afuera
-                se lee como "hay algo esperándote". */}
+                se lee como "hay algo esperándote". Pagos no lo esconde al
+                entrar: el número es la suma de las dos pestañas. */}
             <CountBadge
-              n={active ? 0 : n}
+              n={active && !sticky ? 0 : n}
               tone={tone}
-              pulse
+              pulse={pulse && !active}
               className="absolute -right-2 -top-2"
             />
           </Link>

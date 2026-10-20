@@ -203,9 +203,13 @@ describe("Cableado de los contadores", () => {
     expect(hook).not.toContain("cocinaListaAlerts");
   });
 
-  it("el botón de Cocina lee su fuente y Pagos suma lo hecho de sus mesas", () => {
+  it("Cocina lee su fuente; Pagos suma comandas y cobros, y late si cocina terminó un plato", () => {
     const nav = read("src/lib/hooks/useNavPending.ts");
     expect(nav).toContain('"/panel/cocina": "cocina"');
+    /* El plato listo sigue despertando el globo. No entra en el número:
+     * Pagos tiene que ser exactamente Comandas + Cobrar. */
     expect(nav).toContain('a.kind === "cocina-lista" && a.source === "mesas"');
+    expect(nav).toContain("comandas + cobrar");
+    expect(nav).not.toContain("headerUnseen + hechasMesa");
   });
 });
