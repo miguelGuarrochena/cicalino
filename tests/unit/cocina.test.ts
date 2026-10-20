@@ -78,6 +78,8 @@ describe("cocina", () => {
     const realtime = readFileSync(join(process.cwd(), "supabase/pedidos-realtime.sql"), "utf8");
     expect(realtime).toContain("replica identity full");
     expect(realtime).toContain("public.pedidos");
-    expect(orden.at(-1)).toBe("pedidos-realtime.sql");
+    expect(orden.filter((f) => f !== "data-api-grants.sql").at(-1)).toBe(
+      "pedidos-realtime.sql",
+    );
   });
 });

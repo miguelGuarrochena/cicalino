@@ -103,5 +103,6 @@
   "cocina-modo.sql",
   "plato-aclaracion.sql",
   "cocina-pase.sql",
-  "pedidos-realtime.sql"
+  "pedidos-realtime.sql",
+  "data-api-grants.sql"
 ]
