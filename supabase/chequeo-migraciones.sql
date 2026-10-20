@@ -445,7 +445,8 @@ requisitos (archivo, necesita) as (
     ('cocina-modo.sql', 'mesa-pedido-comensal.sql'),
     ('plato-aclaracion.sql', 'cocina-modo.sql'),
     ('cocina-pase.sql', 'plato-aclaracion.sql'),
-    ('pedidos-realtime.sql', 'setup.sql')
+    ('pedidos-realtime.sql', 'setup.sql'),
+    ('data-api-grants.sql', 'setup.sql, usuarios-sucursales.sql, modulo-espera.sql, reservas-mesa.sql, suscripciones.sql, emails-enviados.sql, pedidos-sucursal.sql, cron-lock.sql, reservas-sin-solape.sql, security-fixes-13.sql, security-fixes-17.sql, split-payments.sql, mesa-asignacion-jornada.sql, cocina-modo.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

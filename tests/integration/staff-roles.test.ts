@@ -277,8 +277,9 @@ describe.skipIf(!enabled)("Integration — roles del personal", () => {
 
   it("el dueño cambia un rol desde el servidor; un cliente no", async () => {
     await como("authenticated", admin);
-    /* No UPDATE policy on usuarios: the row is simply not touched. */
-    expect(await filas(`update public.usuarios set rol = 'supervisor' where id = $1`, [mozo])).toBe(0);
+    /* No UPDATE grant (data-api-grants) or, without it, no UPDATE policy:
+     * -1 = rejected, 0 = row not touched. */
+    expect(await filas(`update public.usuarios set rol = 'supervisor' where id = $1`, [mozo])).toBeLessThanOrEqual(0);
     await como("service_role", null);
     expect(await filas(`update public.usuarios set rol = 'supervisor' where id = $1`, [mozo])).toBe(1);
   });

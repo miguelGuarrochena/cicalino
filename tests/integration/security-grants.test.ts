@@ -31,9 +31,12 @@ describe.skipIf(!enabled)("Integration — security grants smoke", () => {
     if (!process.env.DATABASE_URL) {
       throw new Error("RUN_DB_CHECKS=1 requiere DATABASE_URL");
     }
+    const url = process.env.DATABASE_URL;
     client = new pg.Client({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      connectionString: url,
+      ssl: /@(localhost|127\.0\.0\.1)[:/]/.test(url)
+        ? false
+        : { rejectUnauthorized: false },
     });
     await client.connect();
   });
@@ -268,7 +271,9 @@ describe.skipIf(!enabled)("Integration — security grants smoke", () => {
   it("el panel conserva las columnas de empleados que sí usa", async () => {
     /* La contracara del test de arriba: el fix re-otorga columna por columna,
      * así que una columna nueva sin sumar al grant rompe el panel en silencio.
-     * `tiene_pin` es GENERATED ALWAYS: se lee, no se escribe. */
+     * `tiene_pin` es GENERATED ALWAYS: se lee, no se escribe.
+     * Sin UPDATE: el panel no edita empleados directo y la vinculación de
+     * cuentas (usuario_id) la hace team.ts con service_role (data-api-grants). */
     const { rows } = await client.query(`
       select
         has_column_privilege('authenticated', 'public.empleados', 'id',         'SELECT') as id_sel,
@@ -281,14 +286,15 @@ describe.skipIf(!enabled)("Integration — security grants smoke", () => {
         has_column_privilege('authenticated', 'public.empleados', 'usuario_id', 'SELECT') as usuario_sel,
         has_column_privilege('authenticated', 'public.empleados', 'local_id',   'INSERT') as local_ins,
         has_column_privilege('authenticated', 'public.empleados', 'nombre',     'INSERT') as nombre_ins,
-        has_column_privilege('authenticated', 'public.empleados', 'nombre',     'UPDATE') as nombre_upd,
-        has_column_privilege('authenticated', 'public.empleados', 'rol',        'UPDATE') as rol_upd,
-        has_column_privilege('authenticated', 'public.empleados', 'usuario_id', 'UPDATE') as usuario_upd,
         has_table_privilege ('authenticated', 'public.empleados',               'DELETE') as del
     `);
     for (const [k, v] of Object.entries(rows[0])) {
       expect(v, k).toBe(true);
     }
+    const upd = await client.query(`
+      select has_any_column_privilege('authenticated', 'public.empleados', 'UPDATE') as upd
+    `);
+    expect(upd.rows[0].upd).toBe(false);
   });
 
   it("no queda ninguna columna de empleados sin SELECT salvo pin y pin_hash", async () => {

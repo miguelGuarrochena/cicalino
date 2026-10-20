@@ -136,6 +136,20 @@ describe.skipIf(!enabled)("Integration — aislamiento entre empresas", () => {
     }
   };
 
+  /* Sin GRANT (data-api-grants.sql) Postgres rechaza antes de llegar a RLS;
+   * con GRANT, RLS devuelve cero filas. Las dos cosas son "no pudo". */
+  const noAfecta = async (q: string, p: unknown[] = []): Promise<boolean> => {
+    await client.query("savepoint intento");
+    try {
+      const r = await client.query(q, p);
+      await client.query("release savepoint intento");
+      return r.rows.length === 0;
+    } catch {
+      await client.query("rollback to savepoint intento");
+      return true;
+    }
+  };
+
   /* --------------------------------------------------------------------- */
 
   beforeEach(async () => {
@@ -234,12 +248,19 @@ describe.skipIf(!enabled)("Integration — aislamiento entre empresas", () => {
 
   it("el admin de A puede cargar un pedido en su propia sucursal", async () => {
     await comoUsuario(adminA);
-    const bloqueado = await rechaza(
-      `insert into public.pedidos (local_id, referencia, estado, qr_token, qr_expira_en)
-       values ($1, '99', 'creado', gen_random_uuid()::text, now() + interval '6 hours')`,
+    const { r } = await uno<{ r: { ok: boolean } }>(
+      `select public.crear_pedido($1, '99', null, now(), now() + interval '6 hours') as r`,
       [sucA1],
     );
-    expect(bloqueado).toBe(false);
+    expect(r.ok).toBe(true);
+
+    /* El panel carga por crear_pedido(); el INSERT directo no tiene GRANT. */
+    const directo = await rechaza(
+      `insert into public.pedidos (local_id, referencia, estado, qr_token, qr_expira_en)
+       values ($1, '98', 'creado', gen_random_uuid()::text, now() + interval '6 hours')`,
+      [sucA1],
+    );
+    expect(directo).toBe(true);
   });
 
   /* === Cross-tenant: lectura =========================================== */
@@ -321,10 +342,10 @@ describe.skipIf(!enabled)("Integration — aislamiento entre empresas", () => {
       [pedidoB],
     );
     expect(upd, "update").toHaveLength(0);
-    const del = await sql(`delete from public.pedidos where id = $1 returning id`, [
-      pedidoB,
-    ]);
-    expect(del, "delete").toHaveLength(0);
+    expect(
+      await noAfecta(`delete from public.pedidos where id = $1 returning id`, [pedidoB]),
+      "delete",
+    ).toBe(true);
   });
 
   it("el admin de A no puede robarse una sucursal de B cambiándole la empresa", async () => {
@@ -376,11 +397,12 @@ describe.skipIf(!enabled)("Integration — aislamiento entre empresas", () => {
 
   it("nadie se puede auto-ascender de rol", async () => {
     await comoUsuario(adminA);
-    const filas = await sql(
-      `update public.usuarios set rol = 'superadmin' where id = $1 returning id`,
-      [adminA],
-    );
-    expect(filas).toHaveLength(0);
+    expect(
+      await noAfecta(
+        `update public.usuarios set rol = 'superadmin' where id = $1 returning id`,
+        [adminA],
+      ),
+    ).toBe(true);
 
     await comoAdminDeLaBase();
     const { rol } = await uno<{ rol: string }>(
@@ -490,7 +512,7 @@ describe.skipIf(!enabled)("Integration — aislamiento entre empresas", () => {
       "solicitudes",
       "push_subscriptions",
     ]) {
-      expect(await sql(`select 1 from public.${t} limit 1`), t).toHaveLength(0);
+      expect(await noAfecta(`select 1 from public.${t} limit 1`), t).toBe(true);
     }
   });
 
