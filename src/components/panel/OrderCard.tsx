@@ -148,7 +148,7 @@ export const OrderCard = ({
   return (
     <article
       className={`flex flex-col gap-4 rounded-[28px] border bg-surface p-5 shadow-sm transition duration-200 ${
-        listo
+        listo || (cocinaPantalla && order.status === "en_preparacion" && order.kitchenDoneAt)
           ? "border-ok-borde ring-2 ring-ok-borde"
           : order.status === "cancelado"
             ? "border-linea opacity-70"

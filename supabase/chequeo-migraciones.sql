@@ -262,6 +262,7 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('plato-aclaracion.sql', 'column', 'pedido_items.nota', 102),
     ('plato-aclaracion.sql', 'function', '_lineas_pedido', 102),
     ('cocina-pase.sql', 'column', 'pedidos.cocina_hecha_en', 103),
+    ('pedidos-realtime.sql', 'replica', 'pedidos', 104),
     ('pedidos-paginado.sql', 'function', 'pedidos_pagina', 26),
     ('security-fixes-10.sql', 'function', 'crear_pedido', 45),
     ('security-fixes-01.sql', 'function', 'proteger_rol_usuario', 2),
@@ -443,7 +444,8 @@ requisitos (archivo, necesita) as (
     ('mesa-consistencia-cobros.sql', 'staff-empleado-cobro.sql, mesa-cierre-al-pagar.sql'),
     ('cocina-modo.sql', 'mesa-pedido-comensal.sql'),
     ('plato-aclaracion.sql', 'cocina-modo.sql'),
-    ('cocina-pase.sql', 'plato-aclaracion.sql')
+    ('cocina-pase.sql', 'plato-aclaracion.sql'),
+    ('pedidos-realtime.sql', 'setup.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

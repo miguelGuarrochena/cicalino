@@ -23,6 +23,7 @@ import {
 } from "@/lib/panelAlerts";
 import { fetchOrdersToCharge } from "@/lib/data/pickup";
 import {
+  ackPanelAlerts,
   ackPanelSource,
   getLiveAlertCounts,
   getLiveAlerts,
@@ -84,18 +85,27 @@ const useCounterAlertsFeed = () => {
         cocinaPantalla ? fetchReadyForCounter(branchId) : Promise.resolve(null),
       ]);
       /* Un refresco que falló no apaga los avisos: se queda con los últimos
-       * buenos, como hacen las listas de Pedidos y Recepción. */
-      if (!alive || !res.ok || (caja && !caja.ok) || (listas && !listas.ok)) return;
+       * buenos, como hacen las listas de Pedidos y Recepción.
+       * Si falla solo «hecha», se conservan las que ya había y se publican
+       * igual los pedidos nuevos. Si no, un error de cocina deja mudo al
+       * mostrador. */
+      if (!alive || !res.ok || (caja && !caja.ok)) return;
+      const hechas =
+        listas && !listas.ok
+          ? getPanelAlertState().bySource.pedidos.filter((a) => a.kind === "cocina-lista")
+          : listas?.ok
+            ? cocinaListaAlerts(listas.data)
+            : [];
       publishPanelAlerts("pedidos", [
         ...(caja?.ok ? cajaAlerts(caja.data) : []),
         ...counterAlerts(res.data),
-        ...(listas?.ok ? cocinaListaAlerts(listas.data) : []),
+        ...hechas,
       ]);
     });
     const stop = attachLiveRefresh({
       subscribe: (onChange) => subscribeOrders(branchId, onChange, ":alertas"),
       reload: () => void reload(),
-      ticksSano: 4,
+      ticksSano: 2,
     });
     void reload();
     return () => {
@@ -163,7 +173,16 @@ const useSectionAck = () => {
   const version = useAlertVersion();
 
   useEffect(() => {
-    if (path === "/panel/pedidos") ackPanelSource("pedidos");
+    /* «Cocina terminó» no se da por visto por estar en Pedidos: el pedido
+     * sigue en curso y hay que marcarlo listo. Si se apaga al entrar, el
+     * mostrador no ve nada. */
+    if (path === "/panel/pedidos") {
+      ackPanelAlerts(
+        getLiveAlerts().filter(
+          (a) => a.source === "pedidos" && a.kind !== "cocina-lista",
+        ),
+      );
+    }
     if (path === "/panel/espera") ackPanelSource("recepcion");
   }, [path, version]);
 };

@@ -395,11 +395,15 @@ describe("Mesas: atender y cobrar, no cocinar", () => {
   });
 
   it("listo en la mesa solo cuando cocina ya terminó, y nadie marca retirado ahí", () => {
-    for (const src of [mesas, inbox, read("src/components/panel/mesas/ChargeInbox.tsx")]) {
+    for (const src of [inbox, read("src/components/panel/mesas/ChargeInbox.tsx")]) {
       expect(src).not.toContain("marcarListo");
       expect(src).not.toContain("marcarEntregado");
       expect(src).not.toContain('"retirado"');
     }
+    expect(mesas).toContain("o.kitchenDoneAt");
+    expect(mesas).toContain('updateOrderStatus(orderId, "listo")');
+    expect(mesas).toContain("notifyCustomer");
+    expect(mesas).not.toContain('"retirado"');
     expect(detalle).not.toContain('"retirado"');
     expect(detalle).not.toContain("marcarEntregado");
     expect(detalle).toContain(

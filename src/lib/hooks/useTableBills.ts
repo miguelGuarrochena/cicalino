@@ -61,7 +61,7 @@ const start = (branchId: string): Shared => {
     reload: () => {
       if (!stopped) void reload();
     },
-    ticksSano: 4,
+    ticksSano: 2,
   });
   void reload();
 

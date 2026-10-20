@@ -85,7 +85,7 @@ export default function CocinaPage() {
     const stop = attachLiveRefresh({
       subscribe: (onChange) => subscribeOrders(branchId, onChange, ":cocina"),
       reload: () => void reload(),
-      ticksSano: 4,
+      ticksSano: 2,
     });
     void reload();
     return () => {

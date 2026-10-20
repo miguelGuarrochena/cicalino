@@ -102,5 +102,6 @@
   "mesa-consistencia-cobros.sql",
   "cocina-modo.sql",
   "plato-aclaracion.sql",
-  "cocina-pase.sql"
+  "cocina-pase.sql",
+  "pedidos-realtime.sql"
 ]
