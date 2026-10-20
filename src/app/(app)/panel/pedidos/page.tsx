@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useOrders } from "@/lib/hooks/useOrders";
 import {
   findOpenOrderWithReference,
   fetchOrderSeenAt,
+  fetchReadyForCounter,
   isRealBranchId,
 } from "@/lib/data/orders";
 import { useQrSeenClose } from "@/lib/hooks/useQrSeenClose";
@@ -114,6 +115,27 @@ const PanelOrdersPage = () => {
   const branchNameLabel = live
     ? liveBranchName
     : branchById(orgs, branchId)?.name;
+  const cocinaPantalla = useConfigStore((s) => s.cocinaModo) === "pantalla";
+  const [porLlevar, setPorLlevar] = useState<
+    { id: string; reference: string; tableNumber: number | null }[]
+  >([]);
+
+  /* La página está filtrada: cocina puede terminar un pedido que no está
+   * en esta hoja. Esta lista no depende del filtro y trae el botón de listo. */
+  useEffect(() => {
+    if (!live || !branchId || !cocinaPantalla) {
+      setPorLlevar([]);
+      return;
+    }
+    let alive = true;
+    void fetchReadyForCounter(branchId).then((res) => {
+      if (!alive || !res.ok) return;
+      setPorLlevar(res.data.filter((o) => o.where === "pedidos"));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [live, branchId, cocinaPantalla, orders]);
 
   /* "Por cobrar": Mesa, y el Mostrador QR con pago previo. Acá va por la
    * modalidad y no por la opción a propósito: es donde la caja cobra, y lo
@@ -372,6 +394,32 @@ const PanelOrdersPage = () => {
           </button>
         )}
       </div>
+
+      {cocinaPantalla && porLlevar.length > 0 && (
+        <section className="rounded-2xl border border-ok-borde bg-ok-fondo p-3 sm:p-4">
+          <h2 className="font-display text-xl uppercase text-carbon">{t("cocina.porLlevarTitulo")}</h2>
+          <p className="mt-1 text-sm text-carbon/70">{t("cocina.porLlevarAyuda")}</p>
+          <ul className="mt-3 flex flex-col gap-2">
+            {porLlevar.map((o) => (
+              <li
+                key={o.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface px-3 py-2"
+              >
+                <p className="font-display text-2xl uppercase leading-none text-carbon">
+                  {o.tableNumber != null ? t("mesa.mesaN", { n: o.tableNumber }) : o.reference}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void changeStatusUX(o.id, "listo")}
+                  className="min-h-12 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white"
+                >
+                  {t("card.marcarListo")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {conCobros && branchId && isRealBranchId(branchId) && (
         <PickupChargeInbox

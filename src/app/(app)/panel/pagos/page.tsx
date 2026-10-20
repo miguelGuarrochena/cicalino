@@ -25,6 +25,7 @@ import { FloorTableTile } from "@/components/panel/mesas/FloorTableTile";
 import { fetchPaymentSettings, fetchTableQrs, acknowledgeWaiterCall, type TableQrView } from "@/lib/data/tables";
 import { patchTableBills } from "@/lib/hooks/useTableBills";
 import { updateOrderStatus } from "@/lib/data/orders";
+import { notifyCustomer } from "@/lib/notify";
 import {
   DEFAULT_PAYMENT_SETTINGS,
   billPending,
@@ -129,6 +130,17 @@ const MesasPage = () => {
     [floor, tab, query],
   );
   const inbox = useMemo(() => kitchenInbox(floor), [floor]);
+  const porLlevar = useMemo(
+    () =>
+      cocinaPantalla
+        ? floor.flatMap((row) =>
+            row.prepOrders
+              .filter((o) => o.kitchenDoneAt)
+              .map((order) => ({ row, order })),
+          )
+        : [],
+    [cocinaPantalla, floor],
+  );
   const pedidoN = floor.filter(needsPedido).length;
   const chargeN = inbox.bills.length;
   const currentBill = bills.find((b) => b.session.id === selected) ?? null;
@@ -248,6 +260,16 @@ const MesasPage = () => {
     orders: newOrderIds,
     payments: newPaymentIds,
     calls: newCallIds,
+  };
+
+  const llevarPedido = async (orderId: string) => {
+    setKitchenBusy(orderId);
+    const done = await updateOrderStatus(orderId, "listo");
+    if (done.ok) void notifyCustomer({ orderId });
+    setKitchenBusy(null);
+    if (done.ok) toast(t("cocina.listoCliente"), "success");
+    else toast(t("mesas.error.error"), "error");
+    reload();
   };
 
   const cancelInbox = async (row: FloorTable, orders: FloorTable["newOrders"]) => {
@@ -392,6 +414,35 @@ const MesasPage = () => {
               ]}
             />
 
+
+            {porLlevar.length > 0 && (
+              <section className="rounded-2xl border border-ok-borde bg-ok-fondo p-3 sm:p-4">
+                <h2 className="font-display text-xl uppercase text-carbon">{t("cocina.porLlevarTitulo")}</h2>
+                <p className="mt-1 text-sm text-carbon/70">{t("cocina.porLlevarAyuda")}</p>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {porLlevar.map(({ row, order }) => (
+                    <li
+                      key={order.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface px-3 py-2"
+                    >
+                      <button type="button" onClick={() => openRow(row)} className="text-left">
+                        <p className="font-display text-2xl uppercase leading-none text-carbon">
+                          {t("mesa.mesaN", { n: row.tableNumber })}
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={kitchenBusy === order.id}
+                        onClick={() => void llevarPedido(order.id)}
+                        className="min-h-12 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        {t("card.marcarListo")}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {showInbox && (
               <KitchenInbox

@@ -158,16 +158,30 @@ export const subscribeTableBills = (
     if (disposed) return;
     if (channel) void supabase.removeChannel(channel);
     watcher?.dispose();
-    channel = supabase.channel(`table-bills-${branchId}`).on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "mesa_sesiones",
-        filter: `local_id=eq.${branchId}`,
-      },
-      fire,
-    );
+    channel = supabase
+      .channel(`table-bills-${branchId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "mesa_sesiones",
+          filter: `local_id=eq.${branchId}`,
+        },
+        fire,
+      )
+      /* El pedido nuevo y el «hecha» de cocina escriben en pedidos. Si solo
+       * se escucha la sesión, el mostrador espera al poll. */
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pedidos",
+          filter: `local_id=eq.${branchId}`,
+        },
+        fire,
+      );
     watcher = watchChannel(channel, connect, fire);
   };
 

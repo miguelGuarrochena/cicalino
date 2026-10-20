@@ -267,8 +267,10 @@ export const topAlert = (alerts: PanelAlert[]): PanelAlert | null =>
 export const alertIsElsewhere = (a: PanelAlert, path: string): boolean => {
   /* Hecha ya se ve donde se marca listo (Pedidos o la mesa) y en Cocina.
    * El cartel es para el que está en otra pantalla. */
+  /* En Pedidos y en Pagos también: el pedido sigue en «en curso» y el
+   * botón de listo no se ve si el mostrador está mirando otro filtro. */
   if (a.kind === "cocina-lista") {
-    return path !== a.href && path !== "/panel/cocina";
+    return path !== "/panel/cocina";
   }
   return path !== a.href;
 };

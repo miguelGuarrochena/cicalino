@@ -48,6 +48,6 @@ describe("Pedidos: la suscripción no depende del filtro", () => {
 
   it("nada de esto tocó coalesced ni el respaldo del poll", () => {
     expect(src).toContain("coalesced(recargar)");
-    expect(src).toContain("ticksSano: 6");
+    expect(src).toContain("ticksSano: 2");
   });
 });

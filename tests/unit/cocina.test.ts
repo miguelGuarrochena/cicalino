@@ -45,7 +45,7 @@ describe("cocina", () => {
     expect(mostrador?.href).toBe("/panel/pedidos");
     expect(mostrador?.label).toBe("Pedido 42");
     expect(alertIsElsewhere(mostrador!, "/panel/pagos")).toBe(true);
-    expect(alertIsElsewhere(mostrador!, "/panel/pedidos")).toBe(false);
+    expect(alertIsElsewhere(mostrador!, "/panel/pedidos")).toBe(true);
     expect(alertIsElsewhere(mostrador!, "/panel/cocina")).toBe(false);
 
     const [mesa] = cocinaListaAlerts([
@@ -53,7 +53,7 @@ describe("cocina", () => {
     ]);
     expect(mesa?.href).toBe("/panel/pagos");
     expect(mesa?.label).toBe("Mesa 4");
-    expect(alertIsElsewhere(mesa!, "/panel/pagos")).toBe(false);
+    expect(alertIsElsewhere(mesa!, "/panel/pagos")).toBe(true);
     expect(alertIsElsewhere(mesa!, "/panel/pedidos")).toBe(true);
   });
 
@@ -73,6 +73,9 @@ describe("cocina", () => {
       readFileSync(join(process.cwd(), "supabase/orden.json"), "utf8"),
     ) as string[];
     expect(orden.indexOf("cocina-modo.sql")).toBeLessThan(orden.indexOf("plato-aclaracion.sql"));
-    expect(orden.at(-1)).toBe("cocina-pase.sql");
+    const realtime = readFileSync(join(process.cwd(), "supabase/pedidos-realtime.sql"), "utf8");
+    expect(realtime).toContain("replica identity full");
+    expect(realtime).toContain("public.pedidos");
+    expect(orden.at(-1)).toBe("pedidos-realtime.sql");
   });
 });

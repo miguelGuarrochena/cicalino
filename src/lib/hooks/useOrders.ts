@@ -184,7 +184,7 @@ export const useOrders = (
     return attachLiveRefresh({
       subscribe: (onChange) => subscribeOrders(branchId, onChange),
       reload: () => void reloadRef.current(),
-      ticksSano: 6,
+      ticksSano: 2,
     });
   }, [live, branchId, seed]);
 
