@@ -65,11 +65,14 @@ describe("Pedido de mesa — anotar y cancelar", () => {
     expect(guest).toContain("/pedidos/${orderId}/cancelar");
     expect(enviados).toContain('t("mesa.cancelarPedido")');
     expect(enviados).toContain('t("mesa.pedidosAyuda")');
-    /* La cantidad quedó en su propio <span> para poder ponerla en negrita:
-       la lista es lo que se lee de reojo para chequear que llegó bien. Lo que
-       importa sigue siendo que el renglón diga cuánto y de qué. */
-    expect(enviados).toContain("{i.quantity} ×");
-    expect(enviados).toContain("{i.name}");
+    /* La cantidad va en negrita al lado del nombre: la lista es lo que se
+       lee de reojo para chequear que llegó bien. El renglón dice cuánto y
+       de qué, y no el precio. */
+    expect(enviados).toContain("quantity={i.quantity}");
+    expect(enviados).toContain("name={i.name}");
+    const renglones = readFileSync(join(root, "src/components/OrderItemBits.tsx"), "utf8");
+    expect(renglones).toContain("{quantity} ×");
+    expect(renglones).toContain("{name}");
     expect(enviados).not.toContain("formatMoney");
   });
 

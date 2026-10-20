@@ -1,6 +1,7 @@
 /* La pantalla de cocina y la comanda impresa son el mismo pedido.
  * imprimir es el flujo de siempre (copiar y "ya lo anoté").
- * pantalla lo mueve cocina: nueva → preparando → lista. */
+ * pantalla: el mostrador manda la comanda, cocina marca hecha y el
+ * mostrador marca listo al llevarla. El cliente se entera en ese paso. */
 
 export type CocinaModo = "imprimir" | "pantalla";
 
@@ -9,7 +10,7 @@ export const parseCocinaModo = (v: unknown): CocinaModo =>
 
 export type KitchenStatus = "creado" | "en_preparacion" | "listo";
 
-export type KitchenLane = "nueva" | "preparando" | "lista";
+export type KitchenLane = "preparando" | "hecha";
 
 export interface KitchenTicket {
   id: string;
@@ -18,23 +19,18 @@ export interface KitchenTicket {
   status: KitchenStatus;
   createdAt: string;
   readyAt: string | null;
+  /* Cocina terminó. El estado sigue en en_preparacion: el cliente no ve listo. */
+  doneAt: string | null;
   tableNumber: number | null;
-  items: { name: string; quantity: number }[];
+  items: { name: string; quantity: number; option?: string | null; note?: string | null }[];
 }
-
-export const laneOf = (status: KitchenStatus): KitchenLane =>
-  status === "creado" ? "nueva" : status === "en_preparacion" ? "preparando" : "lista";
 
 const byAge = (a: KitchenTicket, b: KitchenTicket) =>
   a.createdAt.localeCompare(b.createdAt);
 
-/* Tres pilas, la más vieja primero: cocina trabaja en orden de llegada. */
+/* Dos pilas, la más vieja primero. Lo que todavía no mandó el mostrador
+ * no entra: cocina no ve un pedido hasta que alguien lo manda. */
 export const kitchenLanes = (tickets: KitchenTicket[]) => ({
-  nueva: tickets.filter((t) => t.status === "creado").sort(byAge),
-  preparando: tickets.filter((t) => t.status === "en_preparacion").sort(byAge),
-  lista: tickets.filter((t) => t.status === "listo").sort(byAge),
+  preparando: tickets.filter((t) => !t.doneAt).sort(byAge),
+  hecha: tickets.filter((t) => t.doneAt).sort(byAge),
 });
-
-export const nextKitchenStatus = (
-  lane: "nueva" | "preparando",
-): KitchenStatus => (lane === "nueva" ? "en_preparacion" : "listo");

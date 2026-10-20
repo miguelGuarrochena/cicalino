@@ -108,6 +108,24 @@ describe("Pagos divididos — esquemas", () => {
       guestOrderSchema.safeParse({ key: uuid(), items: [{ productId: p, quantity: 1 }, { productId: p, quantity: 1 }] }).success,
     ).toBe(false);
     expect(guestOrderSchema.safeParse({ key: uuid(), items: [{ productId: p, quantity: 51 }] }).success).toBe(false);
+    expect(
+      guestOrderSchema.safeParse({
+        key: uuid(),
+        items: [
+          { productId: p, quantity: 1, option: "Chica" },
+          { productId: p, quantity: 1, option: "Grande" },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      guestOrderSchema.safeParse({
+        key: uuid(),
+        items: [
+          { productId: p, quantity: 1, option: "Grande" },
+          { productId: p, quantity: 1, option: "Grande" },
+        ],
+      }).success,
+    ).toBe(false);
   });
 
   it("el personal no puede registrar un pago de Mercado Pago", () => {

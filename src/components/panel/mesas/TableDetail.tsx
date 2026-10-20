@@ -10,10 +10,12 @@ import {
 } from "@/components/tables/BillParts";
 import { CobrarModal } from "@/components/panel/mesas/CobrarModal";
 import { PrintableBill } from "@/components/panel/mesas/PrintableBill";
+import { OrderItemBits } from "@/components/OrderItemBits";
 import { TableHistory } from "@/components/panel/mesas/TableHistory";
 import { FloorStatusBadge } from "@/components/panel/mesas/FloorStatusBadge";
 import { Select } from "@/components/ui/Select";
 import { updateOrderStatus } from "@/lib/data/orders";
+import { notifyCustomer } from "@/lib/notify";
 import { cancelTablePayment, confirmTablePayment, acknowledgeWaiterCall } from "@/lib/data/tables";
 import {
   billPending,
@@ -61,7 +63,7 @@ export const TableDetail = ({
    * anular un pago de agosto descuadra un cierre de caja que ya pasó. Con
    * esto el detalle muestra lo mismo pero no ofrece nada que escriba. */
   soloLectura?: boolean;
-  /* Pantalla de cocina: el mozo no copia la comanda. Cocina la toma allá. */
+  /* Pantalla: manda la comanda y marca listo al llevarla. Imprimir solo anota. */
   cocinaPantalla?: boolean;
   /* Lo abre la página: el modal de cerrar vive una sola vez, así la baldosa y
    * el detalle no tienen cada uno su copia. */
@@ -159,6 +161,28 @@ export const TableDetail = ({
         return res.ok ? { ok: true } : { ok: false, reason: res.reason };
       },
       t(`mesas.pedidoMovido.${to}`),
+    );
+
+  const mandarCocina = (o: BillOrder) =>
+    run(
+      o.id,
+      async () => {
+        const res = await updateOrderStatus(o.id, "en_preparacion");
+        return res.ok ? { ok: true } : { ok: false, reason: res.reason };
+      },
+      t("cocina.mandada"),
+    );
+
+  const marcarListo = (o: BillOrder) =>
+    run(
+      o.id,
+      async () => {
+        const res = await updateOrderStatus(o.id, "listo");
+        if (!res.ok) return { ok: false, reason: res.reason };
+        void notifyCustomer({ orderId: o.id });
+        return { ok: true };
+      },
+      t("cocina.listoCliente"),
     );
 
   /* Los botones de un pago viven en un solo lugar según lo que sea el pago.
@@ -564,24 +588,39 @@ export const TableDetail = ({
                         {" · "}
                         {porAnotar
                           ? t("mesa.estadoPedido.creado")
-                          : t("mesa.estadoPedido.en_preparacion")}
+                          : cocinaPantalla && o.kitchenDoneAt && o.status === "en_preparacion"
+                            ? t("cocina.porLlevar")
+                            : t("mesa.estadoPedido.en_preparacion")}
                       </span>
                     </p>
                     <ul className="mt-1.5 text-sm text-carbon/75">
                       {o.items.map((i) => (
                         <li key={i.id}>
-                          {i.quantity} × {i.name}
+                          <OrderItemBits quantity={i.quantity} name={i.name} option={i.option} note={i.note} />
                         </li>
                       ))}
                     </ul>
-                    {open && porAnotar && !cocinaPantalla && (
+                    {open && porAnotar && (
                       <button
                         type="button"
                         disabled={busy === o.id}
-                        onClick={() => void moveOrder(o, "en_preparacion")}
+                        onClick={() => void (cocinaPantalla ? mandarCocina(o) : moveOrder(o, "en_preparacion"))}
                         className="mt-3 min-h-12 w-full rounded-full bg-marca px-4 text-sm font-semibold text-crema disabled:opacity-50"
                       >
-                        {t("mesas.pasarAComanda")}
+                        {cocinaPantalla ? t("cocina.mandar") : t("mesas.pasarAComanda")}
+                      </button>
+                    )}
+                    {open && cocinaPantalla && o.status === "en_preparacion" && !o.kitchenDoneAt && (
+                      <p className="mt-3 text-sm text-carbon/55">{t("cocina.enCocina")}</p>
+                    )}
+                    {open && cocinaPantalla && o.status === "en_preparacion" && o.kitchenDoneAt && (
+                      <button
+                        type="button"
+                        disabled={busy === o.id}
+                        onClick={() => void marcarListo(o)}
+                        className="mt-3 min-h-12 w-full rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        {t("card.marcarListo")}
                       </button>
                     )}
                     {open && porAnotar && (

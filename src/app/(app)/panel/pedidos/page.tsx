@@ -230,6 +230,8 @@ const PanelOrdersPage = () => {
       notifyReady();
       if (live) toastAviso(res.notify, seenAt);
       else toast(t("toast.listo"), "success");
+    } else if (status === "en_preparacion") {
+      toast(t("cocina.mandada"), "success");
     } else if (status === "retirado") {
       toast(t("toast.retirado"), "info");
     } else if (status === "cancelado") {

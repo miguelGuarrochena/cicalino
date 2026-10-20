@@ -32,13 +32,19 @@ import {
 import { useTableBillLive } from "@/lib/hooks/useTableBillLive";
 import { ModalShell } from "@/components/ui/ModalShell";
 import {
-  clampCantidad,
+  cantidadesPorProducto,
+  fijarCantidad,
+  fijarNota,
   itemsCarrito,
   itemsParaEnviar,
   lineasDelCarrito,
+  restarUltima,
+  sumar,
   totalCarrito,
+  type Cart,
   type CartLine,
 } from "@/lib/cart";
+import type { DishChoice } from "@/lib/dishChoice";
 
 export interface GuestMenuProduct {
   id: string;
@@ -47,6 +53,7 @@ export interface GuestMenuProduct {
   category: string | null;
   price: number;
   imageUrl?: string | null;
+  choice?: DishChoice | null;
 }
 
 export interface TableGuestInitial {
@@ -85,7 +92,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           ? "cuenta"
           : "carta",
       );
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<Cart>({});
   const [orderKey, setOrderKey] = useState(newKey);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,13 +232,31 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
     return () => ro.disconnect();
   }, []);
 
-  /* A changed cart is a different order, so it gets a new idempotency key. */
-  const setQty = (id: string, q: number) => {
-    setCart((c) => ({ ...c, [id]: clampCantidad(q) }));
+  /* A changed cart is a different order, so it gets a new idempotency key.
+   * El carrito se actualiza con la foto anterior: dos toques seguidos no se
+   * pisan. */
+  const marcarPedido = () => {
     setOrderKey(newKey());
-    /* Corregir una cantidad después de un error es un intento nuevo: el
-     * cartel viejo no tiene por qué seguir ahí. */
     setOrderError(null);
+  };
+  const onAgregar = (
+    producto: GuestMenuProduct,
+    extra: { opcion: string | null; nota: string; cantidad: number },
+  ) => {
+    setCart((c) => sumar(c, producto.id, extra.opcion, extra.nota, extra.cantidad));
+    marcarPedido();
+  };
+  const onRestar = (producto: GuestMenuProduct) => {
+    setCart((c) => restarUltima(c, producto.id));
+    marcarPedido();
+  };
+  const onCantidad = (clave: string, q: number) => {
+    setCart((c) => fijarCantidad(c, clave, q));
+    marcarPedido();
+  };
+  const onNota = (clave: string, nota: string) => {
+    setCart((c) => fijarNota(c, clave, nota));
+    marcarPedido();
   };
 
   const sendOrder = async () => {
@@ -464,9 +489,10 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
         {tab === "carta" && (
           <MenuBrowser
             menu={initial.menu}
-            cart={cart}
+            cantidades={cantidadesPorProducto(cart)}
             puedePedir={puedePedir}
-            onCantidad={setQty}
+            onAgregar={onAgregar}
+            onRestar={onRestar}
             stickyTop={navAlto}
           />
         )}
@@ -540,7 +566,8 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           error={orderError}
           enviado={enviado}
           puedePedir={puedePedir}
-          onCantidad={setQty}
+          onCantidad={onCantidad}
+          onNota={onNota}
           onEnviar={() => void sendOrder()}
           onSeguirPidiendo={() => {
             setReviewOpen(false);

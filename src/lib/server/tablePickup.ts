@@ -166,10 +166,20 @@ export const joinPickupTable = (token: string, name: string, tokenHash: string) 
 export const joinCounter = (token: string, tokenHash: string) =>
   callRpc("unirse_mostrador_qr", { p_token: token, p_token_hash: tokenHash });
 
-type CartItems = { productId: string; quantity: number }[];
+type CartItems = {
+  productId: string;
+  quantity: number;
+  option?: string | null;
+  note?: string | null;
+}[];
 
 const rpcItems = (items: CartItems) =>
-  items.map((i) => ({ producto_id: i.productId, cantidad: i.quantity }));
+  items.map((i) => ({
+    producto_id: i.productId,
+    cantidad: i.quantity,
+    ...(i.option ? { opcion: i.option } : {}),
+    ...(i.note ? { nota: i.note } : {}),
+  }));
 
 export const placePickupOrder = (
   creds: GuestCredentials,

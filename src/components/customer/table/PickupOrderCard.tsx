@@ -4,6 +4,7 @@ import { useApp } from "@/components/providers/Providers";
 import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import { Spinner } from "@/components/ui/Spinner";
 import { formatMoney } from "@/lib/tableBill";
+import { OrderItemBits } from "@/components/OrderItemBits";
 import {
   counterCanPay,
   counterPayState,
@@ -172,9 +173,7 @@ export const PickupOrderCard = ({
       <ul className="mt-3 flex flex-col gap-1 border-t border-linea/70 pt-3 text-base text-carbon">
         {order.items.map((i) => (
           <li key={i.id} className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0">
-              <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
-            </span>
+            <OrderItemBits quantity={i.quantity} name={i.name} option={i.option} note={i.note} />
             <span className="shrink-0 tabular-nums text-suave">{formatMoney(i.subtotal)}</span>
           </li>
         ))}
@@ -320,9 +319,7 @@ const CounterOrderCard = ({
       <ul className="mt-3 flex flex-col gap-1 border-t border-linea/70 pt-3 text-base text-carbon">
         {order.items.map((i) => (
           <li key={i.id} className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0">
-              <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
-            </span>
+            <OrderItemBits quantity={i.quantity} name={i.name} option={i.option} note={i.note} />
             <span className="shrink-0 tabular-nums text-suave">{formatMoney(i.subtotal)}</span>
           </li>
         ))}

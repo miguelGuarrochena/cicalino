@@ -7,6 +7,7 @@ import { useApp } from "@/components/providers/Providers";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useConfigStore } from "@/lib/store/config-store";
 import { formatMoney } from "@/lib/tableBill";
+import { OrderItemBits } from "@/components/OrderItemBits";
 
 const PILL: Record<OrderStatus, string> = {
   pendiente_pago: "bg-curso-fondo text-curso",
@@ -217,8 +218,8 @@ export const OrderCard = ({
         <div className="flex flex-col gap-2 rounded-2xl border border-linea bg-crema/40 p-3">
           <ul className="flex flex-col gap-0.5 text-sm text-carbon">
             {(order.items ?? []).map((i, n) => (
-              <li key={`${i.name}-${n}`}>
-                <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
+              <li key={`${i.name}-${i.option ?? ""}-${n}`}>
+                <OrderItemBits quantity={i.quantity} name={i.name} option={i.option} note={i.note} />
               </li>
             ))}
           </ul>
@@ -286,7 +287,20 @@ export const OrderCard = ({
         </div>
       </dl>
 
-      {enCurso && !cocinaPantalla && (
+      {cocinaPantalla && order.status === "creado" && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void cambiar("en_preparacion")}
+          className="w-full rounded-full bg-marca px-4 py-3.5 text-sm font-semibold text-crema transition hover:bg-marca-fuerte active:scale-[0.97] disabled:opacity-50 sm:py-3"
+        >
+          {busy ? "…" : t("cocina.mandar")}
+        </button>
+      )}
+      {cocinaPantalla && order.status === "en_preparacion" && !order.kitchenDoneAt && (
+        <p className="text-sm text-carbon/55">{t("cocina.enCocina")}</p>
+      )}
+      {cocinaPantalla && order.status === "en_preparacion" && order.kitchenDoneAt && (
         <button
           type="button"
           disabled={busy}
@@ -296,8 +310,15 @@ export const OrderCard = ({
           {busy ? "…" : t("card.marcarListo")}
         </button>
       )}
-      {enCurso && cocinaPantalla && (
-        <p className="text-sm text-carbon/55">{t("cocina.loMarcaCocina")}</p>
+      {enCurso && !cocinaPantalla && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void cambiar("listo")}
+          className="w-full rounded-full bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.97] disabled:opacity-50 sm:py-3"
+        >
+          {busy ? "…" : t("card.marcarListo")}
+        </button>
       )}
       {porCobrar && onCobrar && (
         <button

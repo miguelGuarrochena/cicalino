@@ -8,6 +8,7 @@ import { CustomerEmpty } from "@/components/customer/CustomerEmpty";
 import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import { formatMoney } from "@/lib/tableBill";
 import { itemsCarrito, totalCarrito, type CartLine } from "@/lib/cart";
+import { NOTA_MAX } from "@/lib/dishChoice";
 
 /* Lo que estás por mandar, antes de mandarlo.
  *
@@ -33,6 +34,7 @@ export const OrderReview = ({
   enviado,
   puedePedir,
   onCantidad,
+  onNota,
   onEnviar,
   onSeguirPidiendo,
   onVerPedidos,
@@ -47,7 +49,8 @@ export const OrderReview = ({
    * vació: sin esto la hoja de "listo" quedaría en blanco. */
   enviado: CartLine[] | null;
   puedePedir: boolean;
-  onCantidad: (id: string, q: number) => void;
+  onCantidad: (clave: string, q: number) => void;
+  onNota: (clave: string, nota: string) => void;
   onEnviar: () => void;
   onSeguirPidiendo: () => void;
   onVerPedidos: () => void;
@@ -75,12 +78,16 @@ export const OrderReview = ({
           <ul className="flex flex-col gap-2">
             {enviado.map((l) => (
               <li
-                key={l.producto.id}
+                key={l.clave}
                 className="flex items-baseline justify-between gap-3 border-b border-linea/60 pb-2 text-base text-carbon last:border-b-0"
               >
                 <span className="min-w-0">
                   <span className="font-semibold tabular-nums">{l.cantidad} ×</span>{" "}
                   {l.producto.name}
+                  {l.opcion ? <span className="mt-0.5 block text-sm font-semibold">{l.opcion}</span> : null}
+                  {l.nota.trim() ? (
+                    <span className="mt-0.5 block text-sm italic text-suave">{l.nota.trim()}</span>
+                  ) : null}
                 </span>
                 <span className="shrink-0 tabular-nums">{formatMoney(l.subtotal)}</span>
               </li>
@@ -183,12 +190,15 @@ export const OrderReview = ({
           <ul className="flex flex-col gap-2.5">
             {lineas.map((l) => (
               <li
-                key={l.producto.id}
+                key={l.clave}
                 className="rounded-2xl border border-linea bg-crema/50 p-3.5"
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="min-w-0 text-lg font-semibold leading-snug text-carbon">
                     {l.producto.name}
+                    {l.opcion ? (
+                      <span className="mt-0.5 block text-base font-semibold text-suave">{l.opcion}</span>
+                    ) : null}
                   </p>
                   <p className="shrink-0 text-lg font-bold tabular-nums text-carbon">
                     {formatMoney(l.subtotal)}
@@ -196,7 +206,7 @@ export const OrderReview = ({
                 </div>
                 <div className="mt-2.5 flex items-center justify-between gap-3">
                   <p className="text-base tabular-nums text-suave">
-                    {t("mesa.unitario1", { n: formatMoney(l.producto.price) })}
+                    {t("mesa.unitario1", { n: formatMoney(l.precioUnitario) })}
                   </p>
                   {puedePedir && (
                     <div className="flex shrink-0 items-center gap-1">
@@ -207,7 +217,7 @@ export const OrderReview = ({
                             ? t("mesa.quitarDelPedido", { n: l.producto.name })
                             : t("mesa.quitarUno", { n: l.producto.name })
                         }
-                        onClick={() => onCantidad(l.producto.id, l.cantidad - 1)}
+                        onClick={() => onCantidad(l.clave, l.cantidad - 1)}
                         className="grid size-11 place-items-center rounded-full border-2 border-linea text-2xl leading-none text-carbon"
                       >
                         {/* En uno, el `−` es un borrado: conviene que se vea
@@ -239,7 +249,7 @@ export const OrderReview = ({
                       <button
                         type="button"
                         aria-label={t("mesa.agregarUno", { n: l.producto.name })}
-                        onClick={() => onCantidad(l.producto.id, l.cantidad + 1)}
+                        onClick={() => onCantidad(l.clave, l.cantidad + 1)}
                         className="grid size-11 place-items-center rounded-full bg-marca text-2xl leading-none text-crema"
                       >
                         +
@@ -247,6 +257,19 @@ export const OrderReview = ({
                     </div>
                   )}
                 </div>
+                {puedePedir && (
+                  <label className="mt-3 flex flex-col gap-1">
+                    <span className="text-sm font-semibold text-suave">{t("mesa.aclaracion")}</span>
+                    <input
+                      className="min-h-12 w-full rounded-xl border border-linea bg-surface px-3 text-base text-carbon outline-none focus:border-marca"
+                      maxLength={NOTA_MAX}
+                      value={l.nota}
+                      placeholder={t("mesa.aclaracionPh")}
+                      disabled={enviando}
+                      onChange={(e) => onNota(l.clave, e.target.value)}
+                    />
+                  </label>
+                )}
               </li>
             ))}
           </ul>

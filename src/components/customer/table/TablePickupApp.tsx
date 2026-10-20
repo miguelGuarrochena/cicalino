@@ -30,11 +30,16 @@ import { customerAliasSchema, guestNameSchema } from "@/lib/schemas";
 import { clearGuestCred, loadGuestCred, saveGuestCred } from "@/lib/guestSession";
 import { formatMoney } from "@/lib/tableBill";
 import {
-  clampCantidad,
+  cantidadesPorProducto,
+  fijarCantidad,
+  fijarNota,
   itemsCarrito,
   itemsParaEnviar,
   lineasDelCarrito,
+  restarUltima,
+  sumar,
   totalCarrito,
+  type Cart,
 } from "@/lib/cart";
 import {
   counterPayState,
@@ -163,7 +168,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
       ? "pedidos"
       : "carta",
   );
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<Cart>({});
   const [orderKey, setOrderKey] = useState(newKey);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
@@ -359,10 +364,28 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
   }, [guest]);
 
   /* Un carrito distinto es otro pedido: clave nueva. */
-  const setQty = (id: string, q: number) => {
-    setCart((c) => ({ ...c, [id]: clampCantidad(q) }));
+  const marcarPedido = () => {
     setOrderKey(newKey());
     setSendError(null);
+  };
+  const onAgregar = (
+    producto: GuestMenuProduct,
+    extra: { opcion: string | null; nota: string; cantidad: number },
+  ) => {
+    setCart((c) => sumar(c, producto.id, extra.opcion, extra.nota, extra.cantidad));
+    marcarPedido();
+  };
+  const onRestar = (producto: GuestMenuProduct) => {
+    setCart((c) => restarUltima(c, producto.id));
+    marcarPedido();
+  };
+  const onCantidad = (clave: string, q: number) => {
+    setCart((c) => fijarCantidad(c, clave, q));
+    marcarPedido();
+  };
+  const onNota = (clave: string, nota: string) => {
+    setCart((c) => fijarNota(c, clave, nota));
+    marcarPedido();
   };
 
   const irAlCheckout = (url: string) => {
@@ -678,9 +701,10 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
         {tab === "carta" && (
           <MenuBrowser
             menu={initial.menu}
-            cart={cart}
+            cantidades={cantidadesPorProducto(cart)}
             puedePedir={canOrder}
-            onCantidad={setQty}
+            onAgregar={onAgregar}
+            onRestar={onRestar}
             stickyTop={navAlto}
           />
         )}
@@ -793,7 +817,8 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
             error={null}
             enviado={null}
             puedePedir={canOrder}
-            onCantidad={setQty}
+            onCantidad={onCantidad}
+            onNota={onNota}
             onEnviar={openPay}
             onSeguirPidiendo={() => {
               setReviewOpen(false);

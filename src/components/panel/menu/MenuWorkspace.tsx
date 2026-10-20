@@ -15,6 +15,7 @@ import { MascotLoader } from "@/components/ui/MascotLoader";
 import { formatMoney } from "@/lib/tableBill";
 import { DEFAULT_MENU_CATEGORY_KEYS, type MenuImportRow } from "@/lib/menuImport";
 import { categoryKey } from "@/lib/menuView";
+import { choiceDraftValida, choiceFromDraft, precioDesde } from "@/lib/dishChoice";
 import {
   deleteMenuCategory,
   deleteMenuProduct,
@@ -74,16 +75,21 @@ const productPayload = (p: MenuProductView, patch: Partial<MenuProductView> = {}
   };
 };
 
-const draftPayload = (d: ProductDraft, order: number) => ({
-  name: d.name,
-  description: d.description,
-  category: d.category,
-  price: Number(d.price.replace(/\D/g, "")),
-  cost: d.cost ? Number(d.cost.replace(/\D/g, "")) : null,
-  imageUrl: d.imageUrl || undefined,
-  active: d.active,
-  order,
-});
+const draftPayload = (d: ProductDraft, order: number) => {
+  const choice = d.choice && choiceDraftValida(d.choice) ? choiceFromDraft(d.choice) : null;
+  const optionPrices = choice?.options.map((o) => o.price) ?? [];
+  return {
+    name: d.name,
+    description: d.description,
+    category: d.category,
+    price: optionPrices.length ? Math.min(...optionPrices) : Number(d.price.replace(/\D/g, "")),
+    cost: d.cost ? Number(d.cost.replace(/\D/g, "")) : null,
+    imageUrl: d.imageUrl || undefined,
+    active: d.active,
+    order,
+    choice,
+  };
+};
 
 const byOrder = <T extends { order: number; name: string }>(a: T, b: T) =>
   a.order - b.order || a.name.localeCompare(b.name);
@@ -543,7 +549,8 @@ export const MenuWorkspace = () => {
 
   const productRow = (p: MenuProductView) => {
     const more = extraItems(p);
-    const margin = p.cost != null && p.price > 0 ? Math.round(((p.price - p.cost) / p.price) * 100) : null;
+    const lista = precioDesde(p.price, p.choice);
+    const margin = p.cost != null && lista.amount > 0 ? Math.round(((lista.amount - p.cost) / lista.amount) * 100) : null;
 
     return (
       <li key={p.id} className="px-3 py-3 transition hover:bg-crema/50 sm:px-4">
@@ -565,6 +572,11 @@ export const MenuWorkspace = () => {
             <span className="min-w-0 flex-1">
               <span className={`block truncate font-semibold ${p.active ? "text-carbon" : "text-carbon/45"}`}>{p.name}</span>
               {p.description && <span className="mt-0.5 line-clamp-2 block text-xs text-carbon/55">{p.description}</span>}
+              {p.choice && (
+                <span className="mt-0.5 block truncate text-xs text-carbon/55">
+                  {p.choice.question}: {p.choice.options.map((o) => o.name).join(" · ")}
+                </span>
+              )}
               {p.cost != null && (
                 <span className="mt-1 block text-[11px] text-carbon/45">
                   {t("carta.costoCorto", { n: formatMoney(p.cost) })}
@@ -592,12 +604,14 @@ export const MenuWorkspace = () => {
             ) : (
               <button
                 type="button"
-                onClick={() => setPriceEdit({ id: p.id, value: String(p.price) })}
+                onClick={() =>
+                  p.choice ? openProduct(p) : setPriceEdit({ id: p.id, value: String(p.price) })
+                }
                 title={t("carta.precioHint")}
                 aria-label={t("carta.cambiarPrecioDe", { n: p.name })}
                 className="min-h-10 rounded-xl border border-transparent px-2 text-right font-semibold tabular-nums text-carbon underline decoration-dotted decoration-carbon/30 underline-offset-4 transition hover:border-linea hover:bg-crema/60 hover:no-underline"
               >
-                {formatMoney(p.price)}
+                {lista.desde ? t("carta.desde", { n: formatMoney(lista.amount) }) : formatMoney(lista.amount)}
               </button>
             )}
             <AvailabilitySwitch

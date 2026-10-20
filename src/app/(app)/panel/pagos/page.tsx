@@ -186,9 +186,9 @@ const MesasPage = () => {
     if (row.qrToken) setQrRow(row);
   };
 
-  /* Mesas mueve el pedido a dos lugares y nada más: "ya lo anoté" (pasa a la
-   * comanda del local) o "cancelado". Listo/entregado no viven acá: si Mesas
-   * también los gestionara, el mismo pedido tendría dos dueños. */
+  /* Imprimir: «ya lo anoté» pasa la comanda a en_preparacion.
+   * Pantalla: el mismo paso es «mandar a cocina». Listo, cuando cocina ya
+   * marcó hecha, se marca en el detalle de la mesa y ahí se avisa al cliente. */
   const moveRows = async (
     row: FloorTable,
     orders: FloorTable["newOrders"],
@@ -204,7 +204,12 @@ const MesasPage = () => {
       }
     }
     setKitchenBusy(null);
-    if (!fallo) toast(t(`mesas.pedidoMovido.${to}`), "success");
+    if (!fallo) {
+      toast(
+        cocinaPantalla && to === "en_preparacion" ? t("cocina.mandada") : t(`mesas.pedidoMovido.${to}`),
+        "success",
+      );
+    }
     else {
       const key = `mesas.error.${fallo}`;
       const txt = t(key);
@@ -390,7 +395,7 @@ const MesasPage = () => {
 
             {showInbox && (
               <KitchenInbox
-                created={cocinaPantalla ? [] : inboxCreated}
+                created={inboxCreated}
                 called={inboxCalled}
                 busy={kitchenBusy}
                 newOrderIds={newOrderIds}

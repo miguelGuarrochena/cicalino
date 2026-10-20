@@ -372,32 +372,39 @@ describe("Cableado: una sola capa, montada en el layout", () => {
   });
 });
 
-/* Mesas atiende al cliente; la comanda del local cocina y entrega.
- *
- * Cuando las dos pantallas ofrecían las mismas transiciones, el mismo pedido
- * tenía dos dueños y el mozo tenía que decidir en cuál tocarlo. El flujo de
- * Mesas es: lo piden → lo anoto → piden la cuenta → cobro. */
+/* Imprimir: Mesas anota la comanda y cobra. No cocina ni entrega.
+ * Pantalla: el pedido entra a la mesa, el mozo lo manda a cocina y marca
+ * listo recién cuando cocina terminó y puede llevarlo. Ahí se avisa al
+ * cliente. Retirado sigue siendo de Pedidos. */
 describe("Mesas: atender y cobrar, no cocinar", () => {
   const mesas = read("src/app/(app)/panel/pagos/page.tsx");
   const detalle = read("src/components/panel/mesas/TableDetail.tsx");
   const inbox = read("src/components/panel/mesas/KitchenInbox.tsx");
 
-  it("el único paso del pedido en Mesas es «Ya lo anoté»", () => {
+  it("imprimir anota; la pantalla manda a cocina y marca listo al llevar", () => {
     expect(inbox).toContain("mesas.pasarAComanda");
+    expect(inbox).toContain("cocina.mandar");
     expect(detalle).toContain("mesas.pasarAComanda");
+    expect(detalle).toContain("cocina.mandar");
     expect(detalle).toContain('moveOrder(o, "en_preparacion")');
-    /* «Ya lo anoté» es lo que dice el botón, en los dos idiomas. */
+    expect(detalle).toContain('updateOrderStatus(o.id, "listo")');
+    expect(detalle).toContain("notifyCustomer");
+    expect(detalle).toContain('o.kitchenDoneAt');
     expect(translate("es", "mesas.pasarAComanda")).toBe("Ya lo anoté");
     expect(translate("en", "mesas.pasarAComanda")).toBe("Noted it");
   });
 
-  it("no hay acciones de cocina ni de entrega en ninguna pantalla de Mesas", () => {
-    for (const src of [mesas, detalle, inbox, read("src/components/panel/mesas/ChargeInbox.tsx")]) {
+  it("listo en la mesa solo cuando cocina ya terminó, y nadie marca retirado ahí", () => {
+    for (const src of [mesas, inbox, read("src/components/panel/mesas/ChargeInbox.tsx")]) {
       expect(src).not.toContain("marcarListo");
       expect(src).not.toContain("marcarEntregado");
-      expect(src).not.toContain('"listo"');
       expect(src).not.toContain('"retirado"');
     }
+    expect(detalle).not.toContain('"retirado"');
+    expect(detalle).not.toContain("marcarEntregado");
+    expect(detalle).toContain(
+      'cocinaPantalla && o.status === "en_preparacion" && o.kitchenDoneAt',
+    );
   });
 
   it("Pedidos sigue siendo el dueño de preparar, avisar y entregar", () => {

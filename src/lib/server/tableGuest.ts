@@ -13,6 +13,7 @@ import { mercadoPagoConfigured, createPreference } from "@/lib/server/mercadopag
 import { appBaseUrl } from "@/lib/appUrl";
 import { SUPABASE_URL } from "@/lib/supabase/config";
 import { orderForGuests } from "@/lib/menuView";
+import { parseDishChoice, type DishChoice } from "@/lib/dishChoice";
 import { brandFromLocal, emptyCustomerBrand, type CustomerBrand } from "@/lib/customerBrand";
 import { GUEST_COOKIE } from "@/lib/guestSession";
 
@@ -150,6 +151,7 @@ export interface MenuProduct {
   category: string | null;
   price: number;
   imageUrl: string | null;
+  choice: DishChoice | null;
 }
 
 export const fetchMenu = async (branchId: string): Promise<MenuProduct[]> => {
@@ -158,7 +160,7 @@ export const fetchMenu = async (branchId: string): Promise<MenuProduct[]> => {
   const [{ data, error }, cats] = await Promise.all([
     admin
       .from("productos")
-      .select("id, nombre, descripcion, categoria, precio, imagen_url, orden")
+      .select("id, nombre, descripcion, categoria, precio, imagen_url, orden, opciones")
       .eq("local_id", branchId)
       .eq("activo", true)
       .order("orden", { ascending: true })
@@ -180,6 +182,7 @@ export const fetchMenu = async (branchId: string): Promise<MenuProduct[]> => {
     price: p.precio as number,
     imageUrl: (p.imagen_url as string | null) ?? null,
     order: (p.orden as number | null) ?? 0,
+    choice: parseDishChoice(p.opciones),
   }));
   const categories = (cats.data ?? []).map((c) => ({
     name: String(c.nombre ?? ""),
@@ -279,13 +282,18 @@ export const joinTable = (token: string, name: string, tokenHash: string) =>
 
 export const placeGuestOrder = (
   creds: GuestCredentials,
-  items: { productId: string; quantity: number }[],
+  items: { productId: string; quantity: number; option?: string | null; note?: string | null }[],
   key: string,
 ) =>
   callRpc("pedir_como_comensal", {
     p_comensal: creds.guestId,
     p_token_hash: creds.tokenHash,
-    p_items: items.map((i) => ({ producto_id: i.productId, cantidad: i.quantity })),
+    p_items: items.map((i) => ({
+      producto_id: i.productId,
+      cantidad: i.quantity,
+      ...(i.option ? { opcion: i.option } : {}),
+      ...(i.note ? { nota: i.note } : {}),
+    })),
     p_clave: key,
   });
 

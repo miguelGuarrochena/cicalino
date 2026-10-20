@@ -3,8 +3,10 @@
 import type { ReactNode } from "react";
 import { Fragment, useState } from "react";
 import { useApp } from "@/components/providers/Providers";
+import { useConfigStore } from "@/lib/store/config-store";
 import { useToast } from "@/components/ui/Toast";
 import { summarizeKitchen, type FloorTable } from "@/lib/tableOps";
+import { OrderItemBits } from "@/components/OrderItemBits";
 import type { BillOrder } from "@/lib/tableBill";
 
 export const KitchenInbox = ({
@@ -29,12 +31,15 @@ export const KitchenInbox = ({
   onAcknowledge: (row: FloorTable) => void;
 }) => {
   const { t } = useApp();
+  const pantalla = useConfigStore((s) => s.cocinaModo) === "pantalla";
   if (!created.length && !called.length) return null;
 
   return (
     <div className="flex flex-col gap-3 print:hidden">
       {created.length > 0 && (
-        <p className="text-sm text-carbon/60">{t("mesas.inboxAyuda")}</p>
+        <p className="text-sm text-carbon/60">
+          {pantalla ? t("cocina.inboxAyuda") : t("mesas.inboxAyuda")}
+        </p>
       )}
       {created.length > 0 && (
         <InboxBlock
@@ -55,7 +60,7 @@ export const KitchenInbox = ({
               orders={row.newOrders}
               newOrderIds={newOrderIds}
               nuevo={row.newOrders.some((o) => newOrderIds?.has(o.id) ?? true)}
-              actionLabel={t("mesas.pasarAComanda")}
+              actionLabel={pantalla ? t("cocina.mandar") : t("mesas.pasarAComanda")}
               busy={busy}
               onOpen={onOpen}
               onAction={onPassToKitchen}
@@ -227,7 +232,7 @@ const InboxRow = ({
                 <ul className="mt-1 flex flex-col gap-0.5 text-base text-carbon/80">
                   {o.items.map((item) => (
                     <li key={item.id}>
-                      {item.quantity} × {item.name}
+                      <OrderItemBits quantity={item.quantity} name={item.name} option={item.option} note={item.note} />
                     </li>
                   ))}
                 </ul>

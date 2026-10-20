@@ -63,6 +63,9 @@ export interface OrderView {
   createdAt: string;
   preparingAt: string | null;
   readyAt: string | null;
+  /* Pantalla de cocina: cocina terminó y el mostrador todavía no marcó listo.
+   * El estado sigue en en_preparacion, así que el cliente no ve «listo». */
+  kitchenDoneAt?: string | null;
   pickedUpAt: string | null;
   cancelledAt: string | null;
   qrToken: string;
@@ -78,7 +81,7 @@ export interface OrderView {
    * la caja. */
   selfService?: boolean;
   tableNumber?: number | null;
-  items?: { name: string; quantity: number }[];
+  items?: { name: string; quantity: number; option?: string | null; note?: string | null }[];
   total?: number | null;
   paidMethod?: string | null;
   confirmedAt?: string | null;

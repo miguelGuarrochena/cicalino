@@ -86,11 +86,13 @@ export const FloorTableTile = ({
 }) => {
   const { t } = useApp();
   const tone = tileTone(row);
+  const porLlevar = row.prepOrders.some((o) => o.kitchenDoneAt);
   const kitchen = summarizeKitchen([...row.newOrders, ...row.prepOrders, ...row.readyOrders]);
-  const kitchenHint = kitchen
+  const dishes = kitchen
     .slice(0, 2)
     .map((l) => `${l.quantity}× ${l.name}`)
     .join(" · ");
+  const kitchenHint = porLlevar ? t("cocina.porLlevar") : dishes;
   const waiter =
     firstName(row.waiterName) || (row.bill ? t("recepcion.sinAsignar") : "");
   const amount =
@@ -162,6 +164,9 @@ export const FloorTableTile = ({
             <FloorStatusBadge status={row.status} sobrePleno />
           ) : kitchenHint ? (
             <span className="truncate text-[10px] opacity-75">{kitchenHint}</span>
+          ) : null}
+          {porLlevar && showStatus ? (
+            <span className="truncate text-[10px] font-semibold leading-tight">{t("cocina.porLlevar")}</span>
           ) : null}
         </span>
         {amount ? (
