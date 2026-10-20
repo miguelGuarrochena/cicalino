@@ -13,6 +13,9 @@ export type SegmentedTab<T extends string> = {
   pulse?: boolean;
   priority?: boolean;
   tone?: "marca" | "curso";
+  /* Trabajo pendiente, no un conteo de filtro: el mismo globo que la barra,
+   * y se queda hasta que el pendiente se resuelve. */
+  prominent?: boolean;
 };
 
 export const SegmentedTabs = <T extends string>({
@@ -83,8 +86,17 @@ export const SegmentedTabs = <T extends string>({
                 números de esta barra son conteos de filtro —cuántas mesas hay,
                 cuántos pedidos entran en cada estado— y esos siguen adentro,
                 chiquitos: un número que grita sin pedir nada enseña a
-                ignorarlos a todos. */}
-            {showBadge && pulse && !selected ? (
+                ignorarlos a todos. `prominent` es la excepción: Comandas y
+                Cobrar son trabajo, y el número tiene que verse también
+                después de mirarlo. */}
+            {showBadge && opt.prominent ? (
+              <CountBadge
+                n={Number(opt.badge)}
+                tone={opt.tone === "curso" ? "curso" : "marca"}
+                pulse={pulse && !selected}
+                className="absolute -right-2 -top-2"
+              />
+            ) : showBadge && pulse && !selected ? (
               <CountBadge
                 n={Number(opt.badge)}
                 tone={opt.priority ? "curso" : "marca"}

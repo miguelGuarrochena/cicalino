@@ -1,4 +1,10 @@
-import { excessPayments, type BillOrder, type BillPayment, type TableBill } from "@/lib/tableBill";
+import {
+  billPending,
+  excessPayments,
+  type BillOrder,
+  type BillPayment,
+  type TableBill,
+} from "@/lib/tableBill";
 
 /* Operational "inbox" for the restaurant panel.
  *
@@ -60,6 +66,27 @@ export const guestBillRequests = (bill: TableBill): BillPayment[] => {
 
 export const pendingOrderIds = (bills: TableBill[]): string[] =>
   bills.flatMap((b) => openCreatedOrders(b).map((o) => o.id));
+
+const sesionEnPiso = (bill: TableBill): boolean =>
+  bill.session.status === "abierta" || bill.session.status === "pagada";
+
+/* Comandas que todavía no se mandaron a cocina: cada pedido en `creado`,
+ * no la mesa. Un llamado sin pedido no entra: no hay nada que enviar. */
+export const unsentComandaCount = (bills: TableBill[]): number =>
+  bills
+    .filter(sesionEnPiso)
+    .reduce((n, b) => n + b.orders.filter((o) => o.status === "creado").length, 0);
+
+/* Lo que la pestaña Cobrar tiene para resolver: saldo sin cubrir, un cobro
+ * de más, o una cuenta pedida que sigue en la cola. Una mesa cuenta una vez
+ * aunque tenga las tres cosas. */
+export const pendingChargeCount = (bills: TableBill[]): number =>
+  bills.filter((b) => {
+    if (!sesionEnPiso(b)) return false;
+    if (b.session.status === "abierta" && billPending(b) > 0) return true;
+    if (excessPayments(b).length > 0) return true;
+    return guestBillRequests(b).length > 0;
+  }).length;
 
 export const pendingBillIds = (bills: TableBill[]): string[] =>
   bills.flatMap((b) => guestBillRequests(b).map((p) => p.id));
@@ -127,6 +154,10 @@ export const pruneSeen = (
 export interface FloorAttention {
   pendingOrders: number;
   pendingBills: number;
+  /** Pedidos en `creado`. Es el número de la pestaña Comandas. */
+  pendingComandas: number;
+  /** Mesas con algo por cobrar. Es el número de la pestaña Cobrar. */
+  pendingCharges: number;
   waiterCalls: number;
   waiterCallIds: string[];
   unseenOrders: number;
@@ -184,6 +215,8 @@ export const floorAttention = (
   return {
     pendingOrders: orderIds.length,
     pendingBills: billIds.length,
+    pendingComandas: unsentComandaCount(bills),
+    pendingCharges: pendingChargeCount(bills),
     waiterCalls: calls.length,
     waiterCallIds: calls,
     unseenOrders: unseenOrderIds.length,

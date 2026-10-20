@@ -66,7 +66,7 @@ export const ModuleHub = () => {
         }`}
       >
         {links.map((l) => {
-          const { n, tone, label } = pendingFor(l.href);
+          const { n, tone, label, pulse } = pendingFor(l.href);
           return (
             <Link
               key={l.href}
@@ -86,7 +86,7 @@ export const ModuleHub = () => {
                 <CountBadge
                   n={jornadaActiva ? n : 0}
                   tone={tone}
-                  pulse
+                  pulse={pulse}
                   className="absolute right-0 top-0"
                 />
               </span>
