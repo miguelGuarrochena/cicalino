@@ -128,14 +128,14 @@ describe("attachLiveRefresh conserva el comportamiento de cada módulo", () => {
   const bills = readFileSync(join(root, "src/lib/hooks/useTableBills.ts"), "utf8");
   const realtime = readFileSync(join(root, "src/lib/realtime.ts"), "utf8");
 
-  it("pedidos refresca cada 6 ticks y sala cada 4, como antes", () => {
-    expect(orders).toContain("ticksSano: 6");
+  it("pedidos y mesas refrescan cada 2 ticks; sala sigue cada 4", () => {
+    expect(orders).toContain("ticksSano: 2");
     expect(hook).toContain("ticksSano: 4");
   });
 
-  it("mesas usa el mismo piso que la sala, no espera un click del personal", () => {
+  it("mesas no espera un click del personal", () => {
     expect(bills).toContain("attachLiveRefresh");
-    expect(bills).toContain("ticksSano: 4");
+    expect(bills).toContain("ticksSano: 2");
     expect(bills).not.toContain("RESPALDO_MS");
   });
 

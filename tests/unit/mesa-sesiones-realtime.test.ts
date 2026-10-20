@@ -44,6 +44,7 @@ describe("Realtime de mesas — el panel se entera solo", () => {
     expect(tables).toContain('table: "mesa_sesiones"');
     expect(tables).toContain("filter: `local_id=eq.${branchId}`");
     expect(hook).toContain("attachLiveRefresh");
-    expect(hook).toContain("ticksSano: 4");
+    expect(tables).toContain('table: "pedidos"');
+    expect(hook).toContain("ticksSano: 2");
   });
 });
