@@ -47,6 +47,7 @@ const dict = {
       verLasN: "Ver las {n} que faltan",
       verMenos: "Ver menos",
       cocinaLista: "{n} listo para entregar",
+      cocinaNueva: "{n} entró a cocina",
     },
     cocina: {
       configSub: "Elegí cómo llega la comanda a la cocina. Se guarda con el resto de Configuración.",
@@ -2354,6 +2355,7 @@ const dict = {
       verLasN: "See the other {n}",
       verMenos: "See less",
       cocinaLista: "{n} is ready to hand over",
+      cocinaNueva: "{n} came into the kitchen",
     },
     cocina: {
       configSub: "Choose how tickets reach the kitchen. It saves with the rest of Settings.",

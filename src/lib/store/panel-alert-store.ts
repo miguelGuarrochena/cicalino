@@ -22,6 +22,7 @@ const EMPTY: Record<PanelAlertSource, PanelAlert[]> = {
   mesas: [],
   pedidos: [],
   recepcion: [],
+  cocina: [],
 };
 
 type State = {
@@ -36,6 +37,7 @@ const EMPTY_READY: Record<PanelAlertSource, boolean> = {
   mesas: false,
   pedidos: false,
   recepcion: false,
+  cocina: false,
 };
 
 let state: State = {
@@ -90,11 +92,7 @@ export const getPanelAlertVersion = (): number => state.version;
 
 export const getPanelAlertState = (): State => state;
 
-const allAlerts = (): PanelAlert[] => [
-  ...state.bySource.mesas,
-  ...state.bySource.pedidos,
-  ...state.bySource.recepcion,
-];
+const allAlerts = (): PanelAlert[] => Object.values(state.bySource).flat();
 
 /** Lo que hay que mostrar ahora: vivo, no visto y ordenado por urgencia. */
 export const getLiveAlerts = (): PanelAlert[] =>
@@ -128,11 +126,7 @@ export const publishPanelAlerts = (
   /* Lo visto se limpia con lo que ya no está vivo. Sin esto, la lista de ids
    * crece toda la jornada y termina en el localStorage de una tablet que no se
    * apaga nunca. */
-  const live = new Set(
-    [...bySource.mesas, ...bySource.pedidos, ...bySource.recepcion].map(
-      (a) => a.id,
-    ),
-  );
+  const live = new Set(Object.values(bySource).flat().map((a) => a.id));
   const seen = new Set([...state.seen].filter((id) => live.has(id)));
   state = {
     ...state,

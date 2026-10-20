@@ -9,16 +9,17 @@ import { useJornadaActiva } from "@/lib/hooks/useJornadaActiva";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import {
   isRealBranchId,
+  fetchKitchenQueue,
   fetchPendingCounterOrders,
-  fetchReadyForCounter,
   subscribeOrders,
 } from "@/lib/data/orders";
 import { attachLiveRefresh, coalesced } from "@/lib/realtime";
 import {
   arrivedIds,
   cajaAlerts,
-  cocinaListaAlerts,
   counterAlerts,
+  kitchenAlerts,
+  loudAlerts,
   type PanelAlert,
 } from "@/lib/panelAlerts";
 import { fetchOrdersToCharge } from "@/lib/data/pickup";
@@ -43,7 +44,7 @@ const useAlertVersion = (): number =>
 export const usePanelAlerts = (): PanelAlert[] => {
   const version = useAlertVersion();
   void version;
-  return getLiveAlerts();
+  return loudAlerts(getLiveAlerts());
 };
 
 export const usePanelAlertCounts = (): Record<PanelAlertSource, number> => {
@@ -62,7 +63,6 @@ const useCounterAlertsFeed = () => {
   const branchId = useSessionStore((s) => s.sucursalId);
   const { visibles, pedidosEnMesa, pedidosMostradorQr } = useOperationalAccess();
   const pagoPrevio = useConfigStore((s) => s.mostradorQrPagoPrevio);
-  const cocinaPantalla = useConfigStore((s) => s.cocinaModo) === "pantalla";
   const jornadaActiva = useJornadaActiva();
   /* El aviso de "viene a pagar a la caja": Mesa, y el Mostrador QR solo con
    * pago previo prendido. Esto corre en todo el panel, así que con la opción
@@ -79,27 +79,16 @@ const useCounterAlertsFeed = () => {
     }
     let alive = true;
     const reload = coalesced(async () => {
-      const [res, caja, listas] = await Promise.all([
+      const [res, caja] = await Promise.all([
         fetchPendingCounterOrders(branchId),
         conCobros ? fetchOrdersToCharge(branchId) : Promise.resolve(null),
-        cocinaPantalla ? fetchReadyForCounter(branchId) : Promise.resolve(null),
       ]);
       /* Un refresco que falló no apaga los avisos: se queda con los últimos
-       * buenos, como hacen las listas de Pedidos y Recepción.
-       * Si falla solo «hecha», se conservan las que ya había y se publican
-       * igual los pedidos nuevos. Si no, un error de cocina deja mudo al
-       * mostrador. */
+       * buenos, como hacen las listas de Pedidos y Recepción. */
       if (!alive || !res.ok || (caja && !caja.ok)) return;
-      const hechas =
-        listas && !listas.ok
-          ? getPanelAlertState().bySource.pedidos.filter((a) => a.kind === "cocina-lista")
-          : listas?.ok
-            ? cocinaListaAlerts(listas.data)
-            : [];
       publishPanelAlerts("pedidos", [
         ...(caja?.ok ? cajaAlerts(caja.data) : []),
         ...counterAlerts(res.data),
-        ...hechas,
       ]);
     });
     const stop = attachLiveRefresh({
@@ -113,7 +102,48 @@ const useCounterAlertsFeed = () => {
       stop();
       publishPanelAlerts("pedidos", []);
     };
-  }, [live, branchId, conCobros, cocinaPantalla]);
+  }, [live, branchId, conCobros]);
+};
+
+/* Cocina, escuchada desde todo el panel. Es su propia fuente porque no es de
+ * Pedidos ni de Pagos: existe con cualquiera de los dos, y un local con solo
+ * Pagos también necesita enterarse de que el plato de la mesa está hecho.
+ * Una sola lectura alimenta los tres globos (ver kitchenAlerts). */
+const useKitchenAlertsFeed = () => {
+  const branchId = useSessionStore((s) => s.sucursalId);
+  const { visibles } = useOperationalAccess();
+  const cocinaPantalla = useConfigStore((s) => s.cocinaModo) === "pantalla";
+  const jornadaActiva = useJornadaActiva();
+  const live =
+    supabaseConfigured &&
+    isRealBranchId(branchId) &&
+    cocinaPantalla &&
+    (visibles.pedidos || visibles.pagos) &&
+    jornadaActiva;
+
+  useEffect(() => {
+    if (!live || !branchId) {
+      publishPanelAlerts("cocina", []);
+      return;
+    }
+    let alive = true;
+    const reload = coalesced(async () => {
+      const res = await fetchKitchenQueue(branchId);
+      if (!alive || !res.ok) return;
+      publishPanelAlerts("cocina", kitchenAlerts(res.data));
+    });
+    const stop = attachLiveRefresh({
+      subscribe: (onChange) => subscribeOrders(branchId, onChange, ":alertas-cocina"),
+      reload: () => void reload(),
+      ticksSano: 2,
+    });
+    void reload();
+    return () => {
+      alive = false;
+      stop();
+      publishPanelAlerts("cocina", []);
+    };
+  }, [live, branchId]);
 };
 
 /* El sonido de todo el panel, en un solo lugar.
@@ -137,7 +167,7 @@ const useAlertSound = () => {
     /* Hasta que Mesas publique su primer snapshot, lo que hay no es la foto
      * completa: primar ahora haría sonar todo como nuevo cuando llegue. */
     if (!st.sourceReady.mesas) return;
-    const alerts = getLiveAlerts();
+    const alerts = loudAlerts(getLiveAlerts());
     const ids = new Set(alerts.map((a) => a.id));
     if (!primed.current) {
       /* Lo que ya estaba al abrir el panel no es novedad: avisar de eso sería
@@ -197,6 +227,7 @@ export const usePanelAlertsWatch = () => {
   }, [branchId]);
 
   useCounterAlertsFeed();
+  useKitchenAlertsFeed();
   useAlertSound();
   useSectionAck();
 };

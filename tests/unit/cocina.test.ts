@@ -39,7 +39,7 @@ describe("cocina", () => {
 
   it("hecha avisa al mostrador y no se duplica donde ya se marca listo", () => {
     const [mostrador] = cocinaListaAlerts([
-      { id: "1", reference: "42", readyAt: "2026-10-19T12:00:00Z", tableNumber: null, where: "pedidos" },
+      { id: "1", reference: "42", doneAt: "2026-10-19T12:00:00Z", tableNumber: null, where: "pedidos" },
     ]);
     expect(mostrador?.kind).toBe("cocina-lista");
     expect(mostrador?.href).toBe("/panel/pedidos");
@@ -50,7 +50,7 @@ describe("cocina", () => {
     expect(alertIsElsewhere(mostrador!, "/panel/cocina")).toBe(false);
 
     const [mesa] = cocinaListaAlerts([
-      { id: "2", reference: "7", readyAt: "2026-10-19T12:00:00Z", tableNumber: 4, where: "pagos" },
+      { id: "2", reference: "7", doneAt: "2026-10-19T12:00:00Z", tableNumber: 4, where: "pagos" },
     ]);
     expect(mesa?.href).toBe("/panel/pagos");
     expect(mesa?.label).toBe("Mesa 4");

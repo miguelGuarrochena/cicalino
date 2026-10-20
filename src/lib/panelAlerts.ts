@@ -1,6 +1,7 @@
 import type { TableBill } from "@/lib/tableBill";
 import type { FloorAttention } from "@/lib/floorAttention";
 import type { OrderView, WaitlistView } from "@/lib/types";
+import { splitKitchenQueue, type KitchenQueueItem } from "@/lib/kitchen";
 
 /* Capa de comunicación del panel: un solo lugar donde entran las novedades de
  * todos los módulos y del que salen las alertas que se ven en cualquier
@@ -18,7 +19,7 @@ import type { OrderView, WaitlistView } from "@/lib/types";
  * nuevo mañana es agregar un `kind` y una función `...Alerts` — no otro
  * mecanismo de notificación. */
 
-export type PanelAlertSource = "mesas" | "pedidos" | "recepcion";
+export type PanelAlertSource = "mesas" | "pedidos" | "recepcion" | "cocina";
 
 export type PanelAlertKind =
   | "llamado"
@@ -29,7 +30,8 @@ export type PanelAlertKind =
   | "cobro-caja"
   | "cobro-caja-mostrador"
   | "espera-nueva"
-  | "cocina-lista";
+  | "cocina-lista"
+  | "cocina-nueva";
 
 export interface PanelAlert {
   /* Estable entre refrescos: es lo que decide si algo ya se vio y si hay que
@@ -52,6 +54,8 @@ interface KindMeta {
   /* Clave de i18n del título, y el emoji que se ve de lejos. */
   titleKey: string;
   icon: string;
+  /* Solo suma al globo de su sección: sin tarjeta en el dock y sin sonido. */
+  soloGlobo?: boolean;
 }
 
 export const ALERT_META: Record<PanelAlertKind, KindMeta> = {
@@ -119,8 +123,9 @@ export const ALERT_META: Record<PanelAlertKind, KindMeta> = {
     titleKey: "alertas.esperaNueva",
     icon: "👋",
   },
-  /* Cocina marcó lista. El mostrador lo escucha aunque esté en otra sección.
-   * En Pedidos y en Cocina no se duplica el cartel: ahí el estado ya se ve. */
+  /* Cocina marcó lista. Lo escucha la sección que la lleva (Pedidos o Pagos,
+   * ver cocinaListaAlerts) aunque el empleado esté en otra. En esa sección y
+   * en Cocina no se duplica el cartel: ahí el estado ya se ve. */
   "cocina-lista": {
     source: "pedidos",
     href: "/panel/pedidos",
@@ -128,7 +133,23 @@ export const ALERT_META: Record<PanelAlertKind, KindMeta> = {
     titleKey: "alertas.cocinaLista",
     icon: "✅",
   },
+  /* Comanda que cocina tiene que preparar. Es la pila «Preparando»: el número
+   * baja cuando cocina la marca hecha, no por entrar a mirar. Quien la mandó
+   * es el mostrador o el mozo, así que no se le grita: solo el globo. La
+   * pantalla de Cocina ya suena cuando entra una. */
+  "cocina-nueva": {
+    source: "cocina",
+    href: "/panel/cocina",
+    priority: 1,
+    titleKey: "alertas.cocinaNueva",
+    icon: "🔥",
+    soloGlobo: true,
+  },
 };
+
+/* Lo que se muestra en el dock y suena. Los globos cuentan todo. */
+export const loudAlerts = (alerts: PanelAlert[]): PanelAlert[] =>
+  alerts.filter((a) => !ALERT_META[a.kind].soloGlobo);
 
 export const alertPriority = (a: PanelAlert): number =>
   ALERT_META[a.kind].priority;
@@ -244,6 +265,7 @@ export const alertsBySource = (
     mesas: 0,
     pedidos: 0,
     recepcion: 0,
+    cocina: 0,
   };
   for (const a of alerts) counts[a.source] += 1;
   return counts;
@@ -273,27 +295,34 @@ export const alertIsElsewhere = (a: PanelAlert, path: string): boolean => {
   return path !== a.href;
 };
 
+const kitchenLabel = (o: { reference: string; tableNumber: number | null }) =>
+  o.tableNumber != null ? `Mesa ${o.tableNumber}` : `Pedido ${o.reference}`;
+
+/* `where` sale del flujo de la sesión (kitchenSection): una mesa de Pagos
+ * suma al globo de Pagos; Pedidos Mesa, el mostrador y el QR, al de Pedidos. */
 export const cocinaListaAlerts = (
-  orders: {
-    id: string;
-    reference: string;
-    readyAt: string | null;
-    tableNumber: number | null;
-    where?: "pedidos" | "pagos";
-  }[],
+  orders: Pick<KitchenQueueItem, "id" | "reference" | "doneAt" | "tableNumber" | "where">[],
 ): PanelAlert[] =>
   orders.map((o) => {
-    const alerta = build(
-      "cocina-lista",
-      o.id,
-      o.readyAt,
-      null,
-      o.tableNumber != null ? `Mesa ${o.tableNumber}` : `Pedido ${o.reference}`,
-    );
-    /* El pedido de una mesa es de Pagos: no puede sumar al globo de Pedidos. */
+    const alerta = build("cocina-lista", o.id, o.doneAt, null, kitchenLabel(o));
     if (o.where === "pagos") {
       alerta.href = "/panel/pagos";
       alerta.source = "mesas";
     }
     return alerta;
   });
+
+export const cocinaNuevaAlerts = (
+  orders: Pick<KitchenQueueItem, "id" | "reference" | "createdAt" | "tableNumber">[],
+): PanelAlert[] =>
+  orders.map((o) =>
+    build("cocina-nueva", o.id, o.createdAt, o.tableNumber, kitchenLabel(o)),
+  );
+
+/* La cola de cocina entera, publicada como una sola fuente: lo que hay que
+ * preparar suma a Cocina y lo hecho, a la sección que lo lleva. Una comanda
+ * está siempre en una sola de las dos listas, así que no se cuenta dos veces. */
+export const kitchenAlerts = (items: KitchenQueueItem[]): PanelAlert[] => {
+  const { pendientes, hechas } = splitKitchenQueue(items);
+  return [...cocinaNuevaAlerts(pendientes), ...cocinaListaAlerts(hechas)];
+};

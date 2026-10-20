@@ -9,7 +9,13 @@ import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
 import { reportError, reportWarning } from "@/lib/observability";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { OrderStatus, OrderView } from "@/lib/types";
-import type { KitchenTicket } from "@/lib/kitchen";
+import {
+  kitchenSection,
+  splitKitchenQueue,
+  type KitchenQueueItem,
+  type KitchenSection,
+  type KitchenTicket,
+} from "@/lib/kitchen";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -280,41 +286,39 @@ export const markKitchenDone = async (id: string): Promise<OrderStatusResult> =>
   return { ok: true };
 };
 
-/* Las que cocina ya marcó hechas, para que el mostrador las lleve.
- * where: la mesa se marca en Pagos; el mostrador y el QR, en Pedidos. */
-export const fetchReadyForCounter = async (
+const asFlow = (raw: unknown): string | null => {
+  const row = Array.isArray(raw) ? raw[0] : raw;
+  if (!row || typeof row !== "object") return null;
+  const f = (row as { flujo?: unknown }).flujo;
+  return typeof f === "string" && f ? f : null;
+};
+
+/* Lo mismo que el tablero de cocina, sin ítems: corre en todo el panel para
+ * los globos de Cocina, Pagos y Pedidos. Cada comanda trae a qué sección
+ * vuelve, según el flujo de su sesión. */
+export const fetchKitchenQueue = async (
   branchId: string,
-): Promise<
-  DataResult<
-    {
-      id: string;
-      reference: string;
-      readyAt: string | null;
-      tableNumber: number | null;
-      where: "pedidos" | "pagos";
-    }[]
-  >
-> => {
+): Promise<DataResult<KitchenQueueItem[]>> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return ok([]);
   const { data, error } = await supabase
     .from("pedidos")
     .select(
-      "id, referencia, cocina_hecha_en, autoservicio, sesion_id, mesa_sesiones(mesa_numero)",
+      "id, referencia, creado_en, cocina_hecha_en, autoservicio, sesion_id, mesa_sesiones(mesa_numero, flujo)",
     )
     .eq("local_id", branchId)
     .eq("estado", "en_preparacion")
-    .not("cocina_hecha_en", "is", null)
     .gte("creado_en", startOfBusinessDay())
-    .order("cocina_hecha_en", { ascending: false })
-    .limit(30);
+    .order("creado_en", { ascending: true })
+    .limit(80);
   if (error) {
-    reportError("panel.cocina.listas", error, { branchId });
+    reportError("panel.cocina.cola", error, { branchId });
     return fail(desdeSupabase(error));
   }
   const rows = (data ?? []) as {
     id: string;
     referencia: string;
+    creado_en: string;
     cocina_hecha_en: string | null;
     autoservicio: boolean | null;
     sesion_id: string | null;
@@ -324,10 +328,45 @@ export const fetchReadyForCounter = async (
     rows.map((r) => ({
       id: r.id,
       reference: r.referencia,
-      readyAt: r.cocina_hecha_en,
+      createdAt: r.creado_en,
+      doneAt: r.cocina_hecha_en,
       tableNumber: asTableNumber(r.mesa_sesiones),
-      where: r.sesion_id && !r.autoservicio ? "pagos" : "pedidos",
+      where: kitchenSection({
+        sessionId: r.sesion_id,
+        flow: asFlow(r.mesa_sesiones),
+        selfService: Boolean(r.autoservicio),
+      }),
     })),
+  );
+};
+
+/* Las que cocina ya marcó hechas, la última arriba, para que su sección las
+ * lleve. where: Pagos (flujo cuenta) o Pedidos (mostrador, QR y Mesa). */
+export const fetchReadyForCounter = async (
+  branchId: string,
+): Promise<
+  DataResult<
+    {
+      id: string;
+      reference: string;
+      readyAt: string | null;
+      tableNumber: number | null;
+      where: KitchenSection;
+    }[]
+  >
+> => {
+  const res = await fetchKitchenQueue(branchId);
+  if (!res.ok) return res;
+  return ok(
+    splitKitchenQueue(res.data)
+      .hechas.map((o) => ({
+        id: o.id,
+        reference: o.reference,
+        readyAt: o.doneAt,
+        tableNumber: o.tableNumber,
+        where: o.where,
+      }))
+      .sort((a, b) => (b.readyAt ?? "").localeCompare(a.readyAt ?? "")),
   );
 };
 

@@ -17,6 +17,7 @@ const SOURCE_BY_HREF: Record<string, PanelAlertSource> = {
   "/panel/pedidos": "pedidos",
   "/panel/espera": "recepcion",
   "/panel/pagos": "mesas",
+  "/panel/cocina": "cocina",
 };
 
 /* El globo de cada sección lleva el color de esa sección: el mismo que su
@@ -28,12 +29,13 @@ const SOURCE_BY_HREF: Record<string, PanelAlertSource> = {
  * se veía nunca y el ámbar dejaba de significar algo. La distinción sigue
  * donde se puede hacer algo con ella: el dock la dice con palabras desde
  * cualquier pantalla, y adentro de Pagos la pestaña Cobrar late sola. */
-type NavTone = "marca" | "espera" | "pagos";
+type NavTone = "marca" | "espera" | "pagos" | "ok";
 
 const TONE_BY_HREF: Record<string, NavTone> = {
   "/panel/pedidos": "marca",
   "/panel/espera": "espera",
   "/panel/pagos": "pagos",
+  "/panel/cocina": "ok",
 };
 
 export interface NavPending {
@@ -51,7 +53,7 @@ export const useNavPending = (): ((href: string) => NavPending) => {
   const attention = useFloorAttention();
   const counts = usePanelAlertCounts();
   /* Mesas cuenta lo suyo con attention-store; lo único que le llega de la
-   * capa global es el plato de una mesa que cocina ya terminó. */
+   * capa global es el plato de una mesa de Pagos que cocina ya terminó. */
   const hechasMesa = usePanelAlerts().filter(
     (a) => a.kind === "cocina-lista" && a.source === "mesas",
   ).length;
