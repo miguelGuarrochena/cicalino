@@ -2,7 +2,7 @@
 
 import { useApp } from "@/components/providers/Providers";
 import { useFloorAttention } from "@/lib/hooks/useFloorAttention";
-import { usePanelAlertCounts } from "@/lib/hooks/usePanelAlerts";
+import { usePanelAlertCounts, usePanelAlerts } from "@/lib/hooks/usePanelAlerts";
 import type { PanelAlertSource } from "@/lib/panelAlerts";
 
 /* Lo que cada módulo tiene sin mirar, listo para colgar de un botón.
@@ -50,11 +50,20 @@ export const useNavPending = (): ((href: string) => NavPending) => {
   const { t } = useApp();
   const attention = useFloorAttention();
   const counts = usePanelAlertCounts();
+  /* Mesas cuenta lo suyo con attention-store; lo único que le llega de la
+   * capa global es el plato de una mesa que cocina ya terminó. */
+  const hechasMesa = usePanelAlerts().filter(
+    (a) => a.kind === "cocina-lista" && a.source === "mesas",
+  ).length;
 
   return (href: string): NavPending => {
     const esMesas = href === "/panel/pagos";
     const source = SOURCE_BY_HREF[href];
-    const n = esMesas ? attention.headerUnseen : source ? counts[source] : 0;
+    const n = esMesas
+      ? attention.headerUnseen + hechasMesa
+      : source
+        ? counts[source]
+        : 0;
     const split =
       esMesas && attention.headerPedido > 0 && attention.headerCuenta > 0;
 

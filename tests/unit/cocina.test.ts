@@ -45,7 +45,8 @@ describe("cocina", () => {
     expect(mostrador?.href).toBe("/panel/pedidos");
     expect(mostrador?.label).toBe("Pedido 42");
     expect(alertIsElsewhere(mostrador!, "/panel/pagos")).toBe(true);
-    expect(alertIsElsewhere(mostrador!, "/panel/pedidos")).toBe(true);
+    expect(mostrador?.source).toBe("pedidos");
+    expect(alertIsElsewhere(mostrador!, "/panel/pedidos")).toBe(false);
     expect(alertIsElsewhere(mostrador!, "/panel/cocina")).toBe(false);
 
     const [mesa] = cocinaListaAlerts([
@@ -53,7 +54,8 @@ describe("cocina", () => {
     ]);
     expect(mesa?.href).toBe("/panel/pagos");
     expect(mesa?.label).toBe("Mesa 4");
-    expect(alertIsElsewhere(mesa!, "/panel/pagos")).toBe(true);
+    expect(mesa?.source).toBe("mesas");
+    expect(alertIsElsewhere(mesa!, "/panel/pagos")).toBe(false);
     expect(alertIsElsewhere(mesa!, "/panel/pedidos")).toBe(true);
   });
 

@@ -265,12 +265,10 @@ export const topAlert = (alerts: PanelAlert[]): PanelAlert | null =>
  * está "dentro de Mesas" pero es la pantalla de imprimir códigos, y ahí el
  * llamado de la mesa 4 no se ve por ningún lado. */
 export const alertIsElsewhere = (a: PanelAlert, path: string): boolean => {
-  /* Hecha ya se ve donde se marca listo (Pedidos o la mesa) y en Cocina.
-   * El cartel es para el que está en otra pantalla. */
-  /* En Pedidos y en Pagos también: el pedido sigue en «en curso» y el
-   * botón de listo no se ve si el mostrador está mirando otro filtro. */
+  /* Hecha ya se ve en su sección (la franja con el botón de listo) y en
+   * Cocina. El cartel es para el que está en otra pantalla. */
   if (a.kind === "cocina-lista") {
-    return path !== "/panel/cocina";
+    return path !== a.href && path !== "/panel/cocina";
   }
   return path !== a.href;
 };
@@ -292,6 +290,10 @@ export const cocinaListaAlerts = (
       null,
       o.tableNumber != null ? `Mesa ${o.tableNumber}` : `Pedido ${o.reference}`,
     );
-    if (o.where === "pagos") alerta.href = "/panel/pagos";
+    /* El pedido de una mesa es de Pagos: no puede sumar al globo de Pedidos. */
+    if (o.where === "pagos") {
+      alerta.href = "/panel/pagos";
+      alerta.source = "mesas";
+    }
     return alerta;
   });
