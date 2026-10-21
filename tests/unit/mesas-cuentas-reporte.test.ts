@@ -3,13 +3,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 vi.mock("@/lib/supabase/client", () => ({
   createBrowserSupabase: vi.fn(),
 }));
-vi.mock("@/lib/observability", () => ({
-  reportError: vi.fn(),
-  reportWarning: vi.fn(),
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
 }));
 
+import * as Sentry from "@sentry/nextjs";
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { reportError } from "@/lib/observability";
 import { fetchTableBills } from "@/lib/data/tables";
 
 /* Qué va a Sentry cuando falla `mesas_cuentas`.
@@ -34,10 +34,17 @@ const conRespuesta = (resp: {
   return rpc;
 };
 
+const captura = () => {
+  expect(Sentry.captureException).toHaveBeenCalledOnce();
+  const [err, hint] = vi.mocked(Sentry.captureException).mock.calls[0]!;
+  return { err: err as Error, hint };
+};
+
 describe("fetchTableBills — qué se reporta a Sentry", () => {
   beforeEach(() => {
-    vi.mocked(reportError).mockClear();
+    vi.mocked(Sentry.captureException).mockClear();
     vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -59,7 +66,7 @@ describe("fetchTableBills — qué se reporta a Sentry", () => {
     const res = await fetchTableBills(BRANCH);
 
     expect(rpc).toHaveBeenCalledWith("mesas_cuentas", { p_local: BRANCH });
-    expect(reportError).not.toHaveBeenCalled();
+    expect(Sentry.captureException).not.toHaveBeenCalled();
     expect(console.warn).toHaveBeenCalled();
     expect(res).toEqual({
       ok: false,
@@ -76,8 +83,12 @@ describe("fetchTableBills — qué se reporta a Sentry", () => {
 
     const res = await fetchTableBills(BRANCH);
 
-    expect(reportError).toHaveBeenCalledWith("panel.mesas.cuentas", error, {
-      branchId: BRANCH,
+    const { err, hint } = captura();
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toBe("JWT issued at future");
+    expect(hint).toMatchObject({
+      tags: { scope: "panel.mesas.cuentas" },
+      extra: { branchId: BRANCH },
     });
     expect(res).toEqual({
       ok: false,
@@ -91,8 +102,11 @@ describe("fetchTableBills — qué se reporta a Sentry", () => {
 
     const res = await fetchTableBills(BRANCH);
 
-    expect(reportError).toHaveBeenCalledWith("panel.mesas.cuentas", error, {
-      branchId: BRANCH,
+    const { err, hint } = captura();
+    expect(err.message).toBe("permission denied for function mesas_cuentas");
+    expect(hint).toMatchObject({
+      tags: { scope: "panel.mesas.cuentas" },
+      extra: { branchId: BRANCH },
     });
     expect(res).toEqual({
       ok: false,

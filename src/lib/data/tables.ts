@@ -4,7 +4,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { debounced, watchChannel } from "@/lib/realtime";
 import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
-import { reportError } from "@/lib/observability";
+import { reportError, reportQueryError } from "@/lib/observability";
 import {
   parseInput,
   paymentDatos,
@@ -53,17 +53,7 @@ export const fetchTableBills = async (
   if (!supabase) return ok([]);
   const { data, error, status } = await supabase.rpc("mesas_cuentas", { p_local: branchId });
   if (error) {
-    const fallo = desdeSupabase(error);
-    /* Sin respuesta HTTP (status 0): el fetch ni llegó, casi siempre el wifi
-     * del local o la Mac despertando. Esto se pollea cada pocos segundos y la
-     * UI ya muestra el aviso de sincronización, así que no va a Sentry. Un
-     * PGRST303 también es "conexion" pero trae 401: ese sí se reporta. */
-    if (fallo.kind === "conexion" && status === 0) {
-      console.warn(`[panel.mesas.cuentas] ${fallo.message}`, { branchId });
-    } else {
-      reportError("panel.mesas.cuentas", error, { branchId });
-    }
-    return fail(fallo);
+    return fail(reportQueryError("panel.mesas.cuentas", error, status, { branchId }));
   }
   return ok(
     ((data as unknown[] | null) ?? [])

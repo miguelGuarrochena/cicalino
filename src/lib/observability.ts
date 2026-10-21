@@ -14,6 +14,7 @@
  * the app behaves exactly as it did before.
  */
 import * as Sentry from "@sentry/nextjs";
+import { desdeSupabase, type DataError } from "@/lib/data/result";
 
 export interface ErrorContext {
   branchId?: string | null;
@@ -50,6 +51,34 @@ export const reportError = (
     tags: { scope },
     extra: limpio,
   });
+};
+
+/* A background poll whose fetch never got an HTTP response.
+ *
+ * postgrest-js turns `TypeError: Failed to fetch` into an error object with
+ * status 0. That is the shop's wifi or the laptop waking up, and the polls
+ * run every few seconds, so sending it to Sentry drowns the issues that are
+ * actually ours. The caller still gets `kind: "conexion"` and can keep the
+ * last good data or show the sync banner.
+ *
+ * A connection-shaped error that DID get a response (PGRST303 on 401) is
+ * reported: the server answered, and that is worth seeing. */
+export const reportQueryError = (
+  scope: string,
+  error: { message: string; code?: string },
+  status: number,
+  context: ErrorContext = {},
+): DataError => {
+  const fallo = desdeSupabase(error);
+  if (fallo.kind === "conexion" && status === 0) {
+    const limpio = Object.fromEntries(
+      Object.entries(context).filter(([, v]) => v != null),
+    );
+    console.warn(`[${scope}] ${fallo.message}`, limpio);
+    return fallo;
+  }
+  reportError(scope, error, context);
+  return fallo;
 };
 
 /* For things that aren't failures but shouldn't happen either — a list hitting
