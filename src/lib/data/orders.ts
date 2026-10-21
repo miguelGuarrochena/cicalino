@@ -6,7 +6,7 @@ import { useConfigStore } from "@/lib/store/config-store";
 import { newOrderSchema, parseInput, orderTransitionSources } from "@/lib/schemas";
 import { debounced, watchChannel } from "@/lib/realtime";
 import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
-import { reportError, reportWarning } from "@/lib/observability";
+import { reportError, reportQueryError, reportWarning } from "@/lib/observability";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { OrderStatus, OrderView } from "@/lib/types";
 import {
@@ -219,7 +219,7 @@ export const fetchKitchenBoard = async (
 ): Promise<DataResult<KitchenTicket[]>> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return ok([]);
-  const { data, error } = await supabase
+  const { data, error, status } = await supabase
     .from("pedidos")
     .select(
       "id, referencia, alias_cliente, estado, creado_en, listo_en, cocina_hecha_en, pedido_items(nombre, cantidad, opcion, nota), mesa_sesiones(mesa_numero)",
@@ -230,8 +230,7 @@ export const fetchKitchenBoard = async (
     .order("creado_en", { ascending: true })
     .limit(80);
   if (error) {
-    reportError("panel.cocina.tablero", error, { branchId });
-    return fail(desdeSupabase(error));
+    return fail(reportQueryError("panel.cocina.tablero", error, status, { branchId }));
   }
   const rows = (data ?? []) as {
     id: string;
@@ -301,7 +300,7 @@ export const fetchKitchenQueue = async (
 ): Promise<DataResult<KitchenQueueItem[]>> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return ok([]);
-  const { data, error } = await supabase
+  const { data, error, status } = await supabase
     .from("pedidos")
     .select(
       "id, referencia, creado_en, cocina_hecha_en, autoservicio, sesion_id, mesa_sesiones(mesa_numero, flujo)",
@@ -312,8 +311,9 @@ export const fetchKitchenQueue = async (
     .order("creado_en", { ascending: true })
     .limit(80);
   if (error) {
-    reportError("panel.cocina.cola", error, { branchId });
-    return fail(desdeSupabase(error));
+    /* Antes `panel.cocina.listas` (este mismo select). Un `Failed to fetch`
+     * con status 0 es el wifi, no la consulta, y el poll lo repetía. */
+    return fail(reportQueryError("panel.cocina.cola", error, status, { branchId }));
   }
   const rows = (data ?? []) as {
     id: string;
@@ -390,7 +390,7 @@ export const fetchPendingCounterOrders = async (
 ): Promise<DataResult<{ id: string; reference: string; createdAt: string }[]>> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return ok([]);
-  const { data, error } = await supabase
+  const { data, error, status } = await supabase
     .from("pedidos")
     .select("id, referencia, creado_en")
     .eq("local_id", branchId)
@@ -400,8 +400,7 @@ export const fetchPendingCounterOrders = async (
     .order("creado_en", { ascending: false })
     .limit(30);
   if (error) {
-    reportError("panel.pedidos.pendientes", error, { branchId });
-    return fail(desdeSupabase(error));
+    return fail(reportQueryError("panel.pedidos.pendientes", error, status, { branchId }));
   }
   return ok(
     ((data as { id: string; referencia: string; creado_en: string }[] | null) ?? []).map(

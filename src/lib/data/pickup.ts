@@ -2,7 +2,7 @@
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { ok, fail, desdeSupabase, type DataResult } from "@/lib/data/result";
-import { reportError } from "@/lib/observability";
+import { reportError, reportQueryError } from "@/lib/observability";
 import { counterChargeMethodSchema } from "@/lib/schemas";
 import { mapPickupOrders, type PickupOrder } from "@/lib/tablePickup";
 import { updateOrderStatus, type OrderStatusResult } from "@/lib/data/orders";
@@ -20,10 +20,9 @@ export const fetchOrdersToCharge = async (
 ): Promise<DataResult<PickupOrder[]>> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return ok([]);
-  const { data, error } = await supabase.rpc("pedidos_por_cobrar", { p_local: branchId });
+  const { data, error, status } = await supabase.rpc("pedidos_por_cobrar", { p_local: branchId });
   if (error) {
-    reportError("panel.pedidos.por-cobrar", error, { branchId });
-    return fail(desdeSupabase(error));
+    return fail(reportQueryError("panel.pedidos.por-cobrar", error, status, { branchId }));
   }
   return ok(mapPickupOrders(data));
 };
