@@ -64,9 +64,19 @@ describe("High — empleados.pin_hash sin grants de cliente", () => {
     expect(fix).toContain("information_schema.columns");
   });
 
-  it("no reescribe el histórico #03: ahí el revoke por columna sigue como estaba", () => {
+  it("el #03 revoca el PIN por columna y no el privilegio de tabla", () => {
     expect(historico).toMatch(
-      /revoke select \(pin, pin_hash\) on public\.empleados from anon, authenticated/i,
+      /revoke select \(pin_hash\) on public\.empleados from anon, authenticated/i,
+    );
+    expect(historico).toMatch(
+      /revoke insert \(pin_hash\) on public\.empleados from anon, authenticated/i,
+    );
+    expect(historico).toMatch(
+      /revoke update \(pin_hash\) on public\.empleados from anon, authenticated/i,
+    );
+    expect(historico).toContain("column_name = 'pin'");
+    expect(historico).toMatch(
+      /revoke select \(pin\) on public\.empleados from anon, authenticated/i,
     );
     expect(historico).not.toMatch(
       /revoke select, insert, update on public\.empleados/i,
