@@ -48,9 +48,11 @@ begin
        set pin_hash = extensions.crypt(pin, extensions.gen_salt('bf', 10))
      where pin is not null and pin <> '' and pin_hash is null;
     update public.empleados set pin = null where pin is not null;
-    execute 'revoke select (pin) on public.empleados from anon, authenticated';
-    execute 'revoke insert (pin) on public.empleados from anon, authenticated';
-    execute 'revoke update (pin) on public.empleados from anon, authenticated';
+    -- La misma sentencia histórica. Nombrar pin cuando drizzle 0002 ya la
+    -- borró aborta el script, así que solo corre si la columna sigue ahí.
+    execute 'revoke select (pin, pin_hash) on public.empleados from anon, authenticated';
+    execute 'revoke insert (pin, pin_hash) on public.empleados from anon, authenticated';
+    execute 'revoke update (pin, pin_hash) on public.empleados from anon, authenticated';
   end if;
 end
 $$;
