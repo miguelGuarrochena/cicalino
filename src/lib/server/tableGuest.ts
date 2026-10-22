@@ -105,6 +105,7 @@ export type TableQr =
       branchName: string;
       operational: boolean;
       flow: TableFlow;
+      blockReason: string | null;
     }
   | { ok: false; reason: "not-found" | "not-available" | "not-configured" };
 
@@ -125,6 +126,7 @@ export const resolveTableQr = async (token: string): Promise<TableQr> => {
     branchName: String(r.local_nombre ?? ""),
     operational: Boolean(r.operativo),
     flow: r.flujo === "autoservicio" ? "autoservicio" : "cuenta",
+    blockReason: typeof r.bloqueo === "string" ? r.bloqueo : null,
   };
 };
 

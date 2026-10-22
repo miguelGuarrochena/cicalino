@@ -35,8 +35,25 @@ alter table public.empleados
   add  constraint empleados_nombre_len check (char_length(nombre) between 2 and 80),
   drop constraint if exists empleados_rol_len,
   add  constraint empleados_rol_len check (rol is null or char_length(rol) <= 60),
-  drop constraint if exists empleados_pin_formato,
-  add  constraint empleados_pin_formato check (pin is null or pin ~ '^[0-9]{4}$');
+  drop constraint if exists empleados_pin_formato;
+
+-- drizzle 0002 reemplaza pin por pin_hash. El formato solo aplica si la
+-- columna en claro todavía existe.
+do $$
+begin
+  if exists (
+    select 1
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'empleados'
+       and column_name = 'pin'
+  ) then
+    alter table public.empleados
+      add constraint empleados_pin_formato
+      check (pin is null or pin ~ '^[0-9]{4}$');
+  end if;
+end
+$$;
 
 alter table public.organizaciones
   drop constraint if exists org_nombre_len,

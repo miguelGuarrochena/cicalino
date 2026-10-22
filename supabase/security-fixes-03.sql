@@ -33,22 +33,36 @@ alter table public.empleados
   add column tiene_pin boolean
     generated always as (pin_hash is not null) stored;
 
--- Migrar los PINs en texto plano que ya existan.
-update public.empleados
-   set pin_hash = extensions.crypt(pin, extensions.gen_salt('bf', 10))
- where pin is not null and pin <> '' and pin_hash is null;
-
--- Ya migrados: borramos el texto plano.
-update public.empleados set pin = null where pin is not null;
+-- Migrar los PINs en texto plano que todavía estén. drizzle 0002 ya hashea
+-- el diseño (borra `pin`); una base que llega con la columna sigue este paso.
+do $$
+begin
+  if exists (
+    select 1
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'empleados'
+       and column_name = 'pin'
+  ) then
+    update public.empleados
+       set pin_hash = extensions.crypt(pin, extensions.gen_salt('bf', 10))
+     where pin is not null and pin <> '' and pin_hash is null;
+    update public.empleados set pin = null where pin is not null;
+    execute 'revoke select (pin) on public.empleados from anon, authenticated';
+    execute 'revoke insert (pin) on public.empleados from anon, authenticated';
+    execute 'revoke update (pin) on public.empleados from anon, authenticated';
+  end if;
+end
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 2) Que el cliente no pueda leer ni escribir el PIN
 -- RLS filtra FILAS; los privilegios por columna filtran COLUMNAS. PostgREST
 -- respeta ambos, así que un `select *` ya no trae el hash.
 -- ---------------------------------------------------------------------------
-revoke select (pin, pin_hash) on public.empleados from anon, authenticated;
-revoke insert (pin, pin_hash) on public.empleados from anon, authenticated;
-revoke update (pin, pin_hash) on public.empleados from anon, authenticated;
+revoke select (pin_hash) on public.empleados from anon, authenticated;
+revoke insert (pin_hash) on public.empleados from anon, authenticated;
+revoke update (pin_hash) on public.empleados from anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3) Definir / cambiar el PIN (solo quien ya puede administrar esa sucursal)

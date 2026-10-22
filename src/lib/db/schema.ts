@@ -684,6 +684,12 @@ export const tableSessions = pgTable(
     /* supabase/pedidos-mesa.sql — "cuenta" (Pagos), "autoservicio" (Mesa) or
      * "mostrador_qr" (pedidos-mostrador-qr.sql, one session per phone). */
     flujo: text("flujo").notNull().default("cuenta"),
+    /* supabase/mesa-ocupacion-pedidos.sql — la sesión queda atada a la
+     * ocupación que había en la mesa al abrirla. Al liberar, acepta_pedidos
+     * pasa a false si todavía hay cuenta que cerrar. */
+    ocupacionEsperaId: uuid("ocupacion_espera_id"),
+    ocupacionReservaId: uuid("ocupacion_reserva_id"),
+    aceptaPedidos: boolean("acepta_pedidos").notNull().default(true),
   },
   (t) => [
     uniqueIndex("uq_mesa_sesion_abierta").on(t.mesaId).where(sql`estado = 'abierta'`),

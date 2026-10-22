@@ -93,6 +93,8 @@ export interface PickupState {
   guest: { id: string; name: string; sessionId: string } | null;
   /* Puede seguir pidiendo con esta identidad (su sesión es la de hoy). */
   canOrder: boolean;
+  /* Mesa libre, reservada, liberada o sesión de una ocupación anterior. */
+  blockReason: string | null;
   orders: PickupOrder[];
   tableOrders: TablePickupSummary[];
 }
@@ -193,7 +195,9 @@ export const mapPickupState = (raw: unknown): PickupState | null => {
       c && str(c.id)
         ? { id: String(c.id), name: String(c.nombre ?? ""), sessionId: String(c.sesion_id ?? "") }
         : null,
-    canOrder: Boolean(r.sesion_abierta),
+    canOrder:
+      r.puede_pedir === undefined ? Boolean(r.sesion_abierta) : r.puede_pedir === true,
+    blockReason: str(r.sesion_motivo) ?? str(r.bloqueo),
     orders: mapPickupOrders(r.pedidos),
     tableOrders: tableOrders.map((o) => ({
       reference: String(o.referencia ?? ""),

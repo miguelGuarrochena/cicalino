@@ -125,6 +125,10 @@ export interface TableBill {
     closedAt: string | null;
     closeReason: string | null;
     calledAt: string | null;
+    /* False cuando Recepción liberó la mesa y esta sesión ya no toma pedidos. */
+    ordersOpen?: boolean;
+    /* Motivo del servidor cuando ordersOpen es false. */
+    orderBlockReason?: string | null;
     billState: BillRequestState;
     intent: BillIntent | null;
     requestedAt: string | null;
@@ -170,6 +174,8 @@ export const mapBill = (raw: unknown): TableBill | null => {
       closedAt: strOrNull(s.cerrada_en),
       closeReason: strOrNull(s.cerrada_motivo),
       calledAt: strOrNull(s.llamado_en),
+      ordersOpen: s.acepta_pedidos !== false,
+      orderBlockReason: typeof s.bloqueo === "string" ? s.bloqueo : null,
       billState: (strOrNull(s.cuenta_estado) as BillRequestState | null) ?? "abierta",
       intent: (strOrNull(s.cuenta_intencion) as BillIntent | null) ?? null,
       requestedAt: strOrNull(s.cuenta_solicitada_en),

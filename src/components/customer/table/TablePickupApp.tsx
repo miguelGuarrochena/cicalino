@@ -1192,6 +1192,9 @@ const PickupJoin = ({
 
   const tableNumber = state?.table?.number ?? initial.tableNumber ?? "";
   const previous = (state?.orders ?? []).filter((o) => pickupActive(o.status));
+  const bloqueada = state?.blockReason === "mesa-no-habilitada"
+    || state?.blockReason === "mesa-reservada"
+    || state?.blockReason === "mesa-liberada";
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 py-12">
@@ -1230,6 +1233,10 @@ const PickupJoin = ({
         <div className="mt-8 flex justify-center" aria-busy="true">
           <Spinner inline className="size-6" />
         </div>
+      ) : bloqueada ? (
+        <CustomerNotice tone="alerta" role="status" className="mt-8">
+          {errorText(state?.blockReason ?? undefined)}
+        </CustomerNotice>
       ) : initial.operational && state?.operational !== false ? (
         <form onSubmit={(e) => void join(e)} className="mt-8 flex flex-col gap-3">
           <label className="flex flex-col gap-2">
@@ -1244,6 +1251,11 @@ const PickupJoin = ({
             />
           </label>
           <p className="text-sm leading-relaxed text-suave">{t("retiro.nombreAyuda")}</p>
+          {state?.blockReason && (
+            <CustomerNotice tone="alerta" role="status">
+              {errorText(state.blockReason)}
+            </CustomerNotice>
+          )}
           {error && (
             <CustomerNotice tone="alerta" role="alert">
               {error}

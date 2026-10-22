@@ -217,6 +217,9 @@ begin
 end;
 $$;
 
+revoke all on function public.sentar_walkin(uuid, integer[], text, integer, uuid, timestamptz) from public, anon;
+grant execute on function public.sentar_walkin(uuid, integer[], text, integer, uuid, timestamptz) to authenticated;
+
 
 create or replace function public.crear_reserva(
   p_local    uuid,

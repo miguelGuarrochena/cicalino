@@ -337,7 +337,15 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('security-fixes-02.sql', 'trigger', 'pedidos_transicion', 3),
     ('reservas-sin-solape.sql', 'trigger', 'reservas_sync_mesas', 33),
     ('espera-constraints.sql', 'trigger', 'reservas_transicion', 20),
-    ('security-fixes-01.sql', 'trigger', 'usuarios_proteger_rol', 2)
+    ('security-fixes-01.sql', 'trigger', 'usuarios_proteger_rol', 2),
+    ('mesa-ocupacion-pedidos.sql', 'column', 'mesa_sesiones.acepta_pedidos', 109),
+    ('mesa-ocupacion-pedidos.sql', 'column', 'mesa_sesiones.ocupacion_espera_id', 109),
+    ('mesa-ocupacion-pedidos.sql', 'column', 'mesa_sesiones.ocupacion_reserva_id', 109),
+    ('mesa-ocupacion-pedidos.sql', 'function', 'mesa_sync_recepcion_pedidos', 109),
+    ('mesa-ocupacion-pedidos.sql', 'function', '_bloqueo_abrir_sesion', 109),
+    ('mesa-ocupacion-pedidos.sql', 'trigger', 'pedidos_ocupacion_guard', 109),
+    ('mesa-ocupacion-pedidos.sql', 'trigger', 'mesas_soltar_pedidos', 109),
+    ('mesa-ocupacion-pedidos.sql', 'trigger', 'mesas_ocupacion_valida', 109)
 ),
 requisitos (archivo, necesita) as (
   values
@@ -351,16 +359,16 @@ requisitos (archivo, necesita) as (
     ('reservas-mesa.sql', 'setup.sql, modulo-espera.sql'),
     ('security-fixes-04.sql', 'setup.sql, usuarios-sucursales.sql, modulo-espera.sql, reservas-mesa.sql'),
     ('avisado-en.sql', '—'),
-    ('aviso-interno.sql', '—'),
+    ('aviso-interno.sql', 'proximo-cobro.sql'),
     ('cola-espera.sql', 'modulo-espera.sql'),
     ('contrato-aceptacion.sql', '—'),
-    ('reservas-atomicas.sql', 'security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql'),
-    ('sentar-walkin.sql', 'security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql'),
-    ('corte-por-impago.sql', 'setup.sql, security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql, reservas-atomicas.sql, sentar-walkin.sql'),
+    ('reservas-atomicas.sql', 'security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql, reservas-aviso.sql'),
+    ('sentar-walkin.sql', 'security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql, reservas-aviso.sql'),
+    ('corte-por-impago.sql', 'setup.sql, security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql, reservas-atomicas.sql, sentar-walkin.sql, suscripciones.sql'),
     ('cron-lock.sql', '—'),
     ('emails-enviados.sql', 'setup.sql'),
     ('empleados-nombre-unico.sql', '—'),
-    ('espera-constraints.sql', 'modulo-espera.sql, reservas-mesa.sql'),
+    ('espera-constraints.sql', 'modulo-espera.sql, reservas-mesa.sql, mesas-capacidad.sql'),
     ('mesas-capacidad.sql', 'modulo-espera.sql'),
     ('metricas.sql', 'security-fixes-01.sql, modulo-espera.sql'),
     ('modulos-por-sucursal.sql', '—'),
@@ -398,7 +406,7 @@ requisitos (archivo, necesita) as (
     ('realtime-organizaciones.sql', '—'),
     ('reservas-aviso.sql', 'modulo-espera.sql, reservas-mesa.sql'),
     ('reservas-expirar.sql', 'security-fixes-01.sql, reservas-mesa.sql'),
-    ('reservas-sin-solape.sql', 'security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql, reservas-atomicas.sql, corte-por-impago.sql'),
+    ('reservas-sin-solape.sql', 'security-fixes-01.sql, modulo-espera.sql, reservas-mesa.sql, reservas-aviso.sql, reservas-atomicas.sql, corte-por-impago.sql'),
     ('sin-cupo.sql', 'security-fixes-02.sql'),
     ('solicitudes-pack.sql', '—'),
     ('solicitudes-tipo.sql', '—'),
@@ -446,7 +454,8 @@ requisitos (archivo, necesita) as (
     ('plato-aclaracion.sql', 'cocina-modo.sql'),
     ('cocina-pase.sql', 'plato-aclaracion.sql'),
     ('pedidos-realtime.sql', 'setup.sql'),
-    ('data-api-grants.sql', 'setup.sql, usuarios-sucursales.sql, modulo-espera.sql, reservas-mesa.sql, suscripciones.sql, emails-enviados.sql, pedidos-sucursal.sql, cron-lock.sql, reservas-sin-solape.sql, security-fixes-13.sql, security-fixes-17.sql, split-payments.sql, mesa-asignacion-jornada.sql, cocina-modo.sql')
+    ('data-api-grants.sql', 'setup.sql, usuarios-sucursales.sql, modulo-espera.sql, reservas-mesa.sql, suscripciones.sql, emails-enviados.sql, pedidos-sucursal.sql, cron-lock.sql, reservas-sin-solape.sql, security-fixes-13.sql, security-fixes-17.sql, split-payments.sql, mesa-asignacion-jornada.sql, cocina-modo.sql'),
+    ('mesa-ocupacion-pedidos.sql', 'cocina-pase.sql, pedidos-mesa.sql, sentar-espera-reserva.sql, liberar-mesas-atomico.sql, mesa-launch-blockers.sql, split-payments-module.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre
