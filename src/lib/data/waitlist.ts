@@ -568,15 +568,32 @@ export const updateWaitlistStatus = async (
 export const deleteWaitlistEntry = async (id: string): Promise<boolean> => {
   const supabase = createBrowserSupabase();
   if (!supabase) return false;
-  await supabase
+  /* La ocupación no se escribe directo: un update de mesas.estado desde el
+   * cliente lo rechaza mesas_ocupacion_valida. Si esta espera está sentada,
+   * liberar_mesas suelta la unión y corta los pedidos de esa ocupación. */
+  const { data: ocupadas, error: leerError } = await supabase
     .from("mesas")
-    .update({
-      estado: "libre",
-      espera_id: null,
-      reserva_id: null,
-      actualizado_en: new Date().toISOString(),
-    })
+    .select("local_id, numero")
     .eq("espera_id", id);
+  if (leerError) {
+    reportError("panel.espera.borrar", leerError, { waitlistId: id });
+    return false;
+  }
+  const locales = new Set<string>();
+  for (const mesa of ocupadas ?? []) {
+    const localId = String(mesa.local_id);
+    if (locales.has(localId)) continue;
+    locales.add(localId);
+    const { error: soltarError } = await supabase.rpc("liberar_mesas", {
+      p_local: localId,
+      p_numero: mesa.numero,
+      p_solo_esta: false,
+    });
+    if (soltarError) {
+      reportError("panel.espera.borrar", soltarError, { waitlistId: id });
+      return false;
+    }
+  }
   const { error } = await supabase.from("esperas").delete().eq("id", id);
   if (error) {
     reportError("panel.espera.borrar", error, { waitlistId: id });

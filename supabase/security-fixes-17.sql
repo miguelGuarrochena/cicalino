@@ -59,8 +59,19 @@ grant update (id, local_id, nombre, rol, activo, created_at, usuario_id)
 comment on column public.empleados.pin_hash is
   'Hash bcrypt del PIN. Sin grants para anon/authenticated: se escribe solo por set_empleado_pin y se lee solo por verificar_pin_empleado (ambas SECURITY DEFINER).';
 
-comment on column public.empleados.pin is
-  'Columna vieja de PIN en texto plano, migrada a pin_hash en security-fixes-03. Siempre null, sin grants.';
+do $$
+begin
+  if exists (
+    select 1
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'empleados'
+       and column_name = 'pin'
+  ) then
+    execute $c$comment on column public.empleados.pin is 'Columna vieja de PIN en texto plano, migrada a pin_hash en security-fixes-03. Siempre null, sin grants.'$c$;
+  end if;
+end
+$$;
 
 -- ---------------------------------------------------------------------------
 -- Chequeo (solo lectura). Esperado:
@@ -72,7 +83,14 @@ select
   has_column_privilege('anon',          'public.empleados', 'pin_hash', 'SELECT') as pin_hash_anon_select,
   has_column_privilege('authenticated', 'public.empleados', 'pin_hash', 'SELECT') as pin_hash_auth_select,
   has_column_privilege('authenticated', 'public.empleados', 'pin_hash', 'UPDATE') as pin_hash_auth_update,
-  has_column_privilege('authenticated', 'public.empleados', 'pin',      'SELECT') as pin_auth_select,
+  case
+    when exists (
+      select 1 from information_schema.columns
+       where table_schema = 'public' and table_name = 'empleados' and column_name = 'pin'
+    )
+    then has_column_privilege('authenticated', 'public.empleados', 'pin', 'SELECT')
+    else false
+  end as pin_auth_select,
   has_column_privilege('authenticated', 'public.empleados', 'nombre',   'SELECT') as nombre_auth_select,
   has_column_privilege('authenticated', 'public.empleados', 'nombre',   'UPDATE') as nombre_auth_update,
   has_column_privilege('authenticated', 'public.empleados', 'tiene_pin','SELECT') as tiene_pin_auth_select;

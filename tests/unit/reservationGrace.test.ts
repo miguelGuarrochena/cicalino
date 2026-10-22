@@ -28,13 +28,18 @@ const mkReserva = (over: Partial<ReservationView> = {}): ReservationView => ({
   ...over,
 });
 
-/* Mirrors mesa_en_ventana_de_reserva in supabase/sentar-walkin.sql. If one
+/* Mirrors mesa_en_ventana_de_reserva (30 min antes + gracia). If one
  * changes the other has to change too. */
 
 describe("isWithinGrace", () => {
-  it("no aplica antes del horario", () => {
-    expect(isWithinGrace(mkReserva(), at(-1))).toBe(false);
+  it("no aplica antes de los 30 minutos", () => {
+    expect(isWithinGrace(mkReserva(), at(-(HOLD_BEFORE_MIN + 1)))).toBe(false);
     expect(isWithinGrace(mkReserva(), at(-60))).toBe(false);
+  });
+
+  it("arranca justo a los 30 minutos y sigue un minuto antes del horario", () => {
+    expect(isWithinGrace(mkReserva(), at(-HOLD_BEFORE_MIN))).toBe(true);
+    expect(isWithinGrace(mkReserva(), at(-1))).toBe(true);
   });
 
   it("arranca justo en el horario", () => {
@@ -80,7 +85,7 @@ describe("tablesHeldByReservation", () => {
 
   it("fuera de la ventana no retiene ninguna", () => {
     const r = [mkReserva()];
-    expect(tablesHeldByReservation(r, at(-5)).size).toBe(0);
+    expect(tablesHeldByReservation(r, at(-(HOLD_BEFORE_MIN + 1))).size).toBe(0);
     expect(tablesHeldByReservation(r, at(30)).size).toBe(0);
   });
 
@@ -137,9 +142,9 @@ describe("isReservationHolding", () => {
 });
 
 describe("tablesInFloorHold", () => {
-  it("marca la mesa antes de la gracia, para el mapa", () => {
+  it("el mapa y la base retienen la mesa durante los 30 minutos previos", () => {
     const held = tablesInFloorHold([mkReserva()], at(-20));
     expect(held.get(3)?.id).toBe("r1");
-    expect(tablesHeldByReservation([mkReserva()], at(-20)).size).toBe(0);
+    expect(tablesHeldByReservation([mkReserva()], at(-20)).get(3)?.id).toBe("r1");
   });
 });

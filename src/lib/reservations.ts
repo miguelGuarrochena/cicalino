@@ -1,9 +1,9 @@
 import type { ReservationView } from "@/lib/types";
 import { TZ_NEGOCIO } from "@/lib/businessDay";
 
-/* Cuánto antes del horario la mesa se pinta entera de ámbar en el mapa y el
- * panel deja de ofrecerla para walk-in. La base sigue bloqueando solo dentro
- * de la gracia (`isWithinGrace`); esto es la señal de piso para el staff. */
+/* Cuánto antes del horario la mesa queda tomada: el mapa, el sentar y el QR
+ * usan el mismo lapso. La base lo aplica en mesa_en_ventana_de_reserva
+ * (supabase/mesa-ocupacion-pedidos.sql). */
 export const HOLD_BEFORE_MIN = 30;
 
 export const SOON_THRESHOLD_MIN = HOLD_BEFORE_MIN;
@@ -62,9 +62,8 @@ export const nextReservationByTable = (
 export const isReservationSoon = (r: ReservationView, now = Date.now()): boolean =>
   minutesUntil(r.scheduledAt, now) <= SOON_THRESHOLD_MIN;
 
-/* From HOLD_BEFORE before the booking until the grace ends: the floor treats
- * the table as reserved. Wider than `isWithinGrace` on purpose — staff need to
- * see it coming, not only once the clock hits. */
+/* From HOLD_BEFORE before the booking until the grace ends. Same window as
+ * mesa_en_ventana_de_reserva. */
 export const isReservationHolding = (
   r: ReservationView,
   now = Date.now(),
@@ -78,25 +77,14 @@ export const isReservationHolding = (
   );
 };
 
-/* Is the booking inside its grace period right now?
- *
- * From the booking time until booking time + grace, the table belongs to
- * whoever booked it and can't be given to a walk-in. Once that window closes
- * the cron expires the booking and the table frees up; a guest arriving after
- * that gets seated as a new walk-in.
- *
- * Mirrors `mesa_en_ventana_de_reserva` in supabase/sentar-walkin.sql. The one
- * that actually enforces this is the database — this one only drives the UI,
- * so a stale screen can't offer a table the server is going to reject. */
+/* Misma ventana que `mesa_en_ventana_de_reserva`: 30 minutos antes del
+ * horario hasta que termina la gracia. La base es la que rechaza el sentar
+ * y el QR; esto solo evita ofrecer en pantalla una mesa que el servidor
+ * va a rechazar. */
 export const isWithinGrace = (
   r: ReservationView,
   now = Date.now(),
-): boolean => {
-  if (r.status !== "activa") return false;
-  const start = new Date(r.scheduledAt).getTime();
-  if (Number.isNaN(start)) return false;
-  return now >= start && now <= start + r.graceMinutes * 60_000;
-};
+): boolean => isReservationHolding(r, now);
 
 /* Tables currently held by a booking inside its grace period.
  *
@@ -120,9 +108,9 @@ export const tablesHeldByReservation = (
   return out;
 };
 
-/* Same shape as `tablesHeldByReservation`, but with the wider floor window
- * (HOLD_BEFORE → grace). Used by the map and the walk-in picker so a table
- * lights up amber before the server hard-blocks it. */
+/* Same window as `tablesHeldByReservation`. The map and the walk-in picker
+ * both use it so a table lights up for the whole hold, not only after the
+ * booking time. */
 export const tablesInFloorHold = (
   reservas: ReservationView[],
   now = Date.now(),

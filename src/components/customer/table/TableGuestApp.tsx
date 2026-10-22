@@ -63,6 +63,7 @@ export interface TableGuestInitial {
   logoUrl: string | null;
   colorMarca: BrandColorId | null;
   operational: boolean;
+  blockReason?: string | null;
   menu: GuestMenuProduct[];
   settings: PaymentSettings;
   mercadoPagoReady: boolean;
@@ -355,6 +356,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
           branchName={initial.branchName}
           logoUrl={initial.logoUrl}
           operational={initial.operational}
+          blockReason={initial.blockReason}
           onJoined={handleJoined}
         />
       </CustomerBrandShell>
@@ -362,7 +364,7 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
   }
 
   const open = bill.session.status === "abierta";
-  const puedePedir = open && !billRequested(bill);
+  const puedePedir = open && !billRequested(bill) && bill.session.ordersOpen !== false;
   const myOrders = bill.orders.filter((o) => o.guestId === guest.id);
   const unpaid = open && bill.totals.available > 0 && !billRequested(bill);
   const hasConsumption = bill.totals.consumption > 0;
@@ -389,6 +391,12 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
         </div>
         <Controls showTheme={false} />
       </header>
+
+        {open && bill.session.ordersOpen === false && (
+          <CustomerNotice tone="alerta" role="status" className="mt-4">
+            {errorText(bill.session.orderBlockReason ?? "mesa-liberada")}
+          </CustomerNotice>
+        )}
 
         {open && (
           <button
@@ -648,6 +656,7 @@ const JoinTable = ({
   branchName,
   logoUrl,
   operational,
+  blockReason,
   onJoined,
 }: {
   token: string;
@@ -655,6 +664,7 @@ const JoinTable = ({
   branchName: string;
   logoUrl: string | null;
   operational: boolean;
+  blockReason?: string | null;
   onJoined: (g: { id: string; name: string }, b: TableBill) => void;
 }) => {
   const { t } = useApp();
@@ -748,6 +758,10 @@ const JoinTable = ({
         <div className="mt-8 flex justify-center" aria-busy="true">
           <Spinner inline className="size-6" />
         </div>
+      ) : blockReason === "mesa-no-habilitada" || blockReason === "mesa-reservada" || blockReason === "mesa-liberada" ? (
+        <CustomerNotice tone="alerta" role="status" className="mt-8">
+          {errorText(blockReason)}
+        </CustomerNotice>
       ) : operational ? (
         <form onSubmit={(e) => void join(e)} className="mt-8 flex flex-col gap-3">
           <label className="flex flex-col gap-2">

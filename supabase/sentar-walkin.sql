@@ -169,7 +169,9 @@ begin
 end;
 $$;
 
+revoke all on function public.mesa_en_ventana_de_reserva(uuid, integer[]) from public, anon;
 grant execute on function public.mesa_en_ventana_de_reserva(uuid, integer[]) to authenticated;
+revoke all on function public.sentar_walkin(uuid, integer[], text, integer, uuid, timestamptz) from public, anon;
 grant execute on function public.sentar_walkin(uuid, integer[], text, integer, uuid, timestamptz) to authenticated;
 
 

@@ -41,6 +41,18 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
+let dbHost = "";
+try {
+  dbHost = new URL(databaseUrl).hostname;
+} catch {
+  console.error("DATABASE_URL no es una URL de Postgres válida");
+  process.exit(1);
+}
+/* Solo loopback va sin SSL. Un host remoto sigue igual que antes. */
+const loopback =
+  dbHost === "127.0.0.1" || dbHost === "localhost" || dbHost === "::1";
+console.log(`db-migrate destino host=${dbHost} ssl=${loopback ? "no" : "sí"}`);
+
 const ordenPath = path.join(root, "supabase/orden.json");
 /** @type {string[]} */
 const orden = JSON.parse(fs.readFileSync(ordenPath, "utf8"));
@@ -51,7 +63,7 @@ if (!orden.includes(tracker)) {
 
 const client = new pg.Client({
   connectionString: databaseUrl,
-  ssl: { rejectUnauthorized: false },
+  ssl: loopback ? false : { rejectUnauthorized: false },
 });
 await client.connect();
 

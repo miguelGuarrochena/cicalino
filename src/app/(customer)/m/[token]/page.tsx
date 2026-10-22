@@ -152,6 +152,7 @@ const TablePage = async ({
         logoUrl: brand.logoUrl,
         colorMarca: brand.color,
         operational: mesa.operational,
+        blockReason: mesa.blockReason,
         menu,
         settings: payment.settings,
         mercadoPagoReady: payment.mercadoPagoReady,
