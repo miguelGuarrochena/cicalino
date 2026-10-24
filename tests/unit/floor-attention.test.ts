@@ -113,6 +113,16 @@ describe("floor attention — pedido vs cuenta vs visto", () => {
     expect(guestBillRequests(open)).toHaveLength(1);
   });
 
+  /* table-close-waits-for-kitchen.sql: la mesa pagada con un pedido sin
+   * anotar no se cierra; el aviso del pedido tiene que seguir. Cerrada, no. */
+  it("una mesa pagada con un pedido sin anotar sigue avisando; cerrada, no", () => {
+    const pagada = bill({ session: { ...bill().session, status: "pagada" }, orders: [order()] });
+    expect(pendingOrderIds([pagada])).toEqual(["o1"]);
+    expect(kitchenInbox(buildFloor([], [pagada])).created).toHaveLength(1);
+    const cerrada = bill({ session: { ...bill().session, status: "cerrada" }, orders: [order()] });
+    expect(pendingOrderIds([cerrada])).toEqual([]);
+  });
+
   it("un pago del personal o de Mercado Pago no es solicitud de cuenta", () => {
     const open = bill({
       orders: [order({ status: "retirado" })],

@@ -253,15 +253,29 @@ describe.skipIf(!enabled)("Integration — security grants smoke", () => {
    *
    * Va contra la base y no contra el .sql a propósito: el bug era justamente
    * que el archivo decía una cosa y la base tenía otra. */
+  /* La columna `pin` en texto plano ya no existe donde Drizzle la borró
+   * (security-fixes-03 tolera que falte). Si sigue estando, se chequea igual;
+   * `pin_hash` se chequea siempre. */
+  const hayPinPlano = async () =>
+    (
+      await client.query(`
+        select 1 from information_schema.columns
+         where table_schema = 'public' and table_name = 'empleados' and column_name = 'pin'
+      `)
+    ).rowCount === 1;
+
   it("pin / pin_hash sin privilegios de cliente", async () => {
+    const pinPlano = (await hayPinPlano())
+      ? `,
+        has_column_privilege('anon',          'public.empleados', 'pin',      'SELECT') as pin_anon_select,
+        has_column_privilege('authenticated', 'public.empleados', 'pin',      'SELECT') as pin_auth_select`
+      : "";
     const { rows } = await client.query(`
       select
         has_column_privilege('anon',          'public.empleados', 'pin_hash', 'SELECT') as hash_anon_select,
         has_column_privilege('authenticated', 'public.empleados', 'pin_hash', 'SELECT') as hash_auth_select,
         has_column_privilege('authenticated', 'public.empleados', 'pin_hash', 'UPDATE') as hash_auth_update,
-        has_column_privilege('authenticated', 'public.empleados', 'pin_hash', 'INSERT') as hash_auth_insert,
-        has_column_privilege('anon',          'public.empleados', 'pin',      'SELECT') as pin_anon_select,
-        has_column_privilege('authenticated', 'public.empleados', 'pin',      'SELECT') as pin_auth_select
+        has_column_privilege('authenticated', 'public.empleados', 'pin_hash', 'INSERT') as hash_auth_insert${pinPlano}
     `);
     for (const [k, v] of Object.entries(rows[0])) {
       expect(v, k).toBe(false);
@@ -306,6 +320,7 @@ describe.skipIf(!enabled)("Integration — security grants smoke", () => {
          and not has_column_privilege('authenticated', 'public.empleados', c.column_name, 'SELECT')
        order by 1
     `);
-    expect(rows.map((r) => r.column_name)).toEqual(["pin", "pin_hash"]);
+    const esperadas = (await hayPinPlano()) ? ["pin", "pin_hash"] : ["pin_hash"];
+    expect(rows.map((r) => r.column_name)).toEqual(esperadas);
   });
 });

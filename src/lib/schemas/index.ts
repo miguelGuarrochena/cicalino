@@ -170,7 +170,7 @@ export type BranchConfigInput = z.infer<typeof branchConfigSchema>;
 /* Cómo funciona el mostrador (una sola forma). Mesa va aparte (`pedidosMesa`).
  * Ver modules.ts. */
 export const pedidosModalidad = z.enum(["mostrador", "mostrador_qr", "sin_mostrador"], {
-  errorMap: () => ({ message: "Modalidad de Pedidos inválida." }),
+  error: "Modalidad de Pedidos inválida.",
 });
 
 export const branchOperacionSchema = z
@@ -259,7 +259,7 @@ export type NewOrderInput = z.infer<typeof newOrderSchema>;
 
 /* Nombre opcional del cliente en /p/{token}. Vacío = borrar. */
 export const customerAliasSchema = z
-  .string({ invalid_type_error: "Nombre inválido." })
+  .string({ error: (iss) => (iss.input === undefined ? undefined : "Nombre inválido.") })
   .transform((s) => s.trim().replace(/\s+/g, " "))
   .refine(
     (s) => s === "" || (s.length >= 2 && s.length <= 24),

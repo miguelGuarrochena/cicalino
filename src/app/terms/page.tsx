@@ -94,6 +94,15 @@ const TerminosPage = () => {
                 navegador del cliente y de proveedores (hosting, push, correo).
               </p>
               <p>
+                <b className="text-carbon">Avisos y link del pedido.</b> Las
+                notificaciones al cliente son opcionales y dependen de su
+                dispositivo, su navegador y los permisos que otorgue; Cicalino
+                no garantiza que lleguen. El estado del pedido se puede
+                consultar en su página mientras esté disponible. El link de
+                cada pedido da acceso a ese pedido a quien lo tenga: compartirlo
+                es decisión de quien lo recibe.
+              </p>
+              <p>
                 Contacto:{" "}
                 <a
                   href="mailto:info@cicalino.net"
@@ -157,6 +166,20 @@ const TerminosPage = () => {
                 <b className="text-carbon">Venue responsibilities.</b> The venue
                 is responsible for the data it enters and for complying with
                 applicable law. Cicalino is not a full POS or invoicing system.
+              </p>
+              <p>
+                <b className="text-carbon">Availability.</b> The service is
+                provided “as is”, subject to the availability of the internet,
+                the customer&apos;s browser and providers (hosting, push, email).
+              </p>
+              <p>
+                <b className="text-carbon">Notices and order link.</b> Customer
+                notifications are optional and depend on their device, their
+                browser and the permissions they grant; Cicalino does not
+                guarantee they arrive. The order status can be checked on its
+                page while it is available. Each order&apos;s link gives access to
+                that order to whoever has it: sharing it is up to whoever
+                receives it.
               </p>
               <p>
                 Contact:{" "}

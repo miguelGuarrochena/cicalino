@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const textField = (min: number, max: number, campo: string) =>
   z
-    .string({ required_error: `Falta ${campo}.`, invalid_type_error: `${campo} inválido.` })
+    .string({ error: (iss) => (iss.input === undefined ? `Falta ${campo}.` : `${campo} inválido.`) })
     .trim()
     .min(min, `${campo}: mínimo ${min} caracteres.`)
     .max(max, `${campo}: máximo ${max} caracteres.`);
@@ -17,14 +17,16 @@ export const optionalTextField = (max: number, campo: string) =>
     .transform((v) => (v ? v : undefined));
 
 export const email = z
-  .string({ required_error: "Falta el email." })
+  .string({ error: (iss) => (iss.input === undefined ? "Falta el email." : undefined) })
   .trim()
   .toLowerCase()
   .min(5, "Email inválido.")
   .max(160, "Email demasiado largo.")
   .email("Email inválido.");
 
-export const uuid = z.string().uuid("Identificador inválido.");
+/* zod 4 hace estricto `.uuid()` (RFC 9562); `guid` es el formato
+ * 8-4-4-4-12 que aceptaba zod 3, así ningún id que hoy pasa deja de pasar. */
+export const uuid = z.guid("Identificador inválido.");
 
 export const cuil = z
   .string()
@@ -66,20 +68,20 @@ export const tipoNegocio = z.enum(
     "food_truck",
     "otro",
   ],
-  { errorMap: () => ({ message: "Tipo de negocio inválido." }) },
+  { error: "Tipo de negocio inválido." },
 );
 
 export const identificationMode = z.enum(["pedido", "nombre", "mesa"], {
-  errorMap: () => ({ message: "Modo de identificación inválido." }),
+  error: "Modo de identificación inválido.",
 });
 
 export const orderStatus = z.enum(
   ["pendiente_pago", "creado", "en_preparacion", "listo", "retirado", "cancelado"],
-  { errorMap: () => ({ message: "Estado de pedido inválido." }) },
+  { error: "Estado de pedido inválido." },
 );
 
 export const plan = z.enum(["mensual", "anual", "gratis"], {
-  errorMap: () => ({ message: "Plan inválido." }),
+  error: "Plan inválido.",
 });
 
 export type ParseResult<T> =

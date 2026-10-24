@@ -125,10 +125,50 @@ export const fetchPickupState = async (
   creds: GuestCredentials | null,
   flow?: PickupFlow,
 ): Promise<{ ok: true; state: PickupState } | { ok: false; reason: string }> => {
-  if (flow === "mostrador_qr") return readState("mostrador_qr_estado", token, creds);
+  if (flow === "mostrador_qr") {
+    return withTrackingTokens(token, await readState("mostrador_qr_estado", token, creds));
+  }
   const mesa = await readState("mesa_autoservicio_estado", token, creds);
   if (mesa.ok || flow === "autoservicio" || mesa.reason !== "not-found") return mesa;
-  return readState("mostrador_qr_estado", token, creds);
+  return withTrackingTokens(token, await readState("mostrador_qr_estado", token, creds));
+};
+
+/* El link de cada pedido del mostrador (`/m/<pedidos.qr_token>`, el mismo al
+ * que lleva el push de listo). Solo a quien ya tiene acceso a ese pedido:
+ *   · el teléfono dueño: `guest` lo devolvió mostrador_qr_estado después de
+ *     validar id + hash, así que se piden solo SUS pedidos;
+ *   · quien entró por el link: ya tiene el token, es el de la URL.
+ * Otros pedidos, nunca. En Mesa no hay link por pedido: se vuelve por el QR
+ * de la mesa. */
+const withTrackingTokens = async (
+  token: string,
+  res: { ok: true; state: PickupState } | { ok: false; reason: string },
+): Promise<{ ok: true; state: PickupState } | { ok: false; reason: string }> => {
+  if (!res.ok || res.state.flow !== "mostrador_qr" || !res.state.orders.length) return res;
+  const { state } = res;
+  if (!state.guest) {
+    if (!state.orderLink || state.orders.length !== 1) return res;
+    return { ok: true, state: { ...state, orders: [{ ...state.orders[0]!, trackingToken: token }] } };
+  }
+  const admin = createAdminSupabase();
+  if (!admin) return res;
+  const { data, error } = await admin
+    .from("pedidos")
+    .select("id, qr_token")
+    .eq("comensal_id", state.guest.id)
+    .in("id", state.orders.map((o) => o.id));
+  if (error) {
+    console.error("m.pedidos_link", error.message);
+    return res;
+  }
+  const tokens = new Map((data ?? []).map((r) => [String(r.id), String(r.qr_token)]));
+  return {
+    ok: true,
+    state: {
+      ...state,
+      orders: state.orders.map((o) => ({ ...o, trackingToken: tokens.get(o.id) ?? null })),
+    },
+  };
 };
 
 /* Como resolvePickupQr, pero para lo que el teléfono hace con pedidos que ya

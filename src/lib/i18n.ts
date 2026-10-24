@@ -123,6 +123,10 @@ const dict = {
       a8: "Sí, con las modalidades Mesa y Mostrador QR de Pedidos. En Mesa, escanea el QR fijo de su mesa, pide y paga; el pedido se prepara cuando está pago. En Mostrador QR hay un solo QR para todo el local: pide, paga ahora con Mercado Pago o en caja al retirar, y el pedido se prepara enseguida. En los dos casos le avisamos cuando está listo y lo retira en el mostrador. Se eligen en Configuración: el mostrador funciona de una sola forma (la caja carga el pedido o el cliente lo carga con el QR) y Mesa se puede sumar o usar sola.",
       q9: "¿Cómo paga el cliente en Mostrador QR?",
       a9: "Con Mercado Pago, si el local lo tiene habilitado y conectado, o eligiendo «Pagar en caja» y pagando al retirar con los métodos que acepte el local. El momento del pago no cambia la preparación, y un pedido que ya está pago no se vuelve a cobrar.",
+      q10: "¿Cómo vuelve el cliente a ver su pedido si cierra la pestaña?",
+      a10: "Cuando la caja carga el pedido, o en Mostrador QR, cada pedido tiene su propio link: el cliente lo puede copiar, compartir o guardar en favoritos, y abre el estado actualizado. Quien tenga el link ve ese pedido, así que conviene compartirlo solo con quien lo retira. En Mostrador QR, volver a escanear el QR del local desde el mismo teléfono también muestra sus pedidos. En Mesa y en la cuenta compartida se vuelve escaneando el QR de la mesa. Si nada de eso funciona, en el mostrador se lo encuentra por número o nombre.",
+      q11: "¿Las notificaciones funcionan en todos los celulares?",
+      a11: "Son opcionales y dependen del celular, el navegador y que el cliente acepte el permiso. En Android y en la computadora suelen funcionar desde el navegador. En iPhone, Safari las manda solo si la página se agrega a la pantalla de inicio (iOS 16.4 o posterior); la pantalla del pedido explica los pasos. Sin notificaciones, el estado se ve igual con la página abierta, que se actualiza sola.",
       e: {
         flujoTitulo: "Ciclo de espera de mesa",
         flujoSub:
@@ -163,7 +167,7 @@ const dict = {
         flujoTitulo: "Ciclo de una mesa",
         flujoSub: "El cliente pide y paga desde el QR de la mesa.",
         flujoNota:
-          "Cada mesa tiene su QR. El comensal lo escanea, pone su nombre, pide y paga su parte. En el panel ves comandas, quién está sentado y cuánto falta. Cuando está toda paga, cerrás la mesa. Eso queda en el historial: no se borra.",
+          "Cada mesa tiene su QR. El comensal lo escanea, pone su nombre, pide y paga su parte. En el panel ves comandas, quién está sentado y cuánto falta. Cuando la cuenta queda paga y no hay pedidos por anotar ni en cocina, la mesa se cierra sola; también la podés cerrar a mano. Eso queda en el historial: no se borra.",
         q1: "¿El cliente instala algo?",
         a1: "No. Escanea el QR de la mesa con la cámara del celular. No es una app aparte.",
         q2: "¿Es el mismo QR que Pedidos?",
@@ -240,7 +244,7 @@ const dict = {
       cliKicker: "Para el cliente",
       cliTitulo: "Escaneá el QR y esperá el aviso",
       cliSub:
-        "No instalás nada. Dejá la pantalla abierta (o activá las notificaciones) y te llega el aviso cuando corresponde: pedido o mesa.",
+        "No instalás nada. Seguís tu pedido desde su link, con la pantalla abierta o con notificaciones si tu navegador las permite. Las notificaciones son opcionales.",
       precioKicker: "Precios",
       precioTitulo: "Precio fijo por sucursal",
       precioSub:
@@ -626,7 +630,7 @@ const dict = {
         p3t: "Comandas",
         p3d: "Cuando piden desde la mesa, aparecen en «Comandas». Si elegiste imprimir, copiá la comanda y tocá «Ya lo anoté». Si elegiste la pantalla, tocá «Mandar a cocina». Cuando cocina la marca hecha, tocá listo al llevarla: ahí se avisa al cliente.",
         p4t: "Cobrar",
-        p4d: "En «Cobrar» ves lo que falta. El cliente puede pagar del celular (Mercado Pago u otro medio que hayas activado). Si pagan en el local, registrás efectivo, transferencia o tarjeta. Cuando está toda paga, cerrás la mesa.",
+        p4d: "En «Cobrar» ves lo que falta. El cliente puede pagar del celular (Mercado Pago u otro medio que hayas activado). Si pagan en el local, registrás efectivo, transferencia o tarjeta. Cuando está toda paga y no queda nada en cocina, la mesa se cierra sola.",
         p5t: "Historial de mesas cerradas",
         p5d: "«Historial» es el de mesas que ya cerraste: quién pagó, cuánto y con qué. No es el de Pedidos ni el de Recepción. Podés buscar por mesa o nombre y filtrar el período.",
         p6t: "Turnos",
@@ -859,6 +863,36 @@ const dict = {
       colaPersona: "persona",
       colaPersonas: "personas",
       colaTotal: "En cola: {g} {gLabel} · {p} {pLabel}",
+    },
+    /* El link individual del pedido (TrackingLink). No promete que quede
+     * guardado: copiar, compartir y favoritos los hace el cliente. */
+    enlace: {
+      titulo: "El link de tu pedido",
+      cuerpo: "Con este link volvés a ver el estado del pedido aunque cierres esta pestaña.",
+      copiar: "Copiar link",
+      compartir: "Compartir",
+      copiado: "Link copiado. Pegalo donde quieras guardarlo.",
+      compartido: "Listo, ya lo compartiste.",
+      manual: "No se pudo copiar solo. Mantené apretado el link para copiarlo:",
+      comoGuardar: "¿Cómo lo guardo?",
+      guardarFavorito: "Pegalo en un chat con vos mismo o agregá esta página a favoritos desde el menú del navegador.",
+      privado: "Quien tenga el link ve este pedido: compartilo solo con quien lo va a retirar.",
+      perdidoMostrador: "Si lo perdés, volvé a escanear el QR del local con este mismo teléfono, o pedí tu número en el mostrador.",
+      perdidoCaja: "Si lo perdés, en el mostrador te buscan con tu número o tu nombre.",
+      compartirTitulo: "Mi pedido",
+      compartirTexto: "Pedido {n}",
+    },
+    /* Avisos en iPhone (IosPushSteps): solo en Safari de iPhone sin la página
+     * agregada a la pantalla de inicio. */
+    iosAvisos: {
+      titulo: "¿Querés el aviso en tu iPhone?",
+      intro: "En iPhone, Safari manda notificaciones solo si agregás esta página a la pantalla de inicio (iOS 16.4 o posterior). Es opcional: tu pedido sigue igual.",
+      abrirLink: "Abrir el link de mi pedido",
+      paso1: "Tocá Compartir, el cuadrado con la flecha, en la barra de Safari.",
+      paso2: "Elegí «Agregar a la pantalla de inicio» y confirmá con «Agregar».",
+      paso3: "Abrí Cicalino desde el ícono nuevo de tu pantalla de inicio.",
+      paso4: "Tocá el botón para activar los avisos y aceptá el permiso de notificaciones.",
+      nota: "Si preferís no hacerlo, dejá esta pestaña abierta: se actualiza sola.",
     },
     seguimiento: {
       pedido: "Seguí tu pedido {n}",
@@ -2435,6 +2469,10 @@ const dict = {
       a8: "Yes, with the Table and Counter QR modes of Orders. With Table, they scan their table's fixed QR, order and pay; the order is prepared once it's paid. With Counter QR there's a single QR for the whole place: they order, pay now with Mercado Pago or at the till at pickup, and the order is prepared right away. Either way we let them know when it's ready and they pick it up at the counter. You set it in Settings: the counter works one way (the till enters orders or guests place them with the QR) and Table can be added or used on its own.",
       q9: "How do guests pay with Counter QR?",
       a9: "With Mercado Pago, if the place has it enabled and connected, or by choosing “Pay at the till” and paying at pickup with the methods the place accepts. When they pay doesn't change the preparation, and an order that's already paid isn't charged again.",
+      q10: "How does a customer get back to their order after closing the tab?",
+      a10: "When the till enters the order, or with Counter QR, each order has its own link: the customer can copy it, share it or bookmark it, and it opens the live status. Anyone with the link sees that order, so it's best shared only with whoever picks it up. With Counter QR, scanning the shop's QR again from the same phone also shows their orders. With Table and the shared bill, they come back by scanning the table's QR. If none of that works, staff can find it at the counter by number or name.",
+      q11: "Do notifications work on every phone?",
+      a11: "They're optional and depend on the phone, the browser and the customer allowing them. On Android and desktop they usually work from the browser. On iPhone, Safari only sends them if the page is added to the Home Screen (iOS 16.4 or later); the order screen explains the steps. Without notifications, the status still shows with the page open, and it updates on its own.",
       e: {
         flujoTitulo: "Reception lifecycle",
         flujoSub:
@@ -2475,7 +2513,7 @@ const dict = {
         flujoTitulo: "Table lifecycle",
         flujoSub: "Guests order and pay from the table QR.",
         flujoNota:
-          "Each table has its own QR. Guests scan it, enter their name, order and pay their share. In the panel you see tickets, who’s seated and what’s unpaid. When the bill is covered, you close the table. That stays in history — it is not deleted.",
+          "Each table has its own QR. Guests scan it, enter their name, order and pay their share. In the panel you see tickets, who’s seated and what’s unpaid. Once the bill is covered and no order is waiting to be noted or in the kitchen, the table closes on its own; you can also close it by hand. That stays in history — it is not deleted.",
         q1: "Does the guest install anything?",
         a1: "No. They scan the table QR with the phone camera. No extra app.",
         q2: "Is it the same QR as Orders?",
@@ -2547,7 +2585,7 @@ const dict = {
       cliKicker: "For the customer",
       cliTitulo: "Scan the QR and wait for the ping",
       cliSub:
-        "Nothing to install. Keep the screen open (or enable notifications) and get pinged when it’s time: order or table.",
+        "Nothing to install. Follow your order from its link, with the screen open or with notifications if your browser allows them. Notifications are optional.",
       precioKicker: "Pricing",
       precioTitulo: "Flat fee per branch",
       precioSub:
@@ -2931,7 +2969,7 @@ const dict = {
         p3t: "Tickets",
         p3d: "When they order from the table, it shows up under “Tickets”. If you chose print, copy the ticket and tap “Noted”. If you chose the kitchen screen, tap “Send to kitchen”. When kitchen marks it done, tap ready as you take it: that's when the guest is told.",
         p4t: "Collect",
-        p4d: "Under “Collect” you see what’s unpaid. Guests can pay from the phone (Mercado Pago or another method you enabled). If they pay in the venue, you record cash, transfer or card. When the bill is covered, close the table.",
+        p4d: "Under “Collect” you see what’s unpaid. Guests can pay from the phone (Mercado Pago or another method you enabled). If they pay in the venue, you record cash, transfer or card. Once the bill is covered and nothing is left in the kitchen, the table closes on its own.",
         p5t: "Closed-table history",
         p5d: "“History” is for tables you already closed: who paid, how much and with what. It is not Orders or Reception history. You can search by table or name and filter the period.",
         p6t: "Shifts",
@@ -3158,6 +3196,32 @@ const dict = {
       colaPersona: "person",
       colaPersonas: "people",
       colaTotal: "In line: {g} {gLabel} · {p} {pLabel}",
+    },
+    enlace: {
+      titulo: "Your order link",
+      cuerpo: "Use this link to check your order status again, even if you close this tab.",
+      copiar: "Copy link",
+      compartir: "Share",
+      copiado: "Link copied. Paste it wherever you want to keep it.",
+      compartido: "Done, you shared it.",
+      manual: "Couldn't copy automatically. Press and hold the link to copy it:",
+      comoGuardar: "How do I keep it?",
+      guardarFavorito: "Paste it in a chat with yourself or bookmark this page from your browser menu.",
+      privado: "Anyone with the link can see this order: share it only with whoever picks it up.",
+      perdidoMostrador: "If you lose it, scan the shop's QR again with this same phone, or ask at the counter with your number.",
+      perdidoCaja: "If you lose it, staff can find it at the counter with your number or name.",
+      compartirTitulo: "My order",
+      compartirTexto: "Order {n}",
+    },
+    iosAvisos: {
+      titulo: "Want the alert on your iPhone?",
+      intro: "On iPhone, Safari only sends notifications if you add this page to your Home Screen (iOS 16.4 or later). It's optional: your order stays the same.",
+      abrirLink: "Open my order link",
+      paso1: "Tap Share, the square with the arrow, in Safari's bar.",
+      paso2: "Choose “Add to Home Screen” and confirm with “Add”.",
+      paso3: "Open Cicalino from the new icon on your Home Screen.",
+      paso4: "Tap the button to turn on alerts and allow notifications.",
+      nota: "If you'd rather not, keep this tab open: it updates on its own.",
     },
     seguimiento: {
       pedido: "Continue order {n}",

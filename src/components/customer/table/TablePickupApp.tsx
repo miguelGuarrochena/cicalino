@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -20,6 +21,8 @@ import { CustomerBrandHeader } from "@/components/customer/CustomerBrandHeader";
 import { CustomerBrandShell } from "@/components/customer/CustomerBrandShell";
 import { CustomerNotice } from "@/components/customer/CustomerNotice";
 import { CustomerEmpty } from "@/components/customer/CustomerEmpty";
+import { IosPushSteps } from "@/components/customer/IosPushSteps";
+import { TrackingLink } from "@/components/customer/TrackingLink";
 import { MenuBrowser } from "@/components/customer/table/MenuBrowser";
 import { OrderReview } from "@/components/customer/table/OrderReview";
 import { PickupOrderCard } from "@/components/customer/table/PickupOrderCard";
@@ -319,16 +322,25 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
    * por el id y no por el objeto: cada poll trae un `guest` nuevo y no hay
    * que volver a suscribir cada cinco segundos. */
   const guestId = guest?.id ?? null;
+  /* Sin comensal pero entrando por el link de un pedido del mostrador (la
+   * app agregada a la pantalla de inicio en iPhone no comparte la cookie de
+   * Safari): el aviso se ata a ese pedido con su token, por la ruta de
+   * siempre (/api/push/subscribe), como un pedido de la caja. */
+  const linkOnly = counter && !guestId && state?.orderLink === true;
+  const pushTarget = useMemo(
+    () => (linkOnly ? {} : { url: `/api/m/${token}/autoservicio/avisos` }),
+    [linkOnly, token],
+  );
   useEffect(() => {
-    if (!guestId || !pushCapable || !notificationPermissionGranted()) return;
+    if ((!guestId && !linkOnly) || !pushCapable || !notificationPermissionGranted()) return;
     let alive = true;
-    void subscribeWebPush(token, { url: `/api/m/${token}/autoservicio/avisos` }).then((r) => {
+    void subscribeWebPush(token, pushTarget).then((r) => {
       if (alive && r.ok) setPushOn(true);
     });
     return () => {
       alive = false;
     };
-  }, [guestId, token, pushCapable]);
+  }, [guestId, linkOnly, token, pushCapable, pushTarget]);
 
   const activarAvisos = async () => {
     const ns = counter ? "mostradorQr" : "retiro";
@@ -338,7 +350,7 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
       setPushError(t(`${ns}.avisosDenegados`));
       return;
     }
-    const r = await subscribeWebPush(token, { url: `/api/m/${token}/autoservicio/avisos` });
+    const r = await subscribeWebPush(token, pushTarget);
     if (r.ok) setPushOn(true);
     else setPushError(t(`${ns}.avisosError`));
   };
@@ -717,6 +729,13 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
                 pushCapable={pushCapable}
                 pushError={pushError}
                 onActivate={() => void activarAvisos()}
+                /* La app agregada tiene que abrir en el pedido: si esta no es
+                   la pantalla del link, primero se va al link. */
+                orderLinkPath={
+                  activeOrders[0]?.trackingToken && activeOrders[0].trackingToken !== token
+                    ? `/m/${activeOrders[0].trackingToken}`
+                    : null
+                }
               />
             )}
             {showPushOffer && (
@@ -744,18 +763,26 @@ export const TablePickupApp = ({ initial }: { initial: TablePickupInitial }) => 
             ) : (
               <>
                 {activeOrders.map((o) => (
-                  <PickupOrderCard
-                    key={o.id}
-                    order={o}
-                    tableNumber={tableNumber}
-                    mercadoPagoReady={initial.mercadoPagoReady}
-                    cashReady={initial.cashReady}
-                    busy={busyOrder === o.id}
-                    flash={flashIds.has(o.id)}
-                    onPayMercadoPago={() => void changePayment(o.id, "mercado_pago")}
-                    onPayAtCounter={() => void changePayment(o.id, "caja")}
-                    onCancel={() => void cancelOrder(o.id)}
-                  />
+                  <Fragment key={o.id}>
+                    <PickupOrderCard
+                      order={o}
+                      tableNumber={tableNumber}
+                      mercadoPagoReady={initial.mercadoPagoReady}
+                      cashReady={initial.cashReady}
+                      busy={busyOrder === o.id}
+                      flash={flashIds.has(o.id)}
+                      onPayMercadoPago={() => void changePayment(o.id, "mercado_pago")}
+                      onPayAtCounter={() => void changePayment(o.id, "caja")}
+                      onCancel={() => void cancelOrder(o.id)}
+                    />
+                    {o.trackingToken && (
+                      <TrackingLink
+                        path={`/m/${o.trackingToken}`}
+                        reference={o.reference}
+                        lostHint={t("enlace.perdidoMostrador")}
+                      />
+                    )}
+                  </Fragment>
                 ))}
                 {pastOrders.length > 0 && (
                   <div className="flex flex-col gap-3">
@@ -957,30 +984,46 @@ const CounterNoticeBox = ({
   pushCapable,
   pushError,
   onActivate,
+  orderLinkPath,
 }: {
   pushOn: boolean;
   pushCapable: boolean;
   pushError: string | null;
   onActivate: () => void;
+  orderLinkPath: string | null;
 }) => {
   const { t } = useApp();
   if (pushOn) return <p className="text-sm text-suave">{t("retiro.avisosActivos")}</p>;
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-linea bg-surface p-4">
-      <p className="text-base text-carbon">
-        {pushCapable ? t("mostradorQr.avisosDisponible") : t("mostradorQr.avisosNoDisponible")}
-      </p>
-      {pushCapable && (
-        <button
-          type="button"
-          onClick={onActivate}
-          className="min-h-12 w-full rounded-full border-2 border-marca px-4 text-base font-semibold text-marca"
-        >
-          {t("mostradorQr.avisosActivar")}
-        </button>
+    <>
+      <div className="flex flex-col gap-2 rounded-2xl border border-linea bg-surface p-4">
+        <p className="text-base text-carbon">
+          {pushCapable ? t("mostradorQr.avisosDisponible") : t("mostradorQr.avisosNoDisponible")}
+        </p>
+        {pushCapable && (
+          <button
+            type="button"
+            onClick={onActivate}
+            className="min-h-12 w-full rounded-full border-2 border-marca px-4 text-base font-semibold text-marca"
+          >
+            {t("mostradorQr.avisosActivar")}
+          </button>
+        )}
+        {pushError && <p className="text-sm text-alerta">{pushError}</p>}
+      </div>
+      {!pushCapable && (
+        <IosPushSteps>
+          {orderLinkPath && (
+            <a
+              href={orderLinkPath}
+              className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-4 text-base font-semibold text-marca"
+            >
+              {t("iosAvisos.abrirLink")}
+            </a>
+          )}
+        </IosPushSteps>
       )}
-      {pushError && <p className="text-sm text-alerta">{pushError}</p>}
-    </div>
+    </>
   );
 };
 

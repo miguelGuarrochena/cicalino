@@ -12,18 +12,18 @@ type SimpleResult = { ok: true } | { ok: false; error: string };
 const accessRole = z.enum(["empleado", "supervisor"]);
 
 const grantSchema = z.object({
-  employeeId: z.string().uuid(),
+  employeeId: z.guid(),
   email: z.string().trim().toLowerCase().email().max(120),
   role: accessRole.default("empleado"),
 });
 
 const roleSchema = z.object({
-  employeeId: z.string().uuid(),
+  employeeId: z.guid(),
   role: accessRole,
 });
 
 const revokeSchema = z.object({
-  employeeId: z.string().uuid(),
+  employeeId: z.guid(),
 });
 
 type Admin = NonNullable<ReturnType<typeof createAdminSupabase>>;

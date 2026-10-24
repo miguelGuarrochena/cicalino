@@ -87,11 +87,14 @@ export const TableDetail = ({
   const [cobrarOpen, setCobrarOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignTo, setReassignTo] = useState(waiterId ?? "");
-  /* Todo lo que escribe cuelga de `open`: cobrar, confirmar, anular, anotar,
+  /* Lo que toca la cuenta cuelga de `open`: cobrar, confirmar, anular,
    * cancelar y cerrar. Por eso alcanza con apagarlo acá — una sesión que por
    * lo que sea siguiera abierta no convierte una consulta del pasado en una
    * pantalla de cobro. */
   const open = bill.session.status === "abierta" && !soloLectura;
+  /* Anotar, mandar a cocina y llevar no son de la cuenta: una mesa pagada que
+   * todavía tiene un pedido en curso no se cierra sola
+   * (table-close-waits-for-kitchen.sql) y ese pedido se sigue moviendo acá. */
   const live =
     (bill.session.status === "abierta" || bill.session.status === "pagada") &&
     !soloLectura;
@@ -600,7 +603,7 @@ export const TableDetail = ({
                         </li>
                       ))}
                     </ul>
-                    {open && porAnotar && (
+                    {live && porAnotar && (
                       <button
                         type="button"
                         disabled={busy === o.id}
@@ -610,10 +613,10 @@ export const TableDetail = ({
                         {cocinaPantalla ? t("cocina.mandar") : t("mesas.pasarAComanda")}
                       </button>
                     )}
-                    {open && cocinaPantalla && o.status === "en_preparacion" && !o.kitchenDoneAt && (
+                    {live && cocinaPantalla && o.status === "en_preparacion" && !o.kitchenDoneAt && (
                       <p className="mt-3 text-sm text-carbon/55">{t("cocina.enCocina")}</p>
                     )}
-                    {open && cocinaPantalla && o.status === "en_preparacion" && o.kitchenDoneAt && (
+                    {live && cocinaPantalla && o.status === "en_preparacion" && o.kitchenDoneAt && (
                       <button
                         type="button"
                         disabled={busy === o.id}

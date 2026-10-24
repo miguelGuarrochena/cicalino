@@ -418,17 +418,23 @@ export const TableGuestApp = ({ initial }: { initial: TableGuestInitial }) => {
                 ? t("mesa.mesaPagada")
                 : t("mesa.mesaCerrada")}
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                visita.current += 1;
-                setGuest(null);
-                setBill(null);
-              }}
-              className="mt-2.5 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-4 text-base font-semibold text-marca"
-            >
-              {t("mesa.nuevaVisita")}
-            </button>
+            {/* Pagada pero sin cerrar: queda un pedido en curso
+                (table-close-waits-for-kitchen.sql) y la base no abre otra
+                cuenta en esta mesa hasta que se cierre. El botón llevaría a
+                "mesa ocupada". */}
+            {bill.session.status === "cerrada" && (
+              <button
+                type="button"
+                onClick={() => {
+                  visita.current += 1;
+                  setGuest(null);
+                  setBill(null);
+                }}
+                className="mt-2.5 inline-flex min-h-11 items-center rounded-full border-2 border-marca px-4 text-base font-semibold text-marca"
+              >
+                {t("mesa.nuevaVisita")}
+              </button>
+            )}
           </CustomerNotice>
         )}
 

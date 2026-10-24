@@ -67,7 +67,7 @@ describe.skipIf(!enabled)("Integration — aislamiento entre empresas", () => {
     }
     client = new pg.Client({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      ssl: process.env.PGSSL === "0" ? false : { rejectUnauthorized: false },
     });
     await client.connect();
   });

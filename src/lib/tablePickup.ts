@@ -67,6 +67,10 @@ export interface PickupOrder {
   total: number;
   items: PickupItem[];
   payment: PickupPayment | null;
+  /* Mostrador QR: el token del link del pedido (`/m/<token>`). Lo pone el
+   * servidor solo para el teléfono dueño o para quien entró con ese mismo
+   * link (tablePickup.server: withTrackingTokens); en Mesa queda en null. */
+  trackingToken: string | null;
 }
 
 /* Un pedido de otra persona de la misma mesa: sin ítems ni nombres, solo lo
@@ -166,6 +170,7 @@ export const mapPickupOrder = (raw: unknown): PickupOrder | null => {
       subtotal: num(i.subtotal),
     })),
     payment: mapPayment(p.pago),
+    trackingToken: null,
   };
 };
 

@@ -289,7 +289,31 @@ QR de mesa (/m/[token], token opaco en mesas.qr_token)
       └─ Mercado Pago → checkout con el token OAuth del local
                        → /api/mp/webhook (firma + GET /v1/payments) → pagado
   → cuando los monto_base pagados cubren el consumo → mesa_sesiones.estado = pagada
+  → sin cobros pendientes ni cocina pendiente → se cierra sola (motivo `pagada`)
 ```
+
+- **Cierre al pagar**: cubierta la cuenta, la sesión se cierra sola
+  (`mesa-cierre-al-pagar.sql`) salvo que quede un cobro `pendiente` o trabajo
+  de cocina que el salón todavía tiene que mover (`table-close-waits-for-kitchen.sql`):
+  un pedido `creado` (sin anotar) o, con cocina en pantalla, uno
+  `en_preparacion`. Mientras tanto queda `pagada`: el panel la sigue mostrando
+  para anotar o llevar ese pedido, no toma pedidos ni comensales nuevos, y se
+  cierra cuando el pedido avanza (trigger `pedidos_revisar_cobertura`) o
+  cuando el personal la cierra a mano. El trigger bloquea la sesión antes de
+  revisar, así anotar dos pedidos a la vez o anotar mientras la caja cobra no
+  dejan la mesa pagada sin cerrar (`tests/integration/mesa-cierre-concurrencia.test.ts`,
+  dos conexiones, solo contra una base en loopback).
+- **Deadlock conocido: cancelar y anotar el mismo pedido a la vez.** El
+  comensal (`cancelar_pedido_comensal`) toma la sesión y después el pedido; el
+  mozo (`UPDATE` del panel) toma el pedido y su trigger después la sesión.
+  Si coinciden, Postgres lo detecta en `deadlock_timeout` (1 s) y aborta una
+  de las dos con `40P01`; en las pruebas siempre pierde la anotación y gana la
+  cancelación. Nada queda a medias: la transacción abortada se deshace entera.
+  Recuperación: el panel recibe un error, muestra el aviso de siempre y
+  recarga (ahí ve el pedido cancelado); reintentar el `UPDATE` no hace nada
+  porque filtra por el estado de origen, y reintentar la cancelación responde
+  `ya-anotado`. Es el mismo orden de locks que ya tenía `pedidos_mesa_guard`
+  al cancelar desde el panel.
 
 - **Reglas en la base**: los montos se calculan en `_crear_pago_mesa` con la
   sesión bloqueada (`FOR UPDATE`); nunca se compromete más consumo del que hay.
@@ -353,6 +377,17 @@ Los usuarios se simulan como lo hace PostgREST: `request.jwt.claims` con el
 las policies se comportan igual que en producción.
 
 ## Pendiente
+
+- Verificar contra una base local: `pnpm test:db:local` (`scripts/db-local-check.mjs`)
+  migra y corre `test:db` solo si el host es loopback; `pnpm db:sql` y
+  `pnpm test:db` siguen leyendo `.env.local`, que es producción.
+- Cinco fallas de `test:db` en la base local que no vienen del cierre de mesa
+  y quedan para arreglar aparte:
+  · `staff-roles.test.ts` (3): el fixture abre la mesa 8 de un local con
+    Recepción sin ocuparla, y desde `mesa-ocupacion-pedidos.sql` `unirse_mesa`
+    responde `mesa-no-habilitada`. Fallan igual con el archivo anterior.
+  · `security-grants.test.ts` (2): esperan la columna `empleados.pin` en texto
+    plano, que en la base local ya no existe.
 
 - Migraciones deterministas: `supabase/orden.json` + `pnpm db:sql` /
   `pnpm db:sql:baseline` (tabla `cicalino_schema_migrations`). Queda formalizar

@@ -1,3 +1,4 @@
+import { enIOSSafari, enStandalone } from "@/lib/pwaInstall";
 
 export type PushSubscribeResult =
   | { ok: true }
@@ -31,13 +32,29 @@ const pushManagerSupported = (): boolean =>
 
 /**
  * ¿Mostramos el botón de avisos push?
- * En iPhone/iPad no: Web Push exige PWA y no queremos pedir instalar nada.
- * El cliente deja la pestaña abierta; al volver se actualiza sola.
+ * En iPhone/iPad, solo abierto desde la pantalla de inicio: Web Push exige
+ * la app agregada (iOS 16.4+) y en una pestaña de Safari no hay cómo. Ahí el
+ * cliente deja la pestaña abierta o sigue los pasos de iosPushNeedsHomeScreen.
  */
 export const canOfferWebPush = (): boolean => {
   if (typeof window === "undefined") return false;
-  if (isIosDevice()) return false;
+  if (isIosDevice() && !enStandalone()) return false;
   return pushManagerSupported();
+};
+
+/**
+ * ¿Le explicamos cómo agregar la página a la pantalla de inicio para recibir
+ * avisos? Solo en Safari de iPhone/iPad, en una pestaña y sin Web Push a mano:
+ * es el único caso donde agregarla destraba el aviso. Android y escritorio ya
+ * pueden en la pestaña; Chrome o Firefox en iPhone no tienen ese botón.
+ * Solo tiene sentido en páginas con manifest propio del pedido (/p y el link
+ * del pedido en /m): la app agregada tiene que abrir en ese pedido.
+ */
+export const iosPushNeedsHomeScreen = (): boolean => {
+  if (typeof window === "undefined") return false;
+  if (!enIOSSafari() || enStandalone()) return false;
+  if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return false;
+  return !pushManagerSupported();
 };
 
 /**

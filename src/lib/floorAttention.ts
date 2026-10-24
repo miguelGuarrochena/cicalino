@@ -37,8 +37,10 @@ export const emptyAttentionSeen = (): AttentionSeen => ({
   cardMp: new Set(),
 });
 
+/* Una mesa pagada con un pedido sin anotar sigue en el piso
+ * (table-close-waits-for-kitchen.sql): ese pedido sigue pendiente. */
 export const openCreatedOrders = (bill: TableBill): BillOrder[] =>
-  bill.session.status === "abierta"
+  bill.session.status === "abierta" || bill.session.status === "pagada"
     ? bill.orders.filter((o) => o.status === "creado")
     : [];
 

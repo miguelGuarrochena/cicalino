@@ -108,15 +108,29 @@ describe.skipIf(!enabled)("Integration — roles del personal", () => {
 
   /* A table with one guest who ordered a pizza (15.000). */
   const mesaConConsumo = async () => {
+    /* Con Recepción y Pagos juntos la mesa abre sesión solo si está ocupada
+     * (mesa-ocupacion-pedidos.sql): el mozo la sienta primero. */
+    await como("authenticated", mozo);
+    const sentada = await rpc(`select public.sentar_walkin($1, $2, 'Ana', 2, null, now() + interval '3 hours') r`, [
+      local,
+      [8],
+    ]);
+    expect(sentada.ok).toBe(true);
     await como("service_role", null);
     const secreto = crypto.randomUUID();
     const g = await rpc(`select public.unirse_mesa($1, 'Ana', $2) r`, [mesaToken, sha(secreto)]);
-    await rpc(`select public.pedir_como_comensal($1, $2, $3, $4) r`, [
+    const pedido = await rpc(`select public.pedir_como_comensal($1, $2, $3, $4) r`, [
       g.comensal_id,
       sha(secreto),
       JSON.stringify([{ producto_id: producto, cantidad: 1 }]),
       crypto.randomUUID(),
     ]);
+    /* El mozo ya lo anotó: un pedido sin anotar frena el cierre de la mesa
+     * pagada (table-close-waits-for-kitchen.sql). */
+    await client.query(
+      `update public.pedidos set estado = 'en_preparacion' where id = $1 and estado = 'creado'`,
+      [pedido.pedido_id],
+    );
     return { sesion: String(g.sesion_id), comensal: String(g.comensal_id), hash: sha(secreto) };
   };
 
