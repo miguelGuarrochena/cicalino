@@ -345,7 +345,8 @@ with esperado (archivo, tipo, nombre, orden) as (
     ('mesa-ocupacion-pedidos.sql', 'function', '_bloqueo_abrir_sesion', 109),
     ('mesa-ocupacion-pedidos.sql', 'trigger', 'pedidos_ocupacion_guard', 109),
     ('mesa-ocupacion-pedidos.sql', 'trigger', 'mesas_soltar_pedidos', 109),
-    ('mesa-ocupacion-pedidos.sql', 'trigger', 'mesas_ocupacion_valida', 109)
+    ('mesa-ocupacion-pedidos.sql', 'trigger', 'mesas_ocupacion_valida', 109),
+    ('table-close-waits-for-kitchen.sql', 'function', '_sesion_cocina_pendiente', 110)
 ),
 requisitos (archivo, necesita) as (
   values
@@ -455,7 +456,8 @@ requisitos (archivo, necesita) as (
     ('cocina-pase.sql', 'plato-aclaracion.sql'),
     ('pedidos-realtime.sql', 'setup.sql'),
     ('data-api-grants.sql', 'setup.sql, usuarios-sucursales.sql, modulo-espera.sql, reservas-mesa.sql, suscripciones.sql, emails-enviados.sql, pedidos-sucursal.sql, cron-lock.sql, reservas-sin-solape.sql, security-fixes-13.sql, security-fixes-17.sql, split-payments.sql, mesa-asignacion-jornada.sql, cocina-modo.sql'),
-    ('mesa-ocupacion-pedidos.sql', 'cocina-pase.sql, pedidos-mesa.sql, sentar-espera-reserva.sql, liberar-mesas-atomico.sql, mesa-launch-blockers.sql, split-payments-module.sql')
+    ('mesa-ocupacion-pedidos.sql', 'cocina-pase.sql, pedidos-mesa.sql, sentar-espera-reserva.sql, liberar-mesas-atomico.sql, mesa-launch-blockers.sql, split-payments-module.sql'),
+    ('table-close-waits-for-kitchen.sql', 'mesa-cierre-al-pagar.sql, mesa-consistencia-cobros.sql, cocina-modo.sql, mesa-ocupacion-pedidos.sql')
 ),
   existentes as (
     select 'function' as tipo, p.proname as nombre

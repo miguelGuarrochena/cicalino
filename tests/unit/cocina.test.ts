@@ -78,8 +78,8 @@ describe("cocina", () => {
     const realtime = readFileSync(join(process.cwd(), "supabase/pedidos-realtime.sql"), "utf8");
     expect(realtime).toContain("replica identity full");
     expect(realtime).toContain("public.pedidos");
-    expect(orden.filter((f) => f !== "data-api-grants.sql").at(-1)).toBe(
-      "mesa-ocupacion-pedidos.sql",
+    expect(orden.indexOf("mesa-ocupacion-pedidos.sql")).toBeGreaterThan(
+      orden.indexOf("cocina-pase.sql"),
     );
     expect(orden.indexOf("pedidos-realtime.sql")).toBeLessThan(
       orden.indexOf("mesa-ocupacion-pedidos.sql"),

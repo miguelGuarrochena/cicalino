@@ -111,13 +111,27 @@ describe.skipIf(!enabled)("Integration — pagos divididos", () => {
     return { id: String(r.comensal_id), sesion: String(r.sesion_id), hash: sha(secreto), r };
   };
 
-  const pedir = (g: { id: string; hash: string }, items: [string, number][]) =>
+  const pedirSinAnotar = (g: { id: string; hash: string }, items: [string, number][]) =>
     rpc(`select public.pedir_como_comensal($1, $2, $3, $4) r`, [
       g.id,
       g.hash,
       JSON.stringify(items.map(([n, c]) => ({ producto_id: productos[n], cantidad: c }))),
       crypto.randomUUID(),
     ]);
+
+  /* Como en el salón: el pedido entra y el mozo lo anota ("ya lo anoté").
+   * Un pedido sin anotar frena el cierre de una mesa pagada
+   * (table-close-waits-for-kitchen.sql); esos casos usan pedirSinAnotar. */
+  const pedir = async (g: { id: string; hash: string }, items: [string, number][]) => {
+    const r = await pedirSinAnotar(g, items);
+    if (r.ok && r.pedido_id) {
+      await sql(
+        `update public.pedidos set estado = 'en_preparacion' where id = $1 and estado = 'creado'`,
+        [r.pedido_id],
+      );
+    }
+    return r;
+  };
 
   const pagar = (g: { id: string; hash: string }, datos: Record<string, unknown>) =>
     rpc(`select public.pagar_como_comensal($1, $2, $3) r`, [
@@ -905,6 +919,168 @@ describe.skipIf(!enabled)("Integration — pagos divididos", () => {
       await comoBase();
       /* Quedan 12000 de consumo y 10000 pagados: falta pagar, sigue abierta. */
       expect((await sesion(j.sesion)).estado).toBe("abierta");
+    });
+
+    /* table-close-waits-for-kitchen.sql. Hasta aplicarla, se saltean. */
+    const conCocinaPendiente = async (ctx: { skip: (nota?: string) => void }) => {
+      await comoBase();
+      const r = await uno<{ ok: boolean }>(
+        `select to_regprocedure('public._sesion_cocina_pendiente(uuid)') is not null ok`,
+      );
+      if (!r.ok) ctx.skip("falta aplicar table-close-waits-for-kitchen.sql (pnpm db:sql)");
+    };
+
+    it("cubierta con un pedido sin anotar queda pagada; anotarlo la cierra", async (ctx) => {
+      await conCocinaPendiente(ctx);
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const postre = await pedirSinAnotar(j, [["Agua", 1]]);
+      const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await como("authenticated", admin);
+      expect((await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id])).ok).toBe(true);
+
+      await comoBase();
+      const s = await sesion(j.sesion);
+      expect(s).toMatchObject({ estado: "pagada", cerrada_motivo: null });
+      expect(s.pagada_en).not.toBeNull();
+
+      /* Sigue en el salón: el panel la ve y el pedido no se pierde. */
+      await como("authenticated", admin);
+      const lista = (await rpc(`select public.mesas_cuentas($1) r`, [local])) as unknown as {
+        sesion: { id: string; estado: string };
+        pedidos: { id: string; estado: string }[];
+      }[];
+      const mia = lista.find((b) => b.sesion.id === j.sesion);
+      expect(mia?.sesion.estado).toBe("pagada");
+      expect(mia?.pedidos.find((o) => o.id === postre.pedido_id)?.estado).toBe("creado");
+
+      /* Pagada no toma pedidos ni abre otra cuenta en la mesa. */
+      await como("service_role", null);
+      expect((await pedirSinAnotar(j, [["Agua", 1]])).reason).toBe("mesa-cerrada");
+      expect((await unirse("María")).r).toMatchObject({ ok: false, reason: "mesa-ocupada" });
+
+      await como("authenticated", admin);
+      await sql(`update public.pedidos set estado = 'en_preparacion' where id = $1`, [postre.pedido_id]);
+      await comoBase();
+      expect(await sesion(j.sesion)).toMatchObject({ estado: "cerrada", cerrada_motivo: "pagada" });
+      expect(
+        (await uno<{ estado: string }>(`select estado from public.pedidos where id = $1`, [postre.pedido_id])).estado,
+      ).toBe("en_preparacion");
+    });
+
+    it("con cocina en pantalla, la mesa pagada se cierra cuando el último pedido sale a listo", async (ctx) => {
+      await conCocinaPendiente(ctx);
+      await sql(`update public.locales set cocina_modo = 'pantalla' where id = $1`, [local]);
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      const plato = await pedir(j, [["Hamburguesa", 1]]);
+      const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id]);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("pagada");
+
+      await como("authenticated", admin);
+      await sql(`update public.pedidos set cocina_hecha_en = now() where id = $1`, [plato.pedido_id]);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("pagada");
+
+      await como("authenticated", admin);
+      await sql(`update public.pedidos set estado = 'listo', listo_en = now() where id = $1`, [plato.pedido_id]);
+      await comoBase();
+      expect(await sesion(j.sesion)).toMatchObject({ estado: "cerrada", cerrada_motivo: "pagada" });
+    });
+
+    it("varios comensales, pedidos en distintos estados: cierra recién con el último anotado", async (ctx) => {
+      await conCocinaPendiente(ctx);
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      const m = await unirse("Juan");
+      expect(m.id).not.toBe(j.id);
+      await pedir(j, [["Hamburguesa", 1]]);
+      const a = await pedirSinAnotar(j, [["Agua", 1]]);
+      const b = await pedirSinAnotar(m, [["Coca-Cola", 1]]);
+      await como("authenticated", admin);
+      await rpc(`select public.registrar_pago_personal($1, $2) r`, [
+        j.sesion,
+        JSON.stringify({ clave: crypto.randomUUID(), modo: "uno", metodo: "efectivo",
+          pagador_nombre: "Mesa 1", confirmado: true }),
+      ]);
+      await sql(`update public.pedidos set estado = 'en_preparacion' where id = $1`, [a.pedido_id]);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("pagada");
+      await como("authenticated", admin);
+      await sql(`update public.pedidos set estado = 'en_preparacion' where id = $1`, [b.pedido_id]);
+      await comoBase();
+      expect(await sesion(j.sesion)).toMatchObject({ estado: "cerrada", cerrada_motivo: "pagada" });
+      /* Cada pedido siguió siendo suyo: mismo nombre, comensales distintos. */
+      const duenos = await sql(`select comensal_id from public.pedidos where id = any($1::uuid[])`, [[a.pedido_id, b.pedido_id]]);
+      expect(new Set(duenos.map((d) => d.comensal_id))).toEqual(new Set([j.id, m.id]));
+    });
+
+    it("un Mercado Pago aprobado sobre una mesa pagada sin cerrar queda excedente y no la reabre", async (ctx) => {
+      await conCocinaPendiente(ctx);
+      await conMercadoPago();
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedirSinAnotar(j, [["Hamburguesa", 1]]);
+      const mp = await pagar(j, { modo: "uno", metodo: "mercado_pago" });
+      expect(mp.ok).toBe(true);
+      /* El checkout venció sin aprobarse y la caja cobró en efectivo. */
+      await comoBase();
+      await sql(`update public.pagos_mesa set expira_en = now() - interval '1 minute' where id = $1`, [mp.pago_id]);
+      await como("service_role", null);
+      await rpc(`select public.cuenta_comensal($1, $2) r`, [j.id, j.hash]);
+      await comoBase();
+      expect(await estadoPago(mp.pago_id)).toBe("cancelado");
+      await como("authenticated", admin);
+      await rpc(`select public.registrar_pago_personal($1, $2) r`, [
+        j.sesion,
+        JSON.stringify({ clave: crypto.randomUUID(), modo: "uno", metodo: "efectivo",
+          pagador_nombre: "Mesa 1", confirmado: true }),
+      ]);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("pagada");
+      await como("service_role", null);
+      const tarde = await rpc(`select public.mp_confirmar_pago($1, $2, 'mp-1', 'approved', 10000, 'ARS') r`, [local, mp.pago_id]);
+      const repetido = await rpc(`select public.mp_confirmar_pago($1, $2, 'mp-1', 'approved', 10000, 'ARS') r`, [local, mp.pago_id]);
+      expect(tarde).toMatchObject({ ok: true, excedente: true });
+      expect(repetido.ok).toBe(true);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("pagada");
+      expect(
+        (await uno<{ n: number }>(`select count(*)::int n from public.pagos_mesa where sesion_id = $1 and estado = 'pagado'`, [j.sesion])).n,
+      ).toBe(1);
+    });
+
+    it("con comanda impresa, un pedido ya anotado no frena el cierre", async (ctx) => {
+      await conCocinaPendiente(ctx);
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      await pedir(j, [["Hamburguesa", 1]]);
+      const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id]);
+      await comoBase();
+      expect(await sesion(j.sesion)).toMatchObject({ estado: "cerrada", cerrada_motivo: "pagada" });
+    });
+
+    it("el personal puede cerrar a mano una mesa pagada con un pedido en curso", async (ctx) => {
+      await conCocinaPendiente(ctx);
+      await como("service_role", null);
+      const j = await unirse("Juan");
+      const plato = await pedirSinAnotar(j, [["Hamburguesa", 1]]);
+      const p = await pagar(j, { modo: "uno", metodo: "efectivo" });
+      await como("authenticated", admin);
+      await rpc(`select public.confirmar_pago_mesa($1) r`, [p.pago_id]);
+      expect((await rpc(`select public.cerrar_mesa($1, null) r`, [j.sesion])).ok).toBe(true);
+      await comoBase();
+      expect((await sesion(j.sesion)).estado).toBe("cerrada");
+      /* Cerrar la cuenta no toca la cocina. */
+      expect(
+        (await uno<{ estado: string }>(`select estado from public.pedidos where id = $1`, [plato.pedido_id])).estado,
+      ).toBe("creado");
     });
 
     it("Mercado Pago pendiente reserva su parte: la mesa sigue abierta y al aprobarse se cierra", async () => {

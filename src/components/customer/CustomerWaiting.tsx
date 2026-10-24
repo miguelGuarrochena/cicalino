@@ -20,6 +20,8 @@ import { CustomerOtherTab } from "@/components/customer/CustomerOtherTab";
 import { CustomerBrandHeader } from "@/components/customer/CustomerBrandHeader";
 import { CustomerBrandShell } from "@/components/customer/CustomerBrandShell";
 import { CustomerNotice } from "@/components/customer/CustomerNotice";
+import { IosPushSteps } from "@/components/customer/IosPushSteps";
+import { TrackingLink } from "@/components/customer/TrackingLink";
 import {
   showReadyNotice,
   requestNotificationPermission,
@@ -352,10 +354,19 @@ export const CustomerWaiting = ({ token, initial }: Props) => {
                 </>
               )
             ) : (
-              <p className="rounded-2xl border border-linea bg-carbon/[0.04] px-4 py-3.5 text-base leading-snug text-carbon">
-                {t("cliente.mantenerPestana")}
-              </p>
+              <>
+                <p className="rounded-2xl border border-linea bg-carbon/[0.04] px-4 py-3.5 text-base leading-snug text-carbon">
+                  {t("cliente.mantenerPestana")}
+                </p>
+                <IosPushSteps className="mt-3 text-left" />
+              </>
             )}
+            <TrackingLink
+              path={`/p/${token}`}
+              reference={order.reference}
+              lostHint={t("enlace.perdidoCaja")}
+              className="mt-4 text-left"
+            />
           </div>
         )}
       </div>

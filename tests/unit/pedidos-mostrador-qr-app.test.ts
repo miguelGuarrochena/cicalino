@@ -44,6 +44,7 @@ const pedido = (over: Partial<PickupOrder> = {}): PickupOrder => ({
   total: 8500,
   items: [],
   payment: null,
+  trackingToken: null,
   ...over,
 });
 

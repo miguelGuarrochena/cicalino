@@ -22,7 +22,14 @@ describe("mesa-ocupacion-pedidos — migración", () => {
   it("va después de las funciones que reemplaza y está registrada", () => {
     const pos = orden.indexOf("mesa-ocupacion-pedidos.sql");
     expect(orden.at(-1)).toBe("data-api-grants.sql");
-    expect(pos).toBe(orden.length - 2);
+    /* Lo que corre después no pisa ninguna de sus funciones. */
+    const propias = [...sql.matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]);
+    for (const despues of orden.slice(pos + 1)) {
+      const texto = readFileSync(join(process.cwd(), "supabase", despues), "utf8");
+      for (const f of propias) {
+        expect(texto, `${despues} redefine ${f}`).not.toContain(`create or replace function public.${f}(`);
+      }
+    }
     for (const previa of [
       "pedidos-mesa.sql",
       "plato-aclaracion.sql",

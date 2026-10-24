@@ -115,6 +115,12 @@ export const POST = async (req: Request) => {
   if (!pedido) {
     return NextResponse.json({ ok: false, reason: "forbidden" }, { status: 403 });
   }
+  /* El aviso dice "listo" o "retirado": sale del estado que tiene el pedido
+   * en la base, no de quién llamó. Un llamado viejo o repetido con el pedido
+   * en otro estado no avisa ni sella avisado_en. */
+  if (pedido.estado !== "listo" && pedido.estado !== "retirado") {
+    return NextResponse.json({ ok: true, enviados: 0, reason: "estado" });
+  }
 
   /* Pedidos en modalidad Mesa: el aviso es del comensal (un teléfono puede
    * tener varios pedidos en la mesa) y lleva de vuelta al QR de la mesa. */

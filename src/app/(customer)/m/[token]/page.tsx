@@ -41,6 +41,9 @@ export const generateMetadata = async ({
     return {
       robots: { index: false, follow: false },
       title: counter.ok ? counter.branchName || "Cicalino" : "Cicalino",
+      /* Ni mesa ni cartel: puede ser el link de un pedido. Agregado a la
+       * pantalla de inicio, abre en ese pedido. */
+      ...(counter.ok ? {} : { manifest: `/m/${token}/manifest.webmanifest` }),
     };
   }
   return {

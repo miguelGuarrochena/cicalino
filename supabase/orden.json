@@ -105,5 +105,6 @@
   "cocina-pase.sql",
   "pedidos-realtime.sql",
   "mesa-ocupacion-pedidos.sql",
+  "table-close-waits-for-kitchen.sql",
   "data-api-grants.sql"
 ]
