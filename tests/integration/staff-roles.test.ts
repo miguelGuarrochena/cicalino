@@ -108,6 +108,14 @@ describe.skipIf(!enabled)("Integration — roles del personal", () => {
 
   /* A table with one guest who ordered a pizza (15.000). */
   const mesaConConsumo = async () => {
+    /* Con Recepción y Pagos juntos la mesa abre sesión solo si está ocupada
+     * (mesa-ocupacion-pedidos.sql): el mozo la sienta primero. */
+    await como("authenticated", mozo);
+    const sentada = await rpc(`select public.sentar_walkin($1, $2, 'Ana', 2, null, now() + interval '3 hours') r`, [
+      local,
+      [8],
+    ]);
+    expect(sentada.ok).toBe(true);
     await como("service_role", null);
     const secreto = crypto.randomUUID();
     const g = await rpc(`select public.unirse_mesa($1, 'Ana', $2) r`, [mesaToken, sha(secreto)]);
