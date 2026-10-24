@@ -25,7 +25,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Misma versión que .nvmrc: la primera 22.x con los parches de
+          # seguridad del 21/10/2026 (CVE-2026-111497 y otros).
+          node-version-file: .nvmrc
           cache: pnpm
 
       - name: Install
