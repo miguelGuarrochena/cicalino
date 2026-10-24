@@ -3,7 +3,8 @@
  *
  * Uso:
  *   pnpm db:sql              # aplica lo que falte
- *   pnpm db:sql -- --dry-run # solo lista pendientes
+ *   pnpm db:sql -- --dry-run # solo lista pendientes (sesión de solo lectura:
+ *                            # no crea el tracker ni escribe nada)
  *   pnpm db:sql:baseline     # marca TODOS como aplicados sin correrlos
  *                            # (DB ya alineada a mano)
  *
@@ -67,6 +68,14 @@ const client = new pg.Client({
 });
 await client.connect();
 
+/* Dry-run no escribe nada, ni siquiera el tracker: toda la sesión queda en
+ * solo lectura y Postgres rechaza cualquier escritura que se cuele. Antes
+ * corría security-fixes-13.sql también acá (create table / alter table /
+ * comment), que no cambia datos pero no es "solo listar". */
+if (mode === "dry-run") {
+  await client.query("set session characteristics as transaction read only");
+}
+
 const ensureTracker = async () => {
   const sql = fs.readFileSync(
     path.join(root, "supabase", tracker),
@@ -75,11 +84,20 @@ const ensureTracker = async () => {
   await client.query(sql);
 };
 
-await ensureTracker();
-
-const { rows: appliedRows } = await client.query(
-  "select archivo from public.cicalino_schema_migrations",
-);
+let appliedRows = [];
+if (mode === "dry-run") {
+  const { rows } = await client.query(
+    "select to_regclass('public.cicalino_schema_migrations') is not null as hay",
+  );
+  if (rows[0]?.hay) {
+    appliedRows = (await client.query("select archivo from public.cicalino_schema_migrations")).rows;
+  } else {
+    console.log("Sin tracker (cicalino_schema_migrations): todo figura pendiente");
+  }
+} else {
+  await ensureTracker();
+  appliedRows = (await client.query("select archivo from public.cicalino_schema_migrations")).rows;
+}
 const applied = new Set(appliedRows.map((r) => r.archivo));
 
 const fullOrden = orden.includes(tracker) ? orden : [tracker, ...orden];
