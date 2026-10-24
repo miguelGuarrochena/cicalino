@@ -74,6 +74,20 @@ describe("High — SQL migration tracker", () => {
     expect(pkg.scripts["db:migrate"]).toContain("drizzle-kit migrate");
   });
 
+  /* --dry-run se usa contra producción para ver qué falta: no puede escribir.
+   * Antes corría igual security-fixes-13.sql (create/alter/comment). */
+  it("--dry-run abre la sesión en solo lectura y no toca el tracker", () => {
+    const src = readFileSync(join(root, "scripts/db-migrate.mjs"), "utf8");
+    const ro = src.indexOf('set session characteristics as transaction read only');
+    expect(ro).toBeGreaterThan(-1);
+    expect(src.slice(src.lastIndexOf('if (mode === "dry-run")', ro), ro)).toBeTruthy();
+    expect(ro).toBeLessThan(src.indexOf("await ensureTracker();"));
+    const rama = src.slice(src.indexOf('let appliedRows'), src.indexOf("const applied ="));
+    const dry = rama.slice(0, rama.indexOf("} else {"));
+    expect(dry).not.toContain("ensureTracker");
+    expect(dry).toContain("to_regclass('public.cicalino_schema_migrations')");
+  });
+
   it("chequeo-migraciones registra security-fixes-13", () => {
     expect(chequeo).toContain(
       "('security-fixes-13.sql', 'table', 'cicalino_schema_migrations', 48)",

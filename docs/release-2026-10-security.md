@@ -97,7 +97,9 @@ GitHub). Cada paso necesita autorización.
 4. Merge del PR → deployment de producción. Revisar el estado del deployment
    y los logs de las primeras operaciones.
 5. Antes de migrar, leer el historial de producción en solo lectura:
-   `pnpm db:sql -- --dry-run` (se conecta a la base de `.env.local`). Tiene que
+   `pnpm db:sql -- --dry-run` (se conecta a la base de `.env.local`; desde
+   `fix/db-sql-dry-run-readonly` abre la sesión en solo lectura y no corre el
+   tracker, antes ejecutaba `security-fixes-13.sql` también en dry-run). Tiene que
    listar como pendiente solo `table-close-waits-for-kitchen.sql` (si aparece
    `mesa-ocupacion-pedidos.sql`, falta aplicar ese primero).
 6. Aplicar en un momento de poco movimiento: `pnpm db:sql`, y después el
