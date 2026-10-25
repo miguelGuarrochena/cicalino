@@ -43,6 +43,8 @@ export const POST = async (
 
   const mesa = await resolveTableQr(token);
   if (!mesa.ok) {
+    /* El QR de una mesa que no toma pedidos no repone la identidad del mostrador. */
+    if (mesa.reason !== "not-found") return failure(mesa.reason);
     const pickup = await fetchPickupState(token, creds, "mostrador_qr");
     if (!pickup.ok) return failure(pickup.reason === "not-found" ? mesa.reason : pickup.reason);
     if (!pickup.state.guest) return failure("no-guest");

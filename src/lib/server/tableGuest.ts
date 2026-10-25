@@ -116,7 +116,18 @@ export const resolveTableQr = async (token: string): Promise<TableQr> => {
   if (error || !data) return { ok: false, reason: "not-found" };
   const r = data as Record<string, unknown>;
   if (!r.ok) {
-    return { ok: false, reason: r.reason === "not-available" ? "not-available" : "not-found" };
+    if (r.reason === "not-available") return { ok: false, reason: "not-available" };
+    /* mesa_por_qr también dice not-found para una mesa que existe pero cuyo
+     * QR hoy no lleva a ningún flujo (Mesa apagada, sticker de Pagos
+     * apagado). Ese token sigue siendo de una mesa: no es un QR viejo ni el
+     * del mostrador, y quien lo escanea tiene que ver que la mesa no toma
+     * pedidos, no la pantalla del mostrador. */
+    const { data: mesa } = await admin
+      .from("mesas")
+      .select("id")
+      .eq("qr_token", token)
+      .maybeSingle();
+    return { ok: false, reason: mesa ? "not-available" : "not-found" };
   }
   return {
     ok: true,

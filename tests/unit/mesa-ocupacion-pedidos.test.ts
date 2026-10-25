@@ -199,7 +199,7 @@ describe("mesa-ocupacion-pedidos — lo que ve el cliente", () => {
 
   it("los cuatro mensajes están en español y en inglés", () => {
     for (const frase of [
-      "La mesa todavía no está habilitada para pedidos.",
+      "Esta mesa todavía no está habilitada para pedidos. Avisale al personal que llegaste",
       "Esta mesa tiene una reserva próxima.",
       "La sesión de esta mesa ya no está activa.",
       "La mesa fue liberada y necesitás validar nuevamente tu acceso.",
