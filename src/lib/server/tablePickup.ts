@@ -90,6 +90,9 @@ export const resolvePickupQr = async (token: string): Promise<PickupQr> => {
       tableNumber: mesa.tableNumber,
     };
   }
+  /* El token es de una mesa que hoy no toma pedidos: nunca es el mostrador
+   * (ni un cartel del mostrador regenerado, ver resolvePickupAccess). */
+  if (mesa.reason !== "not-found") return mesa;
   const counter = await resolveCounterQr(token);
   if (!counter.ok) return counter;
   return { ...counter, flow: "mostrador_qr", tableNumber: null };

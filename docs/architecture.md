@@ -193,6 +193,18 @@ QR de mesa (/m/[token]) → mesa_por_qr devuelve flujo = autoservicio
   que las funciones de la cuenta compartida operen sobre una mesa de
   autoservicio (y al revés). El piso y el historial de Pagos filtran por
   `flujo = 'cuenta'`.
+- **Con Recepción habilitada** (`modulo_espera` + `modulo_pedidos`,
+  `mesa_sync_recepcion_pedidos`): el QR de una mesa libre no toma pedidos
+  (`mesa-no-habilitada`). El personal tiene que ocupar la mesa en Recepción
+  (walk-in, lista de espera o reserva sentada) y recién ahí el QR abre la
+  sesión. El QR nunca ocupa la mesa por su cuenta. Sin Recepción, una mesa
+  libre pide directo.
+- **Un token de mesa nunca es el mostrador**: si `mesa_por_qr` rechaza un
+  token que existe en `mesas` (por ejemplo, con Mesa apagada), `resolveTableQr`
+  lo informa como `not-available` y no se prueba como QR del mostrador ni como
+  cartel del mostrador regenerado. Sin esto, un teléfono que ya había pedido
+  en el mostrador veía la mesa como "Pedí desde tu celular · Este QR ya no
+  está vigente".
 - **Volver a escanear**: el mismo QR sirve para pedir de nuevo y para ver el
   estado. `mesa_autoservicio_estado` devuelve los pedidos del teléfono (por la
   cookie) y, sin cookie, los pedidos vivos de esa mesa con número y estado.
@@ -378,6 +390,10 @@ las policies se comportan igual que en producción.
 
 ## Pendiente
 
+- Decisión funcional: en un local con Mesa y Recepción, ¿el cliente que se
+  sienta solo en una mesa libre tiene que esperar a que el personal la ocupe?
+  Hoy sí (ver "Con Recepción habilitada"); la pantalla del QR no muestra la
+  carta hasta entonces.
 - Verificar contra una base local: `pnpm test:db:local` (`scripts/db-local-check.mjs`)
   migra y corre `test:db` solo si el host es loopback; `pnpm db:sql` y
   `pnpm test:db` siguen leyendo `.env.local`, que es producción.
